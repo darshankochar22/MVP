@@ -19,6 +19,7 @@
     "wait-on": "^9.0.10"
   },
   "dependencies": {
-    "bcrypt": "^6.0.0"
+    "bcrypt": "^6.0.0",
+    "better-sqlite3": "^12.10.0"
   }
 }
