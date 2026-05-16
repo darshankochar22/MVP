@@ -8,6 +8,11 @@ const godownService = require('./godownService');
 const currencyService = require('./currencyService');
 const voucherTypeService = require('./voucherTypeService');
 const gstClassificationService = require('./gstClassificationService');
+const employeeGroupService = require('./employeeGroupService');
+const payrollUnitService = require('./payrollUnitService');
+const tallyFeaturesService = require('./tallyFeaturesService');
+const companyCreationSuccessService = require('./companyCreationSuccessService');
+const companyFeatureValuesService = require('./companyFeatureValuesService');
 
 module.exports = {
     create: async (data) => {
@@ -66,6 +71,11 @@ module.exports = {
             currencyService.seedDefaultCurrency(company_id);
             voucherTypeService.seedDefaultVoucherTypes(company_id);
             gstClassificationService.seedDefaultGSTClassifications(company_id);
+            employeeGroupService.seedDefaultEmployeeGroups(company.company_id);
+            payrollUnitService.seedDefaultPayrollUnits(company.company_id);
+            tallyFeaturesService.seedDefaultFeatures(company.company_id);
+            companyCreationSuccessService.seedCompanyCreationSuccess(company.company_id);
+            companyFeatureValuesService.seedCompanyFeatureValues(company.company_id);
 
             const company = db.prepare(`SELECT * FROM companies WHERE company_id = ?`).get(company_id);
             const { password, ...safe } = company;

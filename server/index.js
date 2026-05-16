@@ -17,7 +17,14 @@ const currencyController = require('./controllers/currencyController');
 const voucherTypeController = require('./controllers/voucherTypeController');
 const gstRegistrationController = require('./controllers/gstRegistrationController');
 const gstClassificationController = require('./controllers/gstClassificationController');
-
+const employeeGroupController = require('./controllers/employeeGroupController');
+const employeeController = require('./controllers/employeeController');
+const payrollUnitController = require('./controllers/payrollUnitController');
+const tallyFeaturesController = require('./controllers/tallyFeaturesController');
+const companyCreationSuccessController = require('./controllers/companyCreationSuccessController');
+const featureGroupController = require('./controllers/featureGroupController');
+const featureItemController = require('./controllers/featureItemController');
+const companyFeatureValuesController = require('./controllers/companyFeatureValuesController');
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);
@@ -137,3 +144,42 @@ ipcMain.handle('gstClassification:getAll', gstClassificationController.getAll);
 ipcMain.handle('gstClassification:getById', gstClassificationController.getById);
 ipcMain.handle('gstClassification:update', gstClassificationController.update);
 ipcMain.handle('gstClassification:delete', gstClassificationController.delete);
+
+ipcMain.handle('employeeGroup:create', employeeGroupController.create);
+ipcMain.handle('employeeGroup:getAll', employeeGroupController.getAll);
+ipcMain.handle('employeeGroup:getById', employeeGroupController.getById);
+ipcMain.handle('employeeGroup:update', employeeGroupController.update);
+ipcMain.handle('employeeGroup:delete', employeeGroupController.delete);
+ipcMain.handle('employeeGroup:getTree', employeeGroupController.getTree);
+
+ipcMain.handle('employee:create', employeeController.create);
+ipcMain.handle('employee:getAll', employeeController.getAll);
+ipcMain.handle('employee:getById', employeeController.getById);
+ipcMain.handle('employee:update', employeeController.update);
+ipcMain.handle('employee:delete', employeeController.delete);
+ipcMain.handle('employee:getByGroup', employeeController.getByGroup);
+
+ipcMain.handle('payrollUnit:create', payrollUnitController.create);
+ipcMain.handle('payrollUnit:getAll', payrollUnitController.getAll);
+ipcMain.handle('payrollUnit:getById', payrollUnitController.getById);
+ipcMain.handle('payrollUnit:update', payrollUnitController.update);
+ipcMain.handle('payrollUnit:delete', payrollUnitController.delete);
+
+ipcMain.handle('tallyFeatures:get', tallyFeaturesController.get);
+ipcMain.handle('tallyFeatures:update', tallyFeaturesController.update);
+ipcMain.handle('tallyFeatures:reset', tallyFeaturesController.reset);
+
+ipcMain.handle('companyCreationSuccess:get', companyCreationSuccessController.get);
+ipcMain.handle('companyCreationSuccess:update', companyCreationSuccessController.update);
+
+ipcMain.handle('featureGroup:getAll', featureGroupController.getAll);
+ipcMain.handle('featureGroup:getById', featureGroupController.getById);
+
+ipcMain.handle('featureItem:getAll', featureItemController.getAll);
+ipcMain.handle('featureItem:getById', featureItemController.getById);
+ipcMain.handle('featureItem:getByGroup', featureItemController.getByGroup);
+
+ipcMain.handle('companyFeatureValues:get', companyFeatureValuesController.get);
+ipcMain.handle('companyFeatureValues:getByGroup', companyFeatureValuesController.getByGroup);
+ipcMain.handle('companyFeatureValues:update', companyFeatureValuesController.update);
+ipcMain.handle('companyFeatureValues:updateBulk', companyFeatureValuesController.updateBulk);
