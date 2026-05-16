@@ -14,6 +14,7 @@ const voucherController = require('./controllers/voucherController');
 const reportController = require('./controllers/reportController');
 const bankingController = require('./controllers/bankingController');
 const currencyController = require('./controllers/currencyController');
+const voucherTypeController = require('./controllers/voucherTypeController');
 
 
 ipcMain.handle('company:create', companyController.create);
@@ -114,3 +115,11 @@ ipcMain.handle('currency:getById', currencyController.getById);
 ipcMain.handle('currency:update', currencyController.update);
 ipcMain.handle('currency:delete', currencyController.delete);
 ipcMain.handle('currency:setDefault', currencyController.setDefault);
+
+ipcMain.handle('voucherType:create', voucherTypeController.create);
+ipcMain.handle('voucherType:getAll', voucherTypeController.getAll);
+ipcMain.handle('voucherType:getById', voucherTypeController.getById);
+ipcMain.handle('voucherType:update', voucherTypeController.update);
+ipcMain.handle('voucherType:delete', voucherTypeController.delete);
+ipcMain.handle('voucherType:getConfig', voucherTypeController.getConfig);
+ipcMain.handle('voucherType:updateConfig', voucherTypeController.updateConfig);
