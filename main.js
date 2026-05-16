@@ -1,11 +1,7 @@
-const { app, BrowserWindow } =  require('electron');
+const { app, BrowserWindow } = require('electron');
 const path = require('path');
 
-const { ipcMain } = require('electron');
-
-ipcMain.handle('your-channel', async (event,data) => {
-    return { success : true };
-});
+require('./server/index.js');
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -23,12 +19,11 @@ function createWindow() {
 
 app.whenReady().then(() => {
     createWindow();
-
     app.on('activate', () => {
-        if(BrowserWindow.getAllWindows().length === 0) createWindow();
+        if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
 });
 
 app.on('window-all-closed', () => {
-    if(process.platform !== 'darwin') app.quit();
+    if (process.platform !== 'darwin') app.quit();
 });

@@ -4,8 +4,10 @@
   "description": "",
   "main": "main.js",
   "scripts": {
-    "dev": "cd client && npm run dev",
-    "electron": "electron .",
+    "dev:client": "cd client && npm run dev",
+    "dev:server": "node server/index.js",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "electron": "wait-on http://localhost:5173 && electron .",
     "start": "concurrently \"npm run dev\" \"npm run electron\""
   },
   "keywords": [],
@@ -14,7 +16,8 @@
   "type": "commonjs",
   "devDependencies": {
     "concurrently": "^9.2.1",
-    "electron": "^42.0.1"
+    "electron": "^42.0.1",
+    "wait-on": "^9.0.10"
   },
   "dependencies": {
     "bcrypt": "^6.0.0"
