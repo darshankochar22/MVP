@@ -8,6 +8,9 @@ const costCentreController = require('./controllers/costController');
 const unitController = require('./controllers/unitController');
 const stockGroupController = require('./controllers/stockGroupController');
 const stockCategoryController = require('./controllers/stockCategoryController');
+const stockItemController = require('./controllers/stockItemController');
+const godownController = require('./controllers/godownController');
+
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);
@@ -61,3 +64,18 @@ ipcMain.handle('stockCategory:getAll', stockCategoryController.getAll);
 ipcMain.handle('stockCategory:getById', stockCategoryController.getById);
 ipcMain.handle('stockCategory:update', stockCategoryController.update);
 ipcMain.handle('stockCategory:delete', stockCategoryController.delete);
+
+ipcMain.handle('stockItem:create', stockItemController.create);
+ipcMain.handle('stockItem:getAll', stockItemController.getAll);
+ipcMain.handle('stockItem:getById', stockItemController.getById);
+ipcMain.handle('stockItem:update', stockItemController.update);
+ipcMain.handle('stockItem:delete', stockItemController.delete);
+ipcMain.handle('stockItem:getByGroup', stockItemController.getByGroup);
+ipcMain.handle('stockItem:getByCategory', stockItemController.getByCategory);
+
+ipcMain.handle('godown:create', godownController.create);
+ipcMain.handle('godown:getAll', godownController.getAll);
+ipcMain.handle('godown:getById', godownController.getById);
+ipcMain.handle('godown:update', godownController.update);
+ipcMain.handle('godown:delete', godownController.delete);
+ipcMain.handle('godown:getTree', godownController.getTree);

@@ -1,3 +1,4 @@
+
 let stockGroups = [];
 
 const buildTree = (all, parentId = null) => {

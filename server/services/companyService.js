@@ -3,6 +3,7 @@ const groupService = require('./groupService');
 const ledgerService = require('./ledgerService'); 
 const unitService = require('./unitService');
 const stockGroupService = require('./stockGroupService');
+const godownService = require('./godownService');
 
 let companies = [];
 
@@ -45,6 +46,7 @@ module.exports = {
             ledgerService.seedDefaultLedgers(company.company_id, allGroups); 
             unitService.seedDefaultUnits(company.company_id);
             stockGroupService.seedDefaultStockGroups(company.company_id);
+            godownService.seedDefaultGodowns(company.company_id);
             return { success: true, company };
         } catch (err) {
             return { success: false, error: err.message };
