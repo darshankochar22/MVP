@@ -1,16 +1,22 @@
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
 import RightPanel from "../../../components/RightPanel.tsx";
+import type { LedgerType } from "../../types/api";
 
 export default function Vouchers() {
-  const ledgerAccounts = [
-    "Arum Mobile",
-    "Bombay Shaving Company",
-    "Chintu Dry clean",
-    "Daddy Eats",
-    "Elephemt Care & Nutrition",
-    "Foregin Investors Group",
-    "Gray Scale Images",
-  ];
+  const [ledgerAccounts, setLedgerAccounts] = useState<LedgerType[]>([]);
+
+  useEffect(() => {
+    async function fetchLedgers() {
+      try {
+        const data = await window.api.ledger.getAll();
+        setLedgerAccounts(data || []);
+      } catch (err) {
+        console.error("Failed to fetch ledgers:", err);
+      }
+    }
+    fetchLedgers();
+  }, []);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6 py-10">
@@ -97,12 +103,12 @@ export default function Vouchers() {
 
             {ledgerAccounts.map((ledger) => (
               <div
-                key={ledger}
+                key={ledger.id || ledger.name}
                 className="flex flex-col gap-3"
               >
 
                 <div className="text-lg">
-                  {ledger}
+                  {ledger.name}
                 </div>
                 <div className="w-full" />
               </div>

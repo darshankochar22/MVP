@@ -1,4 +1,6 @@
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import type { CompanyType } from "../types/api";
 
 export default function Company() {
   const companyActions = [
@@ -8,11 +10,19 @@ export default function Company() {
     "Shut Company",
   ];
 
-  const companies = [
-    "ABC Pvt Ltd",
-    "XYZ Traders",
-    "Demo Company",
-  ];
+  const [companies, setCompanies] = useState<CompanyType[]>([]);
+
+  useEffect(() => {
+    async function fetchCompanies() {
+      try {
+        const data = await window.api.company.getAll();
+        setCompanies(data || []);
+      } catch (err) {
+        console.error("Failed to fetch companies:", err);
+      }
+    }
+    fetchCompanies();
+  }, []);
 
   return (
     <div className="flex min-h-[500px] w-full">
@@ -46,10 +56,10 @@ export default function Company() {
 
           {companies.map((company) => (
             <div
-              key={company}
-              className="px-4 py-3 rounded cursor-pointer"
+              key={company.id || company.name}
+              className="px-4 py-3 rounded cursor-pointer border hover:bg-zinc-100 dark:hover:bg-zinc-800"
             >
-              {company}
+              {company.name}
             </div>
           ))}
 
