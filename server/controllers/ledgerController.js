@@ -1,4 +1,4 @@
-const ledgerService = require('../service/ledgerService');
+const ledgerService = require('../services/ledgerService');
 
 module.exports = {
     create: async (event, data) => {

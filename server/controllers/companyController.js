@@ -1,4 +1,4 @@
-const companyService = require('../service/companyService');
+const companyService = require('../services/companyService');
 
 module.exports = {
     create: async (event, data) => {
