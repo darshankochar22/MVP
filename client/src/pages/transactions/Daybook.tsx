@@ -1,18 +1,31 @@
 import { Link } from "react-router-dom";
-
-const entries = [
-  {
-    id: 1,
-    date: "11-May-2026",
-    particulars: "Krishna Kumar Dewangan",
-    vchType: "Sales",
-    vchNo: "383",
-    debit: "16,278",
-    credit: "",
-  },
-];
+import { useState, useEffect } from "react";
+import type { DaybookEntry } from "../../types/api";
 
 export default function Daybook() {
+  const [entries, setEntries] = useState<DaybookEntry[]>([]);
+  const [totals, setTotals] = useState({ debit: 0, credit: 0 });
+
+  useEffect(() => {
+    async function fetchDaybook() {
+      try {
+        const data = await window.api.voucher.getDaybook({});
+        setEntries(data || []);
+        
+        let debit = 0;
+        let credit = 0;
+        (data || []).forEach((entry: DaybookEntry) => {
+          debit += Number(entry.debit) || 0;
+          credit += Number(entry.credit) || 0;
+        });
+        setTotals({ debit, credit });
+      } catch (err) {
+        console.error("Failed to fetch daybook:", err);
+      }
+    }
+    fetchDaybook();
+  }, []);
+
   return (
     <div className="min-h-screen p-6">
       <Link to="/" className="px-4 py-2">
@@ -56,16 +69,16 @@ export default function Daybook() {
                     </span>
                   </td>
                   <td className="px-4 py-3 border ">{entry.vchNo}</td>
-                  <td className="px-4 py-3 text-right border ">{entry.debit || "—"}</td>
-                  <td className="px-4 py-3 text-right border ">{entry.credit || "—"}</td>
+                  <td className="px-4 py-3 text-right border ">{entry.debit ? entry.debit : "—"}</td>
+                  <td className="px-4 py-3 text-right border ">{entry.credit ? entry.credit : "—"}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="font-medium text-sm">
                 <td colSpan={4} className="px-4 py-2 text-right border">Total</td>
-                <td className="px-4 py-2 text-right border ">16,278</td>
-                <td className="px-4 py-2 text-right border ">—</td>
+                <td className="px-4 py-2 text-right border ">{totals.debit || "—"}</td>
+                <td className="px-4 py-2 text-right border ">{totals.credit || "—"}</td>
               </tr>
             </tfoot>
           </table>
