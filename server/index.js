@@ -28,6 +28,10 @@ const companyFeatureValuesController = require('./controllers/companyFeatureValu
 const attendanceTypeController = require('./controllers/attendanceTypeController');
 const payHeadController = require('./controllers/payHeadController');
 const salaryStructureController = require('./controllers/salaryStructureController');
+const trialBalanceReportController = require('./controllers/trialBalanceReportController');
+const balanceSheetReportController = require('./controllers/balanceSheetReportController');
+const profitLossReportController = require('./controllers/profitLossReportController');
+const dayBookReportController = require('./controllers/dayBookReportController');
 
 
 ipcMain.handle('company:create', companyController.create);
@@ -207,3 +211,23 @@ ipcMain.handle('salaryStructure:getByEmployee', salaryStructureController.getByE
 ipcMain.handle('salaryStructure:update', salaryStructureController.update);
 ipcMain.handle('salaryStructure:delete', salaryStructureController.delete);
 ipcMain.handle('salaryStructure:createBulk', salaryStructureController.createBulk);
+
+ipcMain.handle('trialBalanceReport:create', trialBalanceReportController.create);
+ipcMain.handle('trialBalanceReport:getAll', trialBalanceReportController.getAll);
+ipcMain.handle('trialBalanceReport:getById', trialBalanceReportController.getById);
+ipcMain.handle('trialBalanceReport:delete', trialBalanceReportController.delete);
+
+ipcMain.handle('balanceSheetReport:create', balanceSheetReportController.create);
+ipcMain.handle('balanceSheetReport:getAll', balanceSheetReportController.getAll);
+ipcMain.handle('balanceSheetReport:getById', balanceSheetReportController.getById);
+ipcMain.handle('balanceSheetReport:delete', balanceSheetReportController.delete);
+
+ipcMain.handle('profitLossReport:create', profitLossReportController.create);
+ipcMain.handle('profitLossReport:getAll', profitLossReportController.getAll);
+ipcMain.handle('profitLossReport:getById', profitLossReportController.getById);
+ipcMain.handle('profitLossReport:delete', profitLossReportController.delete);
+
+ipcMain.handle('dayBookReport:create', dayBookReportController.create);
+ipcMain.handle('dayBookReport:getAll', dayBookReportController.getAll);
+ipcMain.handle('dayBookReport:getById', dayBookReportController.getById);
+ipcMain.handle('dayBookReport:delete', dayBookReportController.delete);
