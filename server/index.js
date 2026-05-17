@@ -32,6 +32,8 @@ const trialBalanceReportController = require('./controllers/trialBalanceReportCo
 const balanceSheetReportController = require('./controllers/balanceSheetReportController');
 const profitLossReportController = require('./controllers/profitLossReportController');
 const dayBookReportController = require('./controllers/dayBookReportController');
+const masterController = require("./controllers/masterController");
+
 
 
 ipcMain.handle('company:create', companyController.create);
@@ -231,3 +233,4 @@ ipcMain.handle('dayBookReport:create', dayBookReportController.create);
 ipcMain.handle('dayBookReport:getAll', dayBookReportController.getAll);
 ipcMain.handle('dayBookReport:getById', dayBookReportController.getById);
 ipcMain.handle('dayBookReport:delete', dayBookReportController.delete);
+ipcMain.handle('master:getMenu', masterController.getMenu);

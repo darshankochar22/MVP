@@ -271,6 +271,10 @@ declare global {
         update: (data: Partial<GenericModel>) => Promise<GenericModel>
         delete: (id: number) => Promise<boolean>
       }
+
+      master: {
+        getMenu: (company_id?: number) => Promise<{success: boolean, menu: {title: string, items: string[]}[]}>
+      }
     }
   }
 }

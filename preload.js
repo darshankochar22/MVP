@@ -139,4 +139,7 @@ contextBridge.exposeInMainWorld('api', {
         update:  (data) => invoke('gstClassification:update', data),
         delete:  (id)   => invoke('gstClassification:delete', id),
     },
+    master: {
+        getMenu: (company_id) => invoke('master:getMenu', company_id),
+    },
 });
