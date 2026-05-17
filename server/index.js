@@ -32,9 +32,13 @@ const trialBalanceReportController = require('./controllers/trialBalanceReportCo
 const balanceSheetReportController = require('./controllers/balanceSheetReportController');
 const profitLossReportController = require('./controllers/profitLossReportController');
 const dayBookReportController = require('./controllers/dayBookReportController');
+<<<<<<< HEAD
 const masterController = require("./controllers/masterController");
 
 
+=======
+const voucherEntryActionsController = require('./controllers/voucherEntryActionsController');
+>>>>>>> 7b67c586df200251e2f613f2e35ba4770ae482e6
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);
@@ -234,3 +238,8 @@ ipcMain.handle('dayBookReport:getAll', dayBookReportController.getAll);
 ipcMain.handle('dayBookReport:getById', dayBookReportController.getById);
 ipcMain.handle('dayBookReport:delete', dayBookReportController.delete);
 ipcMain.handle('master:getMenu', masterController.getMenu);
+
+ipcMain.handle('voucherEntryActions:create', voucherEntryActionsController.create);
+ipcMain.handle('voucherEntryActions:getAll', voucherEntryActionsController.getAll);
+ipcMain.handle('voucherEntryActions:getByVoucher', voucherEntryActionsController.getByVoucher);
+ipcMain.handle('voucherEntryActions:delete', voucherEntryActionsController.delete);
