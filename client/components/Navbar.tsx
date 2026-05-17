@@ -164,6 +164,7 @@ export default function Navbar() {
           {openMenu === section.name && (
             <MenuCard
               options={section.options}
+              onItemClick={() => setOpenMenu("")}
             />
           )}
         </div>
