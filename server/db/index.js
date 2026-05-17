@@ -40,6 +40,7 @@ const initDB = async () => {
   await require('./profitLossReport').init(db);
   await require('./trialBalanceReport').init(db);
   await require('./salaryStructure').init(db);
+  await require('./voucherEntryActions').init(db);
 };
 
 module.exports = { db, initDB };

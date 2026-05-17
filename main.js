@@ -1,5 +1,6 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
+const isDev = !app.isPackaged;
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -12,7 +13,12 @@ function createWindow() {
         },
     });
 
-    win.loadURL('http://localhost:5173');
+    if (isDev) {
+        win.loadURL('http://localhost:5173');
+    } else {
+        win.loadFile(path.join(app.getAppPath(), 'client', 'dist', 'index.html'));
+        win.webContents.openDevTools();
+    }
 }
 
 app.whenReady().then(async () => {
@@ -23,7 +29,7 @@ app.whenReady().then(async () => {
         createWindow();
     } catch (err) {
         console.error('DB init failed:', err);
-        app.quit();
+        createWindow();
     }
 
     app.on('activate', () => {

@@ -1,5 +1,5 @@
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HashRouter, Routes, Route } from "react-router-dom";
 import './index.css';
 import Layout from "./Layout.tsx";
 import App from './App.tsx';
@@ -13,7 +13,7 @@ import Daybook from "./pages/transactions/Daybook.tsx";
 import Banking from './pages/utilities/Banking';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <BrowserRouter>
+  <HashRouter>
     <Routes>
       <Route element={<Layout />}>
         <Route path="/" element={<App />} />
@@ -27,5 +27,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <Route path="/data/:controller" element={<GenericDataView />} />
       </Route>
     </Routes>
-  </BrowserRouter>
+  </HashRouter>
 )
