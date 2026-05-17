@@ -2,10 +2,11 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import './index.css';
 import App from './App.tsx';
+import GenericDataView from './pages/GenericDataView.tsx';
 import Company from "./pages/Company.tsx";
 import Create from "./pages/master/Create.tsx";
 import Alter from "./pages/master/Alter.tsx";
-import COA from "./pages/master/coa.tsx";
+import COA from "./pages/master/COA.tsx";
 import Vouchers from "./pages/transactions/Vouchers.tsx";
 import Daybook from "./pages/transactions/Daybook.tsx";
 import Banking from './pages/utilities/Banking';
@@ -22,6 +23,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <Route path="/transactions/vouchers" element={<Vouchers />}/>
       <Route path="/transactions/daybook" element={<Daybook />}/>
       <Route path="/utilities/banking" element={<Banking/>} />
+      <Route path="/data/:controller" element={<GenericDataView />} />
     </Routes>
   </BrowserRouter>
 )
