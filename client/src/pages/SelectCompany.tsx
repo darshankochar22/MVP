@@ -38,9 +38,9 @@ export default function SelectCompany({ onSuccess, onCancel }: Props) {
   return (
     <div className="flex flex-col h-full">
 
-      <div className="px-6 py-3 border-b border-blue-800 flex items-center justify-between shrink-0">
+      <div className="px-6 py-3 flex items-center justify-between shrink-0">
         <span className="font-semibold text-base">Select Company</span>
-        <span className="text-xs text-zinc-600">Esc to cancel</span>
+        <span className="text-xs text-zinc-500">Esc to cancel</span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-4">
@@ -50,7 +50,7 @@ export default function SelectCompany({ onSuccess, onCancel }: Props) {
           <div className="text-sm text-zinc-500 text-center py-8">No companies found.</div>
         ) : (
           <>
-            <div className="text-xs uppercase tracking-widest text-zinc-600 mb-1">
+            <div className="text-xs uppercase tracking-widest text-zinc-500 mb-1">
               List of Companies
             </div>
             <div className="flex flex-col gap-2">
@@ -63,13 +63,15 @@ export default function SelectCompany({ onSuccess, onCancel }: Props) {
                     onClick={() => handleSelect(company)}
                     className={`px-4 py-3 rounded cursor-pointer border transition-colors ${
                       isSelected
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "border-blue-200 hover:bg-blue-100 hover:border-blue-300"
+                        ? "bg-black text-white border-black"
+                        : "border-zinc-200 hover:bg-black hover:text-white hover:border-black"
                     }`}
                   >
                     <div className="font-medium">{company.name}</div>
                     {company.mailing_name && company.mailing_name !== company.name && (
-                      <div className="text-xs text-zinc-500 mt-0.5">{company.mailing_name}</div>
+                      <div className={`text-xs mt-0.5 ${isSelected ? "text-zinc-300" : "text-zinc-500"}`}>
+                        {company.mailing_name}
+                      </div>
                     )}
                   </div>
                 );
@@ -79,10 +81,10 @@ export default function SelectCompany({ onSuccess, onCancel }: Props) {
         )}
       </div>
 
-      <div className="px-6 py-3 border-t border-blue-800 flex justify-end gap-3 shrink-0">
+      <div className="px-6 py-3 border-t border-zinc-200 flex justify-end gap-3 shrink-0">
         <button
           onClick={onCancel}
-          className="text-sm px-4 py-1.5 rounded border border-blue-300 text-blue-600 hover:bg-blue-100 hover:border-blue-400 hover:text-blue-800 transition-colors"
+          className="text-sm px-4 py-1.5 rounded border border-zinc-300 text-zinc-600 hover:bg-black hover:text-white hover:border-black transition-colors"
         >
           Cancel
         </button>
