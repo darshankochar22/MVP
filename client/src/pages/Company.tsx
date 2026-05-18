@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import type { CompanyType } from "../types/api";
 import CompanyCreate from "./CompanyCreate";
+import AlterCompany from "./AlterCompany";
 
 type ActiveAction = "Create Company" | "Alter Company" | "Select Company" | "Shut Company" | null;
 
@@ -15,6 +16,7 @@ export default function Company() {
 
   const [companies, setCompanies] = useState<CompanyType[]>([]);
   const [activeAction, setActiveAction] = useState<ActiveAction>(null);
+  const [selectedCompany, setSelectedCompany] = useState<CompanyType | null>(null);
 
 const fetchCompanies = async (): Promise<CompanyType[]> => {
   try {
@@ -34,11 +36,28 @@ const fetchCompanies = async (): Promise<CompanyType[]> => {
 
   const handleActionClick = (action: ActiveAction) => {
     setActiveAction((prev) => (prev === action ? null : action));
+    setSelectedCompany(null);
   };
 
 const handleCreateSuccess = () => {
   fetchCompanies().then(setCompanies);
   setActiveAction(null);
+};
+
+const handleAlterSuccess = () => {
+  fetchCompanies().then(setCompanies);
+  setActiveAction(null);
+  setSelectedCompany(null);
+};
+
+const handleAlterCancel = () => {
+  setSelectedCompany(null);
+};
+
+const handleCompanyClick = (company: CompanyType) => {
+  if (activeAction === "Alter Company") {
+    setSelectedCompany(company);
+  }
 };
 
   return (
@@ -70,9 +89,20 @@ const handleCreateSuccess = () => {
             onSuccess={handleCreateSuccess}
             onCancel={() => setActiveAction(null)}
           />
+        ) : activeAction === "Alter Company" && selectedCompany ? (
+          <AlterCompany
+            key={selectedCompany.company_id}
+            company={selectedCompany}
+            onSuccess={handleAlterSuccess}
+            onCancel={handleAlterCancel}
+          />
         ) : (
           <div className="px-6 py-6 flex flex-col gap-4 overflow-y-auto">
-            <div className="text-xl font-semibold">List of Companies</div>
+            <div className="text-xl font-semibold">
+              {activeAction === "Alter Company"
+                ? "Select a company to alter"
+                : "List of Companies"}
+            </div>
 
             {companies.length === 0 ? (
               <div className="text-sm text-zinc-500">No companies found.</div>
@@ -81,7 +111,12 @@ const handleCreateSuccess = () => {
                 {companies.map((company) => (
                   <div
                     key={company.company_id || company.name}
-                    className="px-4 py-3 rounded cursor-pointer border hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    onClick={() => handleCompanyClick(company)}
+                    className={`px-4 py-3 rounded cursor-pointer border transition-colors ${
+                      activeAction === "Alter Company"
+                        ? "hover:bg-blue-600/20 hover:border-blue-600"
+                        : "hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    }`}
                   >
                     {company.name}
                   </div>
