@@ -4,6 +4,7 @@ import type { CompanyType } from "../types/api";
 import CompanyCreate from "./CompanyCreate";
 import AlterCompany from "./AlterCompany";
 import ShutCompany from "./ShutCompany";
+import SelectCompany from "./SelectCompany";
 
 type ActiveAction = "Create Company" | "Alter Company" | "Select Company" | "Shut Company" | null;
 
@@ -65,6 +66,10 @@ const handleShutCancel = () => {
   setSelectedCompany(null);
 };
 
+const handleSelectSuccess = () => {
+  setActiveAction(null);
+};
+
 const handleCompanyClick = (company: CompanyType) => {
   if (activeAction === "Alter Company" || activeAction === "Shut Company") {
     setSelectedCompany(company);
@@ -113,6 +118,11 @@ const handleCompanyClick = (company: CompanyType) => {
             company={selectedCompany}
             onSuccess={handleShutSuccess}
             onCancel={handleShutCancel}
+          />
+        ) : activeAction === "Select Company" ? (
+          <SelectCompany
+            onSuccess={handleSelectSuccess}
+            onCancel={() => setActiveAction(null)}
           />
         ) : (
           <div className="px-6 py-6 flex flex-col gap-4 overflow-y-auto">

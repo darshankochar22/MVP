@@ -1,13 +1,17 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { useCompany } from "../../context/CompanyContext";
 
 export default function COA() {
+  const { selectedCompany } = useCompany();
   const [masterSections, setMasterSections] = useState<{title: string, items: string[]}[]>([]);
 
   useEffect(() => {
+    const companyId = selectedCompany?.company_id;
+    if (!companyId) return;
     async function fetchMenu() {
       try {
-        const data = await window.api.master.getMenu(1);
+        const data = await window.api.master.getMenu(companyId);
         if (data && data.success) {
           setMasterSections(data.menu);
         }
@@ -16,7 +20,7 @@ export default function COA() {
       }
     }
     fetchMenu();
-  }, []);
+  }, [selectedCompany]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6 py-10">
