@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import type { CompanyType } from "../types/api";
+import { useCompany } from "../context/CompanyContext";
 import CompanyCreate from "./CompanyCreate";
 import AlterCompany from "./AlterCompany";
 import ShutCompany from "./ShutCompany";
@@ -19,6 +20,7 @@ export default function Company() {
   const [companies, setCompanies] = useState<CompanyType[]>([]);
   const [activeAction, setActiveAction] = useState<ActiveAction>(null);
   const [selectedCompany, setSelectedCompany] = useState<CompanyType | null>(null);
+  const { setSelectedCompany: setGlobalCompany } = useCompany();
 
 const fetchCompanies = async (): Promise<CompanyType[]> => {
   try {
@@ -42,7 +44,12 @@ const fetchCompanies = async (): Promise<CompanyType[]> => {
   };
 
 const handleCreateSuccess = () => {
-  fetchCompanies().then(setCompanies);
+  fetchCompanies().then((list) => {
+    setCompanies(list);
+    if (list.length === 1) {
+      setGlobalCompany(list[0]);
+    }
+  });
   setActiveAction(null);
 };
 

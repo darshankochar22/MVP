@@ -2,6 +2,7 @@ import ReactDOM from "react-dom/client";
 import { HashRouter, Routes, Route } from "react-router-dom";
 import './index.css';
 import { CompanyProvider } from "./context/CompanyContext";
+import StartupGuard from "./context/StartupGuard";
 import Layout from "./Layout.tsx";
 import App from './App.tsx';
 import GenericDataView from './pages/GenericDataView.tsx';
@@ -16,19 +17,21 @@ import Banking from './pages/utilities/Banking';
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <HashRouter>
     <CompanyProvider>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<App />} />
-          <Route path="/company" element={<Company />} />
-          <Route path="/master/create" element={<Create />}/>
-          <Route path="/master/alter" element={<Alter />}/>
-          <Route path="/master/coa" element={<COA />}/> 
-          <Route path="/transactions/vouchers" element={<Vouchers />}/>
-          <Route path="/transactions/daybook" element={<Daybook />}/>
-          <Route path="/utilities/banking" element={<Banking/>} />
-          <Route path="/data/:controller" element={<GenericDataView />} />
-        </Route>
-      </Routes>
+      <StartupGuard>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<App />} />
+            <Route path="/company" element={<Company />} />
+            <Route path="/master/create" element={<Create />}/>
+            <Route path="/master/alter" element={<Alter />}/>
+            <Route path="/master/coa" element={<COA />}/> 
+            <Route path="/transactions/vouchers" element={<Vouchers />}/>
+            <Route path="/transactions/daybook" element={<Daybook />}/>
+            <Route path="/utilities/banking" element={<Banking/>} />
+            <Route path="/data/:controller" element={<GenericDataView />} />
+          </Route>
+        </Routes>
+      </StartupGuard>
     </CompanyProvider>
   </HashRouter>
 )
