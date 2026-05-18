@@ -63,7 +63,7 @@ export default function LeftPanel() {
           {canSwitch ? (
             <button
               onClick={() => setShowFYDropdown((p) => !p)}
-              className="text-left hover:text-blue-600 dark:hover:text-blue-400 transition-colors flex items-center gap-1 font-medium"
+              className="text-left hover:text-black-600 dark:hover:text-black-400 transition-colors flex items-center gap-1 font-medium"
               title="Click to switch financial year"
             >
               <span>{periodLabel}</span>
@@ -98,7 +98,7 @@ export default function LeftPanel() {
                     }}
                     className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center justify-between gap-2 ${
                       isSelected
-                        ? "bg-blue-600 text-white"
+                        ? "bg-black-600 text-white"
                         : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-800 dark:text-zinc-200"
                     }`}
                   >
@@ -110,7 +110,7 @@ export default function LeftPanel() {
                         <span
                           className={`text-xs px-1.5 py-0.5 rounded ${
                             isSelected
-                              ? "bg-blue-500 text-blue-100"
+                              ? "bg-black-500 text-black-100"
                               : "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400"
                           }`}
                         >
@@ -128,7 +128,7 @@ export default function LeftPanel() {
                 <a
                   href="#/master/financial-years"
                   onClick={() => setShowFYDropdown(false)}
-                  className="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                  className="text-xs text-black-600 hover:text-black-800 dark:text-black-400 dark:hover:text-black-300 transition-colors"
                 >
                   + Manage Financial Years
                 </a>

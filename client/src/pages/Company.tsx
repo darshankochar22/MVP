@@ -22,17 +22,17 @@ export default function Company() {
   const [selectedCompany, setSelectedCompany] = useState<CompanyType | null>(null);
   const { setSelectedCompany: setGlobalCompany } = useCompany();
 
-const fetchCompanies = async (): Promise<CompanyType[]> => {
-  try {
-    const result = await window.api.company.getAll();
-    if (Array.isArray(result)) return result;
-    if (Array.isArray(result?.companies)) return result.companies;
-    return [];
-  } catch (err) {
-    console.error("Failed to fetch companies:", err);
-    return [];
-  }
-};
+  const fetchCompanies = async (): Promise<CompanyType[]> => {
+    try {
+      const result = await window.api.company.getAll();
+      if (Array.isArray(result)) return result;
+      if (Array.isArray(result?.companies)) return result.companies;
+      return [];
+    } catch (err) {
+      console.error("Failed to fetch companies:", err);
+      return [];
+    }
+  };
 
   useEffect(() => {
     fetchCompanies().then(setCompanies);
@@ -43,45 +43,45 @@ const fetchCompanies = async (): Promise<CompanyType[]> => {
     setSelectedCompany(null);
   };
 
-const handleCreateSuccess = () => {
-  fetchCompanies().then((list) => {
-    setCompanies(list);
-    if (list.length === 1) {
-      setGlobalCompany(list[0]);
+  const handleCreateSuccess = () => {
+    fetchCompanies().then((list) => {
+      setCompanies(list);
+      if (list.length === 1) {
+        setGlobalCompany(list[0]);
+      }
+    });
+    setActiveAction(null);
+  };
+
+  const handleAlterSuccess = () => {
+    fetchCompanies().then(setCompanies);
+    setActiveAction(null);
+    setSelectedCompany(null);
+  };
+
+  const handleAlterCancel = () => {
+    setSelectedCompany(null);
+  };
+
+  const handleShutSuccess = () => {
+    fetchCompanies().then(setCompanies);
+    setActiveAction(null);
+    setSelectedCompany(null);
+  };
+
+  const handleShutCancel = () => {
+    setSelectedCompany(null);
+  };
+
+  const handleSelectSuccess = () => {
+    setActiveAction(null);
+  };
+
+  const handleCompanyClick = (company: CompanyType) => {
+    if (activeAction === "Alter Company" || activeAction === "Shut Company") {
+      setSelectedCompany(company);
     }
-  });
-  setActiveAction(null);
-};
-
-const handleAlterSuccess = () => {
-  fetchCompanies().then(setCompanies);
-  setActiveAction(null);
-  setSelectedCompany(null);
-};
-
-const handleAlterCancel = () => {
-  setSelectedCompany(null);
-};
-
-const handleShutSuccess = () => {
-  fetchCompanies().then(setCompanies);
-  setActiveAction(null);
-  setSelectedCompany(null);
-};
-
-const handleShutCancel = () => {
-  setSelectedCompany(null);
-};
-
-const handleSelectSuccess = () => {
-  setActiveAction(null);
-};
-
-const handleCompanyClick = (company: CompanyType) => {
-  if (activeAction === "Alter Company" || activeAction === "Shut Company") {
-    setSelectedCompany(company);
-  }
-};
+  };
 
   return (
     <div className="flex min-h-[500px] w-full">
@@ -95,8 +95,8 @@ const handleCompanyClick = (company: CompanyType) => {
               onClick={() => handleActionClick(item)}
               className={`text-left px-3 py-2 rounded transition-colors ${
                 activeAction === item
-                  ? "bg-blue-600 text-white"
-                  : "hover:bg-blue-100 hover:text-blue-900"
+                  ? "bg-black text-white"
+                  : "hover:bg-black hover:text-white"
               }`}
             >
               {item}
@@ -150,11 +150,9 @@ const handleCompanyClick = (company: CompanyType) => {
                     key={company.company_id || company.name}
                     onClick={() => handleCompanyClick(company)}
                     className={`px-4 py-3 rounded cursor-pointer border transition-colors ${
-                      activeAction === "Alter Company"
-                        ? "border-blue-200 hover:bg-blue-100 hover:text-blue-900 hover:border-blue-300"
-                        : activeAction === "Shut Company"
-                        ? "border-blue-200 hover:bg-red-100 hover:text-red-900 hover:border-red-300"
-                        : "border-blue-200 hover:bg-blue-100 hover:text-blue-900 hover:border-blue-300"
+                      activeAction === "Shut Company"
+                        ? "border-zinc-200 hover:bg-red-600 hover:text-white hover:border-red-600"
+                        : "border-zinc-200 hover:bg-black hover:text-white hover:border-black"
                     }`}
                   >
                     {company.name}
@@ -163,7 +161,10 @@ const handleCompanyClick = (company: CompanyType) => {
               </div>
             )}
 
-            <Link to="/" className="text-sm text-zinc-500 hover:text-zinc-700 hover:bg-blue-100 px-2 py-1 rounded mt-2 w-fit">
+            <Link
+              to="/"
+              className="text-sm text-zinc-500 hover:bg-black hover:text-white px-2 py-1 rounded mt-2 w-fit transition-colors"
+            >
               ← Back
             </Link>
           </div>
