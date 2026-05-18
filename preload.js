@@ -13,7 +13,7 @@ contextBridge.exposeInMainWorld('api', {
     },
     fy: {
         create:   (data) => invoke('fy:create', data),
-        getAll:   ()     => invoke('fy:getAll'),
+        getAll:   (company_id) => invoke('fy:getAll', company_id),
         getById:  (id)   => invoke('fy:getById', id),
         setActive:(id)   => invoke('fy:setActive', id),
         delete:   (id)   => invoke('fy:delete', id),

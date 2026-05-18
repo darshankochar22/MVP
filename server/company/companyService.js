@@ -15,6 +15,7 @@ const companyCreationSuccessService = require('../companyCreationSuccess/company
 const companyFeatureValuesService = require('../companyFeatureValues/companyFeatureValuesService');
 const attendanceTypeService = require('../attendanceType/attendanceTypeService');
 const payHeadService = require('../payHead/payHeadService');
+const financialYearService = require('../financialYear/financialYearService');
 
 module.exports = {
   create: async (data) => {
@@ -70,6 +71,7 @@ module.exports = {
       try { await companyFeatureValuesService.seedCompanyFeatureValues(company_id); console.log('companyFeatureValues ok'); } catch(e) { console.error('companyFeatureValues failed:', e.message); }
       try { await attendanceTypeService.seedDefaultAttendanceTypes(company_id); console.log('attendanceTypes ok'); } catch(e) { console.error('attendanceTypes failed:', e.message); }
       try { await payHeadService.seedDefaultPayHeads(company_id); console.log('payHeads ok'); } catch(e) { console.error('payHeads failed:', e.message); }
+      try { await financialYearService.seedDefaultFY(company_id, data.financial_year_beginning_from); console.log('fy ok'); } catch(e) {  console.error('fy failed:', e.message); }
 
       const company = await db.execute(
         `SELECT * FROM companies WHERE company_id = ?`,
