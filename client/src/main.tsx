@@ -26,6 +26,7 @@ import StockGroupCreate from "./pages/master/inventory/StockGroupCreate.tsx";
 import StockCategoryCreate from "./pages/master/inventory/StockCategoryCreate.tsx";
 import StockItemCreate from "./pages/master/inventory/StockItemCreate.tsx";
 import GodownCreate from "./pages/master/inventory/GodownCreate.tsx";
+import InventoryMastersList from './pages/master/inventory/View';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <HashRouter>
@@ -62,6 +63,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/transactions/daybook" element={<Daybook />}/>
             <Route path="/utilities/banking" element={<Banking/>} />
             <Route path="/data/:controller" element={<GenericDataView />} />
+
+            <Route path="/master/coa/inventory" element={<InventoryMastersList />} />
           </Route>
         </Routes>
       </StartupGuard>
