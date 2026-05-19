@@ -9,19 +9,18 @@ import type {
   GodownType,
 } from "../../../types/api";
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <th className="px-4 py-2 text-left text-xs font-medium text-zinc-400 uppercase tracking-wider bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-100 dark:border-zinc-800 whitespace-nowrap">
+    <th className="px-4 py-2 text-left text-xs font-semibold text-black uppercase tracking-wider bg-gray-100 border-b border-gray-300 whitespace-nowrap">
       {children}
     </th>
   );
 }
 
-function Td({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
+function Td({ children }: { children: React.ReactNode }) {
   return (
-    <td className={`px-4 py-2.5 text-sm border-b border-zinc-50 dark:border-zinc-800/60 whitespace-nowrap ${muted ? "text-zinc-400" : "text-zinc-700 dark:text-zinc-300"}`}>
+    <td className="px-4 py-2.5 text-sm border-b border-gray-100 whitespace-nowrap text-black">
       {children}
     </td>
   );
@@ -29,7 +28,7 @@ function Td({ children, muted }: { children: React.ReactNode; muted?: boolean })
 
 function EmptyRow({ message }: { message: string }) {
   return (
-    <div className="flex items-center justify-center h-40 text-sm text-zinc-400">
+    <div className="flex items-center justify-center h-40 text-sm text-gray-400">
       {message}
     </div>
   );
@@ -37,7 +36,7 @@ function EmptyRow({ message }: { message: string }) {
 
 function TableWrap({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-zinc-100 dark:border-zinc-800 overflow-hidden">
+    <div className="rounded-lg border border-gray-200 overflow-hidden bg-white">
       <div className="overflow-x-auto">
         <table className="w-full">{children}</table>
       </div>
@@ -45,7 +44,6 @@ function TableWrap({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ─── section tables ───────────────────────────────────────────────────────────
 
 function StockGroupTable({ groups }: { groups: StockGroupType[] }) {
   const parentName = (id?: number) => groups.find(g => g.sg_id === id)?.name ?? "Primary";
@@ -62,19 +60,19 @@ function StockGroupTable({ groups }: { groups: StockGroupType[] }) {
       </thead>
       <tbody>
         {groups.map(g => (
-          <tr key={g.sg_id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
-            <Td><span className="font-medium text-zinc-800 dark:text-zinc-200">{g.name}</span></Td>
-            <Td muted>{g.alias ?? "—"}</Td>
-            <Td muted>{parentName(g.parent_group_id)}</Td>
-            <Td muted>{g.should_quantities_be_added ? "Yes" : "No"}</Td>
-            <Td muted>{g.hsn_sac_code ?? "—"}</Td>
-            <Td muted>{g.hsn_sac_description ?? "—"}</Td>
-            <Td muted>{g.gst_rate ?? 0}%</Td>
-            <Td muted>{g.cgst_rate ?? 0}%</Td>
-            <Td muted>{g.sgst_rate ?? 0}%</Td>
-            <Td muted>{g.is_primary ? "Yes" : "No"}</Td>
-            <Td muted>{g.is_predefined ? "Yes" : "No"}</Td>
-            <Td muted>{g.created_at ? new Date(g.created_at).toLocaleDateString() : "—"}</Td>
+          <tr key={g.sg_id} className="hover:bg-gray-50 transition-colors">
+            <Td><span className="font-medium">{g.name}</span></Td>
+            <Td>{g.alias ?? "—"}</Td>
+            <Td>{parentName(g.parent_group_id)}</Td>
+            <Td>{g.should_quantities_be_added ? "Yes" : "No"}</Td>
+            <Td>{g.hsn_sac_code ?? "—"}</Td>
+            <Td>{g.hsn_sac_description ?? "—"}</Td>
+            <Td>{g.gst_rate ?? 0}%</Td>
+            <Td>{g.cgst_rate ?? 0}%</Td>
+            <Td>{g.sgst_rate ?? 0}%</Td>
+            <Td>{g.is_primary ? "Yes" : "No"}</Td>
+            <Td>{g.is_predefined ? "Yes" : "No"}</Td>
+            <Td>{g.created_at ? new Date(g.created_at).toLocaleDateString() : "—"}</Td>
           </tr>
         ))}
       </tbody>
@@ -95,13 +93,13 @@ function StockCategoryTable({ categories }: { categories: StockCategoryType[] })
       </thead>
       <tbody>
         {categories.map(c => (
-          <tr key={c.sc_id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
-            <Td><span className="font-medium text-zinc-800 dark:text-zinc-200">{c.name}</span></Td>
-            <Td muted>{parentName(c.parent_category_id)}</Td>
-            <Td muted>{c.description ?? "—"}</Td>
-            <Td muted>{c.is_active ? "Yes" : "No"}</Td>
-            <Td muted>{c.created_at ? new Date(c.created_at).toLocaleDateString() : "—"}</Td>
-            <Td muted>{c.updated_at ? new Date(c.updated_at).toLocaleDateString() : "—"}</Td>
+          <tr key={c.sc_id} className="hover:bg-gray-50 transition-colors">
+            <Td><span className="font-medium">{c.name}</span></Td>
+            <Td>{parentName(c.parent_category_id)}</Td>
+            <Td>{c.description ?? "—"}</Td>
+            <Td>{c.is_active ? "Yes" : "No"}</Td>
+            <Td>{c.created_at ? new Date(c.created_at).toLocaleDateString() : "—"}</Td>
+            <Td>{c.updated_at ? new Date(c.updated_at).toLocaleDateString() : "—"}</Td>
           </tr>
         ))}
       </tbody>
@@ -135,27 +133,27 @@ function StockItemTable({ items, groups, categories, units }: {
       </thead>
       <tbody>
         {items.map(item => (
-          <tr key={item.item_id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
-            <Td><span className="font-medium text-zinc-800 dark:text-zinc-200">{item.name}</span></Td>
-            <Td muted>{item.alias ?? "—"}</Td>
-            <Td muted>{groupName(item.group_id)}</Td>
-            <Td muted>{categoryName(item.category_id)}</Td>
-            <Td muted>{unitName(item.unit_id)}</Td>
-            <Td muted>{item.hsn_code ?? "—"}</Td>
-            <Td muted>{item.sac_code ?? "—"}</Td>
-            <Td muted>{item.gst_rate ?? 0}%</Td>
-            <Td muted>{item.cgst_rate ?? 0}%</Td>
-            <Td muted>{item.sgst_rate ?? 0}%</Td>
-            <Td muted>{item.igst_rate ?? 0}%</Td>
-            <Td muted>{item.type_of_supply ?? "—"}</Td>
-            <Td muted>{item.opening_quantity ?? 0}</Td>
-            <Td muted>{item.opening_rate ?? 0}</Td>
-            <Td muted>{item.opening_value ?? 0}</Td>
-            <Td muted>{item.reorder_level ?? "—"}</Td>
-            <Td muted>{item.reorder_quantity ?? "—"}</Td>
-            <Td muted>{item.track_batches ? "Yes" : "No"}</Td>
-            <Td muted>{item.track_expiry ? "Yes" : "No"}</Td>
-            <Td muted>{item.created_at ? new Date(item.created_at).toLocaleDateString() : "—"}</Td>
+          <tr key={item.item_id} className="hover:bg-gray-50 transition-colors">
+            <Td><span className="font-medium">{item.name}</span></Td>
+            <Td>{item.alias ?? "—"}</Td>
+            <Td>{groupName(item.group_id)}</Td>
+            <Td>{categoryName(item.category_id)}</Td>
+            <Td>{unitName(item.unit_id)}</Td>
+            <Td>{item.hsn_code ?? "—"}</Td>
+            <Td>{item.sac_code ?? "—"}</Td>
+            <Td>{item.gst_rate ?? 0}%</Td>
+            <Td>{item.cgst_rate ?? 0}%</Td>
+            <Td>{item.sgst_rate ?? 0}%</Td>
+            <Td>{item.igst_rate ?? 0}%</Td>
+            <Td>{item.type_of_supply ?? "—"}</Td>
+            <Td>{item.opening_quantity ?? 0}</Td>
+            <Td>{item.opening_rate ?? 0}</Td>
+            <Td>{item.opening_value ?? 0}</Td>
+            <Td>{item.reorder_level ?? "—"}</Td>
+            <Td>{item.reorder_quantity ?? "—"}</Td>
+            <Td>{item.track_batches ? "Yes" : "No"}</Td>
+            <Td>{item.track_expiry ? "Yes" : "No"}</Td>
+            <Td>{item.created_at ? new Date(item.created_at).toLocaleDateString() : "—"}</Td>
           </tr>
         ))}
       </tbody>
@@ -177,17 +175,17 @@ function UnitTable({ units }: { units: UnitType[] }) {
       </thead>
       <tbody>
         {units.map(u => (
-          <tr key={u.unit_id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
-            <Td><span className="font-medium text-zinc-800 dark:text-zinc-200">{u.name}</span></Td>
-            <Td muted>{u.symbol}</Td>
-            <Td muted>{u.formal_name ?? "—"}</Td>
-            <Td muted>{u.unit_type ?? "—"}</Td>
-            <Td muted>{u.decimal_places ?? 0}</Td>
-            <Td muted>{u.unit_quantity_code ?? "—"}</Td>
-            <Td muted>{u.is_simple ? "Yes" : "No"}</Td>
-            <Td muted>{u.is_predefined ? "Yes" : "No"}</Td>
-            <Td muted>{u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}</Td>
-            <Td muted>{u.updated_at ? new Date(u.updated_at).toLocaleDateString() : "—"}</Td>
+          <tr key={u.unit_id} className="hover:bg-gray-50 transition-colors">
+            <Td><span className="font-medium">{u.name}</span></Td>
+            <Td>{u.symbol}</Td>
+            <Td>{u.formal_name ?? "—"}</Td>
+            <Td>{u.unit_type ?? "—"}</Td>
+            <Td>{u.decimal_places ?? 0}</Td>
+            <Td>{u.unit_quantity_code ?? "—"}</Td>
+            <Td>{u.is_simple ? "Yes" : "No"}</Td>
+            <Td>{u.is_predefined ? "Yes" : "No"}</Td>
+            <Td>{u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}</Td>
+            <Td>{u.updated_at ? new Date(u.updated_at).toLocaleDateString() : "—"}</Td>
           </tr>
         ))}
       </tbody>
@@ -211,25 +209,25 @@ function GodownTable({ godowns }: { godowns: GodownType[] }) {
       </thead>
       <tbody>
         {godowns.map(g => (
-          <tr key={g.godown_id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/40 transition-colors">
+          <tr key={g.godown_id} className="hover:bg-gray-50 transition-colors">
             <Td>
-              <span className="font-medium text-zinc-800 dark:text-zinc-200">{g.name}</span>
+              <span className="font-medium">{g.name}</span>
               {g.is_main_location ? (
-                <span className="ml-2 text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">main</span>
+                <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">main</span>
               ) : null}
             </Td>
-            <Td muted>{g.alias ?? "—"}</Td>
-            <Td muted>{parentName(g.parent_godown_id)}</Td>
-            <Td muted>{g.address ?? "—"}</Td>
-            <Td muted>{g.city ?? "—"}</Td>
-            <Td muted>{g.state ?? "—"}</Td>
-            <Td muted>{g.pincode ?? "—"}</Td>
-            <Td muted>{g.is_main_location ? "Yes" : "No"}</Td>
-            <Td muted>{g.allow_storage_of_materials ? "Yes" : "No"}</Td>
-            <Td muted>{g.is_primary ? "Yes" : "No"}</Td>
-            <Td muted>{g.is_predefined ? "Yes" : "No"}</Td>
-            <Td muted>{g.created_at ? new Date(g.created_at).toLocaleDateString() : "—"}</Td>
-            <Td muted>{g.updated_at ? new Date(g.updated_at).toLocaleDateString() : "—"}</Td>
+            <Td>{g.alias ?? "—"}</Td>
+            <Td>{parentName(g.parent_godown_id)}</Td>
+            <Td>{g.address ?? "—"}</Td>
+            <Td>{g.city ?? "—"}</Td>
+            <Td>{g.state ?? "—"}</Td>
+            <Td>{g.pincode ?? "—"}</Td>
+            <Td>{g.is_main_location ? "Yes" : "No"}</Td>
+            <Td>{g.allow_storage_of_materials ? "Yes" : "No"}</Td>
+            <Td>{g.is_primary ? "Yes" : "No"}</Td>
+            <Td>{g.is_predefined ? "Yes" : "No"}</Td>
+            <Td>{g.created_at ? new Date(g.created_at).toLocaleDateString() : "—"}</Td>
+            <Td>{g.updated_at ? new Date(g.updated_at).toLocaleDateString() : "—"}</Td>
           </tr>
         ))}
       </tbody>
@@ -237,19 +235,16 @@ function GodownTable({ godowns }: { godowns: GodownType[] }) {
   );
 }
 
-// ─── section config ───────────────────────────────────────────────────────────
 
 const SECTIONS = [
-  { key: "stock-group",    label: "Stock Groups"       },
-  { key: "stock-category", label: "Stock Categories"   },
-  { key: "stock-items",    label: "Stock Items"         },
-  { key: "unit",           label: "Units"               },
-  { key: "godown",         label: "Godowns"             },
+  { key: "stock-group",    label: "Stock Groups"     },
+  { key: "stock-category", label: "Stock Categories" },
+  { key: "stock-items",    label: "Stock Items"      },
+  { key: "unit",           label: "Units"            },
+  { key: "godown",         label: "Godowns"          },
 ] as const;
 
 type SectionKey = typeof SECTIONS[number]["key"];
-
-// ─── main ─────────────────────────────────────────────────────────────────────
 
 export default function InventoryMastersList() {
   const navigate = useNavigate();
@@ -302,36 +297,36 @@ export default function InventoryMastersList() {
   const activeLabel = SECTIONS.find(s => s.key === activeSection)?.label ?? "";
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-white">
 
       {/* Header */}
-      <div className="px-6 py-3 flex items-center justify-between shrink-0 border-b border-zinc-100 dark:border-zinc-800">
-        <span className="font-semibold text-base">{activeLabel}</span>
+      <div className="px-6 py-3 flex items-center justify-between shrink-0 border-b border-gray-200">
+        <span className="font-semibold text-base text-black">{activeLabel}</span>
         <button
           onClick={() => navigate(-1)}
-          className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
+          className="text-xs text-gray-500 hover:text-black transition-colors"
         >
           ← Back
         </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 px-6 pt-3 shrink-0 border-b border-zinc-100 dark:border-zinc-800 overflow-x-auto">
+      <div className="flex gap-1 px-6 pt-3 shrink-0 border-b border-gray-200 overflow-x-auto bg-white">
         {SECTIONS.map(s => (
           <button
             key={s.key}
             onClick={() => setSearchParams({ section: s.key })}
             className={`flex items-center gap-1.5 text-xs px-3 py-2 rounded-t border-b-2 transition-colors whitespace-nowrap ${
               activeSection === s.key
-                ? "border-zinc-800 dark:border-zinc-200 text-zinc-800 dark:text-zinc-100 font-medium"
-                : "border-transparent text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                ? "border-black text-black font-semibold"
+                : "border-transparent text-gray-400 hover:text-black"
             }`}
           >
             {s.label}
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
               activeSection === s.key
-                ? "bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900"
-                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400"
+                ? "bg-black text-white"
+                : "bg-gray-100 text-gray-500"
             }`}>
               {counts[s.key]}
             </span>
@@ -340,9 +335,9 @@ export default function InventoryMastersList() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto px-6 py-5">
+      <div className="flex-1 overflow-auto px-6 py-5 bg-white">
         {loading ? (
-          <div className="flex items-center justify-center h-40 text-sm text-zinc-400">Loading...</div>
+          <div className="flex items-center justify-center h-40 text-sm text-gray-400">Loading...</div>
         ) : (
           <>
             {activeSection === "stock-group"    && <StockGroupTable    groups={stockGroups} />}
