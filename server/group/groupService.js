@@ -161,7 +161,7 @@ module.exports = {
           hsn_sac_code: data.hsn_sac_code || null,
           statutory_details: data.statutory_details || null,
           sort_order: data.sort_order || 0,
-          group_type: "User",
+          group_type: data.is_primary ? "Primary" : "User",
           display_order: data.display_order || 0,
           is_active: 1,
         }
@@ -225,7 +225,6 @@ module.exports = {
       if (checkResult.rows.length === 0) return { success: false, error: "Group not found" };
       
       const group = checkResult.rows[0];
-      if (group.is_predefined) return { success: false, error: "Cannot edit predefined groups" };
 
       await db.execute({
         sql: `
@@ -246,24 +245,24 @@ module.exports = {
         `,
         args: {
           group_id: data.group_id,
-          name: data.name ?? group.name,
-          alias: data.alias ?? group.alias,
-          parent_group_id: data.parent_group_id ?? group.parent_group_id,
+          name: data.name !== undefined ? data.name : group.name,
+          alias: data.alias !== undefined ? data.alias : group.alias,
+          parent_group_id: data.parent_group_id !== undefined ? data.parent_group_id : group.parent_group_id,
           is_primary: data.is_primary ? 1 : 0,
-          nature: data.nature ?? group.nature,
+          nature: data.nature !== undefined ? data.nature : group.nature,
           affect_gross_profit: data.affect_gross_profit ? 1 : 0,
           behaves_like_subledger: data.behaves_like_subledger ? 1 : 0,
           show_net_debit_credit: data.show_net_debit_credit ? 1 : 0,
           used_for_calculation: data.used_for_calculation ? 1 : 0,
-          allocation_method: data.allocation_method ?? group.allocation_method,
-          gst_rate: data.gst_rate ?? group.gst_rate,
-          cgst_rate: data.cgst_rate ?? group.cgst_rate,
-          sgst_rate: data.sgst_rate ?? group.sgst_rate,
-          igst_rate: data.igst_rate ?? group.igst_rate,
-          hsn_sac_code: data.hsn_sac_code ?? group.hsn_sac_code,
-          statutory_details: data.statutory_details ?? group.statutory_details,
-          sort_order: data.sort_order ?? group.sort_order,
-          display_order: data.display_order ?? group.display_order,
+          allocation_method: data.allocation_method !== undefined ? data.allocation_method : group.allocation_method,
+          gst_rate: data.gst_rate !== undefined ? data.gst_rate : group.gst_rate,
+          cgst_rate: data.cgst_rate !== undefined ? data.cgst_rate : group.cgst_rate,
+          sgst_rate: data.sgst_rate !== undefined ? data.sgst_rate : group.sgst_rate,
+          igst_rate: data.igst_rate !== undefined ? data.igst_rate : group.igst_rate,
+          hsn_sac_code: data.hsn_sac_code !== undefined ? data.hsn_sac_code : group.hsn_sac_code,
+          statutory_details: data.statutory_details !== undefined ? data.statutory_details : group.statutory_details,
+          sort_order: data.sort_order !== undefined ? data.sort_order : group.sort_order,
+          display_order: data.display_order !== undefined ? data.display_order : group.display_order,
         }
       });
 

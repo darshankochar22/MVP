@@ -4,9 +4,9 @@ import { useCompany } from "../../context/CompanyContext";
 import GroupTree from "../../../components/GroupTree";
 import type { LedgerType, GroupType } from "../../types/api";
 
-function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+function Row({ label, required, children, onClick }: { label: string; required?: boolean; children: React.ReactNode; onClick?: () => void }) {
   return (
-    <div className="flex items-start border-b last:border-0 min-h-[36px]">
+    <div className={`flex items-start border-b last:border-0 min-h-[36px]${onClick ? " cursor-pointer hover:bg-zinc-50" : ""}`} onClick={onClick}>
       <span className="w-48 text-sm text-zinc-500 shrink-0 py-1.5">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </span>
@@ -59,6 +59,7 @@ export default function LedgerCreate() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showGroupPanel, setShowGroupPanel] = useState(false);
 
   const [form, setForm] = useState<Partial<LedgerType>>({
     name: "",
@@ -150,6 +151,7 @@ export default function LedgerCreate() {
   const handleGroupSelect = (group: GroupType) => {
     setSelectedGroup(group);
     setForm((f) => ({ ...f, group_id: group.group_id }));
+    setShowGroupPanel(false);
   };
 
   const groupName = selectedGroup?.name || "";
@@ -365,6 +367,11 @@ export default function LedgerCreate() {
               <Row label="Alias">
                 <input className={inputCls} value={form.alias || ""} onChange={setField("alias")} placeholder="Short name (optional)" />
               </Row>
+              <Row label="Under" onClick={() => setShowGroupPanel(!showGroupPanel)}>
+                <span className="text-sm py-1 text-zinc-500">
+                  {selectedGroup ? selectedGroup.name : "\u2014"}
+                </span>
+              </Row>
               <Row label="Ledger Type">
                 <select className={selectCls} value={form.ledger_type || "General"} onChange={setField("ledger_type")}>
                   {LEDGER_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -554,18 +561,21 @@ export default function LedgerCreate() {
         </div>
       </div>
 
-      <div className="w-72 border-l bg-zinc-50/50 flex flex-col">
-        <div className="px-4 py-3 border-b text-sm font-medium text-zinc-600">
-          Under Group
+      {showGroupPanel && (
+        <div className="w-72 border-l bg-zinc-50/50 flex flex-col">
+          <div className="px-4 py-3 border-b text-sm font-medium text-zinc-600 flex justify-between items-center">
+            <span>Under Group</span>
+            <button onClick={() => setShowGroupPanel(false)} className="text-xs text-zinc-400 hover:text-zinc-600">&times;</button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <GroupTree
+              tree={groupTree}
+              selectedId={form.group_id as number}
+              onSelect={handleGroupSelect}
+            />
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          <GroupTree
-            tree={groupTree}
-            selectedId={form.group_id as number}
-            onSelect={handleGroupSelect}
-          />
-        </div>
-      </div>
+      )}
     </div>
   );
 }

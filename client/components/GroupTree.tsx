@@ -66,9 +66,6 @@ function TreeNodeRow({
         <span className={`flex-1 truncate ${isSelected ? "font-medium text-zinc-900" : "text-zinc-700"}`}>
           {node.name}
         </span>
-        <span className="text-xs text-zinc-400 shrink-0">
-          {node.is_primary === 1 ? "Primary" : node.is_predefined === 1 ? "Predefined" : "User"}
-        </span>
         {showActions && !isProtected && (
           <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100 pr-1">
             {onEdit && (

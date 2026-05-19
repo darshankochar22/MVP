@@ -28,6 +28,10 @@ export default function GroupAlter() {
     return () => { cancelled = true; };
   }, [companyId]);
 
+  const handleSelect = (group: GroupType) => {
+    navigate(`/master/alter/group/${group.group_id}`);
+  };
+
   const handleEdit = (group: GroupType) => {
     navigate(`/master/alter/group/${group.group_id}`);
   };
@@ -85,6 +89,7 @@ export default function GroupAlter() {
           tree={groupTree}
           readOnly={false}
           showActions={true}
+          onSelect={handleSelect}
           onEdit={handleEdit}
           onDelete={handleDelete}
         />
