@@ -41,18 +41,15 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/master/financial-years" element={<FinancialYears />}/>
             <Route path="/master/coa" element={<COA />}/>
 
-            {/* Ledger routes */}
             <Route path="/master/create/ledger" element={<LedgerCreate />}/>
             <Route path="/master/alter/ledger" element={<LedgerAlter />}/>
             <Route path="/master/coa/ledger" element={<LedgerCOA />}/>
 
-            {/* Group routes */}
             <Route path="/master/create/group" element={<GroupCreate />}/>
             <Route path="/master/alter/group" element={<GroupAlter />}/>
             <Route path="/master/alter/group/:id" element={<GroupAlterEdit />}/>
             <Route path="/master/coa/group" element={<GroupCOA />}/>
 
-            {/* Inventory Create */}
             <Route path="/master/create/unit" element={<UnitCreate />}/>
             <Route path="/master/create/stock-group" element={<StockGroupCreate />}/>
             <Route path="/master/create/stock-category" element={<StockCategoryCreate />}/>
