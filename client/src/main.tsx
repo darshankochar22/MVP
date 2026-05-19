@@ -14,6 +14,11 @@ import COA from "./pages/master/coa.tsx";
 import Vouchers from "./pages/transactions/Vouchers.tsx";
 import Daybook from "./pages/transactions/Daybook.tsx";
 import Banking from './pages/utilities/Banking';
+import UnitCreate from "./pages/master/inventory/UnitCreate.tsx";
+import StockGroupCreate from "./pages/master/inventory/StockGroupCreate.tsx";
+import StockCategoryCreate from "./pages/master/inventory/StockCategoryCreate.tsx";
+import StockItemCreate from "./pages/master/inventory/StockItemCreate.tsx";
+import GodownCreate from "./pages/master/inventory/GodownCreate.tsx";
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <HashRouter>
@@ -26,7 +31,15 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/master/create" element={<Create />}/>
             <Route path="/master/alter" element={<Alter />}/>
             <Route path="/master/financial-years" element={<FinancialYears />}/>
-            <Route path="/master/coa" element={<COA />}/> 
+            <Route path="/master/coa" element={<COA />}/>
+
+            {/* Inventory Create */}
+            <Route path="/master/create/unit" element={<UnitCreate />}/>
+            <Route path="/master/create/stock-group" element={<StockGroupCreate />}/>
+            <Route path="/master/create/stock-category" element={<StockCategoryCreate />}/>
+            <Route path="/master/create/stock-item" element={<StockItemCreate />}/>
+            <Route path="/master/create/godown" element={<GodownCreate />}/>
+
             <Route path="/transactions/vouchers" element={<Vouchers />}/>
             <Route path="/transactions/daybook" element={<Daybook />}/>
             <Route path="/utilities/banking" element={<Banking/>} />
