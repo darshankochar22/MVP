@@ -1,7 +1,11 @@
 {
   "name": "startup",
   "version": "1.0.0",
-  "description": "",
+  "description": "Startup App",
+  "author": {
+    "name": "Darshan Kochar",
+    "email": "dev@startup.com"
+  },
   "main": "main.js",
   "scripts": {
     "dev:client": "cd client && npm run dev",
@@ -9,40 +13,43 @@
     "electron": "wait-on http://localhost:5173 && electron .",
     "start": "concurrently \"npm run dev\" \"npm run electron\"",
     "build:client": "cd client && npm run build",
-    "dist": "npm run build:client && electron-builder"
+    "dist": "npm run build:client && electron-builder",
+    "dist:win": "npm run build:client && electron-builder --win --publish never",
+    "dist:mac": "npm run build:client && electron-builder --mac --publish never",
+    "dist:linux": "npm run build:client && electron-builder --linux --publish never"
   },
   "build": {
-  "appId": "com.startup.app",
-  "productName": "Startup",
-  "asar": false,
-  "mac": {
-    "target": "dmg"
+    "appId": "com.startup.app",
+    "productName": "Startup",
+    "asar": false,
+    "mac": {
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": ["AppImage", "deb", "rpm"],
+      "icon": "build/icon.png",
+      "category": "Utility",
+      "maintainer": "dev@startup.com"
+    },
+    "extraResources": [
+      {
+        "from": "server",
+        "to": "server"
+      }
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "server/**/*",
+      "client/dist/**/*",
+      "node_modules/**/*"
+    ]
   },
-  "win": {
-    "target": "nsis",
-    "icon": "build/icon.ico"
-  },
-  "linux": {
-    "target": ["AppImage", "deb", "rpm"],
-    "icon": "build/icon.png",
-    "category": "Utility"
-  },
-  "extraResources": [
-    {
-      "from": "server",
-      "to": "server"
-    }
-  ],
-  "files": [
-    "main.js",
-    "preload.js",
-    "server/**/*",
-    "client/dist/**/*",
-    "node_modules/**/*"
-  ]
-},
   "keywords": [],
-  "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
