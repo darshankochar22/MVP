@@ -13,7 +13,7 @@ module.exports = {
         return await stockGroupService.getById(id);
     },
 
-    update: async (event, id) => {
+    update: async (event, data) => {
         return await stockGroupService.update(data);
     },
 
