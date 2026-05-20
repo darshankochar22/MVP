@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useCompany } from "../../context/CompanyContext";
-import GroupTree from "../../../components/GroupTree";
-import type { LedgerType, GroupType } from "../../types/api";
+import { useCompany } from "@/context/CompanyContext";
+import GroupTree from "@/components/GroupTree";
+import type { LedgerType, GroupType } from "@/types/api";
 
 const INDIAN_STATES = [
   "Select",

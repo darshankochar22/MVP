@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { GroupType } from "../src/types/api";
+import type { GroupType } from "@/types/api";
 
 interface TreeNode extends GroupType {
   children?: TreeNode[];

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import MenuCard, { type OptionType } from "../components/ui/Card";
+import MenuCard, { type OptionType } from "@/components/ui/Card";
 
 export default function Navbar() {
 

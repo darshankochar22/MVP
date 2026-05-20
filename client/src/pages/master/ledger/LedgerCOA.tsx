@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useCompany } from "../../context/CompanyContext";
-import type { LedgerType, GroupType } from "../../types/api";
+import { useCompany } from "@/context/CompanyContext";
+import type { LedgerType, GroupType } from "@/types/api";
 
 export default function LedgerCOA() {
   const { selectedCompany } = useCompany();

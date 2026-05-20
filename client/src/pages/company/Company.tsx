@@ -1,11 +1,11 @@
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import type { CompanyType } from "../types/api";
-import { useCompany } from "../context/CompanyContext";
-import CompanyCreate from "./CompanyCreate";
-import AlterCompany from "./AlterCompany";
-import ShutCompany from "./ShutCompany";
-import SelectCompany from "./SelectCompany";
+import type { CompanyType } from "@/types/api";
+import { useCompany } from "@/context/CompanyContext";
+import CompanyCreate from "./components/CompanyCreate";
+import AlterCompany from "./components/AlterCompany";
+import ShutCompany from "./components/ShutCompany";
+import SelectCompany from "./components/SelectCompany";
 
 type ActiveAction = "Create Company" | "Alter Company" | "Select Company" | "Shut Company" | null;
 

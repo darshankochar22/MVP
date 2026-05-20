@@ -1,6 +1,6 @@
-import Gateway from "../components/Gateway.tsx";
-import RightPanel from "../components/RightPanel.tsx";
-import LeftPanel from "../components/LeftPanel.tsx";
+import Gateway from "@/components/Gateway.tsx";
+import RightPanel from "@/components/RightPanel.tsx";
+import LeftPanel from "@/components/LeftPanel.tsx";
 
 export default function App() {
   return (

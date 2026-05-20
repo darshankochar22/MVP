@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useCompany } from "../src/context/CompanyContext";
+import { useCompany } from "@/context/CompanyContext";
 
 export default function LeftPanel() {
   const [currentTime, setCurrentTime] = useState("");

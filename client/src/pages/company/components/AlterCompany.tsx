@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { CompanyType } from "../types/api";
+import type { CompanyType } from "@/types/api";
 
 const FY_YEARS = Array.from({ length: 26 }, (_, i) => 2001 + i);
 

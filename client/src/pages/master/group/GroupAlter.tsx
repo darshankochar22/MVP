@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useCompany } from "../../context/CompanyContext";
-import GroupTree from "../../../components/GroupTree";
-import type { GroupType } from "../../types/api";
+import { useCompany } from "@/context/CompanyContext";
+import GroupTree from "@/components/GroupTree";
+import type { GroupType } from "@/types/api";
 
 export default function GroupAlter() {
   const { selectedCompany } = useCompany();

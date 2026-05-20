@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import type { CompanyType } from "../types/api";
-import { useCompany } from "../context/CompanyContext";
+import type { CompanyType } from "@/types/api";
+import { useCompany } from "@/context/CompanyContext";
 
 interface Props {
   onSuccess: () => void;

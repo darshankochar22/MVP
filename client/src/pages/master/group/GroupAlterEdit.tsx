@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { useCompany } from "../../context/CompanyContext";
-import GroupTree from "../../../components/GroupTree";
-import type { GroupType } from "../../types/api";
+import { useCompany } from "@/context/CompanyContext";
+import GroupTree from "@/components/GroupTree";
+import type { GroupType } from "@/types/api";
 
 function Row({ label, required, children, onClick }: { label: string; required?: boolean; children: React.ReactNode; onClick?: () => void }) {
   return (

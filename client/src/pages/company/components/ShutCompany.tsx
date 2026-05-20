@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { CompanyType } from "../types/api";
+import type { CompanyType } from "@/types/api";
 
 interface Props {
   company: CompanyType;

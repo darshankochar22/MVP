@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import GroupTree from "../../../components/GroupTree";
-import { useCompany } from "../../context/CompanyContext";
-import type { GroupType, LedgerType } from "../../types/api";
+import GroupTree from "@/components/GroupTree";
+import { useCompany } from "@/context/CompanyContext";
+import type { GroupType, LedgerType } from "@/types/api";
 
 const INDIAN_STATES = [
   "Not Applicable",
