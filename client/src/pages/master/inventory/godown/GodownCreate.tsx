@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCompany } from "../../../context/CompanyContext";
-import type { GodownType } from "../../../types/api";
+import { useCompany } from "@/context/CompanyContext";
+import type { GodownType } from "@/types/api";
 
 function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
@@ -47,7 +47,7 @@ function SidePanel({ title, items, selected, onSelect, onClose }: SidePanelProps
       </div>
       <div className="flex-1 overflow-y-auto">
         <div
-          className={`px-3 py-2 text-sm cursor-pointer ${selected === "" ? "text-black font-semibold bg-zinc-100" : "text-black hover:bg-zinc-50"}`}
+          className={`px-3 py-2 text-sm cursor-pointer ${selected === "" ? "text-black font-semibold" : "text-black"}`}
           onClick={() => { onSelect(""); onClose(); }}
         >
           Primary
@@ -66,87 +66,23 @@ function SidePanel({ title, items, selected, onSelect, onClose }: SidePanelProps
   );
 }
 
-function SelectionPanel({
-  godowns,
-  onSelect,
-  onCancel,
-}: {
-  godowns: GodownType[];
-  onSelect: (g: GodownType) => void;
-  onCancel: () => void;
-}) {
-  const [search, setSearch] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => { inputRef.current?.focus(); }, []);
-
-  const filtered = godowns.filter(g =>
-    g.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="px-6 py-3 flex items-center justify-between shrink-0">
-        <span className="font-semibold text-base">Alter Godown</span>
-        <span className="text-xs text-zinc-500">Esc to cancel</span>
-      </div>
-
-      <div className="px-6 pb-3 shrink-0">
-        <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">Select Godown to Alter</div>
-        <input
-          ref={inputRef}
-          className="w-full text-sm bg-transparent border-b border-zinc-300 outline-none py-1 placeholder:text-zinc-400"
-          placeholder="Search godowns..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-6">
-        {filtered.length === 0 && (
-          <div className="text-sm text-zinc-400 py-4">No godowns found</div>
-        )}
-        {filtered.map(g => (
-          <div
-            key={g.godown_id}
-            onClick={() => onSelect(g)}
-            className="py-2 text-sm text-zinc-700 hover:text-black cursor-pointer border-b border-zinc-100 last:border-0"
-          >
-            {g.name}
-          </div>
-        ))}
-      </div>
-
-      <div className="px-6 py-3 flex justify-end shrink-0">
-        <button
-          onClick={onCancel}
-          className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
-
 interface FormData {
-  name: string;
-  alias: string;
-  parent_godown_id: string;
+  name: string; alias: string; parent_godown_id: string;
   allow_storage_of_materials: string;
-  address: string;
-  city: string;
-  state: string;
-  pincode: string;
+  address: string; city: string; state: string; pincode: string;
 }
 
-export default function GodownAlter() {
+const INITIAL: FormData = {
+  name: "", alias: "", parent_godown_id: "",
+  allow_storage_of_materials: "1",
+  address: "", city: "", state: "", pincode: "",
+};
+
+export default function GodownCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
-
+  const [form, setForm] = useState<FormData>(INITIAL);
   const [godowns, setGodowns] = useState<GodownType[]>([]);
-  const [selectedGodown, setSelectedGodown] = useState<GodownType | null>(null);
-  const [form, setForm] = useState<FormData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -160,131 +96,67 @@ export default function GodownAlter() {
     });
   }, [selectedCompany]);
 
-  const handleSelectGodown = (g: GodownType) => {
-    setSelectedGodown(g);
-    setForm({
-      name: g.name ?? "",
-      alias: g.alias ?? "",
-      parent_godown_id: g.parent_godown_id ? String(g.parent_godown_id) : "",
-      allow_storage_of_materials: String(g.allow_storage_of_materials ?? 1),
-      address: g.address ?? "",
-      city: g.city ?? "",
-      state: g.state ?? "",
-      pincode: g.pincode ?? "",
-    });
-    setError(null);
-  };
-
   const set = (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm(f => f ? { ...f, [key]: e.target.value } : f);
+      setForm(f => ({ ...f, [key]: e.target.value }));
 
   const validate = (): string | null => {
-    if (!form?.name.trim()) return "Name is required.";
+    if (!form.name.trim()) return "Name is required.";
     if (!selectedCompany?.company_id) return "No company selected.";
     if (form.pincode && !/^\d{0,6}$/.test(form.pincode)) return "Pincode must be numeric (max 6 digits).";
     return null;
   };
 
   const handleSubmit = useCallback(async () => {
-    if (!form || !selectedGodown) return;
     const validationError = validate();
     if (validationError) { setError(validationError); return; }
-
     setLoading(true); setError(null);
     try {
-      const result = await window.api.godown.update({
-        godown_id: selectedGodown.godown_id,
+      const result = await window.api.godown.create({
         company_id: selectedCompany!.company_id,
         name: form.name.trim(),
-        alias: form.alias.trim() || null,
-        parent_godown_id: form.parent_godown_id ? Number(form.parent_godown_id) : null,
+        alias: form.alias.trim() || undefined,
+        parent_godown_id: form.parent_godown_id ? Number(form.parent_godown_id) : undefined,
         allow_storage_of_materials: Number(form.allow_storage_of_materials),
-        address: form.address.trim() || null,
-        city: form.city.trim() || null,
-        state: form.state.trim() || null,
-        pincode: form.pincode.trim() || null,
+        address: form.address.trim() || undefined,
+        city: form.city.trim() || undefined,
+        state: form.state.trim() || undefined,
+        pincode: form.pincode.trim() || undefined,
       });
-
       if (result.success) {
         const updated = await window.api.godown.getAll(selectedCompany!.company_id!);
         if (updated.success) setGodowns(updated.godowns ?? []);
-
-        setSuccess(`Godown "${form.name}" updated.`);
-        setTimeout(() => {
-          setSuccess(null);
-          setSelectedGodown(null);
-          setForm(null);
-        }, 2000);
+        setSuccess(`Godown "${form.name}" created.`);
+        setForm(INITIAL);
+        setTimeout(() => setSuccess(null), 3000);
       } else {
-        setError(result.error || "Failed to update godown.");
+        setError(result.error || "Failed to create godown.");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unexpected error.");
     } finally {
       setLoading(false);
     }
-  }, [form, selectedGodown, selectedCompany]);
-
-  const handleDelete = useCallback(async () => {
-    if (!selectedGodown) return;
-    if (!window.confirm(`Delete "${selectedGodown.name}"? This cannot be undone.`)) return;
-
-    setLoading(true); setError(null);
-    try {
-      const result = await window.api.godown.delete(selectedGodown.godown_id);
-      if (result.success) {
-        const updated = await window.api.godown.getAll(selectedCompany!.company_id!);
-        if (updated.success) setGodowns(updated.godowns ?? []);
-        setSelectedGodown(null);
-        setForm(null);
-      } else {
-        setError(result.error || "Failed to delete godown.");
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unexpected error.");
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedGodown, selectedCompany]);
+  }, [form, selectedCompany]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (showPanel) { setShowPanel(false); return; }
-        if (selectedGodown) { setSelectedGodown(null); setForm(null); return; }
-        navigate("/master/alter");
-      }
+      if (e.key === "Escape") { if (showPanel) setShowPanel(false); else navigate("/master/godown"); }
       if (e.ctrlKey && e.key === "a") { e.preventDefault(); handleSubmit(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, navigate, showPanel, selectedGodown]);
+  }, [handleSubmit, navigate, showPanel]);
 
-  // Exclude the godown being edited from the parent options (prevent self-referencing)
-  const parentOptions = godowns.filter(g =>
-    selectedGodown ? String(g.godown_id) !== String(selectedGodown.godown_id) : true
-  );
-
-  const selectedGodownLabel = form?.parent_godown_id
+  const selectedGodownLabel = form.parent_godown_id
     ? godowns.find(g => String(g.godown_id) === form.parent_godown_id)?.name ?? "Primary"
     : "Primary";
-
-  if (!selectedGodown || !form) {
-    return (
-      <SelectionPanel
-        godowns={godowns}
-        onSelect={handleSelectGodown}
-        onCancel={() => navigate("/master/alter")}
-      />
-    );
-  }
 
   return (
     <div className="flex flex-col h-full relative overflow-hidden">
       <div className="px-6 py-3 flex items-center justify-between shrink-0">
-        <span className="font-semibold text-base">Alter Godown</span>
-        <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to go back</span>
+        <span className="font-semibold text-base">Create Godown</span>
+        <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to cancel</span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6">
@@ -342,37 +214,21 @@ export default function GodownAlter() {
         </div>
       )}
 
-      <div className="px-6 py-3 flex justify-between items-center shrink-0">
-        <button
-          onClick={handleDelete}
-          disabled={loading}
-          className="text-sm px-4 py-1.5 rounded border border-red-300 text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors"
-        >
-          Delete
+      <div className="px-6 py-3 flex justify-end gap-3 shrink-0">
+        <button onClick={() => navigate("/master/create")} className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+          Cancel
         </button>
-        <div className="flex gap-3">
-          <button
-            onClick={() => { setSelectedGodown(null); setForm(null); }}
-            className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-          >
-            Back
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
-          >
-            {loading ? "Saving..." : "Accept"}
-          </button>
-        </div>
+        <button onClick={handleSubmit} disabled={loading} className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium">
+          {loading ? "Saving..." : "Accept"}
+        </button>
       </div>
 
       {showPanel && (
         <SidePanel
           title="List of Godowns"
-          items={parentOptions.map(g => ({ id: g.godown_id, label: g.name }))}
+          items={godowns.map(g => ({ id: g.godown_id, label: g.name }))}
           selected={form.parent_godown_id}
-          onSelect={val => setForm(f => f ? { ...f, parent_godown_id: val } : f)}
+          onSelect={val => setForm(f => ({ ...f, parent_godown_id: val }))}
           onClose={() => setShowPanel(false)}
         />
       )}

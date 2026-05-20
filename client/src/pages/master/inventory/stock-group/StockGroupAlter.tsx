@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCompany } from "../../../context/CompanyContext";
-import type { StockGroupType } from "../../../types/api";
+import { useCompany } from "@/context/CompanyContext";
+import type { StockGroupType } from "@/types/api";
 
 function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
@@ -60,6 +60,69 @@ function SidePanel({ title, items, selected, onSelect, onClose }: SidePanelProps
   );
 }
 
+function SelectionPanel({
+  groups,
+  onSelect,
+  onCancel,
+}: {
+  groups: StockGroupType[];
+  onSelect: (g: StockGroupType) => void;
+  onCancel: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const filtered = groups.filter(g =>
+    g.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="px-6 py-3 flex items-center justify-between shrink-0">
+        <span className="font-semibold text-base">Alter Stock Group</span>
+        <span className="text-xs text-zinc-500">Esc to cancel</span>
+      </div>
+
+      <div className="px-6 pb-3 shrink-0">
+        <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">Select Group to Alter</div>
+        <input
+          ref={inputRef}
+          className="w-full text-sm bg-transparent border-b border-zinc-300 outline-none py-1 placeholder:text-zinc-400"
+          placeholder="Search groups..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-6">
+        {filtered.length === 0 && (
+          <div className="text-sm text-zinc-400 py-4">No groups found</div>
+        )}
+        {filtered.map(g => (
+          <div
+            key={g.sg_id}
+            onClick={() => onSelect(g)}
+            className="py-2 text-sm text-zinc-700 hover:text-black cursor-pointer border-b border-zinc-100 last:border-0"
+          >
+            {g.name}
+          </div>
+        ))}
+      </div>
+
+      <div className="px-6 py-3 flex justify-end shrink-0">
+        <button
+          onClick={onCancel}
+          className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface FormData {
   name: string;
   alias: string;
@@ -72,27 +135,19 @@ interface FormData {
   sgst_rate: string;
 }
 
-const INITIAL: FormData = {
-  name: "",
-  alias: "",
-  parent_group_id: "",
-  should_quantities_be_added: "1",
-  hsn_sac_code: "",
-  hsn_sac_description: "",
-  gst_rate: "0",
-  cgst_rate: "0",
-  sgst_rate: "0",
-};
+type PanelType = "under" | null;
 
-export default function StockGroupCreate() {
+export default function StockGroupAlter() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
-  const [form, setForm] = useState<FormData>(INITIAL);
+
   const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<StockGroupType | null>(null);
+  const [form, setForm] = useState<FormData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [showPanel, setShowPanel] = useState(false);
+  const [showPanel, setShowPanel] = useState<PanelType>(null);
 
   useEffect(() => {
     const company_id = selectedCompany?.company_id;
@@ -102,18 +157,34 @@ export default function StockGroupCreate() {
     });
   }, [selectedCompany]);
 
+  const handleSelectGroup = (g: StockGroupType) => {
+    setSelectedGroup(g);
+    setForm({
+      name: g.name ?? "",
+      alias: g.alias ?? "",
+      parent_group_id: g.parent_group_id ? String(g.parent_group_id) : "",
+      should_quantities_be_added: String(g.should_quantities_be_added ?? 1),
+      hsn_sac_code: g.hsn_sac_code ?? "",
+      hsn_sac_description: g.hsn_sac_description ?? "",
+      gst_rate: String(g.gst_rate ?? 0),
+      cgst_rate: String(g.cgst_rate ?? 0),
+      sgst_rate: String(g.sgst_rate ?? 0),
+    });
+    setError(null);
+  };
+
   const set = (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm(f => ({ ...f, [key]: e.target.value }));
+      setForm(f => f ? { ...f, [key]: e.target.value } : f);
 
   const handleGstChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     const half = val === "" ? "0" : String(parseFloat(val) / 2);
-    setForm(f => ({ ...f, gst_rate: val, cgst_rate: half, sgst_rate: half }));
+    setForm(f => f ? { ...f, gst_rate: val, cgst_rate: half, sgst_rate: half } : f);
   };
 
   const validate = (): string | null => {
-    if (!form.name.trim()) return "Name is required.";
+    if (!form?.name.trim()) return "Name is required.";
     if (!selectedCompany?.company_id) return "No company selected.";
     const gst = Number(form.gst_rate);
     const cgst = Number(form.cgst_rate);
@@ -124,59 +195,107 @@ export default function StockGroupCreate() {
   };
 
   const handleSubmit = useCallback(async () => {
+    if (!form || !selectedGroup) return;
     const validationError = validate();
     if (validationError) { setError(validationError); return; }
 
     setLoading(true); setError(null);
     try {
-      const result = await window.api.stockGroup.create({
+      const result = await window.api.stockGroup.update({
+        sg_id: selectedGroup.sg_id,
         company_id: selectedCompany!.company_id,
         name: form.name.trim(),
-        alias: form.alias.trim() || undefined,
-        parent_group_id: form.parent_group_id ? Number(form.parent_group_id) : undefined,
+        alias: form.alias.trim() || null,
+        parent_group_id: form.parent_group_id ? Number(form.parent_group_id) : null,
         should_quantities_be_added: Number(form.should_quantities_be_added),
-        hsn_sac_code: form.hsn_sac_code.trim() || undefined,
-        hsn_sac_description: form.hsn_sac_description.trim() || undefined,
+        hsn_sac_code: form.hsn_sac_code.trim() || null,
+        hsn_sac_description: form.hsn_sac_description.trim() || null,
         gst_rate: Number(form.gst_rate) || 0,
         cgst_rate: Number(form.cgst_rate) || 0,
         sgst_rate: Number(form.sgst_rate) || 0,
       });
 
       if (result.success) {
+        // Refresh list
         const updated = await window.api.stockGroup.getAll(selectedCompany!.company_id!);
         if (updated.success) setStockGroups(updated.stockGroups ?? []);
-        setSuccess(`Stock Group "${form.name}" created.`);
-        setForm(INITIAL);
-        setTimeout(() => setSuccess(null), 3000);
+
+        setSuccess(`Stock Group "${form.name}" updated.`);
+        setTimeout(() => {
+          setSuccess(null);
+          setSelectedGroup(null);
+          setForm(null);
+        }, 2000);
       } else {
-        setError(result.error || "Failed to create stock group.");
+        setError(result.error || "Failed to update stock group.");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unexpected error.");
     } finally {
       setLoading(false);
     }
-  }, [form, selectedCompany]);
+  }, [form, selectedGroup, selectedCompany]);
+
+  const handleDelete = useCallback(async () => {
+    if (!selectedGroup) return;
+    if (!window.confirm(`Delete "${selectedGroup.name}"? This cannot be undone.`)) return;
+
+    setLoading(true); setError(null);
+    try {
+      const result = await window.api.stockGroup.delete(selectedGroup.sg_id);
+      if (result.success) {
+        const updated = await window.api.stockGroup.getAll(selectedCompany!.company_id!);
+        if (updated.success) setStockGroups(updated.stockGroups ?? []);
+        setSelectedGroup(null);
+        setForm(null);
+      } else {
+        setError(result.error || "Failed to delete stock group.");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unexpected error.");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedGroup, selectedCompany]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { if (showPanel) setShowPanel(false); else navigate("/master/stock-group"); }
+      if (e.key === "Escape") {
+        if (showPanel) { setShowPanel(null); return; }
+        if (selectedGroup) { setSelectedGroup(null); setForm(null); return; }
+        navigate("/master/alter");
+      }
       if (e.ctrlKey && e.key === "a") { e.preventDefault(); handleSubmit(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, navigate, showPanel]);
+  }, [handleSubmit, navigate, showPanel, selectedGroup]);
 
-  const selectedGroupLabel = form.parent_group_id
+  const underOptions = stockGroups.filter(g =>
+    selectedGroup ? String(g.sg_id) !== String(selectedGroup.sg_id) : true
+  );
+
+  const selectedUnderLabel = form?.parent_group_id
     ? stockGroups.find(g => String(g.sg_id) === form.parent_group_id)?.name ?? "Primary"
     : "Primary";
+
+
+  if (!selectedGroup || !form) {
+    return (
+      <SelectionPanel
+        groups={stockGroups.filter(g => !g.is_predefined)}
+        onSelect={handleSelectGroup}
+        onCancel={() => navigate("/master/alter")}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-full relative overflow-hidden">
 
       <div className="px-6 py-3 flex items-center justify-between shrink-0">
-        <span className="font-semibold text-base">Create Stock Group</span>
-        <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to cancel</span>
+        <span className="font-semibold text-base">Alter Stock Group</span>
+        <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to go back</span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6">
@@ -192,10 +311,10 @@ export default function StockGroupCreate() {
           <Row label="Under">
             <button
               type="button"
-              onClick={() => setShowPanel(true)}
+              onClick={() => setShowPanel("under")}
               className="w-full text-left text-sm py-1 px-1 bg-transparent outline-none text-zinc-700 hover:text-black transition-colors"
             >
-              {selectedGroupLabel}
+              {selectedUnderLabel}
             </button>
           </Row>
           <Row label="Should Quantities be Added">
@@ -244,29 +363,38 @@ export default function StockGroupCreate() {
         </div>
       )}
 
-      <div className="px-6 py-3 flex justify-end gap-3 shrink-0">
+      <div className="px-6 py-3 flex justify-between items-center shrink-0">
         <button
-          onClick={() => navigate("/master/create")}
-          className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSubmit}
+          onClick={handleDelete}
           disabled={loading}
-          className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
+          className="text-sm px-4 py-1.5 rounded border border-red-300 text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors"
         >
-          {loading ? "Saving..." : "Accept"}
+          Delete
         </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setSelectedGroup(null); setForm(null); }}
+            className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          >
+            Back
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
+          >
+            {loading ? "Saving..." : "Accept"}
+          </button>
+        </div>
       </div>
 
-      {showPanel && (
+      {showPanel === "under" && (
         <SidePanel
           title="Stock Groups"
-          items={stockGroups.map(g => ({ id: g.sg_id, label: g.name }))}
+          items={underOptions.map(g => ({ id: g.sg_id, label: g.name }))}
           selected={form.parent_group_id}
-          onSelect={val => setForm(f => ({ ...f, parent_group_id: val }))}
-          onClose={() => setShowPanel(false)}
+          onSelect={val => setForm(f => f ? { ...f, parent_group_id: val } : f)}
+          onClose={() => setShowPanel(null)}
         />
       )}
 

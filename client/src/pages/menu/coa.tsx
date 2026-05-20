@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { useCompany } from "../../context/CompanyContext";
+import { useCompany } from "@/context/CompanyContext";
 
 export default function COA() {
   const { selectedCompany } = useCompany();

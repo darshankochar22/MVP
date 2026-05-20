@@ -1,8 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { useCompany } from "../../context/CompanyContext";
+import { useCompany } from "@/context/CompanyContext";
 
-export default function Alter() {
+export default function Create() {
   const { selectedCompany } = useCompany();
   const [masterSections, setMasterSections] = useState<{title: string, items: string[]}[]>([]);
   const navigate = useNavigate();
@@ -25,13 +25,13 @@ export default function Alter() {
 
   const getRoute = (item: string) => {
     const map: Record<string, string> = {
-      "Ledger": "/master/alter/ledger",
-      "Group": "/master/alter/group",
-      "Unit": "/master/alter/unit",
-      "Stock Group": "/master/alter/stock-group",
-      "Stock Category": "/master/alter/stock-category",
-      "Stock Items": "/master/alter/stock-item",
-      "Location": "/master/alter/godown",
+      "Ledger": "/master/create/ledger",
+      "Group": "/master/create/group",
+      "Unit": "/master/create/unit",
+      "Stock Group": "/master/create/stock-group",
+      "Stock Category": "/master/create/stock-category",
+      "Stock Items": "/master/create/stock-item",
+      "Location": "/master/create/godown",
     };
     return map[item] ?? null;
   };
@@ -42,11 +42,10 @@ export default function Alter() {
 
         <div className="flex items-start justify-between mb-12">
           <div className="text-2xl font-semibold">
-            List of Masters (Alter)
+            List of Masters (Create)
           </div>
 
           <div className="flex flex-col items-end gap-3">
-
             <Link to="/" className="rounded px-2 py-1">
               Back
             </Link>
@@ -93,6 +92,7 @@ export default function Alter() {
             </div>
           ))}
         </div>
+
       </div>
     </div>
   );

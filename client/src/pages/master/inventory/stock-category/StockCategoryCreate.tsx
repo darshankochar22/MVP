@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCompany } from "../../../context/CompanyContext";
-import type { StockCategoryType } from "../../../types/api";
+import { useCompany } from "@/context/CompanyContext";
+import type { StockCategoryType } from "@/types/api";
 
 function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
@@ -65,82 +65,16 @@ function SidePanel({ title, items, selected, onSelect, onClose }: SidePanelProps
   );
 }
 
-function SelectionPanel({
-  categories,
-  onSelect,
-  onCancel,
-}: {
-  categories: StockCategoryType[];
-  onSelect: (c: StockCategoryType) => void;
-  onCancel: () => void;
-}) {
-  const [search, setSearch] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { inputRef.current?.focus(); }, []);
-
-  const filtered = categories.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase())
-  );
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="px-6 py-3 flex items-center justify-between shrink-0">
-        <span className="font-semibold text-base">Alter Stock Category</span>
-        <span className="text-xs text-zinc-500">Esc to cancel</span>
-      </div>
-
-      <div className="px-6 pb-3 shrink-0">
-        <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">Select Category to Alter</div>
-        <input
-          ref={inputRef}
-          className="w-full text-sm bg-transparent border-b border-zinc-300 outline-none py-1 placeholder:text-zinc-400"
-          placeholder="Search categories..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-6">
-        {filtered.length === 0 && (
-          <div className="text-sm text-zinc-400 py-4">No categories found</div>
-        )}
-        {filtered.map(c => (
-          <div
-            key={c.sc_id}
-            onClick={() => onSelect(c)}
-            className="py-2 text-sm text-zinc-700 hover:text-black cursor-pointer border-b border-zinc-100 last:border-0"
-          >
-            {c.name}
-          </div>
-        ))}
-      </div>
-
-      <div className="px-6 py-3 flex justify-end shrink-0">
-        <button
-          onClick={onCancel}
-          className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
-  );
-}
-
 interface FormData {
-  name: string;
-  alias: string;
-  description: string;
-  parent_category_id: string;
+  name: string; alias: string; description: string; parent_category_id: string;
 }
+const INITIAL: FormData = { name: "", alias: "", description: "", parent_category_id: "" };
 
-export default function StockCategoryAlter() {
+export default function StockCategoryCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
-
+  const [form, setForm] = useState<FormData>(INITIAL);
   const [categories, setCategories] = useState<StockCategoryType[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<StockCategoryType | null>(null);
-  const [form, setForm] = useState<FormData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -154,118 +88,62 @@ export default function StockCategoryAlter() {
     });
   }, [selectedCompany]);
 
-  const handleSelectCategory = (c: StockCategoryType) => {
-    setSelectedCategory(c);
-    setForm({
-      name: c.name ?? "",
-      alias: c.alias ?? "",
-      description: c.description ?? "",
-      parent_category_id: c.parent_category_id ? String(c.parent_category_id) : "",
-    });
-    setError(null);
-  };
-
   const set = (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-      setForm(f => f ? { ...f, [key]: e.target.value } : f);
+      setForm(f => ({ ...f, [key]: e.target.value }));
 
   const validate = (): string | null => {
-    if (!form?.name.trim()) return "Name is required.";
+    if (!form.name.trim()) return "Name is required.";
     if (!selectedCompany?.company_id) return "No company selected.";
     return null;
   };
 
   const handleSubmit = useCallback(async () => {
-    if (!form || !selectedCategory) return;
     const validationError = validate();
     if (validationError) { setError(validationError); return; }
-
     setLoading(true); setError(null);
     try {
-      const result = await window.api.stockCategory.update({
-        sc_id: selectedCategory.sc_id,
+      const result = await window.api.stockCategory.create({
+        company_id: selectedCompany!.company_id,
         name: form.name.trim(),
-        description: form.description.trim() || null,
-        parent_category_id: form.parent_category_id ? Number(form.parent_category_id) : null,
+        alias: form.alias.trim() || undefined,
+        description: form.description.trim() || undefined,
+        parent_category_id: form.parent_category_id ? Number(form.parent_category_id) : undefined,
       });
-
       if (result.success) {
         const updated = await window.api.stockCategory.getAll(selectedCompany!.company_id!);
         if (updated.success) setCategories(updated.stockCategories ?? []);
-        setSuccess(`Stock Category "${form.name}" updated.`);
-        setTimeout(() => {
-          setSuccess(null);
-          setSelectedCategory(null);
-          setForm(null);
-        }, 2000);
+        setSuccess(`Stock Category "${form.name}" created.`);
+        setForm(INITIAL);
+        setTimeout(() => setSuccess(null), 3000);
       } else {
-        setError(result.error || "Failed to update stock category.");
+        setError(result.error || "Failed to create stock category.");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unexpected error.");
     } finally {
       setLoading(false);
     }
-  }, [form, selectedCategory, selectedCompany]);
-
-  const handleDelete = useCallback(async () => {
-    if (!selectedCategory) return;
-    if (!window.confirm(`Delete "${selectedCategory.name}"? This cannot be undone.`)) return;
-
-    setLoading(true); setError(null);
-    try {
-      const result = await window.api.stockCategory.delete(selectedCategory.sc_id);
-      if (result.success) {
-        const updated = await window.api.stockCategory.getAll(selectedCompany!.company_id!);
-        if (updated.success) setCategories(updated.stockCategories ?? []);
-        setSelectedCategory(null);
-        setForm(null);
-      } else {
-        setError(result.error || "Failed to delete stock category.");
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Unexpected error.");
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedCategory, selectedCompany]);
+  }, [form, selectedCompany]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        if (showPanel) { setShowPanel(false); return; }
-        if (selectedCategory) { setSelectedCategory(null); setForm(null); return; }
-        navigate("/master/alter");
-      }
+      if (e.key === "Escape") { if (showPanel) setShowPanel(false); else navigate("/master/stock-category"); }
       if (e.ctrlKey && e.key === "a") { e.preventDefault(); handleSubmit(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, navigate, showPanel, selectedCategory]);
+  }, [handleSubmit, navigate, showPanel]);
 
-  const underOptions = categories.filter(c =>
-    selectedCategory ? String(c.sc_id) !== String(selectedCategory.sc_id) : true
-  );
-
-  const selectedLabel = form?.parent_category_id
+  const selectedLabel = form.parent_category_id
     ? categories.find(c => String(c.sc_id) === form.parent_category_id)?.name ?? "Primary"
     : "Primary";
-
-  if (!selectedCategory || !form) {
-    return (
-      <SelectionPanel
-        categories={categories}
-        onSelect={handleSelectCategory}
-        onCancel={() => navigate("/master/alter")}
-      />
-    );
-  }
 
   return (
     <div className="flex flex-col h-full relative overflow-hidden">
       <div className="px-6 py-3 flex items-center justify-between shrink-0">
-        <span className="font-semibold text-base">Alter Stock Category</span>
-        <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to go back</span>
+        <span className="font-semibold text-base">Create Stock Category</span>
+        <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to cancel</span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6">
@@ -304,37 +182,21 @@ export default function StockCategoryAlter() {
         </div>
       )}
 
-      <div className="px-6 py-3 flex justify-between items-center shrink-0">
-        <button
-          onClick={handleDelete}
-          disabled={loading}
-          className="text-sm px-4 py-1.5 rounded border border-red-300 text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors"
-        >
-          Delete
+      <div className="px-6 py-3 flex justify-end gap-3 shrink-0">
+        <button onClick={() => navigate("/master/create")} className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors">
+          Cancel
         </button>
-        <div className="flex gap-3">
-          <button
-            onClick={() => { setSelectedCategory(null); setForm(null); }}
-            className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-          >
-            Back
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
-          >
-            {loading ? "Saving..." : "Accept"}
-          </button>
-        </div>
+        <button onClick={handleSubmit} disabled={loading} className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium">
+          {loading ? "Saving..." : "Accept"}
+        </button>
       </div>
 
       {showPanel && (
         <SidePanel
           title="List of Categories"
-          items={underOptions.map(c => ({ id: c.sc_id, label: c.name }))}
+          items={categories.map(c => ({ id: c.sc_id, label: c.name }))}
           selected={form.parent_category_id}
-          onSelect={val => setForm(f => f ? { ...f, parent_category_id: val } : f)}
+          onSelect={val => setForm(f => ({ ...f, parent_category_id: val }))}
           onClose={() => setShowPanel(false)}
         />
       )}

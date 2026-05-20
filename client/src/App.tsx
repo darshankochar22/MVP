@@ -1,4 +1,4 @@
-import Gateway from "@/components/Gateway.tsx";
+import Gateway from "@/pages/menu/Gateway.tsx";
 import RightPanel from "@/components/RightPanel.tsx";
 import LeftPanel from "@/components/LeftPanel.tsx";
 
