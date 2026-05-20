@@ -36,14 +36,14 @@ function SidePanel({ title, items, selected, onSelect, onClose }: SidePanelProps
   }, [onClose]);
 
   return (
-    <div ref={ref} className="fixed top-0 right-0 h-full w-64 bg-white dark:bg-zinc-900 shadow-2xl z-50 flex flex-col">
+    <div ref={ref} className="fixed top-0 right-0 h-full w-64 bg-white shadow-2xl z-50 flex flex-col">
       <div className="bg-zinc-800 text-white text-xs font-semibold px-3 py-2 tracking-wide flex justify-between items-center shrink-0">
         <span>{title}</span>
         <button onClick={onClose} className="opacity-60 hover:opacity-100 text-xs">✕</button>
       </div>
       <div className="flex-1 overflow-y-auto">
         <div
-          className={`px-3 py-1.5 text-sm cursor-pointer ${selected === "" ? "bg-yellow-400 text-black font-medium" : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"}`}
+          className={`px-3 py-1.5 text-sm cursor-pointer ${selected === "" ? " text-black font-medium" : "hover:bg-zinc-100 text-zinc-700"}`}
           onClick={() => { onSelect(""); onClose(); }}
         >
           ◆ Primary
@@ -51,7 +51,7 @@ function SidePanel({ title, items, selected, onSelect, onClose }: SidePanelProps
         {items.map(item => (
           <div
             key={item.id}
-            className={`px-3 py-1.5 text-sm cursor-pointer ${selected === String(item.id) ? "bg-yellow-400 text-black font-medium" : "hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"}`}
+            className={`px-3 py-1.5 text-sm cursor-pointer ${selected === String(item.id) ? " text-black font-medium" : "hover:bg-zinc-100  text-zinc-700"}`}
             onClick={() => { onSelect(String(item.id)); onClose(); }}
           >
             {item.label}
@@ -159,7 +159,7 @@ export default function StockCategoryCreate() {
             <button
               type="button"
               onClick={() => setShowPanel(true)}
-              className="w-full text-left text-sm py-1 px-1 bg-transparent outline-none text-zinc-700 dark:text-zinc-300 hover:text-black dark:hover:text-white transition-colors"
+              className="w-full text-left text-sm py-1 px-1 bg-transparent outline-none text-zinc-700 hover:text-black transition-colors"
             >
               {selectedLabel}
             </button>

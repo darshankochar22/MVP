@@ -343,17 +343,16 @@ export default function LedgerCreate() {
     }
   };
 
-  const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:border-amber-300 focus:bg-amber-50";
-  const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:border-amber-300 focus:bg-amber-50";
+  const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
+  const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
   const rowCls = "flex items-center min-h-[22px]";
   const labelCls = "w-16 text-sm shrink-0";
   const colonCls = "text-sm mr-2 shrink-0 w-3";
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white">
-      <div className="bg-[#b4c6e7] px-3 py-1 text-sm font-medium flex justify-between items-center border-b border-[#8a9bc0] select-none">
+      <div className=" px-3 py-1 text-sm font-medium flex justify-between items-center select-none">
         <span>Ledger Creation</span>
-        <span className="text-xs">Tally Prime</span>
       </div>
 
       {error && (
@@ -377,7 +376,7 @@ export default function LedgerCreate() {
             <div className={rowCls}>
               <label className={labelCls}>Name</label>
               <span className={colonCls}>:</span>
-              <input autoFocus className={`${inputCls} bg-amber-100 border-amber-300`} value={form.name || ""} onChange={setField("name")} />
+              <input autoFocus className={`${inputCls} bg-transparent`} value={form.name || ""} onChange={setField("name")} />
             </div>
             <div className={rowCls}>
               <label className={labelCls}>(alias)</label>
@@ -386,13 +385,13 @@ export default function LedgerCreate() {
             </div>
           </div>
 
-          <div className="border-t border-zinc-200 mx-2" />
+          <div className="mx-2" />
 
           <div className="p-2">
             <div className={`${rowCls} cursor-pointer hover:bg-zinc-50`} onClick={() => setShowGroupPanel(!showGroupPanel)}>
               <label className={labelCls}>Under</label>
               <span className={colonCls}>:</span>
-              <span className={`text-sm px-1 py-0.5 border ${selectedGroup ? "bg-amber-100 border-amber-300" : "border-transparent"}`}>
+              <span className={`text-sm px-1 py-0.5 border ${selectedGroup ? "border-transparent" : "border-transparent"}`}>
                 {selectedGroup?.name || "\u2014"}
               </span>
             </div>
@@ -427,7 +426,7 @@ export default function LedgerCreate() {
           </div>
 
           {/* Mailing Details */}
-          <div className="border-t p-2">
+          <div className=" p-2">
             <div className="text-sm font-semibold mb-1.5 underline decoration-1 underline-offset-2">Mailing Details</div>
             <div className="space-y-0.5">
               <div className={rowCls}>
@@ -479,7 +478,7 @@ export default function LedgerCreate() {
           </div>
 
           {/* Banking Details */}
-          <div className="border-t p-2">
+          <div className=" p-2">
             <div className="text-sm font-semibold mb-1.5 underline decoration-1 underline-offset-2">Banking Details</div>
             <div className={rowCls}>
               <label className="w-40 text-sm shrink-0">Provide bank details</label>
@@ -512,7 +511,7 @@ export default function LedgerCreate() {
           </div>
 
           {/* Tax Registration Details */}
-          <div className="border-t p-2">
+          <div className="p-2">
             <div className="text-sm font-semibold mb-1.5 underline decoration-1 underline-offset-2">Tax Registration Details</div>
             <div className="space-y-0.5">
               <div className={rowCls}><label className="w-40 text-sm shrink-0">PAN/IT No.</label><span className={colonCls}>:</span><input className={inputCls} value={form.pan || ""} onChange={setField("pan")} /></div>
@@ -539,8 +538,8 @@ export default function LedgerCreate() {
 
         {/* Group panel */}
         {showGroupPanel && (
-          <div className="w-72 border-l bg-[#e8f0f8] flex flex-col shrink-0">
-            <div className="bg-[#b4c6e7] px-2 py-1 text-sm font-medium flex justify-between items-center border-b border-[#8a9bc0] select-none">
+          <div className="w-72 border-l flex flex-col shrink-0">
+            <div className=" px-2 py-1 text-sm font-medium flex justify-between items-center select-none">
               <span>List of Groups</span>
               <button onClick={() => setShowGroupPanel(false)} className="text-xs hover:underline">&times;</button>
             </div>
