@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../../context/CompanyContext";
-import type { StockGroupType, UnitType } from "../../../types/api";
+import type { StockGroupType, UnitType, StockItemType } from "../../../types/api";
 
 function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
@@ -64,6 +64,69 @@ function SidePanel({ title, items, selected, onSelect, onClose }: SidePanelProps
   );
 }
 
+function SelectionPanel({
+  items,
+  onSelect,
+  onCancel,
+}: {
+  items: StockItemType[];
+  onSelect: (item: StockItemType) => void;
+  onCancel: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const filtered = items.filter(item =>
+    item.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="px-6 py-3 flex items-center justify-between shrink-0">
+        <span className="font-semibold text-base">Alter Stock Item</span>
+        <span className="text-xs text-zinc-500">Esc to cancel</span>
+      </div>
+
+      <div className="px-6 pb-3 shrink-0">
+        <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">Select Item to Alter</div>
+        <input
+          ref={inputRef}
+          className="w-full text-sm bg-transparent border-b border-zinc-300 outline-none py-1 placeholder:text-zinc-400"
+          placeholder="Search items..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-6">
+        {filtered.length === 0 && (
+          <div className="text-sm text-zinc-400 py-4">No items found</div>
+        )}
+        {filtered.map(item => (
+          <div
+            key={item.item_id}
+            onClick={() => onSelect(item)}
+            className="py-2 text-sm text-zinc-700 hover:text-black cursor-pointer border-b border-zinc-100 last:border-0"
+          >
+            {item.name}
+          </div>
+        ))}
+      </div>
+
+      <div className="px-6 py-3 flex justify-end shrink-0">
+        <button
+          onClick={onCancel}
+          className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface FormData {
   name: string;
   alias: string;
@@ -86,48 +149,28 @@ interface FormData {
   track_expiry: boolean;
 }
 
-const INITIAL: FormData = {
-  name: "",
-  alias: "",
-  group_id: "",
-  unit_id: "",
-  gst_applicable: "Not Applicable",
-  hsn_code: "",
-  sac_code: "",
-  gst_rate: "0",
-  cgst_rate: "0",
-  sgst_rate: "0",
-  igst_rate: "0",
-  type_of_supply: "Goods",
-  rate_of_duty: "0",
-  opening_quantity: "0",
-  opening_rate: "0",
-  reorder_level: "0",
-  reorder_quantity: "0",
-  track_batches: false,
-  track_expiry: false,
-};
-
 type PanelType = "group" | "unit" | null;
 
-export default function StockItemCreate() {
+export default function StockItemAlter() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
 
-  const [form, setForm] = useState<FormData>(INITIAL);
+  const [stockItems, setStockItems] = useState<StockItemType[]>([]);
   const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
   const [units, setUnits] = useState<UnitType[]>([]);
+  const [selectedItem, setSelectedItem] = useState<StockItemType | null>(null);
+  const [form, setForm] = useState<FormData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showPanel, setShowPanel] = useState<PanelType>(null);
 
-  const openingValue = (parseFloat(form.opening_quantity) || 0) * (parseFloat(form.opening_rate) || 0);
-  const gstSections  = form.gst_applicable !== "Not Applicable";
-
   useEffect(() => {
     const company_id = selectedCompany?.company_id;
     if (!company_id) return;
+    window.api.stockItem.getAll(company_id).then(r => {
+      if (r.success) setStockItems(r.stockItems ?? []);
+    });
     window.api.stockGroup.getAll(company_id).then(r => {
       if (r.success) setStockGroups(r.stockGroups ?? []);
     });
@@ -136,22 +179,48 @@ export default function StockItemCreate() {
     });
   }, [selectedCompany]);
 
+  const handleSelectItem = (item: StockItemType) => {
+    setSelectedItem(item);
+    setForm({
+      name: item.name ?? "",
+      alias: item.alias ?? "",
+      group_id: item.group_id ? String(item.group_id) : "",
+      unit_id: item.unit_id ? String(item.unit_id) : "",
+      gst_applicable: item.gst_applicable ?? "Not Applicable",
+      hsn_code: item.hsn_code ?? "",
+      sac_code: item.sac_code ?? "",
+      gst_rate: String(item.gst_rate ?? 0),
+      cgst_rate: String(item.cgst_rate ?? 0),
+      sgst_rate: String(item.sgst_rate ?? 0),
+      igst_rate: String(item.igst_rate ?? 0),
+      type_of_supply: item.type_of_supply ?? "Goods",
+      rate_of_duty: String(item.rate_of_duty ?? 0),
+      opening_quantity: String(item.opening_quantity ?? 0),
+      opening_rate: String(item.opening_rate ?? 0),
+      reorder_level: String(item.reorder_level ?? 0),
+      reorder_quantity: String(item.reorder_quantity ?? 0),
+      track_batches: Boolean(item.track_batches),
+      track_expiry: Boolean(item.track_expiry),
+    });
+    setError(null);
+  };
+
   const set = (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm(f => ({ ...f, [key]: e.target.value }));
+      setForm(f => f ? { ...f, [key]: e.target.value } : f);
 
   const setCheck = (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
-      setForm(f => ({ ...f, [key]: e.target.checked }));
+      setForm(f => f ? { ...f, [key]: e.target.checked } : f);
 
   const handleGstChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val  = e.target.value;
+    const val = e.target.value;
     const half = val === "" ? "0" : String(parseFloat(val) / 2);
-    setForm(f => ({ ...f, gst_rate: val, cgst_rate: half, sgst_rate: half }));
+    setForm(f => f ? { ...f, gst_rate: val, cgst_rate: half, sgst_rate: half } : f);
   };
 
   const validate = (): string | null => {
-    if (!form.name.trim())            return "Name is required.";
+    if (!form?.name.trim())           return "Name is required.";
     if (!selectedCompany?.company_id) return "No company selected.";
     if (!form.group_id)               return "Stock Group is required.";
     if (!form.unit_id)                return "Unit is required.";
@@ -167,20 +236,22 @@ export default function StockItemCreate() {
   };
 
   const handleSubmit = useCallback(async () => {
+    if (!form || !selectedItem) return;
     const validationError = validate();
     if (validationError) { setError(validationError); return; }
 
     setLoading(true); setError(null);
     try {
-      const result = await window.api.stockItem.create({
+      const result = await window.api.stockItem.update({
+        item_id:          selectedItem.item_id,
         company_id:       selectedCompany!.company_id,
         name:             form.name.trim(),
-        alias:            form.alias.trim()    || undefined,
-        group_id:         form.group_id        ? Number(form.group_id)  : undefined,
-        unit_id:          form.unit_id         ? Number(form.unit_id)   : undefined,
+        alias:            form.alias.trim()    || null,
+        group_id:         form.group_id        ? Number(form.group_id)  : null,
+        unit_id:          form.unit_id         ? Number(form.unit_id)   : null,
         gst_applicable:   form.gst_applicable,
-        hsn_code:         form.hsn_code.trim() || undefined,
-        sac_code:         form.sac_code.trim() || undefined,
+        hsn_code:         form.hsn_code.trim() || null,
+        sac_code:         form.sac_code.trim() || null,
         gst_rate:         Number(form.gst_rate)         || 0,
         cgst_rate:        Number(form.cgst_rate)        || 0,
         sgst_rate:        Number(form.sgst_rate)        || 0,
@@ -196,44 +267,92 @@ export default function StockItemCreate() {
       });
 
       if (result.success) {
-        setSuccess(`Stock Item "${form.name}" created.`);
-        setForm(INITIAL);
-        setTimeout(() => setSuccess(null), 3000);
+        const updated = await window.api.stockItem.getAll(selectedCompany!.company_id!);
+        if (updated.success) setStockItems(updated.stockItems ?? []);
+
+        setSuccess(`Stock Item "${form.name}" updated.`);
+        setTimeout(() => {
+          setSuccess(null);
+          setSelectedItem(null);
+          setForm(null);
+        }, 2000);
       } else {
-        setError(result.error || "Failed to create stock item.");
+        setError(result.error || "Failed to update stock item.");
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Unexpected error.");
     } finally {
       setLoading(false);
     }
-  }, [form, selectedCompany]);
+  }, [form, selectedItem, selectedCompany]);
+
+  const handleDelete = useCallback(async () => {
+    if (!selectedItem) return;
+    if (!window.confirm(`Delete "${selectedItem.name}"? This cannot be undone.`)) return;
+
+    setLoading(true); setError(null);
+    try {
+      const result = await window.api.stockItem.delete(selectedItem.item_id);
+      if (result.success) {
+        const updated = await window.api.stockItem.getAll(selectedCompany!.company_id!);
+        if (updated.success) setStockItems(updated.stockItems ?? []);
+        setSelectedItem(null);
+        setForm(null);
+      } else {
+        setError(result.error || "Failed to delete stock item.");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unexpected error.");
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedItem, selectedCompany]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { if (showPanel) setShowPanel(null); else navigate("/master/stock-item"); }
+      if (e.key === "Escape") {
+        if (showPanel) { setShowPanel(null); return; }
+        if (selectedItem) { setSelectedItem(null); setForm(null); return; }
+        navigate("/master/alter");
+      }
       if (e.ctrlKey && e.key === "a") { e.preventDefault(); handleSubmit(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, navigate, showPanel]);
+  }, [handleSubmit, navigate, showPanel, selectedItem]);
 
-  const selectedGroupLabel = form.group_id
+  const openingValue = form
+    ? (parseFloat(form.opening_quantity) || 0) * (parseFloat(form.opening_rate) || 0)
+    : 0;
+
+  const gstSections = form?.gst_applicable !== "Not Applicable";
+
+  const selectedGroupLabel = form?.group_id
     ? stockGroups.find(g => String(g.sg_id) === form.group_id)?.name ?? "— Select Group —"
     : "— Select Group —";
 
-  const selectedUnitLabel = form.unit_id
+  const selectedUnitLabel = form?.unit_id
     ? units.find(u => String(u.unit_id) === form.unit_id)
         ? `${units.find(u => String(u.unit_id) === form.unit_id)!.name} (${units.find(u => String(u.unit_id) === form.unit_id)!.symbol})`
         : "— Select Unit —"
     : "— Select Unit —";
 
+  if (!selectedItem || !form) {
+    return (
+      <SelectionPanel
+        items={stockItems}
+        onSelect={handleSelectItem}
+        onCancel={() => navigate("/master/alter")}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col h-full relative overflow-hidden">
 
       <div className="px-6 py-3 flex items-center justify-between shrink-0">
-        <span className="font-semibold text-base">Create Stock Item</span>
-        <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to cancel</span>
+        <span className="font-semibold text-base">Alter Stock Item</span>
+        <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to go back</span>
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6">
@@ -372,20 +491,29 @@ export default function StockItemCreate() {
         </div>
       )}
 
-      <div className="px-6 py-3 flex justify-end gap-3 shrink-0">
+      <div className="px-6 py-3 flex justify-between items-center shrink-0">
         <button
-          onClick={() => navigate("/master/create")}
-          className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSubmit}
+          onClick={handleDelete}
           disabled={loading}
-          className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
+          className="text-sm px-4 py-1.5 rounded border border-red-300 text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors"
         >
-          {loading ? "Saving..." : "Accept"}
+          Delete
         </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setSelectedItem(null); setForm(null); }}
+            className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          >
+            Back
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
+          >
+            {loading ? "Saving..." : "Accept"}
+          </button>
+        </div>
       </div>
 
       {showPanel === "group" && (
@@ -393,7 +521,7 @@ export default function StockItemCreate() {
           title="Stock Groups"
           items={stockGroups.map(g => ({ id: g.sg_id, label: g.name }))}
           selected={form.group_id}
-          onSelect={val => setForm(f => ({ ...f, group_id: val }))}
+          onSelect={val => setForm(f => f ? { ...f, group_id: val } : f)}
           onClose={() => setShowPanel(null)}
         />
       )}
@@ -403,7 +531,7 @@ export default function StockItemCreate() {
           title="Units"
           items={units.map(u => ({ id: u.unit_id, label: `${u.name} (${u.symbol})` }))}
           selected={form.unit_id}
-          onSelect={val => setForm(f => ({ ...f, unit_id: val }))}
+          onSelect={val => setForm(f => f ? { ...f, unit_id: val } : f)}
           onClose={() => setShowPanel(null)}
         />
       )}

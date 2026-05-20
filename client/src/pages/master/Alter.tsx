@@ -27,11 +27,11 @@ export default function Alter() {
     const map: Record<string, string> = {
       "Ledger": "/master/alter/ledger",
       "Group": "/master/alter/group",
-      "Unit": "/master/create/unit",
-      "Stock Group": "/master/create/stock-group",
-      "Stock Category": "/master/create/stock-category",
-      "Stock Items": "/master/create/stock-item",
-      "Location": "/master/create/godown",
+      "Unit": "/master/alter/unit",
+      "Stock Group": "/master/alter/stock-group",
+      "Stock Category": "/master/alter/stock-category",
+      "Stock Items": "/master/alter/stock-item",
+      "Location": "/master/alter/godown",
     };
     return map[item] ?? null;
   };
