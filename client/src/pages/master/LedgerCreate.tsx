@@ -351,7 +351,7 @@ export default function LedgerCreate() {
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white">
-      <div className="bg-[#b4c6e7] px-3 py-1 text-sm font-medium flex justify-between items-center border-b border-[#8a9bc0] select-none">
+      <div className="px-3 py-1 text-sm font-medium flex justify-between items-center border-b border-[#8a9bc0] select-none">
         <span>Ledger Creation</span>
       </div>
 
