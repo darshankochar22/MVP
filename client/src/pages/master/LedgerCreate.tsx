@@ -45,9 +45,6 @@ const INDIAN_STATES = [
   "Puducherry",
 ];
 
-const REG_TYPES = ["Unregistered", "Regular", "Composition", "SEZ"];
-const GST_APPLICABILITIES = ["Not Applicable", "Goods", "Services", "Both"];
-
 const TXN_TYPES_DEFAULT = ["End of List", "Cheque", "e-Fund Transfer", "Others"];
 const TXN_TYPES_EXTRA = ["ATM-Card", "ECS", "Electronic Cheque", "Electronic DD/PO"];
 
@@ -395,14 +392,6 @@ export default function LedgerCreate() {
   const setNumber = (key: keyof LedgerType) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setForm((f) => ({ ...f, [key]: e.target.value === "" ? undefined : Number(e.target.value) }));
-
-  const setStatField = (key: keyof StatutoryDetails) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setStatutoryForm((f) => ({ ...f, [key]: e.target.value }));
-
-  const setStatNumber = (key: keyof StatutoryDetails) =>
-    (e: React.ChangeEvent<HTMLInputElement>) =>
-      setStatutoryForm((f) => ({ ...f, [key]: e.target.value === "" ? undefined : Number(e.target.value) }));
 
   const handleProvideBankChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value as "No" | "Yes";
