@@ -108,80 +108,27 @@ export default function Footer() {
 
   return (
     <>
-      {/* Premium Tallybottom Status bar */}
-      <footer className="bg-zinc-900 border-t border-zinc-800 text-zinc-300 font-mono text-[11px] select-none shadow-2xl relative select-none">
-        
-        {/* Buttons Flex Row */}
-        <div className="flex flex-wrap items-center justify-between px-6 py-2 gap-y-2">
-          
-          {/* Quit Button */}
-          <button
-            onClick={handleQuit}
-            className="flex items-center gap-2 px-3 py-1.5 rounded hover:bg-zinc-800 hover:text-white transition-all border border-transparent hover:border-zinc-700/60 cursor-pointer active:scale-95 duration-100 group"
-          >
-            <span className="bg-zinc-800 text-zinc-400 group-hover:bg-zinc-750 group-hover:text-zinc-200 border border-zinc-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase select-none tracking-wider">
-              Esc
-            </span>
-            <span className="font-semibold text-zinc-300">Quit</span>
-          </button>
-
-          {/* Accept Button */}
-          <button
-            onClick={handleAccept}
-            className="flex items-center gap-2 px-3 py-1.5 rounded hover:bg-zinc-800 hover:text-white transition-all border border-transparent hover:border-zinc-700/60 cursor-pointer active:scale-95 duration-100 group"
-          >
-            <span className="bg-zinc-800 text-zinc-400 group-hover:bg-zinc-750 group-hover:text-zinc-200 border border-zinc-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase select-none tracking-wider">
-              Ctrl+A
-            </span>
-            <span className="font-semibold text-zinc-300">Accept</span>
-          </button>
-
-          {/* Delete Button */}
-          <button
-            onClick={handleDelete}
-            className="flex items-center gap-2 px-3 py-1.5 rounded hover:bg-zinc-800 hover:text-white transition-all border border-transparent hover:border-zinc-700/60 cursor-pointer active:scale-95 duration-100 group"
-          >
-            <span className="bg-zinc-800 text-zinc-400 group-hover:bg-zinc-750 group-hover:text-zinc-200 border border-zinc-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase select-none tracking-wider">
-              Alt+D
-            </span>
-            <span className="font-semibold text-zinc-300">Delete</span>
-          </button>
-
-          {/* Cancel Button */}
-          <button
-            onClick={handleCancel}
-            className="flex items-center gap-2 px-3 py-1.5 rounded hover:bg-zinc-800 hover:text-white transition-all border border-transparent hover:border-zinc-700/60 cursor-pointer active:scale-95 duration-100 group"
-          >
-            <span className="bg-zinc-800 text-zinc-400 group-hover:bg-zinc-750 group-hover:text-zinc-200 border border-zinc-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase select-none tracking-wider">
-              Esc
-            </span>
-            <span className="font-semibold text-zinc-300">Cancel</span>
-          </button>
-
-          {/* Vch Button */}
-          <button
-            onClick={handleVch}
-            className="flex items-center gap-2 px-3 py-1.5 rounded hover:bg-zinc-800 hover:text-white transition-all border border-transparent hover:border-zinc-700/60 cursor-pointer active:scale-95 duration-100 group"
-          >
-            <span className="bg-zinc-800 text-zinc-400 group-hover:bg-zinc-750 group-hover:text-zinc-200 border border-zinc-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase select-none tracking-wider">
-              F8
-            </span>
-            <span className="font-semibold text-zinc-300">Vch</span>
-          </button>
-
-          {/* Configure Button */}
-          <button
-            onClick={handleConfigure}
-            className="flex items-center gap-2 px-3 py-1.5 rounded hover:bg-zinc-800 hover:text-white transition-all border border-transparent hover:border-zinc-700/60 cursor-pointer active:scale-95 duration-100 group"
-          >
-            <span className="bg-zinc-800 text-zinc-400 group-hover:bg-zinc-750 group-hover:text-zinc-200 border border-zinc-700 text-[9px] px-1.5 py-0.5 rounded font-bold uppercase select-none tracking-wider">
-              F12
-            </span>
-            <span className="font-semibold text-zinc-300">Configure</span>
-          </button>
-
-        </div>
-      </footer>
+      {/* Restored White Simple Footer Layout */}
+      <div className="flex flex-row items-center justify-between px-10 py-10 border-t bg-white select-none text-zinc-800">
+        <button onClick={handleQuit} className="hover:underline focus:outline-none transition-all">
+          Quit
+        </button>
+        <button onClick={handleAccept} className="hover:underline focus:outline-none transition-all">
+          Accept
+        </button>
+        <button onClick={handleDelete} className="hover:underline focus:outline-none transition-all">
+          Delete
+        </button>
+        <button onClick={handleCancel} className="hover:underline focus:outline-none transition-all">
+          Cancel
+        </button>
+        <button onClick={handleVch} className="hover:underline focus:outline-none transition-all">
+          Vch
+        </button>
+        <button onClick={handleConfigure} className="hover:underline focus:outline-none transition-all">
+          Configure
+        </button>
+      </div>
 
       {/* Overlay Drawer: F12 Configuration Modal */}
       {showConfigure && (
