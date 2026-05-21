@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import GroupTree from "@/components/GroupTree";
-import FormRow from "@/components/ui/FormRow";
+import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import BankDetailsPopup, { EMPTY_BANK_DETAILS } from "./components/BankDetailsPopup";
 import type { BankDetails } from "./components/BankDetailsPopup";
 import { useCompany } from "@/context/CompanyContext";
@@ -422,10 +422,38 @@ export default function LedgerAlter() {
         e.preventDefault();
         handleSubmit();
       }
+
+      // Alt+L to select ledger
+      if (e.altKey && (e.key === "l" || e.key === "L") && !showBankPopup) {
+        e.preventDefault();
+        setShowLedgerPanel(prev => !prev);
+        setShowGroupPanel(false);
+      }
+
+      // Alt+G to select group
+      if (e.altKey && (e.key === "g" || e.key === "G") && !showBankPopup && selectedLedgerId) {
+        e.preventDefault();
+        setShowGroupPanel(prev => !prev);
+        setShowLedgerPanel(false);
+      }
+
+      // Alt+C to navigate to create ledger
+      if (e.altKey && (e.key === "c" || e.key === "C") && !showBankPopup) {
+        e.preventDefault();
+        navigate("/master/create/ledger");
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleSubmit, showBankPopup, showGroupPanel, showLedgerPanel, navigate]);
+  }, [handleSubmit, showBankPopup, showGroupPanel, showLedgerPanel, navigate, selectedLedgerId]);
+
+  const ledgerAlterActions = [
+    { key: "Alt+L", label: "Select Ledger", onClick: () => { setShowLedgerPanel(prev => !prev); setShowGroupPanel(false); } },
+    { key: "Alt+G", label: "Select Group", disabled: !selectedLedgerId, onClick: () => { setShowGroupPanel(prev => !prev); setShowLedgerPanel(false); } },
+    { key: "Alt+A", label: "Accept", disabled: !selectedLedgerId, onClick: handleSubmit },
+    { key: "Alt+C", label: "Create Ledger", onClick: () => navigate("/master/create/ledger") },
+    { key: "Esc", label: "Quit", onClick: () => navigate("/master/alter") },
+  ];
 
   const groupName = (id?: number) => flatGroups.find((g) => g.group_id === id)?.name || "—";
 
@@ -453,11 +481,7 @@ export default function LedgerAlter() {
         />
       )}
 
-      {/* Title bar — matches LedgerCreate */}
-      <div className="px-3 py-1.5 text-xs font-semibold bg-zinc-900 text-white flex justify-between items-center select-none shadow-sm">
-        <span className="uppercase tracking-wider">Ledger Alteration</span>
-        {loading && <span className="text-[10px] text-zinc-400">Loading…</span>}
-      </div>
+      <PageTitleBar title="Ledger Alteration" subtitle={selectedCompany?.name} />
 
       {/* Alerts */}
       {error && (
@@ -876,6 +900,9 @@ export default function LedgerAlter() {
             </div>
           </div>
         )}
+
+        {/* Actions panel */}
+        <RightActionPanel actions={ledgerAlterActions} />
       </div>
 
       {/* Footer — matches LedgerCreate */}

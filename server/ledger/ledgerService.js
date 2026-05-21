@@ -209,9 +209,11 @@ module.exports = {
   getAll: async (company_id) => {
     try {
       const result = await db.execute({
-        sql: `SELECT * FROM ledgers 
-              WHERE company_id = ? 
-              AND is_active = 1`,
+        sql: `SELECT l.*, g.name as group_name 
+              FROM ledgers l
+              LEFT JOIN groups g ON g.group_id = l.group_id
+              WHERE l.company_id = ? 
+              AND l.is_active = 1`,
         args: [company_id],
       });
 

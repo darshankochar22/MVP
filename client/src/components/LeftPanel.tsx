@@ -3,6 +3,7 @@ import { useCompany } from "@/context/CompanyContext";
 
 export default function LeftPanel() {
   const [currentTime, setCurrentTime] = useState("");
+  const [sessionDate, setSessionDate] = useState("");
   const { selectedCompany, activeFY, availableFYs, switchFY } = useCompany();
   const [showFYDropdown, setShowFYDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -10,8 +11,7 @@ export default function LeftPanel() {
   useEffect(() => {
     const updateTime = () => {
       setCurrentTime(
-        new Date().toLocaleString("en-IN", {
-          dateStyle: "medium",
+        new Date().toLocaleTimeString("en-IN", {
           timeStyle: "medium",
         })
       );
@@ -19,6 +19,26 @@ export default function LeftPanel() {
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const updateDate = () => {
+      const stored = localStorage.getItem("tally_session_date");
+      if (stored) {
+        setSessionDate(stored);
+      } else {
+        setSessionDate(
+          new Date().toLocaleDateString("en-IN", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+          })
+        );
+      }
+    };
+    updateDate();
+    window.addEventListener("tally-session-date-changed", updateDate);
+    return () => window.removeEventListener("tally-session-date-changed", updateDate);
   }, []);
 
   useEffect(() => {
@@ -142,7 +162,7 @@ export default function LeftPanel() {
           <span className="text-sm text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
             Current Date
           </span>
-          <span className="font-medium tabular-nums">{currentTime}</span>
+          <span className="font-medium tabular-nums">{sessionDate}</span>
         </div>
       </div>
 
@@ -166,7 +186,7 @@ export default function LeftPanel() {
           <span className="text-sm text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
             Date of Last Entry
           </span>
-          <span className="font-medium tabular-nums">{currentTime}</span>
+          <span className="font-medium tabular-nums">{sessionDate}</span>
         </div>
 
       </div>

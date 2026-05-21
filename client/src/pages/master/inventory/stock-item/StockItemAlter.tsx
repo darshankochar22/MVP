@@ -1,58 +1,80 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import FormRow from "@/components/ui/FormRow";
-import SideSelectionPanel from "@/components/ui/SideSelectionPanel";
+import { FormRow, PageTitleBar, RightActionPanel, SearchInput, DataTable, SideSelectionPanel } from "@/components/ui";
 import type { StockGroupType, UnitType, StockItemType } from "@/types/api";
 
-const inputCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm placeholder:text-zinc-400";
-const selectCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm cursor-pointer";
+const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-400 font-mono focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
+const selectCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm cursor-pointer font-mono focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
 
-// ── Item selection screen ────────────────────────────────────────────────────
 function SelectionPanel({
   items,
   onSelect,
   onCancel,
+  onCreate,
 }: {
   items: StockItemType[];
   onSelect: (item: StockItemType) => void;
   onCancel: () => void;
+  onCreate: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => { inputRef.current?.focus(); }, []);
-  const filtered = items.filter(i => i.name.toLowerCase().includes(search.toLowerCase()));
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.preventDefault(); onCancel(); }
+      if (e.altKey && e.key.toLowerCase() === "c") { e.preventDefault(); onCreate(); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onCancel, onCreate]);
+
+  const filtered = items.filter(i =>
+    i.name.toLowerCase().includes(search.toLowerCase()) ||
+    (i.alias && i.alias.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const columns = [
+    { key: "name", label: "Item Name", span: "col-span-8", render: (r: StockItemType) => <span className="font-bold text-zinc-950 uppercase">{r.name}</span> },
+    { key: "alias", label: "Alias", span: "col-span-4", render: (r: StockItemType) => <span className="text-zinc-500 font-mono">{r.alias || "—"}</span> },
+  ];
+
+  const selectionActions = [
+    { key: "Alt+C", label: "Create Item", onClick: onCreate },
+    { key: "Esc", label: "Quit", onClick: onCancel },
+  ];
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="px-6 py-3 flex items-center justify-between shrink-0">
-        <span className="font-semibold text-base">Alter Stock Item</span>
-        <span className="text-xs text-zinc-500">Esc to cancel</span>
-      </div>
-      <div className="px-6 pb-3 shrink-0">
-        <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">Select Item to Alter</div>
-        <input
-          ref={inputRef}
-          className="w-full text-sm bg-transparent border-b border-zinc-300 outline-none py-1 placeholder:text-zinc-400"
-          placeholder="Search items..."
+    <div className="flex-1 flex flex-col h-full bg-white select-none">
+      <PageTitleBar title="Alter Stock Item" subtitle="Select Item to Alter" />
+
+      <div className="p-3 bg-zinc-50 border-b border-zinc-200 shrink-0">
+        <SearchInput
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={setSearch}
+          placeholder="Search items by name…"
+          autoFocus
         />
       </div>
-      <div className="flex-1 overflow-y-auto px-6">
-        {filtered.length === 0 && <div className="text-sm text-zinc-400 py-4">No items found</div>}
-        {filtered.map(item => (
-          <div
-            key={item.item_id}
-            onClick={() => onSelect(item)}
-            className="py-2 text-sm text-zinc-700 hover:text-black cursor-pointer border-b border-zinc-100 last:border-0"
-          >
-            {item.name}
-          </div>
-        ))}
+
+      <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex flex-col bg-white border-r border-zinc-100">
+          <DataTable
+            columns={columns}
+            rows={filtered}
+            rowKey={(r: StockItemType) => r.item_id}
+            onRowClick={onSelect}
+            emptyMessage="No stock items found."
+          />
+        </div>
+        <RightActionPanel actions={selectionActions} />
       </div>
-      <div className="px-6 py-3 flex justify-end shrink-0">
-        <button onClick={onCancel} className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 transition-colors">
+
+      <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50">
+        <button
+          onClick={onCancel}
+          className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white shadow-sm text-zinc-600 hover:bg-zinc-50 transition-colors font-medium"
+        >
           Cancel
         </button>
       </div>
@@ -60,15 +82,26 @@ function SelectionPanel({
   );
 }
 
-// ── Form data ────────────────────────────────────────────────────────────────
 interface FormData {
-  name: string; alias: string; group_id: string; unit_id: string;
-  gst_applicable: string; hsn_code: string; sac_code: string;
-  gst_rate: string; cgst_rate: string; sgst_rate: string; igst_rate: string;
-  type_of_supply: string; rate_of_duty: string;
-  opening_quantity: string; opening_rate: string;
-  reorder_level: string; reorder_quantity: string;
-  track_batches: boolean; track_expiry: boolean;
+  name: string;
+  alias: string;
+  group_id: string;
+  unit_id: string;
+  gst_applicable: string;
+  hsn_code: string;
+  sac_code: string;
+  gst_rate: string;
+  cgst_rate: string;
+  sgst_rate: string;
+  igst_rate: string;
+  type_of_supply: string;
+  rate_of_duty: string;
+  opening_quantity: string;
+  opening_rate: string;
+  reorder_level: string;
+  reorder_quantity: string;
+  track_batches: boolean;
+  track_expiry: boolean;
 }
 
 type PanelType = "group" | "unit" | null;
@@ -98,13 +131,17 @@ export default function StockItemAlter() {
   const handleSelectItem = (item: StockItemType) => {
     setSelectedItem(item);
     setForm({
-      name: item.name ?? "", alias: item.alias ?? "",
+      name: item.name ?? "",
+      alias: item.alias ?? "",
       group_id: item.group_id ? String(item.group_id) : "",
       unit_id: item.unit_id ? String(item.unit_id) : "",
       gst_applicable: item.gst_applicable ?? "Not Applicable",
-      hsn_code: item.hsn_code ?? "", sac_code: item.sac_code ?? "",
-      gst_rate: String(item.gst_rate ?? 0), cgst_rate: String(item.cgst_rate ?? 0),
-      sgst_rate: String(item.sgst_rate ?? 0), igst_rate: String(item.igst_rate ?? 0),
+      hsn_code: item.hsn_code ?? "",
+      sac_code: item.sac_code ?? "",
+      gst_rate: String(item.gst_rate ?? 0),
+      cgst_rate: String(item.cgst_rate ?? 0),
+      sgst_rate: String(item.sgst_rate ?? 0),
+      igst_rate: String(item.igst_rate ?? 0),
       type_of_supply: item.type_of_supply ?? "Goods",
       rate_of_duty: String(item.rate_of_duty ?? 0),
       opening_quantity: String(item.opening_quantity ?? 0),
@@ -115,6 +152,7 @@ export default function StockItemAlter() {
       track_expiry: Boolean(item.track_expiry),
     });
     setError(null);
+    setSuccess(null);
   };
 
   const set = (key: keyof FormData) =>
@@ -127,8 +165,8 @@ export default function StockItemAlter() {
 
   const handleGstChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
-    const half = val === "" ? "0" : String(parseFloat(val) / 2);
-    setForm(f => f ? { ...f, gst_rate: val, cgst_rate: half, sgst_rate: half } : f);
+    const half = val === "" ? "0" : String(parseFloat(val) / 2 || 0);
+    setForm(f => f ? { ...f, gst_rate: val, cgst_rate: half, sgst_rate: half, igst_rate: val } : f);
   };
 
   const validate = (): string | null => {
@@ -136,7 +174,7 @@ export default function StockItemAlter() {
     if (!selectedCompany?.company_id) return "No company selected.";
     if (!form.group_id) return "Stock Group is required.";
     if (!form.unit_id) return "Unit is required.";
-    const rates = [form.gst_rate, form.cgst_rate, form.sgst_rate, form.igst_rate].map(Number);
+    const rates = [form.gst_rate, form.cgst_rate, form.sgst_rate, form.igst_rate, form.rate_of_duty].map(Number);
     if (rates.some(v => v < 0)) return "GST rates cannot be negative.";
     if (rates.some(v => v > 100)) return "GST rates cannot exceed 100%.";
     if (Number(form.opening_quantity) < 0) return "Opening quantity cannot be negative.";
@@ -144,10 +182,16 @@ export default function StockItemAlter() {
     return null;
   };
 
+  const handleBack = useCallback(() => {
+    setSelectedItem(null);
+    setForm(null);
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     if (!form || !selectedItem) return;
     const validationError = validate();
     if (validationError) { setError(validationError); return; }
+
     setLoading(true); setError(null);
     try {
       const result = await window.api.stockItem.update({
@@ -173,11 +217,15 @@ export default function StockItemAlter() {
         track_batches:    form.track_batches ? 1 : 0,
         track_expiry:     form.track_expiry  ? 1 : 0,
       });
+
       if (result.success) {
         const updated = await window.api.stockItem.getAll(selectedCompany!.company_id!);
         if (updated.success) setStockItems(updated.stockItems ?? []);
-        setSuccess(`Stock Item "${form.name}" updated.`);
-        setTimeout(() => { setSuccess(null); setSelectedItem(null); setForm(null); }, 2000);
+        setSuccess(`Stock Item "${form.name}" updated successfully.`);
+        setTimeout(() => {
+          setSuccess(null);
+          handleBack();
+        }, 1500);
       } else {
         setError(result.error || "Failed to update stock item.");
       }
@@ -186,18 +234,19 @@ export default function StockItemAlter() {
     } finally {
       setLoading(false);
     }
-  }, [form, selectedItem, selectedCompany]);
+  }, [form, selectedItem, selectedCompany, handleBack]);
 
   const handleDelete = useCallback(async () => {
     if (!selectedItem) return;
-    if (!window.confirm(`Delete "${selectedItem.name}"? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete stock item "${selectedItem.name}"? This cannot be undone.`)) return;
+
     setLoading(true); setError(null);
     try {
       const result = await window.api.stockItem.delete(selectedItem.item_id);
       if (result.success) {
         const updated = await window.api.stockItem.getAll(selectedCompany!.company_id!);
         if (updated.success) setStockItems(updated.stockItems ?? []);
-        setSelectedItem(null); setForm(null);
+        handleBack();
       } else {
         setError(result.error || "Failed to delete stock item.");
       }
@@ -206,20 +255,40 @@ export default function StockItemAlter() {
     } finally {
       setLoading(false);
     }
-  }, [selectedItem, selectedCompany]);
+  }, [selectedItem, selectedCompany, handleBack]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        e.preventDefault();
         if (showPanel) { setShowPanel(null); return; }
-        if (selectedItem) { setSelectedItem(null); setForm(null); return; }
+        if (selectedItem) { handleBack(); return; }
         navigate("/master/alter");
       }
-      if (e.ctrlKey && e.key === "a") { e.preventDefault(); handleSubmit(); }
+      if (e.altKey && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        if (selectedItem) setShowPanel(prev => prev === "group" ? null : "group");
+      }
+      if (e.altKey && e.key.toLowerCase() === "u") {
+        e.preventDefault();
+        if (selectedItem) setShowPanel(prev => prev === "unit" ? null : "unit");
+      }
+      if (e.altKey && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        handleSubmit();
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        handleSubmit();
+      }
+      if (e.altKey && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        handleDelete();
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, navigate, showPanel, selectedItem]);
+  }, [handleSubmit, handleDelete, handleBack, navigate, showPanel, selectedItem]);
 
   if (!selectedItem || !form) {
     return (
@@ -227,173 +296,199 @@ export default function StockItemAlter() {
         items={stockItems}
         onSelect={handleSelectItem}
         onCancel={() => navigate("/master/alter")}
+        onCreate={() => navigate("/master/create/stock-item")}
       />
     );
   }
 
   const openingValue = (parseFloat(form.opening_quantity) || 0) * (parseFloat(form.opening_rate) || 0);
   const gstSections = form.gst_applicable !== "Not Applicable";
+  
   const selectedGroupLabel = form.group_id
-    ? stockGroups.find(g => String(g.sg_id) === form.group_id)?.name ?? "— Select Group —"
-    : "— Select Group —";
-  const selectedUnitLabel = (() => {
-    if (!form.unit_id) return "— Select Unit —";
-    const u = units.find(u => String(u.unit_id) === form.unit_id);
-    return u ? `${u.name} (${u.symbol})` : "— Select Unit —";
-  })();
+    ? stockGroups.find(g => String(g.sg_id) === form.group_id)?.name ?? "Primary"
+    : "Primary";
+
+  const selectedUnitLabel = form.unit_id
+    ? units.find(u => String(u.unit_id) === form.unit_id)?.symbol ?? "Not Applicable"
+    : "Not Applicable";
+
+  const alterActions = [
+    { key: "Alt+G", label: "Select Group", onClick: () => setShowPanel(prev => prev === "group" ? null : "group") },
+    { key: "Alt+U", label: "Select Unit", onClick: () => setShowPanel(prev => prev === "unit" ? null : "unit") },
+    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
+    { key: "Alt+D", label: "Delete", onClick: handleDelete },
+    { key: "Esc", label: "Back", onClick: handleBack },
+  ];
 
   return (
-    <div className="flex flex-col h-full relative overflow-hidden">
-      <div className="px-6 py-3 flex items-center justify-between shrink-0">
-        <span className="font-semibold text-base">Alter Stock Item</span>
-        <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to go back</span>
-      </div>
+    <div className="flex flex-col h-full relative overflow-hidden bg-white select-none">
+      <PageTitleBar title={`Stock Item Alteration: ${selectedItem.name}`} subtitle={selectedCompany?.name} />
 
-      <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6">
-        {/* General */}
-        <div>
-          <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">General</div>
-          <FormRow label="Name" required>
-            <input autoFocus className={inputCls} value={form.name} onChange={set("name")} placeholder="Stock item name" />
-          </FormRow>
-          <FormRow label="Alias">
-            <input className={inputCls} value={form.alias} onChange={set("alias")} placeholder="Short name (optional)" />
-          </FormRow>
-          <FormRow label="Under" required>
-            <button
-              type="button"
-              onClick={() => setShowPanel("group")}
-              className={`w-full text-left text-sm py-1 px-1 bg-transparent outline-none transition-colors hover:text-black ${form.group_id ? "text-zinc-700" : "text-zinc-400"}`}
-            >
-              {selectedGroupLabel}
-            </button>
-          </FormRow>
-          <FormRow label="Unit" required>
-            <button
-              type="button"
-              onClick={() => setShowPanel("unit")}
-              className={`w-full text-left text-sm py-1 px-1 bg-transparent outline-none transition-colors hover:text-black ${form.unit_id ? "text-zinc-700" : "text-zinc-400"}`}
-            >
-              {selectedUnitLabel}
-            </button>
-          </FormRow>
-          <FormRow label="Type of Supply">
-            <select className={selectCls} value={form.type_of_supply} onChange={set("type_of_supply")}>
-              <option value="Goods">Goods</option>
-              <option value="Services">Services</option>
-            </select>
-          </FormRow>
+      {error && (
+        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-mono shrink-0">
+          <span>• {error}</span>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
         </div>
-
-        {/* Opening Balance */}
-        <div>
-          <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">Opening Balance</div>
-          <FormRow label="Opening Quantity">
-            <input className={inputCls} type="number" min="0" step="0.01" value={form.opening_quantity} onChange={set("opening_quantity")} />
-          </FormRow>
-          <FormRow label="Opening Rate">
-            <input className={inputCls} type="number" min="0" step="0.01" value={form.opening_rate} onChange={set("opening_rate")} />
-          </FormRow>
-          <FormRow label="Opening Value">
-            <input className={`${inputCls} text-zinc-400 cursor-not-allowed`} readOnly value={openingValue} tabIndex={-1} />
-          </FormRow>
+      )}
+      {success && (
+        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center font-mono shrink-0">
+          <span>• {success}</span>
+          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
         </div>
+      )}
 
-        {/* Reorder */}
-        <div>
-          <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">Reorder</div>
-          <FormRow label="Reorder Level">
-            <input className={inputCls} type="number" min="0" step="0.01" value={form.reorder_level} onChange={set("reorder_level")} />
-          </FormRow>
-          <FormRow label="Reorder Quantity">
-            <input className={inputCls} type="number" min="0" step="0.01" value={form.reorder_quantity} onChange={set("reorder_quantity")} />
-          </FormRow>
-        </div>
-
-        {/* Tracking */}
-        <div>
-          <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">Tracking</div>
-          <FormRow label="Track Batches">
-            <input type="checkbox" checked={form.track_batches} onChange={setCheck("track_batches")} className="cursor-pointer" />
-          </FormRow>
-          <FormRow label="Track Expiry">
-            <input type="checkbox" checked={form.track_expiry} onChange={setCheck("track_expiry")} className="cursor-pointer" />
-          </FormRow>
-        </div>
-
-        {/* HSN / SAC */}
-        <div>
-          <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">HSN / SAC</div>
-          <FormRow label="GST Applicable">
-            <select className={selectCls} value={form.gst_applicable} onChange={set("gst_applicable")}>
-              <option value="Not Applicable">Not Applicable</option>
-              <option value="Applicable">Applicable</option>
-            </select>
-          </FormRow>
-          {gstSections && (
-            <>
-              <FormRow label="HSN Code">
-                <input className={inputCls} value={form.hsn_code} onChange={set("hsn_code")} placeholder="e.g. 8517" />
-              </FormRow>
-              <FormRow label="SAC Code">
-                <input className={inputCls} value={form.sac_code} onChange={set("sac_code")} placeholder="e.g. 998431" />
-              </FormRow>
-            </>
-          )}
-        </div>
-
-        {/* GST Rates */}
-        {gstSections && (
-          <div>
-            <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">GST Rates</div>
-            <FormRow label="GST Rate (%)">
-              <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.gst_rate} onChange={handleGstChange} />
+      <div className="flex-1 flex min-h-0">
+        <div className="flex-1 overflow-y-auto p-3 space-y-6 max-w-2xl bg-white border-r border-zinc-100">
+          {/* General */}
+          <div className="space-y-1">
+            <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans select-none">General</div>
+            
+            <FormRow label="Name" required labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input autoFocus className={inputCls} value={form.name} onChange={set("name")} placeholder="Item name" />
             </FormRow>
-            <FormRow label="CGST Rate (%)">
-              <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.cgst_rate} onChange={set("cgst_rate")} />
+
+            <FormRow label="Alias" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input className={inputCls} value={form.alias} onChange={set("alias")} placeholder="Alias (optional)" />
             </FormRow>
-            <FormRow label="SGST Rate (%)">
-              <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.sgst_rate} onChange={set("sgst_rate")} />
+
+            <FormRow label="Under" required labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <button
+                type="button"
+                onClick={() => setShowPanel("group")}
+                className="w-full text-left text-sm py-0.5 px-1 bg-transparent outline-none uppercase font-bold text-zinc-800 tracking-wide hover:text-black transition-colors font-mono"
+              >
+                {selectedGroupLabel}
+              </button>
             </FormRow>
-            <FormRow label="IGST Rate (%)">
-              <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.igst_rate} onChange={set("igst_rate")} />
+
+            <FormRow label="Unit" required labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <button
+                type="button"
+                onClick={() => setShowPanel("unit")}
+                className="w-full text-left text-sm py-0.5 px-1 bg-transparent outline-none uppercase font-bold text-zinc-800 tracking-wide hover:text-black transition-colors font-mono"
+              >
+                {selectedUnitLabel}
+              </button>
             </FormRow>
-            <FormRow label="Rate of Duty (%)">
-              <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.rate_of_duty} onChange={set("rate_of_duty")} />
+
+            <FormRow label="Type of Supply" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <select className={selectCls} value={form.type_of_supply} onChange={set("type_of_supply")}>
+                <option value="Goods">Goods</option>
+                <option value="Services">Services</option>
+              </select>
             </FormRow>
           </div>
-        )}
+
+          {/* Opening Balance */}
+          <div className="space-y-1 border-t border-zinc-100 pt-4">
+            <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans select-none">Opening Balance</div>
+            
+            <FormRow label="Opening Quantity" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input className={inputCls} type="number" min="0" step="0.01" value={form.opening_quantity} onChange={set("opening_quantity")} />
+            </FormRow>
+            
+            <FormRow label="Opening Rate" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input className={inputCls} type="number" min="0" step="0.01" value={form.opening_rate} onChange={set("opening_rate")} />
+            </FormRow>
+            
+            <FormRow label="Opening Value" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input className={`${inputCls} text-zinc-400 bg-zinc-50 cursor-not-allowed`} readOnly value={openingValue} tabIndex={-1} />
+            </FormRow>
+          </div>
+
+          {/* Reorder */}
+          <div className="space-y-1 border-t border-zinc-100 pt-4">
+            <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans select-none">Reorder Details</div>
+            
+            <FormRow label="Reorder Level" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input className={inputCls} type="number" min="0" step="0.01" value={form.reorder_level} onChange={set("reorder_level")} />
+            </FormRow>
+            
+            <FormRow label="Reorder Quantity" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input className={inputCls} type="number" min="0" step="0.01" value={form.reorder_quantity} onChange={set("reorder_quantity")} />
+            </FormRow>
+          </div>
+
+          {/* Tracking */}
+          <div className="space-y-1 border-t border-zinc-100 pt-4">
+            <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans select-none">Tracking</div>
+            
+            <FormRow label="Track Batches" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input type="checkbox" checked={form.track_batches} onChange={setCheck("track_batches")} className="cursor-pointer" />
+            </FormRow>
+            
+            <FormRow label="Track Expiry" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input type="checkbox" checked={form.track_expiry} onChange={setCheck("track_expiry")} className="cursor-pointer" />
+            </FormRow>
+          </div>
+
+          {/* Statutory HSN / SAC */}
+          <div className="space-y-1 border-t border-zinc-100 pt-4">
+            <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans select-none">Statutory Details</div>
+            
+            <FormRow label="GST Applicable" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <select className={selectCls} value={form.gst_applicable} onChange={set("gst_applicable")}>
+                <option value="Not Applicable">Not Applicable</option>
+                <option value="Applicable">Applicable</option>
+              </select>
+            </FormRow>
+
+            {gstSections && (
+              <div className="space-y-1 mt-2 border-l-2 border-zinc-100 pl-3">
+                <FormRow label="HSN Code" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} value={form.hsn_code} onChange={set("hsn_code")} placeholder="e.g. 8517" />
+                </FormRow>
+
+                <FormRow label="SAC Code" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} value={form.sac_code} onChange={set("sac_code")} placeholder="e.g. 998431" />
+                </FormRow>
+
+                <FormRow label="GST Rate (%)" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.gst_rate} onChange={handleGstChange} />
+                </FormRow>
+
+                <FormRow label="CGST Rate (%)" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.cgst_rate} onChange={set("cgst_rate")} />
+                </FormRow>
+
+                <FormRow label="SGST Rate (%)" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.sgst_rate} onChange={set("sgst_rate")} />
+                </FormRow>
+
+                <FormRow label="IGST Rate (%)" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.igst_rate} onChange={set("igst_rate")} />
+                </FormRow>
+
+                <FormRow label="Rate of Duty (%)" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.rate_of_duty} onChange={set("rate_of_duty")} />
+                </FormRow>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <RightActionPanel actions={alterActions} />
       </div>
 
-      {success && (
-        <div className="px-6 py-2 border-t border-green-900 bg-green-950 text-green-400 text-sm shrink-0">✓ {success}</div>
-      )}
-      {error && (
-        <div className="px-6 py-2 border-t border-red-900 bg-red-950 text-red-400 text-sm flex justify-between items-center shrink-0">
-          <span>⚠ {error}</span>
-          <button onClick={() => setError(null)} className="text-xs ml-4 hover:opacity-70">dismiss</button>
-        </div>
-      )}
-
-      <div className="px-6 py-3 flex justify-between items-center shrink-0">
+      <div className="px-3 py-3 border-t border-zinc-200 flex justify-between items-center bg-zinc-50 shrink-0">
         <button
           onClick={handleDelete}
           disabled={loading}
-          className="text-sm px-4 py-1.5 rounded border border-red-300 text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors"
+          className="text-xs px-4 py-1.5 rounded border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 disabled:opacity-50 transition-colors font-medium shadow-sm"
         >
           Delete
         </button>
         <div className="flex gap-3">
           <button
-            onClick={() => { setSelectedItem(null); setForm(null); }}
-            className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 transition-colors"
+            onClick={handleBack}
+            className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors"
           >
             Back
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
+            className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
           >
             {loading ? "Saving..." : "Accept"}
           </button>
@@ -403,19 +498,22 @@ export default function StockItemAlter() {
       {showPanel === "group" && (
         <SideSelectionPanel
           title="Stock Groups"
-          items={stockGroups.map(g => ({ id: g.sg_id, label: g.name }))}
+          items={stockGroups.filter(g => g.name.toLowerCase() !== "primary").map(g => ({ id: g.sg_id, label: g.name }))}
           selected={form.group_id}
           onSelect={val => setForm(f => f ? { ...f, group_id: val } : f)}
           onClose={() => setShowPanel(null)}
+          showPrimary
         />
       )}
       {showPanel === "unit" && (
         <SideSelectionPanel
           title="Units"
-          items={units.map(u => ({ id: u.unit_id, label: `${u.name} (${u.symbol})` }))}
+          items={units.map(u => ({ id: u.unit_id, label: `${u.symbol} - ${u.formal_name}` }))}
           selected={form.unit_id}
           onSelect={val => setForm(f => f ? { ...f, unit_id: val } : f)}
           onClose={() => setShowPanel(null)}
+          showPrimary
+          primaryLabel="Not Applicable"
         />
       )}
     </div>

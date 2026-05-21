@@ -9,7 +9,7 @@ import InventoryParticularsTable from "./components/InventoryParticularsTable";
 import LedgerPanel from "./components/LedgerPanel";
 import ActionFooter from "./components/ActionFooter";
 import { INDIAN_STATES } from "../../constants/states";
-import { PageTitleBar, AlertBanner } from "../../components/ui";
+import { PageTitleBar, AlertBanner, RightActionPanel } from "../../components/ui";
 import { LedgerField } from "./ui";
 
 export default function Vouchers() {
@@ -33,6 +33,17 @@ export default function Vouchers() {
   }, [form.voucherType, form.accountLedger, form.particulars, form.journalRows, form.partyLedger, form.salesPurchaseLedger, form.stockEntries, form.isSubmitting]);
 
   const panelOpen = !!form.activeField;
+
+  const voucherActions = [
+    { key: "F4", label: "Contra", onClick: () => form.setVoucherType("Contra"), active: form.voucherType === "Contra" },
+    { key: "F5", label: "Payment", onClick: () => form.setVoucherType("Payment"), active: form.voucherType === "Payment" },
+    { key: "F6", label: "Receipt", onClick: () => form.setVoucherType("Receipt"), active: form.voucherType === "Receipt" },
+    { key: "F7", label: "Journal", onClick: () => form.setVoucherType("Journal"), active: form.voucherType === "Journal" },
+    { key: "F8", label: "Sales", onClick: () => form.setVoucherType("Sales"), active: form.voucherType === "Sales" },
+    { key: "F9", label: "Purchase", onClick: () => form.setVoucherType("Purchase"), active: form.voucherType === "Purchase" },
+    { key: "Ctrl+A", label: "Accept", onClick: form.handleSubmit, disabled: !canAccept },
+    { key: "Esc", label: "Quit", onClick: () => navigate("/") },
+  ];
 
   // Keyboard navigation mappings (F4–F9, Ctrl+A to save, Escape to quit)
   useEffect(() => {
@@ -299,9 +310,13 @@ export default function Vouchers() {
             onSelect={form.handleLedgerPanelSelect}
             onClose={form.handleFieldBlur}
             checkIsCashOrBank={form.checkIsCashOrBank}
+            checkLedgerGroup={form.checkLedgerGroup}
             voucherType={form.voucherType}
           />
         )}
+
+        {/* Action sidebar */}
+        <RightActionPanel actions={voucherActions} />
       </div>
 
       {/* Submit, cancel and quit actions footer */}

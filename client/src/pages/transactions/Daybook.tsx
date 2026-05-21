@@ -1,7 +1,8 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useCompany } from "../../context/CompanyContext";
 import type { VoucherRecordType } from "../../types/api";
+import { PageTitleBar, RightActionPanel } from "../../components/ui";
 
 const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -13,6 +14,7 @@ const formatDateDisplay = (dateStr: string | undefined): string => {
 };
 
 export default function Daybook() {
+  const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
   const [entries, setEntries] = useState<VoucherRecordType[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -46,6 +48,36 @@ export default function Daybook() {
   useEffect(() => {
     fetchDaybook();
   }, [fetchDaybook]);
+
+  useEffect(() => {
+    const handleKeys = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === "c" || e.key === "C")) {
+        e.preventDefault();
+        navigate("/transactions/vouchers");
+      }
+      if (e.altKey && (e.key === "v" || e.key === "V")) {
+        e.preventDefault();
+        navigate("/transactions/voucher-list");
+      }
+      if (e.altKey && (e.key === "b" || e.key === "B")) {
+        e.preventDefault();
+        navigate("/utilities/banking");
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        navigate("/");
+      }
+    };
+    window.addEventListener("keydown", handleKeys);
+    return () => window.removeEventListener("keydown", handleKeys);
+  }, [navigate]);
+
+  const daybookActions = [
+    { key: "Alt+C", label: "New Voucher", onClick: () => navigate("/transactions/vouchers") },
+    { key: "Alt+V", label: "Voucher Reg", onClick: () => navigate("/transactions/voucher-list") },
+    { key: "Alt+B", label: "Banking", onClick: () => navigate("/utilities/banking") },
+    { key: "Esc", label: "Quit", onClick: () => navigate("/") },
+  ];
 
   // Load godowns & units metadata
   useEffect(() => {
@@ -124,22 +156,19 @@ export default function Daybook() {
     <div className="flex-1 flex flex-col h-full bg-zinc-50 select-none font-mono text-xs relative overflow-hidden">
       
       {/* Title Bar */}
-      <div className="px-4 py-2 bg-zinc-900 text-white flex justify-between items-center shadow-md shrink-0">
-        <span className="uppercase tracking-wider font-semibold">Day Book</span>
-        <span className="text-zinc-400 font-mono text-[10px]">{selectedCompany?.name || ""}</span>
-      </div>
+      <PageTitleBar title="Day Book" subtitle={selectedCompany?.name} />
 
-      {/* Main Content Area */}
-      <div className="flex-1 p-6 overflow-y-auto min-h-0">
-        <div className="max-w-6xl mx-auto flex flex-col h-full">
+      {/* Main Body Layout */}
+      <div className="flex-1 flex min-h-0">
+        
+        {/* Left Side: Daybook list */}
+        <div className="flex-1 flex flex-col min-w-0 p-4 overflow-y-auto">
+          <div className="max-w-6xl w-full mx-auto flex flex-col h-full">
           
-          <div className="mb-4 flex justify-between items-center">
-            <Link
-              to="/"
-              className="text-xs bg-zinc-900 text-white px-3 py-1.5 rounded hover:bg-zinc-800 transition-colors uppercase font-sans font-bold shadow-sm"
-            >
-              &larr; Back to Gateway
-            </Link>
+          <div className="mb-3 flex justify-between items-center">
+            <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">
+              Daily Transactions List
+            </div>
             <div className="text-right">
               <span className="text-[10px] text-zinc-400 font-semibold uppercase tracking-wider block">Financial Period</span>
               <span className="text-xs font-bold text-zinc-800 font-mono">
@@ -193,6 +222,10 @@ export default function Daybook() {
 
         </div>
       </div>
+
+      {/* Right Side: Action Panel */}
+      <RightActionPanel actions={daybookActions} />
+    </div>
 
       {/* Glassmorphism Backdrop Overlay for Drawer */}
       {selectedVoucher && (

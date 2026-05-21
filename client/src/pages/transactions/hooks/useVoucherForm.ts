@@ -182,8 +182,8 @@ export function useVoucherForm() {
     }
   }, [salesPurchaseLedger, fetchLedgerBalance]);
 
-  // Lineage Helper: Checks recursively if a ledger's group is Cash or Bank
-  const checkIsCashOrBank = useCallback((ledger: LedgerType | null): boolean => {
+  // Lineage Helper: Checks recursively if a ledger's group belongs to any target groups
+  const checkLedgerGroup = useCallback((ledger: LedgerType | null, targetGroupNames: string[]): boolean => {
     if (!ledger || allGroups.length === 0) return false;
     
     const findGroup = (groupId?: number): GroupType | undefined => {
@@ -192,7 +192,7 @@ export function useVoucherForm() {
 
     const checkGroup = (grp: GroupType): boolean => {
       const name = grp.name.toLowerCase().trim();
-      if (["bank accounts", "bank od accounts", "bank od a/c", "bank od account", "cash-in-hand"].includes(name)) {
+      if (targetGroupNames.map(n => n.toLowerCase().trim()).includes(name)) {
         return true;
       }
       if (grp.parent_group_id) {
@@ -205,6 +205,10 @@ export function useVoucherForm() {
     const group = findGroup(ledger.group_id);
     return group ? checkGroup(group) : false;
   }, [allGroups]);
+
+  const checkIsCashOrBank = useCallback((ledger: LedgerType | null): boolean => {
+    return checkLedgerGroup(ledger, ["bank accounts", "bank od accounts", "bank od a/c", "bank od account", "cash-in-hand"]);
+  }, [checkLedgerGroup]);
 
   // Adjust row type default based on voucher type
   useEffect(() => {
@@ -674,6 +678,7 @@ export function useVoucherForm() {
 
     // Context Checkers
     checkIsCashOrBank,
+    checkLedgerGroup,
     companyId,
     fyId,
   };

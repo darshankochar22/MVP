@@ -1,22 +1,23 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import { FormRow, PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
 import type { StockGroupType } from "@/types/api";
 
 function Row({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <div className="flex items-center min-h-[32px]">
-      <span className="w-56 text-sm text-zinc-400 shrink-0 py-1">
+    <div className="flex items-center min-h-[26px]">
+      <span className="w-56 text-sm text-zinc-400 shrink-0 py-1 font-sans">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </span>
-      <span className="text-zinc-600 mr-2">:</span>
-      <div className="flex-1">{children}</div>
+      <span className="text-zinc-600 mr-2 shrink-0">:</span>
+      <div className="flex-1 font-mono">{children}</div>
     </div>
   );
 }
 
-const inputCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm placeholder:text-zinc-400";
-const selectCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-sm cursor-pointer";
+const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-400 font-mono";
+const selectCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm cursor-pointer font-mono";
 
 interface SidePanelProps {
   title: string;
@@ -39,21 +40,21 @@ function SidePanel({ title, items, selected, onSelect, onClose }: SidePanelProps
   return (
     <div ref={ref} className="absolute top-0 right-0 h-full w-64 bg-white border-l border-zinc-200 shadow-xl z-50 flex flex-col">
       <div className="px-3 py-2 border-b border-zinc-200 flex justify-between items-center shrink-0">
-        <span className="text-xs font-semibold text-zinc-600 tracking-wide uppercase">{title}</span>
-        <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 text-xs">✕</button>
+        <span className="text-xs font-bold text-zinc-600 tracking-wide uppercase font-sans">{title}</span>
+        <button onClick={onClose} className="text-zinc-400 hover:text-zinc-700 text-sm font-bold">&times;</button>
       </div>
       <div className="flex-1 overflow-y-auto">
         {items.map(item => (
           <div
             key={item.id}
-            className={`px-3 py-2 text-sm cursor-pointer ${selected === String(item.id) ? "text-black font-semibold bg-zinc-100" : "text-zinc-700 hover:bg-zinc-50"}`}
+            className={`px-3 py-2 text-xs font-mono cursor-pointer border-b border-zinc-100 ${selected === String(item.id) ? "bg-zinc-900 text-white" : "text-zinc-700 hover:bg-zinc-50"}`}
             onClick={() => { onSelect(String(item.id)); onClose(); }}
           >
             {item.label}
           </div>
         ))}
         {items.length === 0 && (
-          <div className="px-3 py-2 text-sm text-zinc-400">No groups found</div>
+          <div className="px-3 py-2 text-xs text-zinc-400 italic">No groups found</div>
         )}
       </div>
     </div>
@@ -64,57 +65,70 @@ function SelectionPanel({
   groups,
   onSelect,
   onCancel,
+  onCreate,
 }: {
   groups: StockGroupType[];
   onSelect: (g: StockGroupType) => void;
   onCancel: () => void;
+  onCreate: () => void;
 }) {
   const [search, setSearch] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.preventDefault(); onCancel(); }
+      if (e.altKey && e.key.toLowerCase() === "c") { e.preventDefault(); onCreate(); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onCancel, onCreate]);
 
   const filtered = groups.filter(g =>
     g.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  return (
-    <div className="flex flex-col h-full">
-      <div className="px-6 py-3 flex items-center justify-between shrink-0">
-        <span className="font-semibold text-base">Alter Stock Group</span>
-        <span className="text-xs text-zinc-500">Esc to cancel</span>
-      </div>
+  const columns = [
+    { key: "name", label: "Group Name", span: "col-span-8", render: (r: StockGroupType) => <span className="font-bold text-zinc-950 uppercase">{r.name}</span> },
+    { key: "alias", label: "Alias", span: "col-span-4", render: (r: StockGroupType) => <span className="text-zinc-500 font-mono">{r.alias || "—"}</span> },
+  ];
 
-      <div className="px-6 pb-3 shrink-0">
-        <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">Select Group to Alter</div>
-        <input
-          ref={inputRef}
-          className="w-full text-sm bg-transparent border-b border-zinc-300 outline-none py-1 placeholder:text-zinc-400"
-          placeholder="Search groups..."
+  const selectionActions = [
+    { key: "Alt+C", label: "Create Group", onClick: onCreate },
+    { key: "Esc", label: "Quit", onClick: onCancel },
+  ];
+
+  return (
+    <div className="flex-1 flex flex-col h-full bg-white select-none">
+      <PageTitleBar title="Alter Stock Group" subtitle="Select Group to Alter" />
+      
+      <div className="p-3 bg-zinc-50 border-b border-zinc-200 shrink-0">
+        <SearchInput
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={setSearch}
+          placeholder="Search groups by name…"
+          autoFocus
         />
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6">
-        {filtered.length === 0 && (
-          <div className="text-sm text-zinc-400 py-4">No groups found</div>
-        )}
-        {filtered.map(g => (
-          <div
-            key={g.sg_id}
-            onClick={() => onSelect(g)}
-            className="py-2 text-sm text-zinc-700 hover:text-black cursor-pointer border-b border-zinc-100 last:border-0"
-          >
-            {g.name}
-          </div>
-        ))}
+      <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex flex-col bg-white border-r border-zinc-100">
+          <DataTable
+            columns={columns}
+            rows={filtered}
+            rowKey={(r: StockGroupType) => r.sg_id}
+            onRowClick={onSelect}
+            emptyMessage="No stock groups found."
+          />
+        </div>
+        <RightActionPanel actions={selectionActions} />
       </div>
 
-      <div className="px-6 py-3 flex justify-end shrink-0">
+      <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50">
         <button
           onClick={onCancel}
-          className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+          className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white shadow-sm text-zinc-600 hover:bg-zinc-50 transition-colors font-medium"
         >
           Cancel
         </button>
@@ -171,6 +185,7 @@ export default function StockGroupAlter() {
       sgst_rate: String(g.sgst_rate ?? 0),
     });
     setError(null);
+    setSuccess(null);
   };
 
   const set = (key: keyof FormData) =>
@@ -216,7 +231,6 @@ export default function StockGroupAlter() {
       });
 
       if (result.success) {
-        // Refresh list
         const updated = await window.api.stockGroup.getAll(selectedCompany!.company_id!);
         if (updated.success) setStockGroups(updated.stockGroups ?? []);
 
@@ -225,7 +239,7 @@ export default function StockGroupAlter() {
           setSuccess(null);
           setSelectedGroup(null);
           setForm(null);
-        }, 2000);
+        }, 1500);
       } else {
         setError(result.error || "Failed to update stock group.");
       }
@@ -261,15 +275,31 @@ export default function StockGroupAlter() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        e.preventDefault();
         if (showPanel) { setShowPanel(null); return; }
         if (selectedGroup) { setSelectedGroup(null); setForm(null); return; }
         navigate("/master/alter");
       }
-      if (e.ctrlKey && e.key === "a") { e.preventDefault(); handleSubmit(); }
+      if (e.altKey && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        if (selectedGroup) setShowPanel(prev => prev === "under" ? null : "under");
+      }
+      if (e.altKey && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        handleSubmit();
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        handleSubmit();
+      }
+      if (e.altKey && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        handleDelete();
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, navigate, showPanel, selectedGroup]);
+  }, [handleSubmit, handleDelete, navigate, showPanel, selectedGroup]);
 
   const underOptions = stockGroups.filter(g =>
     selectedGroup ? String(g.sg_id) !== String(selectedGroup.sg_id) : true
@@ -279,109 +309,114 @@ export default function StockGroupAlter() {
     ? stockGroups.find(g => String(g.sg_id) === form.parent_group_id)?.name ?? "Primary"
     : "Primary";
 
-
   if (!selectedGroup || !form) {
     return (
       <SelectionPanel
         groups={stockGroups.filter(g => !g.is_predefined)}
         onSelect={handleSelectGroup}
         onCancel={() => navigate("/master/alter")}
+        onCreate={() => navigate("/master/create/stock-group")}
       />
     );
   }
 
+  const alterActions = [
+    { key: "Alt+G", label: "Select Under", onClick: () => setShowPanel(prev => prev === "under" ? null : "under") },
+    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
+    { key: "Alt+D", label: "Delete", onClick: handleDelete },
+    { key: "Esc", label: "Back", onClick: () => { setSelectedGroup(null); setForm(null); } },
+  ];
+
   return (
-    <div className="flex flex-col h-full relative overflow-hidden">
-
-      <div className="px-6 py-3 flex items-center justify-between shrink-0">
-        <span className="font-semibold text-base">Alter Stock Group</span>
-        <span className="text-xs text-zinc-500">Ctrl+A to accept &nbsp;|&nbsp; Esc to go back</span>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-6">
-
-        <div>
-          <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">General</div>
-          <Row label="Name" required>
-            <input autoFocus className={inputCls} value={form.name} onChange={set("name")} placeholder="Stock group name" />
-          </Row>
-          <Row label="Alias">
-            <input className={inputCls} value={form.alias} onChange={set("alias")} placeholder="Short name (optional)" />
-          </Row>
-          <Row label="Under">
-            <button
-              type="button"
-              onClick={() => setShowPanel("under")}
-              className="w-full text-left text-sm py-1 px-1 bg-transparent outline-none text-zinc-700 hover:text-black transition-colors"
-            >
-              {selectedUnderLabel}
-            </button>
-          </Row>
-          <Row label="Should Quantities be Added">
-            <select className={selectCls} value={form.should_quantities_be_added} onChange={set("should_quantities_be_added")}>
-              <option value="1">Yes</option>
-              <option value="0">No</option>
-            </select>
-          </Row>
-        </div>
-
-        <div>
-          <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">HSN / SAC</div>
-          <Row label="HSN / SAC Code">
-            <input className={inputCls} value={form.hsn_sac_code} onChange={set("hsn_sac_code")} placeholder="e.g. 1001" />
-          </Row>
-          <Row label="Description">
-            <input className={inputCls} value={form.hsn_sac_description} onChange={set("hsn_sac_description")} placeholder="HSN description (optional)" />
-          </Row>
-        </div>
-
-        <div>
-          <div className="text-xs uppercase tracking-widest text-zinc-500 mb-2">GST Rates</div>
-          <Row label="GST Rate (%)">
-            <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.gst_rate} onChange={handleGstChange} />
-          </Row>
-          <Row label="CGST Rate (%)">
-            <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.cgst_rate} onChange={set("cgst_rate")} />
-          </Row>
-          <Row label="SGST Rate (%)">
-            <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.sgst_rate} onChange={set("sgst_rate")} />
-          </Row>
-        </div>
-
-      </div>
-
-      {success && (
-        <div className="px-6 py-2 border-t border-green-900 bg-green-950 text-green-400 text-sm shrink-0">
-          ✓ {success}
-        </div>
-      )}
+    <div className="flex flex-col h-full relative overflow-hidden bg-white select-none">
+      <PageTitleBar title={`Stock Group Alteration: ${selectedGroup.name}`} subtitle={selectedCompany?.name} />
 
       {error && (
-        <div className="px-6 py-2 border-t border-red-900 bg-red-950 text-red-400 text-sm flex justify-between items-center shrink-0">
-          <span>⚠ {error}</span>
-          <button onClick={() => setError(null)} className="text-xs ml-4 hover:opacity-70">dismiss</button>
+        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-mono shrink-0">
+          <span>• {error}</span>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
+        </div>
+      )}
+      {success && (
+        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center font-mono shrink-0">
+          <span>• {success}</span>
+          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
         </div>
       )}
 
-      <div className="px-6 py-3 flex justify-between items-center shrink-0">
+      <div className="flex-1 flex min-h-0">
+        <div className="flex-1 overflow-y-auto p-3 space-y-4 max-w-2xl bg-white border-r border-zinc-100">
+          <div>
+            <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans select-none">General</div>
+            <Row label="Name" required>
+              <input autoFocus className={inputCls} value={form.name} onChange={set("name")} placeholder="Stock group name" />
+            </Row>
+            <Row label="(alias)">
+              <input className={inputCls} value={form.alias} onChange={set("alias")} placeholder="Short name (optional)" />
+            </Row>
+            <Row label="Under">
+              <button
+                type="button"
+                onClick={() => setShowPanel("under")}
+                className="w-full text-left text-sm py-0.5 px-1 bg-transparent outline-none uppercase font-bold text-zinc-800 tracking-wide hover:text-black transition-colors"
+              >
+                {selectedUnderLabel}
+              </button>
+            </Row>
+            <Row label="Should Quantities be Added">
+              <select className={selectCls} value={form.should_quantities_be_added} onChange={set("should_quantities_be_added")}>
+                <option value="1">Yes</option>
+                <option value="0">No</option>
+              </select>
+            </Row>
+          </div>
+
+          <div className="border-t border-zinc-100 pt-3">
+            <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans select-none">HSN / SAC</div>
+            <Row label="HSN / SAC Code">
+              <input className={inputCls} value={form.hsn_sac_code} onChange={set("hsn_sac_code")} placeholder="e.g. 1001" />
+            </Row>
+            <Row label="Description">
+              <input className={inputCls} value={form.hsn_sac_description} onChange={set("hsn_sac_description")} placeholder="HSN description (optional)" />
+            </Row>
+          </div>
+
+          <div className="border-t border-zinc-100 pt-3">
+            <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans select-none">GST Rates</div>
+            <Row label="GST Rate (%)">
+              <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.gst_rate} onChange={handleGstChange} />
+            </Row>
+            <Row label="CGST Rate (%)">
+              <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.cgst_rate} onChange={set("cgst_rate")} />
+            </Row>
+            <Row label="SGST Rate (%)">
+              <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.sgst_rate} onChange={set("sgst_rate")} />
+            </Row>
+          </div>
+        </div>
+
+        <RightActionPanel actions={alterActions} />
+      </div>
+
+      <div className="px-3 py-3 border-t border-zinc-200 flex justify-between items-center bg-zinc-50 shrink-0">
         <button
           onClick={handleDelete}
           disabled={loading}
-          className="text-sm px-4 py-1.5 rounded border border-red-300 text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors"
+          className="text-xs px-4 py-1.5 rounded border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 disabled:opacity-50 transition-colors font-medium shadow-sm"
         >
           Delete
         </button>
         <div className="flex gap-3">
           <button
             onClick={() => { setSelectedGroup(null); setForm(null); }}
-            className="text-sm px-4 py-1.5 rounded border text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors"
           >
             Back
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="text-sm px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
+            className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
           >
             {loading ? "Saving..." : "Accept"}
           </button>
@@ -397,7 +432,6 @@ export default function StockGroupAlter() {
           onClose={() => setShowPanel(null)}
         />
       )}
-
     </div>
   );
 }

@@ -7,6 +7,7 @@ interface SideSelectionPanelProps {
   onSelect: (val: string) => void;
   onClose: () => void;
   showPrimary?: boolean;
+  primaryLabel?: string;
 }
 
 export default function SideSelectionPanel({
@@ -16,6 +17,7 @@ export default function SideSelectionPanel({
   onSelect,
   onClose,
   showPrimary = false,
+  primaryLabel = "Primary",
 }: SideSelectionPanelProps) {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -40,13 +42,13 @@ export default function SideSelectionPanel({
         {showPrimary && (
           <div
             className={`px-3 py-2 text-sm cursor-pointer ${
-              selected === "" || selected === "Primary"
+              selected === "" || selected === primaryLabel
                 ? "text-black font-semibold bg-zinc-100"
                 : "text-zinc-700 hover:bg-zinc-50"
             }`}
             onClick={() => { onSelect(""); onClose(); }}
           >
-            Primary
+            {primaryLabel}
           </div>
         )}
         {items.map(item => (

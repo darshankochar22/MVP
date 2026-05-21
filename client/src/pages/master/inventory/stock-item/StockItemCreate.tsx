@@ -1,129 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import FormRow from "@/components/ui/FormRow";
+import { FormRow, PageTitleBar, RightActionPanel, SideSelectionPanel } from "@/components/ui";
 import type { StockGroupType, UnitType } from "@/types/api";
 
-const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
-const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent cursor-pointer";
-
-// ── Group List Panel ──────────────────────────────────────────────────────────
-function GroupListPanel({
-  groups,
-  selected,
-  onSelect,
-  onClose,
-  onCreate,
-}: {
-  groups: StockGroupType[];
-  selected: string;
-  onSelect: (id: string) => void;
-  onClose: () => void;
-  onCreate: () => void;
-}) {
-  return (
-    <div className="w-72 border-l flex flex-col shrink-0">
-      <div className="px-2 py-1 text-sm font-medium flex justify-between items-center select-none">
-        <span>List of Groups</span>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onCreate}
-            className="text-xs text-zinc-500 hover:text-black underline underline-offset-1"
-          >
-            Create
-          </button>
-          <button onClick={onClose} className="text-xs hover:underline">&times;</button>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto">
-        <div
-          onClick={() => { onSelect(""); onClose(); }}
-          className={[
-            "text-sm px-3 py-1 border-b border-zinc-100 cursor-pointer select-none italic",
-            selected === "" ? "bg-zinc-800 text-white" : "hover:bg-zinc-50 text-zinc-500",
-          ].join(" ")}
-        >
-          Primary
-        </div>
-        {groups
-          .filter((g) => g.name.toLowerCase() !== "primary")
-          .map((g) => (
-            <div
-              key={g.sg_id}
-              onClick={() => { onSelect(String(g.sg_id)); onClose(); }}
-              className={[
-                "text-sm px-3 py-1 border-b border-zinc-100 cursor-pointer select-none",
-                selected === String(g.sg_id) ? "bg-zinc-800 text-white" : "hover:bg-zinc-50",
-              ].join(" ")}
-            >
-              {g.name}
-            </div>
-          ))}
-        {groups.filter((g) => g.name.toLowerCase() !== "primary").length === 0 && (
-          <div className="text-xs text-zinc-400 px-3 py-2">No groups yet</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Unit List Panel ───────────────────────────────────────────────────────────
-function UnitListPanel({
-  units,
-  selected,
-  onSelect,
-  onClose,
-  onCreate,
-}: {
-  units: UnitType[];
-  selected: string;
-  onSelect: (id: string) => void;
-  onClose: () => void;
-  onCreate: () => void;
-}) {
-  return (
-    <div className="w-72 border-l flex flex-col shrink-0">
-      <div className="px-2 py-1 text-sm font-medium flex justify-between items-center select-none">
-        <span>List of Units</span>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onCreate}
-            className="text-xs text-zinc-500 hover:text-black underline underline-offset-1"
-          >
-            Create
-          </button>
-          <button onClick={onClose} className="text-xs hover:underline">&times;</button>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto">
-        <div
-          onClick={() => { onSelect(""); onClose(); }}
-          className={[
-            "text-sm px-3 py-1 border-b border-zinc-100 cursor-pointer select-none italic",
-            selected === "" ? "bg-zinc-800 text-white" : "hover:bg-zinc-50 text-zinc-500",
-          ].join(" ")}
-        >
-          Not Applicable
-        </div>
-        {units.map((u) => (
-          <div
-            key={u.unit_id}
-            onClick={() => { onSelect(String(u.unit_id)); onClose(); }}
-            className={[
-              "text-sm px-3 py-1 border-b border-zinc-100 cursor-pointer select-none",
-              selected === String(u.unit_id) ? "bg-zinc-800 text-white" : "hover:bg-zinc-50",
-            ].join(" ")}
-          >
-            {u.symbol} - {u.formal_name}
-          </div>
-        ))}
-        {units.length === 0 && (
-          <div className="text-xs text-zinc-400 px-3 py-2">No units yet</div>
-        )}
-      </div>
-    </div>
-  );
-}
+const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent font-mono focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
+const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent font-mono cursor-pointer focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
 
 interface FormData {
   name: string;
@@ -220,7 +102,6 @@ export default function StockItemCreate() {
         igst_rate: form.gst_applicable === "Applicable" ? (Number(form.igst_rate) || 0) : 0,
         type_of_supply: form.gst_applicable === "Applicable" ? form.type_of_supply : "Goods",
         rate_of_duty: form.gst_applicable === "Applicable" ? (Number(form.rate_of_duty) || 0) : 0,
-        // Pass defaults for removed sections
         opening_quantity: 0,
         opening_rate: 0,
         reorder_level: 0,
@@ -229,7 +110,7 @@ export default function StockItemCreate() {
         track_expiry: 0,
       });
       if (result.success) {
-        setSuccess(`Stock Item "${form.name}" created.`);
+        setSuccess(`Stock Item "${form.name}" created successfully.`);
         setForm(INITIAL);
         setTimeout(() => setSuccess(null), 3000);
       } else {
@@ -245,10 +126,30 @@ export default function StockItemCreate() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        e.preventDefault();
         if (activePanel) setActivePanel(null);
         else navigate("/master/create");
       }
-      if (e.ctrlKey && e.key === "a") { e.preventDefault(); handleSubmit(); }
+      if (e.altKey && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        setActivePanel(activePanel === "group" ? null : "group");
+      }
+      if (e.altKey && e.key.toLowerCase() === "u") {
+        e.preventDefault();
+        setActivePanel(activePanel === "unit" ? null : "unit");
+      }
+      if (e.altKey && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        handleSubmit();
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        handleSubmit();
+      }
+      if (e.altKey && e.key.toLowerCase() === "c") {
+        e.preventDefault();
+        navigate("/master/alter/stock-item");
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -262,138 +163,157 @@ export default function StockItemCreate() {
     ? units.find(u => String(u.unit_id) === form.unit_id)?.symbol ?? "Not Applicable"
     : "Not Applicable";
 
+  const itemActions = [
+    { key: "Alt+G", label: "Select Group", onClick: () => setActivePanel(prev => prev === "group" ? null : "group") },
+    { key: "Alt+U", label: "Select Unit", onClick: () => setActivePanel(prev => prev === "unit" ? null : "unit") },
+    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
+    { key: "Alt+C", label: "Alter Item", onClick: () => navigate("/master/alter/stock-item") },
+    { key: "Esc", label: "Quit", onClick: () => navigate("/master/create") },
+  ];
+
   return (
-    <div className="flex-1 flex flex-col h-full bg-white">
-      {/* Title bar */}
-      <div className="px-3 py-1 text-sm font-medium flex justify-between items-center select-none">
-        <span>Stock Item Creation</span>
-      </div>
+    <div className="flex-1 flex flex-col h-full bg-white select-none relative overflow-hidden">
+      <PageTitleBar title="Stock Item Creation" subtitle={selectedCompany?.name} />
 
       {error && (
-        <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs">dismiss</button>
+        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-mono shrink-0">
+          <span>• {error}</span>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
         </div>
       )}
       {success && (
-        <div className="px-3 py-1 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
-          <span>{success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs">dismiss</button>
+        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center font-mono shrink-0">
+          <span>• {success}</span>
+          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
         </div>
       )}
 
       <div className="flex-1 flex min-h-0">
         {/* Left: form fields */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="p-2 space-y-0.5">
-            <FormRow label="Name" labelWidth="w-48" className="flex items-center min-h-[22px]">
+        <div className="flex-1 flex flex-col min-w-0 bg-white border-r border-zinc-100 p-3 space-y-6 overflow-y-auto">
+          <div className="max-w-2xl space-y-1">
+            <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans">General</div>
+            
+            <FormRow label="Name" required labelWidth="w-56" className="flex items-center min-h-[26px]">
               <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} />
             </FormRow>
-            <FormRow label="(alias)" labelWidth="w-48" className="flex items-center min-h-[22px]">
+            
+            <FormRow label="(alias)" labelWidth="w-56" className="flex items-center min-h-[26px]">
               <input className={inputCls} value={form.alias} onChange={setField("alias")} />
             </FormRow>
 
             {/* Under */}
             <div
-              className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 text-sm"
+              className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50 text-sm select-none"
               onClick={() => setActivePanel(activePanel === "group" ? null : "group")}
             >
-              <span className="w-48 text-zinc-400 shrink-0 py-1">Under</span>
+              <span className="w-56 text-zinc-400 shrink-0 py-1 font-sans">Under</span>
               <span className="text-zinc-600 mr-2 shrink-0">:</span>
-              <span className="flex-1 px-1 py-0.5">{selectedGroupLabel}</span>
+              <span className="text-sm px-1 py-0.5 font-bold uppercase tracking-wide text-zinc-900 font-mono">{selectedGroupLabel}</span>
             </div>
 
             {/* Units */}
             <div
-              className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50 text-sm"
+              className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50 text-sm select-none"
               onClick={() => setActivePanel(activePanel === "unit" ? null : "unit")}
             >
-              <span className="w-48 text-zinc-400 shrink-0 py-1">Units</span>
+              <span className="w-56 text-zinc-400 shrink-0 py-1 font-sans">Units</span>
               <span className="text-zinc-600 mr-2 shrink-0">:</span>
-              <span className="flex-1 px-1 py-0.5">{selectedUnitLabel}</span>
-            </div>
-
-            {/* Statutory Details */}
-            <div className="border-t my-2 pt-2">
-              <div className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1">Statutory Details</div>
-              
-              <FormRow label="GST Applicable" labelWidth="w-48" className="flex items-center min-h-[22px]">
-                <select
-                  className={selectCls}
-                  value={form.gst_applicable}
-                  onChange={setField("gst_applicable")}
-                >
-                  <option value="Not Applicable">Not Applicable</option>
-                  <option value="Applicable">Applicable</option>
-                </select>
-              </FormRow>
-
-              {form.gst_applicable === "Applicable" && (
-                <div className="space-y-0.5 mt-1 border-l-2 border-zinc-100 pl-2">
-                  <FormRow label="HSN Code" labelWidth="w-46" className="flex items-center min-h-[22px]">
-                    <input className={inputCls} value={form.hsn_code} onChange={setField("hsn_code")} placeholder="HSN (optional)" />
-                  </FormRow>
-                  <FormRow label="SAC Code" labelWidth="w-46" className="flex items-center min-h-[22px]">
-                    <input className={inputCls} value={form.sac_code} onChange={setField("sac_code")} placeholder="SAC (optional)" />
-                  </FormRow>
-                  <FormRow label="GST Rate (%)" labelWidth="w-46" className="flex items-center min-h-[22px]">
-                    <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.gst_rate} onChange={handleGstChange} />
-                  </FormRow>
-                  <FormRow label="CGST Rate (%)" labelWidth="w-46" className="flex items-center min-h-[22px]">
-                    <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.cgst_rate} onChange={setField("cgst_rate")} />
-                  </FormRow>
-                  <FormRow label="SGST Rate (%)" labelWidth="w-46" className="flex items-center min-h-[22px]">
-                    <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.sgst_rate} onChange={setField("sgst_rate")} />
-                  </FormRow>
-                  <FormRow label="IGST Rate (%)" labelWidth="w-46" className="flex items-center min-h-[22px]">
-                    <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.igst_rate} onChange={setField("igst_rate")} />
-                  </FormRow>
-                  <FormRow label="Type of Supply" labelWidth="w-46" className="flex items-center min-h-[22px]">
-                    <select className={selectCls} value={form.type_of_supply} onChange={setField("type_of_supply")}>
-                      <option value="Goods">Goods</option>
-                      <option value="Services">Services</option>
-                    </select>
-                  </FormRow>
-                  <FormRow label="Rate of Duty (%)" labelWidth="w-46" className="flex items-center min-h-[22px]">
-                    <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.rate_of_duty} onChange={setField("rate_of_duty")} />
-                  </FormRow>
-                </div>
-              )}
+              <span className="text-sm px-1 py-0.5 font-bold uppercase tracking-wide text-zinc-900 font-mono">{selectedUnitLabel}</span>
             </div>
           </div>
-          <div className="flex-1" />
+
+          {/* Statutory Details */}
+          <div className="max-w-2xl space-y-1 border-t border-zinc-100 pt-4">
+            <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans">Statutory Details</div>
+            
+            <FormRow label="GST Applicable" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <select
+                className={selectCls}
+                value={form.gst_applicable}
+                onChange={setField("gst_applicable")}
+              >
+                <option value="Not Applicable">Not Applicable</option>
+                <option value="Applicable">Applicable</option>
+              </select>
+            </FormRow>
+
+            {form.gst_applicable === "Applicable" && (
+              <div className="space-y-1 mt-2 border-l-2 border-zinc-100 pl-3">
+                <FormRow label="HSN Code" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} value={form.hsn_code} onChange={setField("hsn_code")} placeholder="HSN (optional)" />
+                </FormRow>
+                
+                <FormRow label="SAC Code" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} value={form.sac_code} onChange={setField("sac_code")} placeholder="SAC (optional)" />
+                </FormRow>
+                
+                <FormRow label="GST Rate (%)" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.gst_rate} onChange={handleGstChange} />
+                </FormRow>
+                
+                <FormRow label="CGST Rate (%)" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.cgst_rate} onChange={setField("cgst_rate")} />
+                </FormRow>
+                
+                <FormRow label="SGST Rate (%)" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.sgst_rate} onChange={setField("sgst_rate")} />
+                </FormRow>
+                
+                <FormRow label="IGST Rate (%)" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.igst_rate} onChange={setField("igst_rate")} />
+                </FormRow>
+                
+                <FormRow label="Type of Supply" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <select className={selectCls} value={form.type_of_supply} onChange={setField("type_of_supply")}>
+                    <option value="Goods">Goods</option>
+                    <option value="Services">Services</option>
+                  </select>
+                </FormRow>
+                
+                <FormRow label="Rate of Duty (%)" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} type="number" min="0" max="100" step="0.01" value={form.rate_of_duty} onChange={setField("rate_of_duty")} />
+                </FormRow>
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Slide-in Panels */}
+        {/* Side Panels */}
         {activePanel === "group" && (
-          <GroupListPanel
-            groups={stockGroups}
+          <SideSelectionPanel
+            title="List of Groups"
+            items={stockGroups.filter(g => g.name.toLowerCase() !== "primary").map(g => ({ id: g.sg_id, label: g.name }))}
             selected={form.group_id}
             onSelect={val => setForm(f => ({ ...f, group_id: val }))}
             onClose={() => setActivePanel(null)}
-            onCreate={() => { setActivePanel(null); navigate("/master/create/stock-group"); }}
+            showPrimary
           />
         )}
         {activePanel === "unit" && (
-          <UnitListPanel
-            units={units}
+          <SideSelectionPanel
+            title="List of Units"
+            items={units.map(u => ({ id: u.unit_id, label: `${u.symbol} - ${u.formal_name}` }))}
             selected={form.unit_id}
             onSelect={val => setForm(f => ({ ...f, unit_id: val }))}
             onClose={() => setActivePanel(null)}
-            onCreate={() => { setActivePanel(null); navigate("/master/create/unit"); }}
+            showPrimary
+            primaryLabel="Not Applicable"
           />
         )}
+
+        <RightActionPanel actions={itemActions} />
       </div>
 
       {/* Footer */}
-      <div className="border-t p-2 flex justify-between items-center bg-zinc-50">
-        <button onClick={() => navigate("/master/create")} className="text-xs text-zinc-500 hover:text-zinc-800">
+      <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50 shrink-0">
+        <button onClick={() => navigate("/master/create")} className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium">
           &larr; Back to Masters
         </button>
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="text-sm px-5 py-1 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
+          className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
         >
           {loading ? "Saving..." : "Create"}
         </button>

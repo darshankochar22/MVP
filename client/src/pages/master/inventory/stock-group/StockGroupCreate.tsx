@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import FormRow from "@/components/ui/FormRow";
+import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import type { StockGroupType } from "@/types/api";
 
-// ── Shared style tokens (LedgerCreate style) ──────────────────────────────
-const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
-const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
+const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent font-mono";
+const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent font-mono cursor-pointer";
 
 // ── Group list slide-in panel ────────────────────────────────────────────
 function GroupListPanel({
@@ -23,26 +22,25 @@ function GroupListPanel({
   onCreate: () => void;
 }) {
   return (
-    <div className="w-72 border-l flex flex-col shrink-0">
-      <div className="px-2 py-1 text-sm font-medium flex justify-between items-center select-none">
+    <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
+      <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider flex justify-between items-center select-none border-b border-zinc-150">
         <span>List of Groups</span>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 font-normal">
           <button
             onClick={onCreate}
             className="text-xs text-zinc-500 hover:text-black underline underline-offset-1"
           >
             Create
           </button>
-          <button onClick={onClose} className="text-xs hover:underline">&times;</button>
+          <button onClick={onClose} className="text-sm font-bold font-sans hover:text-red-500">&times;</button>
         </div>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {/* Primary (root) option */}
         <div
           onClick={() => { onSelect(""); onClose(); }}
           className={[
-            "text-sm px-3 py-1 border-b border-zinc-100 cursor-pointer select-none italic",
-            selected === "" ? "bg-zinc-800 text-white" : "hover:bg-zinc-50 text-zinc-500",
+            "text-xs font-mono px-3 py-1.5 border-b border-zinc-100 cursor-pointer select-none italic",
+            selected === "" ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 text-zinc-500",
           ].join(" ")}
         >
           Primary
@@ -54,15 +52,15 @@ function GroupListPanel({
               key={g.sg_id}
               onClick={() => { onSelect(String(g.sg_id)); onClose(); }}
               className={[
-                "text-sm px-3 py-1 border-b border-zinc-100 cursor-pointer select-none",
-                selected === String(g.sg_id) ? "bg-zinc-800 text-white" : "hover:bg-zinc-50",
+                "text-xs font-mono px-3 py-1.5 border-b border-zinc-100 cursor-pointer select-none",
+                selected === String(g.sg_id) ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 text-zinc-800",
               ].join(" ")}
             >
               {g.name}
             </div>
           ))}
         {groups.filter((g) => g.name.toLowerCase() !== "primary").length === 0 && (
-          <div className="text-xs text-zinc-400 px-3 py-2">No groups yet</div>
+          <div className="text-xs text-zinc-400 px-3 py-2 italic">No groups yet</div>
         )}
       </div>
     </div>
@@ -141,8 +139,27 @@ export default function StockGroupCreate() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { if (showPanel) setShowPanel(false); else navigate("/master/create"); }
-      if (e.ctrlKey && e.key === "a") { e.preventDefault(); handleSubmit(); }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        if (showPanel) setShowPanel(false);
+        else navigate("/master/create");
+      }
+      if (e.altKey && e.key.toLowerCase() === "g") {
+        e.preventDefault();
+        setShowPanel(prev => !prev);
+      }
+      if (e.altKey && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        handleSubmit();
+      }
+      if (e.ctrlKey && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        handleSubmit();
+      }
+      if (e.altKey && e.key.toLowerCase() === "c") {
+        e.preventDefault();
+        navigate("/master/alter/stock-group");
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -152,48 +169,50 @@ export default function StockGroupCreate() {
     ? stockGroups.find(g => String(g.sg_id) === form.parent_group_id)?.name ?? "Primary"
     : "Primary";
 
-  return (
-    <div className="flex-1 flex flex-col h-full bg-white">
+  const groupActions = [
+    { key: "Alt+G", label: "Select Group", onClick: () => setShowPanel(prev => !prev) },
+    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
+    { key: "Alt+C", label: "Alter Group", onClick: () => navigate("/master/alter/stock-group") },
+    { key: "Esc", label: "Quit", onClick: () => navigate("/master/create") },
+  ];
 
-      {/* Title bar */}
-      <div className="px-3 py-1 text-sm font-medium flex justify-between items-center select-none">
-        <span>Stock Group Creation</span>
-      </div>
+  return (
+    <div className="flex-1 flex flex-col h-full bg-white select-none">
+      <PageTitleBar title="Stock Group Creation" subtitle={selectedCompany?.name} />
 
       {error && (
-        <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs">dismiss</button>
+        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-mono">
+          <span>• {error}</span>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
         </div>
       )}
       {success && (
-        <div className="px-3 py-1 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
-          <span>{success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs">dismiss</button>
+        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center font-mono">
+          <span>• {success}</span>
+          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
         </div>
       )}
 
       <div className="flex-1 flex min-h-0">
-
         {/* Left: form fields */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="p-2 space-y-0.5">
-            <FormRow label="Name" labelWidth="w-56" className="flex items-center min-h-[22px]">
+        <div className="flex-1 flex flex-col min-w-0 bg-white">
+          <div className="p-3 space-y-1 max-w-2xl">
+            <FormRow label="Name" labelWidth="w-56" className="flex items-center min-h-[26px]">
               <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} />
             </FormRow>
-            <FormRow label="(alias)" labelWidth="w-56" className="flex items-center min-h-[22px]">
+            <FormRow label="(alias)" labelWidth="w-56" className="flex items-center min-h-[26px]">
               <input className={inputCls} value={form.alias} onChange={setField("alias")} />
             </FormRow>
             {/* Under — click to open group panel */}
             <div
-              className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-50"
+              className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50 text-sm select-none"
               onClick={() => setShowPanel(v => !v)}
             >
-              <span className="w-56 text-sm shrink-0">Under</span>
+              <span className="w-56 text-zinc-400 shrink-0 py-1 font-sans">Under</span>
               <span className="text-zinc-600 mr-2 shrink-0">:</span>
-              <span className="text-sm px-1 py-0.5">{selectedGroupLabel}</span>
+              <span className="text-sm px-1 py-0.5 font-bold uppercase tracking-wide text-zinc-900 font-mono">{selectedGroupLabel}</span>
             </div>
-            <FormRow label="Should Quantities be Added" labelWidth="w-56" className="flex items-center min-h-[22px]">
+            <FormRow label="Should Quantities be Added" labelWidth="w-56" className="flex items-center min-h-[26px]">
               <select className={selectCls} value={form.should_quantities_be_added} onChange={setField("should_quantities_be_added")}>
                 <option value="1">Yes</option>
                 <option value="0">No</option>
@@ -213,17 +232,19 @@ export default function StockGroupCreate() {
             onCreate={() => { setShowPanel(false); navigate("/master/create/stock-group"); }}
           />
         )}
+
+        <RightActionPanel actions={groupActions} />
       </div>
 
       {/* Footer */}
-      <div className="border-t p-2 flex justify-between items-center bg-zinc-50">
-        <button onClick={() => navigate("/master/create")} className="text-xs text-zinc-500 hover:text-zinc-800">
+      <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50">
+        <button onClick={() => navigate("/master/create")} className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium">
           &larr; Back to Masters
         </button>
         <button
           onClick={handleSubmit}
           disabled={loading}
-          className="text-sm px-5 py-1 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
+          className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
         >
           {loading ? "Saving..." : "Create"}
         </button>

@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import GroupTree from "@/components/GroupTree";
-import FormRow from "@/components/ui/FormRow";
+import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import BankDetailsPopup, { EMPTY_BANK_DETAILS } from "./components/BankDetailsPopup";
 import type { BankDetails } from "./components/BankDetailsPopup";
 import { INDIAN_STATES } from "@/constants/states";
@@ -309,10 +309,27 @@ export default function LedgerCreate() {
         e.preventDefault();
         handleSubmit();
       }
+      // Alt+G to toggle group panel
+      if (e.altKey && (e.key === "g" || e.key === "G") && !showBankPopup) {
+        e.preventDefault();
+        setShowGroupPanel(prev => !prev);
+      }
+      // Alt+C to navigate to alter ledger
+      if (e.altKey && (e.key === "c" || e.key === "C") && !showBankPopup) {
+        e.preventDefault();
+        navigate("/master/alter/ledger");
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleSubmit, showBankPopup, showGroupPanel, navigate]);
+
+  const ledgerActions = [
+    { key: "Alt+G", label: "Select Group", onClick: () => setShowGroupPanel(prev => !prev) },
+    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
+    { key: "Alt+C", label: "Alter Ledger", onClick: () => navigate("/master/alter/ledger") },
+    { key: "Esc", label: "Quit", onClick: () => navigate("/master/create") },
+  ];
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none">
@@ -328,9 +345,7 @@ export default function LedgerCreate() {
         />
       )}
 
-      <div className="px-3 py-1.5 text-xs font-semibold bg-zinc-900 text-white flex justify-between items-center select-none shadow-sm">
-        <span className="uppercase tracking-wider">Ledger Creation</span>
-      </div>
+      <PageTitleBar title="Ledger Creation" subtitle={selectedCompany?.name} />
 
       {error && (
         <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
@@ -697,6 +712,9 @@ export default function LedgerCreate() {
             </div>
           </div>
         )}
+
+        {/* Right Side Action Panel */}
+        <RightActionPanel actions={ledgerActions} />
       </div>
 
       <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50">

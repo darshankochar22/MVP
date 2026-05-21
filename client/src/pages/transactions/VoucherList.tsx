@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../context/CompanyContext";
-import { PageTitleBar, AlertBanner, SearchInput, DataTable, StatusBadge } from "../../components/ui";
+import { PageTitleBar, AlertBanner, SearchInput, DataTable, StatusBadge, RightActionPanel } from "../../components/ui";
 import type { TableColumn } from "../../components/ui";
 import { VoucherTypeBadge, PageFooterBar } from "./ui";
 
@@ -64,6 +64,36 @@ export default function VoucherList() {
 
   useEffect(() => { fetchVouchers(); }, [fetchVouchers]);
 
+  useEffect(() => {
+    const handleKeys = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === "c" || e.key === "C")) {
+        e.preventDefault();
+        navigate("/transactions/vouchers");
+      }
+      if (e.altKey && (e.key === "d" || e.key === "D")) {
+        e.preventDefault();
+        navigate("/transactions/daybook");
+      }
+      if (e.altKey && (e.key === "b" || e.key === "B")) {
+        e.preventDefault();
+        navigate("/utilities/banking");
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        navigate("/");
+      }
+    };
+    window.addEventListener("keydown", handleKeys);
+    return () => window.removeEventListener("keydown", handleKeys);
+  }, [navigate]);
+
+  const listActions = [
+    { key: "Alt+C", label: "New Voucher", onClick: () => navigate("/transactions/vouchers") },
+    { key: "Alt+D", label: "Day Book", onClick: () => navigate("/transactions/daybook") },
+    { key: "Alt+B", label: "Banking", onClick: () => navigate("/utilities/banking") },
+    { key: "Esc", label: "Quit", onClick: () => navigate("/") },
+  ];
+
   const filtered = vouchers.filter(v => {
     const q = search.toLowerCase();
     return (
@@ -116,52 +146,61 @@ export default function VoucherList() {
         }
       />
 
-      {/* Type Filter Tabs */}
-      <div className="flex border-b border-zinc-200 bg-zinc-50 overflow-x-auto shrink-0">
-        {["All", ...VOUCHER_TYPES].map(type => (
-          <button
-            key={type}
-            onClick={() => setSelectedType(type)}
-            className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap border-b-2 transition-colors ${
-              selectedType === type
-                ? "border-zinc-900 text-zinc-900 bg-white"
-                : "border-transparent text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100"
-            }`}
-          >
-            {type}
-          </button>
-        ))}
+      {/* Main Body Layout */}
+      <div className="flex-1 flex min-h-0">
+        {/* Left Side: Table & Filters */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Type Filter Tabs */}
+          <div className="flex border-b border-zinc-200 bg-zinc-50 overflow-x-auto shrink-0">
+            {["All", ...VOUCHER_TYPES].map(type => (
+              <button
+                key={type}
+                onClick={() => setSelectedType(type)}
+                className={`px-4 py-2 text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap border-b-2 transition-colors ${
+                  selectedType === type
+                    ? "border-zinc-900 text-zinc-900 bg-white"
+                    : "border-transparent text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100"
+                }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+
+          {/* Search Bar */}
+          <div className="px-3 py-2 border-b border-zinc-100 bg-zinc-50/50">
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Search by voucher no, party, narration…"
+              className="max-w-sm"
+            />
+          </div>
+
+          {/* Error Banner */}
+          {error && (
+            <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />
+          )}
+
+          {/* Table */}
+          <DataTable
+            columns={columns}
+            rows={tableRows}
+            rowKey={row => row.voucher_id}
+            loading={loading}
+            onRowClick={row => navigate(`/transactions/voucher/${row.voucher_id}`)}
+            emptyMessage={
+              vouchers.length === 0
+                ? "No vouchers found. Create your first voucher."
+                : "No results match your search."
+            }
+            rowClassName={row => row.is_cancelled ? "opacity-50" : "group"}
+          />
+        </div>
+
+        {/* Right Side: Action Panel */}
+        <RightActionPanel actions={listActions} />
       </div>
-
-      {/* Search Bar */}
-      <div className="px-3 py-2 border-b border-zinc-100 bg-zinc-50/50">
-        <SearchInput
-          value={search}
-          onChange={setSearch}
-          placeholder="Search by voucher no, party, narration…"
-          className="max-w-sm"
-        />
-      </div>
-
-      {/* Error Banner */}
-      {error && (
-        <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />
-      )}
-
-      {/* Table */}
-      <DataTable
-        columns={columns}
-        rows={tableRows}
-        rowKey={row => row.voucher_id}
-        loading={loading}
-        onRowClick={row => navigate(`/transactions/voucher/${row.voucher_id}`)}
-        emptyMessage={
-          vouchers.length === 0
-            ? "No vouchers found. Create your first voucher."
-            : "No results match your search."
-        }
-        rowClassName={row => row.is_cancelled ? "opacity-50" : "group"}
-      />
 
       {/* Footer */}
       <PageFooterBar
