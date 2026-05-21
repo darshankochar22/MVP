@@ -913,10 +913,10 @@ export default function LedgerAlter() {
         {selectedLedgerId && (
           <button
             onClick={handleSubmit}
-            disabled={saving}
+            disabled={saving || loading}
             className="text-sm px-6 py-1.5 rounded bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-50 transition-all font-semibold shadow-sm hover:shadow active:scale-95 duration-150"
           >
-            {saving ? "Saving..." : "Update"}
+            {saving ? "Saving..." : loading ? "Loading..." : "Update"}
           </button>
         )}
       </div>
