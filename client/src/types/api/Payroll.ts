@@ -1,5 +1,5 @@
 import type { EmployeeGroupType, EmployeeType } from '../entities/Employee';
-import type { PayrollUnitType, PayHeadType, SalaryStructureType, AttendanceTypeType } from '../entities/Payroll';
+import type { PayrollUnitType, PayHeadType, PayHeadSlabLineType, PayHeadFormulaLineType, SalaryStructureType, AttendanceTypeType } from '../entities/Payroll';
 
 export interface PayrollAPI {
   attendanceType: {
@@ -16,6 +16,12 @@ export interface PayrollAPI {
     getById: (id: number) => Promise<{ success: boolean; payHead: PayHeadType; error?: string }>;
     update: (data: Partial<PayHeadType>) => Promise<{ success: boolean; payHead: PayHeadType; error?: string }>;
     delete: (id: number) => Promise<{ success: boolean; error?: string }>;
+    getSlabs: (pay_head_id: number) => Promise<{ success: boolean; slabs: PayHeadSlabLineType[]; error?: string }>;
+    createSlab: (data: Partial<PayHeadSlabLineType>) => Promise<{ success: boolean; slab: PayHeadSlabLineType; error?: string }>;
+    deleteSlab: (id: number) => Promise<{ success: boolean; error?: string }>;
+    getFormulas: (pay_head_id: number) => Promise<{ success: boolean; formulas: PayHeadFormulaLineType[]; error?: string }>;
+    createFormula: (data: Partial<PayHeadFormulaLineType>) => Promise<{ success: boolean; formula: PayHeadFormulaLineType; error?: string }>;
+    deleteFormula: (id: number) => Promise<{ success: boolean; error?: string }>;
   };
 
   salaryStructure: {

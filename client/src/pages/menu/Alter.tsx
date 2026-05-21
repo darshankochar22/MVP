@@ -32,6 +32,12 @@ export default function Alter() {
       "Stock Category": "/master/alter/stock-category",
       "Stock Items": "/master/alter/stock-item",
       "Location": "/master/alter/godown",
+      "Employee Group": "/master/alter/employee-group",
+      "Employee": "/master/alter/employee",
+      "Attendance Type": "/master/alter/attendance-type",
+      "Pay Head": "/master/alter/pay-head",
+      "Payroll Unit": "/master/alter/payroll-unit",
+      "Salary Structure": "/master/alter/salary-structure",
     };
     return map[item] ?? null;
   };

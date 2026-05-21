@@ -209,6 +209,12 @@ ipcMain.handle('payHead:getAll', payHeadController.getAll);
 ipcMain.handle('payHead:getById', payHeadController.getById);
 ipcMain.handle('payHead:update', payHeadController.update);
 ipcMain.handle('payHead:delete', payHeadController.delete);
+ipcMain.handle('payHead:getSlabs', payHeadController.getSlabs);
+ipcMain.handle('payHead:createSlab', payHeadController.createSlab);
+ipcMain.handle('payHead:deleteSlab', payHeadController.deleteSlab);
+ipcMain.handle('payHead:getFormulas', payHeadController.getFormulas);
+ipcMain.handle('payHead:createFormula', payHeadController.createFormula);
+ipcMain.handle('payHead:deleteFormula', payHeadController.deleteFormula);
 
 ipcMain.handle('salaryStructure:create', salaryStructureController.create);
 ipcMain.handle('salaryStructure:getAll', salaryStructureController.getAll);

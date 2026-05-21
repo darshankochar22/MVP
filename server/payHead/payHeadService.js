@@ -41,17 +41,29 @@ module.exports = {
 
       const result = await db.execute(
         `INSERT INTO pay_heads (
-          company_id, name, pay_head_type, calculation_type,
-          affects_net_salary, under_group, statutory_component,
-          percentage_or_amount, is_active, is_predefined
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 0)`,
+          company_id, name, alias, pay_head_type, income_type,
+          under_group, affects_net_salary, payslip_display_name,
+          use_for_gratuity, set_alter_income_tax,
+          calculation_type, calculation_period,
+          rounding_method, rounding_limit,
+          statutory_component, percentage_or_amount,
+          is_active, is_predefined
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)`,
         [
           data.company_id,
           data.name,
-          data.pay_head_type || 'Earnings',
-          data.calculation_type || 'Flat Rate',
-          data.affects_net_salary ?? 1,
+          data.alias || null,
+          data.pay_head_type || 'Earnings for Employees',
+          data.income_type || 'Fixed',
           data.under_group || null,
+          data.affects_net_salary ?? 1,
+          data.payslip_display_name || null,
+          data.use_for_gratuity ?? 0,
+          data.set_alter_income_tax ?? 0,
+          data.calculation_type || 'As User Defined Value',
+          data.calculation_period || 'Months',
+          data.rounding_method || 'Not Applicable',
+          data.rounding_limit || 0,
           data.statutory_component || null,
           data.percentage_or_amount || 0,
         ]
@@ -104,16 +116,28 @@ module.exports = {
       const current = existing.rows[0];
       await db.execute(
         `UPDATE pay_heads SET
-          name = ?, pay_head_type = ?, calculation_type = ?,
-          affects_net_salary = ?, under_group = ?, statutory_component = ?,
-          percentage_or_amount = ?, updated_at = datetime('now')
+          name = ?, alias = ?, pay_head_type = ?, income_type = ?,
+          under_group = ?, affects_net_salary = ?, payslip_display_name = ?,
+          use_for_gratuity = ?, set_alter_income_tax = ?,
+          calculation_type = ?, calculation_period = ?,
+          rounding_method = ?, rounding_limit = ?,
+          statutory_component = ?, percentage_or_amount = ?,
+          updated_at = datetime('now')
          WHERE pay_head_id = ?`,
         [
           data.name ?? current.name,
+          data.alias ?? current.alias,
           data.pay_head_type ?? current.pay_head_type,
-          data.calculation_type ?? current.calculation_type,
-          data.affects_net_salary ?? current.affects_net_salary,
+          data.income_type ?? current.income_type,
           data.under_group ?? current.under_group,
+          data.affects_net_salary ?? current.affects_net_salary,
+          data.payslip_display_name ?? current.payslip_display_name,
+          data.use_for_gratuity ?? current.use_for_gratuity,
+          data.set_alter_income_tax ?? current.set_alter_income_tax,
+          data.calculation_type ?? current.calculation_type,
+          data.calculation_period ?? current.calculation_period,
+          data.rounding_method ?? current.rounding_method,
+          data.rounding_limit ?? current.rounding_limit,
           data.statutory_component ?? current.statutory_component,
           data.percentage_or_amount ?? current.percentage_or_amount,
           data.pay_head_id,
@@ -143,6 +167,78 @@ module.exports = {
         `UPDATE pay_heads SET is_active = 0 WHERE pay_head_id = ?`,
         [id]
       );
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  getSlabs: async (pay_head_id) => {
+    try {
+      const result = await db.execute(
+        `SELECT * FROM pay_head_slab_lines WHERE pay_head_id = ? ORDER BY effective_from`,
+        [pay_head_id]
+      );
+      return { success: true, slabs: result.rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  createSlab: async (data) => {
+    try {
+      const result = await db.execute(
+        `INSERT INTO pay_head_slab_lines (pay_head_id, effective_from, amount_gt, amount_up_to, slab_type, value)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [data.pay_head_id, data.effective_from || null, data.amount_gt || 0, data.amount_up_to || 0, data.slab_type || null, data.value || 0]
+      );
+      const slab = await db.execute(`SELECT * FROM pay_head_slab_lines WHERE slab_line_id = ?`, [result.lastInsertRowid]);
+      return { success: true, slab: slab.rows[0] };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  deleteSlab: async (id) => {
+    try {
+      await db.execute(`DELETE FROM pay_head_slab_lines WHERE slab_line_id = ?`, [id]);
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  getFormulas: async (pay_head_id) => {
+    try {
+      const result = await db.execute(
+        `SELECT fl.*, ph.name as pay_head_name FROM pay_head_formula_lines fl
+         LEFT JOIN pay_heads ph ON fl.pay_head_id_ref = ph.pay_head_id
+         WHERE fl.pay_head_id = ? ORDER BY fl.sequence`,
+        [pay_head_id]
+      );
+      return { success: true, formulas: result.rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  createFormula: async (data) => {
+    try {
+      const result = await db.execute(
+        `INSERT INTO pay_head_formula_lines (pay_head_id, sequence, function, pay_head_id_ref, operator)
+         VALUES (?, ?, ?, ?, ?)`,
+        [data.pay_head_id, data.sequence || 0, data.function || null, data.pay_head_id_ref || null, data.operator || null]
+      );
+      const formula = await db.execute(`SELECT * FROM pay_head_formula_lines WHERE formula_line_id = ?`, [result.lastInsertRowid]);
+      return { success: true, formula: formula.rows[0] };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  deleteFormula: async (id) => {
+    try {
+      await db.execute(`DELETE FROM pay_head_formula_lines WHERE formula_line_id = ?`, [id]);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

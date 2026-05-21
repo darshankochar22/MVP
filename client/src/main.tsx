@@ -39,6 +39,13 @@ import StockCategoryCOA from "./pages/master/inventory/stock-category/StockCateg
 import GodownCOA from "./pages/master/inventory/godown/GodownCOA.tsx";
 import UnitCOA from "./pages/master/inventory/unit/UnitCOA.tsx";
 
+import EmployeeGroupCreate from "./pages/master/payroll/employee-group/EmployeeGroupCreate.tsx";
+import EmployeeCreate from "./pages/master/payroll/employee/EmployeeCreate.tsx";
+import PayrollUnitCreate from "./pages/master/payroll/payroll-unit/PayrollUnitCreate.tsx";
+import AttendanceTypeCreate from "./pages/master/payroll/attendance-type/AttendanceTypeCreate.tsx";
+import PayHeadCreate from "./pages/master/payroll/pay-head/PayHeadCreate.tsx";
+import SalaryStructureCreate from "./pages/master/payroll/salary-structure/SalaryStructureCreate.tsx";
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <HashRouter>
     <CompanyProvider>
@@ -83,6 +90,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             <Route path="/master/coa/stock-category" element={<StockCategoryCOA />} />
             <Route path="/master/coa/godown" element={<GodownCOA />} />
             <Route path="/master/coa/unit" element={<UnitCOA />} />
+
+            <Route path="/master/create/employee-group" element={<EmployeeGroupCreate />} />
+            <Route path="/master/create/employee" element={<EmployeeCreate />} />
+            <Route path="/master/create/payroll-unit" element={<PayrollUnitCreate />} />
+            <Route path="/master/create/attendance-type" element={<AttendanceTypeCreate />} />
+            <Route path="/master/create/pay-head" element={<PayHeadCreate />} />
+            <Route path="/master/create/salary-structure" element={<SalaryStructureCreate />} />
           </Route>
         </Routes>
       </StartupGuard>

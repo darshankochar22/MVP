@@ -32,6 +32,12 @@ export default function Create() {
       "Stock Category": "/master/create/stock-category",
       "Stock Items": "/master/create/stock-item",
       "Location": "/master/create/godown",
+      "Employee Group": "/master/create/employee-group",
+      "Employee": "/master/create/employee",
+      "Attendance Type": "/master/create/attendance-type",
+      "Pay Head": "/master/create/pay-head",
+      "Payroll Unit": "/master/create/payroll-unit",
+      "Salary Structure": "/master/create/salary-structure",
     };
     return map[item] ?? null;
   };

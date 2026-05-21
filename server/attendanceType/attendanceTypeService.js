@@ -31,9 +31,18 @@ module.exports = {
       if (exists.rows.length > 0) return { success: false, error: 'Attendance Type already exists' };
 
       const result = await db.execute(
-        `INSERT INTO attendance_types (company_id, name, type, unit_id, is_active, is_predefined)
-         VALUES (?, ?, ?, ?, 1, 0)`,
-        [data.company_id, data.name, data.type || 'Attendance', data.unit_id || null]
+        `INSERT INTO attendance_types (company_id, name, alias, type, unit_id, period, carry_forward, encashment, max_days, is_active, is_predefined)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)`,
+        [
+          data.company_id, data.name,
+          data.alias || null,
+          data.type || 'Attendance / Leave with Pay',
+          data.unit_id || null,
+          data.period || 'Per Day',
+          data.carry_forward ?? 0,
+          data.encashment ?? 0,
+          data.max_days || 0,
+        ]
       );
 
       const attendanceType = await db.execute(
@@ -83,12 +92,19 @@ module.exports = {
       const current = existing.rows[0];
       await db.execute(
         `UPDATE attendance_types SET
-          name = ?, type = ?, unit_id = ?, updated_at = datetime('now')
+          name = ?, alias = ?, type = ?, unit_id = ?,
+          period = ?, carry_forward = ?, encashment = ?, max_days = ?,
+          updated_at = datetime('now')
          WHERE attendance_type_id = ?`,
         [
           data.name ?? current.name,
+          data.alias ?? current.alias,
           data.type ?? current.type,
           data.unit_id ?? current.unit_id,
+          data.period ?? current.period,
+          data.carry_forward ?? current.carry_forward,
+          data.encashment ?? current.encashment,
+          data.max_days ?? current.max_days,
           data.attendance_type_id,
         ]
       );

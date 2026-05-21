@@ -1,19 +1,15 @@
 const payHeadService = require('../payHead/payHeadService');
 
 module.exports = {
-  create: async (event, data) => {
-    return await payHeadService.create(data);
-  },
-  getAll: async (event, company_id) => {
-    return await payHeadService.getAll(company_id);
-  },
-  getById: async (event, id) => {
-    return await payHeadService.getById(id);
-  },
-  update: async (event, data) => {
-    return await payHeadService.update(data);
-  },
-  delete: async (event, id) => {
-    return await payHeadService.delete(id);
-  },
+  create: async (event, data) => payHeadService.create(data),
+  getAll: async (event, company_id) => payHeadService.getAll(company_id),
+  getById: async (event, id) => payHeadService.getById(id),
+  update: async (event, data) => payHeadService.update(data),
+  delete: async (event, id) => payHeadService.delete(id),
+  getSlabs: async (event, pay_head_id) => payHeadService.getSlabs(pay_head_id),
+  createSlab: async (event, data) => payHeadService.createSlab(data),
+  deleteSlab: async (event, id) => payHeadService.deleteSlab(id),
+  getFormulas: async (event, pay_head_id) => payHeadService.getFormulas(pay_head_id),
+  createFormula: async (event, data) => payHeadService.createFormula(data),
+  deleteFormula: async (event, id) => payHeadService.deleteFormula(id),
 };

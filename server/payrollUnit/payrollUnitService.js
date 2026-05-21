@@ -30,14 +30,18 @@ module.exports = {
       if (exists.rows.length > 0) return { success: false, error: 'Payroll Unit already exists' };
 
       const result = await db.execute(
-        `INSERT INTO payroll_units (company_id, name, symbol, unit_type, decimal_places, is_active, is_predefined)
-         VALUES (?, ?, ?, ?, ?, 1, 0)`,
+        `INSERT INTO payroll_units (company_id, name, symbol, formal_name, unit_type, decimal_places, first_unit, conversion, second_unit, is_active, is_predefined)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 0)`,
         [
           data.company_id,
           data.name,
           data.symbol,
+          data.formal_name || null,
           data.unit_type || 'Simple',
           data.decimal_places ?? 0,
+          data.first_unit || null,
+          data.conversion || null,
+          data.second_unit || null,
         ]
       );
 
@@ -88,14 +92,19 @@ module.exports = {
       const current = existing.rows[0];
       await db.execute(
         `UPDATE payroll_units SET
-          name = ?, symbol = ?, unit_type = ?, decimal_places = ?,
+          name = ?, symbol = ?, formal_name = ?, unit_type = ?, decimal_places = ?,
+          first_unit = ?, conversion = ?, second_unit = ?,
           updated_at = datetime('now')
          WHERE payroll_unit_id = ?`,
         [
           data.name ?? current.name,
           data.symbol ?? current.symbol,
+          data.formal_name ?? current.formal_name,
           data.unit_type ?? current.unit_type,
           data.decimal_places ?? current.decimal_places,
+          data.first_unit ?? current.first_unit,
+          data.conversion ?? current.conversion,
+          data.second_unit ?? current.second_unit,
           data.payroll_unit_id,
         ]
       );
