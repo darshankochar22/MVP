@@ -9,6 +9,8 @@ import InventoryParticularsTable from "./components/InventoryParticularsTable";
 import LedgerPanel from "./components/LedgerPanel";
 import ActionFooter from "./components/ActionFooter";
 import { INDIAN_STATES } from "../../constants/states";
+import { PageTitleBar, AlertBanner } from "../../components/ui";
+import { LedgerField } from "./ui";
 
 export default function Vouchers() {
   const navigate = useNavigate();
@@ -64,31 +66,33 @@ export default function Vouchers() {
     <div className="flex-1 flex flex-col bg-white h-full font-mono text-xs select-none">
       
       {/* Title Bar */}
-      <div className="px-3 py-1.5 text-xs font-semibold bg-zinc-900 text-white flex justify-between items-center select-none shadow-sm animate-fade-in">
-        <span className="uppercase tracking-wider">Accounting Voucher Creation</span>
-        <span className="text-zinc-400 font-mono text-[10px]">{selectedCompany?.name || ""}</span>
-      </div>
+      <PageTitleBar
+        title="Accounting Voucher Creation"
+        subtitle={selectedCompany?.name || ""}
+      />
 
       {/* Error / Success Toast Panels */}
       {form.error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center transition-all animate-slide-down">
-          <span className="font-semibold">&bull; {form.error}</span>
-          <button onClick={() => form.setError(null)} className="text-red-500 hover:text-red-700 font-bold font-sans">&times;</button>
-        </div>
+        <AlertBanner
+          type="error"
+          message={form.error}
+          onDismiss={() => form.setError(null)}
+        />
       )}
       {form.success && (
-        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center transition-all animate-slide-down">
-          <span className="font-semibold">&bull; {form.success}</span>
-          <div className="flex items-center gap-3">
+        <AlertBanner
+          type="success"
+          message={form.success}
+          onDismiss={() => form.setSuccess(null)}
+          actions={
             <button
               onClick={() => navigate("/transactions/voucher-list")}
               className="text-[10px] text-green-800 underline hover:text-green-900 font-sans transition-colors"
             >
               View Voucher Register →
             </button>
-            <button onClick={() => form.setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold font-sans">&times;</button>
-          </div>
-        </div>
+          }
+        />
       )}
 
       {/* Voucher Type Tab switcher */}
@@ -116,24 +120,16 @@ export default function Vouchers() {
               <div className="flex items-center min-h-[36px] border-b border-zinc-100 py-1.5 px-3 bg-zinc-50/20">
                 <span className="w-24 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Account</span>
                 <span className="text-zinc-400 mr-2">:</span>
-                <div className="flex-1 relative flex items-center gap-2">
-                  <input
-                    type="text"
-                    className="flex-1 bg-transparent text-xs outline-none px-2 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded font-semibold text-zinc-800 font-mono"
-                    value={form.activeField?.type === 'account' ? form.ledgerSearchTerm : (form.accountLedger?.name || "")}
-                    placeholder="Select Cash / Bank Account..."
-                    onFocus={() => form.handleFieldFocus({ type: 'account' })}
-                    onChange={(e) => {
-                      form.setLedgerSearchTerm(e.target.value);
-                      if (!form.accountLedger) form.handleFieldFocus({ type: 'account' });
-                    }}
-                  />
-                  {form.accountBalance && (
-                    <span className="text-[10px] text-zinc-400 font-sans italic shrink-0">
-                      (Current Balance: {form.accountBalance})
-                    </span>
-                  )}
-                </div>
+                <LedgerField
+                  value={form.activeField?.type === 'account' ? form.ledgerSearchTerm : (form.accountLedger?.name || "")}
+                  balance={form.accountBalance}
+                  placeholder="Select Cash / Bank Account..."
+                  onFocus={() => form.handleFieldFocus({ type: 'account' })}
+                  onChange={(v) => {
+                    form.setLedgerSearchTerm(v);
+                    if (!form.accountLedger) form.handleFieldFocus({ type: 'account' });
+                  }}
+                />
               </div>
 
               {/* Particulars grid */}
@@ -177,24 +173,16 @@ export default function Vouchers() {
                   <div className="flex items-center min-h-[30px]">
                     <span className="w-24 text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Party A/c Name</span>
                     <span className="text-zinc-400 mr-2">:</span>
-                    <div className="flex-1 relative flex items-center gap-2">
-                      <input
-                        type="text"
-                        className="flex-1 bg-transparent text-xs outline-none px-2 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded font-semibold text-zinc-800 font-mono"
-                        value={form.activeField?.type === 'party' ? form.ledgerSearchTerm : (form.partyLedger?.name || "")}
-                        onFocus={() => form.handleFieldFocus({ type: 'party' })}
-                        onChange={(e) => {
-                          form.setLedgerSearchTerm(e.target.value);
-                          if (!form.partyLedger) form.handleFieldFocus({ type: 'party' });
-                        }}
-                        placeholder="Select Party Ledger (Debtor/Creditor/Cash/Bank)..."
-                      />
-                      {form.partyBalance && (
-                        <span className="text-[10px] text-zinc-400 font-sans italic shrink-0">
-                          (Bal: {form.partyBalance})
-                        </span>
-                      )}
-                    </div>
+                    <LedgerField
+                      value={form.activeField?.type === 'party' ? form.ledgerSearchTerm : (form.partyLedger?.name || "")}
+                      balance={form.partyBalance}
+                      placeholder="Select Party Ledger (Debtor/Creditor/Cash/Bank)..."
+                      onFocus={() => form.handleFieldFocus({ type: 'party' })}
+                      onChange={(v) => {
+                        form.setLedgerSearchTerm(v);
+                        if (!form.partyLedger) form.handleFieldFocus({ type: 'party' });
+                      }}
+                    />
                   </div>
 
                   <div className="flex items-center min-h-[30px]">
@@ -202,24 +190,16 @@ export default function Vouchers() {
                       {form.voucherType} Ledger
                     </span>
                     <span className="text-zinc-400 mr-2">:</span>
-                    <div className="flex-1 relative flex items-center gap-2">
-                      <input
-                        type="text"
-                        className="flex-1 bg-transparent text-xs outline-none px-2 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded font-semibold text-zinc-800 font-mono"
-                        value={form.activeField?.type === 'salesPurchase' ? form.ledgerSearchTerm : (form.salesPurchaseLedger?.name || "")}
-                        onFocus={() => form.handleFieldFocus({ type: 'salesPurchase' })}
-                        onChange={(e) => {
-                          form.setLedgerSearchTerm(e.target.value);
-                          if (!form.salesPurchaseLedger) form.handleFieldFocus({ type: 'salesPurchase' });
-                        }}
-                        placeholder={`Select ${form.voucherType} Ledger...`}
-                      />
-                      {form.salesPurchaseBalance && (
-                        <span className="text-[10px] text-zinc-400 font-sans italic shrink-0">
-                          (Bal: {form.salesPurchaseBalance})
-                        </span>
-                      )}
-                    </div>
+                    <LedgerField
+                      value={form.activeField?.type === 'salesPurchase' ? form.ledgerSearchTerm : (form.salesPurchaseLedger?.name || "")}
+                      balance={form.salesPurchaseBalance}
+                      placeholder={`Select ${form.voucherType} Ledger...`}
+                      onFocus={() => form.handleFieldFocus({ type: 'salesPurchase' })}
+                      onChange={(v) => {
+                        form.setLedgerSearchTerm(v);
+                        if (!form.salesPurchaseLedger) form.handleFieldFocus({ type: 'salesPurchase' });
+                      }}
+                    />
                   </div>
                 </div>
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import type { LedgerType, StockItemType, GodownType } from "../../../types/api";
 import type { ActiveField } from "../hooks/useVoucherForm";
+import { SearchInput } from "../../../components/ui";
 
 interface Props {
   isOpen: boolean;
@@ -133,13 +134,10 @@ export default function LedgerPanel({
       </div>
 
       <div className="p-2 border-b border-zinc-100 bg-zinc-50/50">
-        <input
-          ref={searchRef}
-          type="text"
-          className="w-full text-xs px-2.5 py-1.5 border border-zinc-300 rounded outline-none focus:border-zinc-800 focus:ring-1 focus:ring-zinc-800 transition-all bg-white font-mono"
-          placeholder={`Search ${isStockItem ? 'items' : isGodown ? 'godowns' : 'accounts'}...`}
+        <SearchInput
           value={searchTerm}
-          onChange={(e) => onSearchChange(e.target.value)}
+          onChange={onSearchChange}
+          placeholder={`Search ${isStockItem ? 'items' : isGodown ? 'godowns' : 'accounts'}...`}
         />
       </div>
 

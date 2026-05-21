@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { SectionCard, AlertBanner } from "../../components/ui";
+import { VoucherTypeBadge, voucherTypeSolidClass, AmountDisplay, PageFooterBar } from "./ui";
 
 interface VoucherEntry {
   entry_id: number;
@@ -13,8 +15,6 @@ interface VoucherEntry {
 interface StockEntry {
   stock_entry_id: number;
   item_name: string;
-  godown_id: number | null;
-  unit_id: number | null;
   quantity: number;
   rate: number;
   amount: number;
@@ -32,36 +32,52 @@ interface Voucher {
   party_ledger_id: number | null;
   place_of_supply: string | null;
   is_invoice: number;
-  is_accounting_voucher: number;
-  is_inventory_voucher: number;
   is_cancelled: number;
   created_at: string;
   entries: VoucherEntry[];
   stock_entries: StockEntry[];
 }
 
-const TYPE_COLORS: Record<string, string> = {
-  Receipt:  "bg-emerald-600",
-  Payment:  "bg-rose-600",
-  Contra:   "bg-violet-600",
-  Journal:  "bg-amber-600",
-  Sales:    "bg-blue-600",
-  Purchase: "bg-orange-600",
-};
-
 const formatDate = (d: string | null) => {
   if (!d) return "—";
   const dt = new Date(d);
-  if (isNaN(dt.getTime())) return d;
-  return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return isNaN(dt.getTime()) ? d : dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 };
 
-const formatAmount = (n: number) => {
-  return new Intl.NumberFormat("en-IN", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(n);
-};
+// ─── Sub-components ──────────────────────────────────────────────────────────
+
+/** A single labelled detail cell inside the header card */
+function DetailCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="px-3 py-2.5">
+      <div className="text-[9px] text-zinc-400 uppercase font-bold tracking-wider mb-0.5">{label}</div>
+      <div className="text-zinc-800 font-semibold font-mono truncate" title={value}>{value}</div>
+    </div>
+  );
+}
+
+/** Dr / Cr badge pill for entry rows */
+function DrCrBadge({ type }: { type: "Dr" | "Cr" }) {
+  const cls = type === "Dr"
+    ? "bg-blue-100 text-blue-700"
+    : "bg-rose-100 text-rose-700";
+  return (
+    <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${cls}`}>{type}</span>
+  );
+}
+
+/** Thin horizontal table header row */
+function TableHeader({ cols }: { cols: { label: string; span: string; align?: string }[] }) {
+  return (
+    <div className="grid grid-cols-12 px-3 py-1.5 bg-zinc-50 border-b border-zinc-100 text-[9px] font-bold uppercase tracking-wider text-zinc-500 select-none">
+      {cols.map(c => (
+        <div key={c.label} className={`${c.span} ${c.align ?? ""}`}>{c.label}</div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Main page ───────────────────────────────────────────────────────────────
 
 export default function VoucherView() {
   const { id } = useParams<{ id: string }>();
@@ -73,23 +89,19 @@ export default function VoucherView() {
 
   useEffect(() => {
     if (!id) return;
-    const load = async () => {
+    (async () => {
       setLoading(true);
       setError(null);
       try {
         const res = await window.api.voucher.getById(Number(id));
-        if (res.success) {
-          setVoucher(res.voucher as Voucher);
-        } else {
-          setError(res.error || "Voucher not found");
-        }
+        if (res.success) setVoucher(res.voucher as Voucher);
+        else setError(res.error || "Voucher not found");
       } catch (e: any) {
         setError(e.message);
       } finally {
         setLoading(false);
       }
-    };
-    load();
+    })();
   }, [id]);
 
   const handleCancel = async () => {
@@ -98,11 +110,8 @@ export default function VoucherView() {
     setCancelling(true);
     try {
       const res = await window.api.voucher.cancel(voucher.voucher_id);
-      if (res.success) {
-        setVoucher(prev => prev ? { ...prev, is_cancelled: 1 } : prev);
-      } else {
-        setError(res.error || "Failed to cancel");
-      }
+      if (res.success) setVoucher(prev => prev ? { ...prev, is_cancelled: 1 } : prev);
+      else setError(res.error || "Failed to cancel");
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -112,19 +121,17 @@ export default function VoucherView() {
 
   const handleDelete = async () => {
     if (!voucher) return;
-    if (!window.confirm(`Permanently delete voucher ${voucher.voucher_number}? This cannot be undone.`)) return;
+    if (!window.confirm(`Permanently delete voucher ${voucher.voucher_number}?`)) return;
     try {
       const res = await window.api.voucher.delete(voucher.voucher_id);
-      if (res.success) {
-        navigate("/transactions/voucher-list");
-      } else {
-        setError(res.error || "Failed to delete");
-      }
+      if (res.success) navigate("/transactions/voucher-list");
+      else setError(res.error || "Failed to delete");
     } catch (e: any) {
       setError(e.message);
     }
   };
 
+  // ── Loading / error states ──
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
@@ -133,31 +140,44 @@ export default function VoucherView() {
     );
   }
 
-  if (error || !voucher) {
+  if (error && !voucher) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 text-zinc-500 font-mono text-xs">
-        <span className="text-red-600">{error || "Voucher not found"}</span>
-        <button onClick={() => navigate(-1)} className="text-zinc-500 hover:text-zinc-900 underline">
-          ← Go Back
-        </button>
+        <span className="text-red-600">{error}</span>
+        <button onClick={() => navigate(-1)} className="underline hover:text-zinc-900">← Go Back</button>
       </div>
     );
   }
 
-  const drTotal = voucher.entries.filter(e => e.type === "Dr").reduce((s, e) => s + e.amount, 0);
-  const crTotal = voucher.entries.filter(e => e.type === "Cr").reduce((s, e) => s + e.amount, 0);
-  const stockTotal = voucher.stock_entries.reduce((s, e) => s + e.amount, 0);
+  if (!voucher) return null;
 
-  const accentColor = TYPE_COLORS[voucher.voucher_type] || "bg-zinc-700";
+  // ── Computed totals ──
+  const drTotal    = voucher.entries.filter(e => e.type === "Dr").reduce((s, e) => s + e.amount, 0);
+  const crTotal    = voucher.entries.filter(e => e.type === "Cr").reduce((s, e) => s + e.amount, 0);
+  const stockTotal = voucher.stock_entries.reduce((s, e) => s + e.amount, 0);
+  const balanced   = Math.abs(drTotal - crTotal) < 0.01;
+
+  const accentClass = voucherTypeSolidClass(voucher.voucher_type);
+
+  // Header detail cells (skip nulls)
+  const headerCells: { label: string; value: string }[] = [
+    { label: "Voucher No.", value: voucher.voucher_number },
+    { label: "Type",        value: voucher.voucher_type },
+    { label: "Date",        value: formatDate(voucher.date) },
+    ...(voucher.party_name       ? [{ label: "Party",          value: voucher.party_name }]                   : []),
+    ...(voucher.reference_number ? [{ label: "Ref No.",        value: voucher.reference_number }]             : []),
+    ...(voucher.reference_date   ? [{ label: "Ref Date",       value: formatDate(voucher.reference_date) }]   : []),
+    ...(voucher.place_of_supply  ? [{ label: "Place of Supply",value: voucher.place_of_supply }]              : []),
+    ...(voucher.narration        ? [{ label: "Narration",      value: voucher.narration }]                    : []),
+  ];
 
   return (
-    <div className="flex-1 flex flex-col bg-white h-full font-mono text-xs select-none overflow-y-auto">
-      {/* Title Bar */}
-      <div className={`px-4 py-2.5 text-white flex justify-between items-center shadow-sm shrink-0 ${accentColor}`}>
+    <div className="flex-1 flex flex-col bg-white h-full font-mono text-xs select-none">
+
+      {/* Coloured Title Bar */}
+      <div className={`px-4 py-2.5 text-white flex justify-between items-center shadow-sm shrink-0 ${accentClass}`}>
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="text-white/70 hover:text-white transition-colors text-sm">
-            ←
-          </button>
+          <button onClick={() => navigate(-1)} className="text-white/70 hover:text-white transition-colors text-sm">←</button>
           <div>
             <div className="text-sm font-bold tracking-wide uppercase">
               {voucher.voucher_type} Voucher — {voucher.voucher_number}
@@ -173,7 +193,7 @@ export default function VoucherView() {
             <button
               onClick={handleCancel}
               disabled={cancelling}
-              className="text-[10px] bg-white/20 hover:bg-white/30 text-white px-2 py-1 rounded uppercase tracking-wider transition-colors"
+              className="text-[10px] bg-white/20 hover:bg-white/30 text-white px-2 py-1 rounded uppercase tracking-wider transition-colors disabled:opacity-50"
             >
               Cancel Voucher
             </button>
@@ -187,143 +207,103 @@ export default function VoucherView() {
         </div>
       </div>
 
-      {/* Error */}
-      {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs shrink-0">
-          {error}
-        </div>
-      )}
+      {/* Error banner */}
+      {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
 
       {/* Body */}
       <div className="flex-1 p-4 space-y-4 overflow-y-auto">
 
         {/* Header Details Card */}
-        <div className="border border-zinc-200 rounded-lg overflow-hidden">
-          <div className="bg-zinc-50 px-3 py-2 border-b border-zinc-200">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Voucher Details</span>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-0 divide-x divide-y divide-zinc-100">
-            {[
-              { label: "Voucher No.", value: voucher.voucher_number },
-              { label: "Type", value: voucher.voucher_type },
-              { label: "Date", value: formatDate(voucher.date) },
-              ...(voucher.party_name ? [{ label: "Party", value: voucher.party_name }] : []),
-              ...(voucher.reference_number ? [{ label: "Ref No.", value: voucher.reference_number }] : []),
-              ...(voucher.reference_date ? [{ label: "Ref Date", value: formatDate(voucher.reference_date) }] : []),
-              ...(voucher.place_of_supply ? [{ label: "Place of Supply", value: voucher.place_of_supply }] : []),
-              ...(voucher.narration ? [{ label: "Narration", value: voucher.narration }] : []),
-            ].map(({ label, value }) => (
-              <div key={label} className="px-3 py-2.5">
-                <div className="text-[9px] text-zinc-400 uppercase font-bold tracking-wider mb-0.5">{label}</div>
-                <div className="text-zinc-800 font-semibold font-mono truncate" title={value}>{value}</div>
-              </div>
+        <SectionCard title="Voucher Details">
+          <div className="grid grid-cols-2 md:grid-cols-3 divide-x divide-y divide-zinc-100">
+            {headerCells.map(({ label, value }) => (
+              <DetailCell key={label} label={label} value={value} />
             ))}
           </div>
-        </div>
+        </SectionCard>
 
         {/* Accounting Entries */}
-        {voucher.entries && voucher.entries.length > 0 && (
-          <div className="border border-zinc-200 rounded-lg overflow-hidden">
-            <div className="bg-zinc-50 px-3 py-2 border-b border-zinc-200 flex justify-between items-center">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                Accounting Entries
-              </span>
+        {voucher.entries.length > 0 && (
+          <SectionCard
+            title="Accounting Entries"
+            headerRight={
               <div className="flex gap-3 text-[10px] text-zinc-500">
-                <span>Dr: <span className="font-bold text-zinc-800">₹{formatAmount(drTotal)}</span></span>
-                <span>Cr: <span className="font-bold text-zinc-800">₹{formatAmount(crTotal)}</span></span>
+                <span>Dr: <span className="font-bold text-zinc-800"><AmountDisplay amount={drTotal} /></span></span>
+                <span>Cr: <span className="font-bold text-zinc-800"><AmountDisplay amount={crTotal} /></span></span>
               </div>
-            </div>
-
-            {/* Entries Header */}
-            <div className="grid grid-cols-12 px-3 py-1.5 bg-zinc-50 border-b border-zinc-100 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
-              <div className="col-span-1 text-center">Dr/Cr</div>
-              <div className="col-span-7">Ledger Account</div>
-              <div className="col-span-4 text-right">Amount</div>
-            </div>
+            }
+          >
+            <TableHeader cols={[
+              { label: "Dr/Cr", span: "col-span-1", align: "text-center" },
+              { label: "Ledger Account", span: "col-span-7" },
+              { label: "Amount", span: "col-span-4", align: "text-right" },
+            ]} />
 
             {voucher.entries.map(entry => (
               <div key={entry.entry_id} className="grid grid-cols-12 px-3 py-2 border-b border-zinc-100 items-center hover:bg-zinc-50/50 transition-colors">
                 <div className="col-span-1 text-center">
-                  <span className={`text-[9px] font-bold px-1 py-0.5 rounded ${
-                    entry.type === "Dr" ? "bg-blue-100 text-blue-700" : "bg-rose-100 text-rose-700"
-                  }`}>
-                    {entry.type}
-                  </span>
+                  <DrCrBadge type={entry.type} />
                 </div>
                 <div className="col-span-7 text-zinc-800 font-semibold truncate">
                   {entry.ledger_name || `Ledger #${entry.ledger_id}`}
                 </div>
                 <div className="col-span-4 text-right font-bold text-zinc-900">
-                  ₹{formatAmount(entry.amount)}
+                  <AmountDisplay amount={entry.amount} />
                 </div>
               </div>
             ))}
 
             {/* Balance indicator */}
-            <div className={`px-3 py-1.5 text-[10px] font-bold text-right ${
-              Math.abs(drTotal - crTotal) < 0.01
-                ? "bg-emerald-50 text-emerald-700"
-                : "bg-red-50 text-red-700"
-            }`}>
-              {Math.abs(drTotal - crTotal) < 0.01
+            <div className={`px-3 py-1.5 text-[10px] font-bold text-right ${balanced ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+              {balanced
                 ? "✓ Balanced"
-                : `⚠ Difference: ₹${formatAmount(Math.abs(drTotal - crTotal))}`
-              }
+                : `⚠ Difference: `}
+              {!balanced && <AmountDisplay amount={Math.abs(drTotal - crTotal)} />}
             </div>
-          </div>
+          </SectionCard>
         )}
 
         {/* Inventory / Stock Entries */}
-        {voucher.stock_entries && voucher.stock_entries.length > 0 && (
-          <div className="border border-zinc-200 rounded-lg overflow-hidden">
-            <div className="bg-zinc-50 px-3 py-2 border-b border-zinc-200">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
-                Inventory Particulars
-              </span>
-            </div>
-
-            {/* Stock Header */}
-            <div className="grid grid-cols-12 px-3 py-1.5 bg-zinc-50 border-b border-zinc-100 text-[9px] font-bold uppercase tracking-wider text-zinc-500">
-              <div className="col-span-5">Item Name</div>
-              <div className="col-span-2 text-right">Qty</div>
-              <div className="col-span-2 text-right">Rate</div>
-              <div className="col-span-3 text-right">Amount</div>
-            </div>
+        {voucher.stock_entries.length > 0 && (
+          <SectionCard title="Inventory Particulars">
+            <TableHeader cols={[
+              { label: "Item Name", span: "col-span-5" },
+              { label: "Qty",       span: "col-span-2", align: "text-right" },
+              { label: "Rate",      span: "col-span-2", align: "text-right" },
+              { label: "Amount",    span: "col-span-3", align: "text-right" },
+            ]} />
 
             {voucher.stock_entries.map(item => (
               <div key={item.stock_entry_id} className="grid grid-cols-12 px-3 py-2 border-b border-zinc-100 items-center hover:bg-zinc-50/50 transition-colors">
-                <div className="col-span-5 text-zinc-800 font-semibold truncate">
-                  {item.item_name || "—"}
-                </div>
+                <div className="col-span-5 text-zinc-800 font-semibold truncate">{item.item_name || "—"}</div>
                 <div className="col-span-2 text-right text-zinc-600">{item.quantity}</div>
-                <div className="col-span-2 text-right text-zinc-600">₹{formatAmount(item.rate)}</div>
-                <div className="col-span-3 text-right font-bold text-zinc-900">₹{formatAmount(item.amount)}</div>
+                <div className="col-span-2 text-right text-zinc-600"><AmountDisplay amount={item.rate} /></div>
+                <div className="col-span-3 text-right font-bold text-zinc-900"><AmountDisplay amount={item.amount} /></div>
               </div>
             ))}
 
-            {/* Stock Total */}
+            {/* Stock total row */}
             <div className="grid grid-cols-12 px-3 py-2 bg-zinc-50 border-t border-zinc-200">
-              <div className="col-span-9 font-bold text-zinc-700 uppercase text-[10px] tracking-wider">
-                Total Inventory Value
-              </div>
-              <div className="col-span-3 text-right font-bold text-zinc-900">
-                ₹{formatAmount(stockTotal)}
-              </div>
+              <div className="col-span-9 font-bold text-zinc-700 uppercase text-[10px] tracking-wider">Total Inventory Value</div>
+              <div className="col-span-3 text-right font-bold text-zinc-900"><AmountDisplay amount={stockTotal} /></div>
             </div>
-          </div>
+          </SectionCard>
         )}
+
+        {/* Type badge (visual flourish at bottom) */}
+        <div className="flex items-center gap-2 text-[10px] text-zinc-400">
+          <VoucherTypeBadge type={voucher.voucher_type} size="sm" />
+          <span>Voucher ID: {voucher.voucher_id}</span>
+          <span>·</span>
+          <span>Created: {formatDate(voucher.created_at)}</span>
+        </div>
       </div>
 
-      {/* Footer */}
-      <div className="px-3 py-2 border-t border-zinc-200 bg-zinc-50 flex justify-between items-center text-[10px] text-zinc-500 uppercase tracking-wider shrink-0">
-        <span>Voucher ID: {voucher.voucher_id}</span>
-        <button
-          onClick={() => navigate("/transactions/voucher-list")}
-          className="hover:text-zinc-800 transition-colors"
-        >
-          ← Back to List
-        </button>
-      </div>
+      <PageFooterBar
+        countLabel={`Voucher #${voucher.voucher_id}`}
+        backLabel="← Back to List"
+        onBack={() => navigate("/transactions/voucher-list")}
+      />
     </div>
   );
 }
