@@ -160,7 +160,7 @@ export default function LedgerPanel({
           const isSelected = idx === highlightIndex;
           return (
             <div
-              key={item.ledger_id || item.stock_item_id || item.godown_id}
+              key={item.ledger_id || item.item_id || item.godown_id}
               className={`px-3 py-2 text-xs cursor-pointer flex justify-between items-center transition-colors font-mono ${
                 isSelected ? "bg-zinc-900 text-white font-medium" : "hover:bg-zinc-50 text-zinc-800"
               }`}

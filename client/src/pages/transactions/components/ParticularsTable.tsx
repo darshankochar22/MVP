@@ -7,6 +7,7 @@ interface Props {
   onRemoveRow: (id: string) => void;
   onFieldFocus: (field: ActiveField) => void;
   onSearchChange: (term: string) => void;
+  searchTerm: string;
   activeRowId: string | null;
   isJournal?: boolean;
 }
@@ -18,6 +19,7 @@ export default function ParticularsTable({
   onRemoveRow,
   onFieldFocus,
   onSearchChange,
+  searchTerm,
   activeRowId,
   isJournal = false
 }: Props) {
@@ -79,7 +81,7 @@ export default function ParticularsTable({
                     data-particular-ledger={idx + 1}
                     type="text"
                     className="w-full bg-transparent border-b border-transparent outline-none focus:border-zinc-800 text-zinc-900 placeholder-zinc-400 py-0.5"
-                    value={row.ledger ? row.ledger.name : (isActive ? "" : "")}
+                    value={isActive ? searchTerm : (row.ledger ? row.ledger.name : "")}
                     placeholder={idx === 0 ? "Select Particular Ledger..." : ""}
                     onFocus={() => onFieldFocus({ type: 'particular', rowId: row.id })}
                     onChange={(e) => {

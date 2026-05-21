@@ -9,7 +9,7 @@ export default function Gateway() {
     },
     {
       title: "Transactions",
-      items: ["Vouchers", "Day Book"],
+      items: ["Vouchers", "Voucher Register", "Day Book"],
     },
     {
       title: "Utilities",
@@ -42,6 +42,7 @@ export default function Gateway() {
       if (item == "Chart of Accounts") return "/master/coa";
       if (item == "Financial Years") return "/master/financial-years";
       if (item == "Vouchers") return "/transactions/vouchers";
+      if (item == "Voucher Register") return "/transactions/voucher-list";
       if (item == "Day Book") return "/transactions/daybook";
       if (item == "Banking") return "/utilities/banking";
     }

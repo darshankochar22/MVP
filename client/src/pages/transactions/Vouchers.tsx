@@ -79,7 +79,15 @@ export default function Vouchers() {
       {form.success && (
         <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center transition-all animate-slide-down">
           <span className="font-semibold">&bull; {form.success}</span>
-          <button onClick={() => form.setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold font-sans">&times;</button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate("/transactions/voucher-list")}
+              className="text-[10px] text-green-800 underline hover:text-green-900 font-sans transition-colors"
+            >
+              View Voucher Register →
+            </button>
+            <button onClick={() => form.setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold font-sans">&times;</button>
+          </div>
         </div>
       )}
 
@@ -112,7 +120,7 @@ export default function Vouchers() {
                   <input
                     type="text"
                     className="flex-1 bg-transparent text-xs outline-none px-2 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded font-semibold text-zinc-800 font-mono"
-                    value={form.accountLedger ? form.accountLedger.name : form.ledgerSearchTerm}
+                    value={form.activeField?.type === 'account' ? form.ledgerSearchTerm : (form.accountLedger?.name || "")}
                     placeholder="Select Cash / Bank Account..."
                     onFocus={() => form.handleFieldFocus({ type: 'account' })}
                     onChange={(e) => {
@@ -136,6 +144,7 @@ export default function Vouchers() {
                 onRemoveRow={form.handleRemoveParticularRow}
                 onFieldFocus={form.handleFieldFocus}
                 onSearchChange={form.setLedgerSearchTerm}
+                searchTerm={form.ledgerSearchTerm}
                 activeRowId={form.activeField?.type === 'particular' ? form.activeField.rowId : null}
               />
             </div>
@@ -151,6 +160,7 @@ export default function Vouchers() {
                 onRemoveRow={form.handleRemoveJournalRow}
                 onFieldFocus={form.handleFieldFocus}
                 onSearchChange={form.setLedgerSearchTerm}
+                searchTerm={form.ledgerSearchTerm}
                 activeRowId={form.activeField?.type === 'particular' ? form.activeField.rowId : null}
                 isJournal={true}
               />
@@ -171,7 +181,7 @@ export default function Vouchers() {
                       <input
                         type="text"
                         className="flex-1 bg-transparent text-xs outline-none px-2 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded font-semibold text-zinc-800 font-mono"
-                        value={form.partyLedger ? form.partyLedger.name : form.ledgerSearchTerm}
+                        value={form.activeField?.type === 'party' ? form.ledgerSearchTerm : (form.partyLedger?.name || "")}
                         onFocus={() => form.handleFieldFocus({ type: 'party' })}
                         onChange={(e) => {
                           form.setLedgerSearchTerm(e.target.value);
@@ -196,7 +206,7 @@ export default function Vouchers() {
                       <input
                         type="text"
                         className="flex-1 bg-transparent text-xs outline-none px-2 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded font-semibold text-zinc-800 font-mono"
-                        value={form.salesPurchaseLedger ? form.salesPurchaseLedger.name : form.ledgerSearchTerm}
+                        value={form.activeField?.type === 'salesPurchase' ? form.ledgerSearchTerm : (form.salesPurchaseLedger?.name || "")}
                         onFocus={() => form.handleFieldFocus({ type: 'salesPurchase' })}
                         onChange={(e) => {
                           form.setLedgerSearchTerm(e.target.value);
@@ -258,6 +268,8 @@ export default function Vouchers() {
                 allGodowns={form.allGodowns}
                 allUnits={form.allUnits}
                 activeField={form.activeField}
+                searchTerm={form.ledgerSearchTerm}
+                stockSearchTerm={form.stockSearchTerm}
                 onFieldFocus={form.handleFieldFocus}
                 onSearchChange={form.setStockSearchTerm}
                 onUpdateStockRow={form.handleUpdateStockRow}

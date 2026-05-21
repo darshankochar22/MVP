@@ -7,6 +7,8 @@ interface Props {
   allGodowns: GodownType[];
   allUnits: UnitType[];
   activeField: ActiveField | null;
+  searchTerm: string;
+  stockSearchTerm: string;
   onFieldFocus: (field: ActiveField) => void;
   onSearchChange: (term: string) => void;
   onUpdateStockRow: (id: string, updates: Partial<Omit<StockEntryRow, 'id'>>) => void;
@@ -23,6 +25,8 @@ export default function InventoryParticularsTable({
   allGodowns,
   allUnits,
   activeField,
+  searchTerm,
+  stockSearchTerm,
   onFieldFocus,
   onSearchChange,
   onUpdateStockRow,
@@ -90,7 +94,7 @@ export default function InventoryParticularsTable({
                   type="text"
                   className="w-full bg-transparent border-b border-transparent outline-none focus:border-zinc-800 text-zinc-900 placeholder-zinc-400 py-0.5"
                   placeholder="Select Stock Item..."
-                  value={row.stockItem ? row.stockItem.name : (isActive ? "" : "")}
+                  value={isActive ? stockSearchTerm : (row.stockItem ? row.stockItem.name : "")}
                   onFocus={() => onFieldFocus({ type: 'stockItem', rowId: row.id })}
                   onChange={(e) => {
                     onSearchChange(e.target.value);
@@ -222,7 +226,7 @@ export default function InventoryParticularsTable({
                       type="text"
                       className="w-full bg-transparent border-b border-transparent outline-none focus:border-zinc-800 text-zinc-900 placeholder-zinc-400 py-0.5"
                       placeholder="Select Ledger (GST, round off, discount...)"
-                      value={row.ledger ? row.ledger.name : (isAddActive ? "" : "")}
+                      value={isAddActive ? searchTerm : (row.ledger ? row.ledger.name : "")}
                       onFocus={() => onFieldFocus({ type: 'additional', rowId: row.id })}
                       onChange={(e) => {
                         onSearchChange(e.target.value);

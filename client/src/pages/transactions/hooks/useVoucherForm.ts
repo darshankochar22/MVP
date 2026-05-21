@@ -333,15 +333,32 @@ export function useVoucherForm() {
   // Selection Field focuses
   const handleFieldFocus = useCallback((field: ActiveField) => {
     setActiveField(field);
-    setLedgerSearchTerm("");
-    setStockSearchTerm("");
-  }, []);
+    let currentName = "";
+    if (field.type === 'account') {
+      currentName = accountLedger?.name || "";
+    } else if (field.type === 'party') {
+      currentName = partyLedger?.name || "";
+    } else if (field.type === 'salesPurchase') {
+      currentName = salesPurchaseLedger?.name || "";
+    } else if (field.type === 'particular') {
+      const row = particulars.find(p => p.id === field.rowId) || journalRows.find(p => p.id === field.rowId);
+      currentName = row?.ledger?.name || "";
+    } else if (field.type === 'additional') {
+      const row = additionalEntries.find(p => p.id === field.rowId);
+      currentName = row?.ledger?.name || "";
+    } else if (field.type === 'stockItem') {
+      const row = stockEntries.find(p => p.id === field.rowId);
+      currentName = row?.stockItem?.name || "";
+    }
+    setLedgerSearchTerm(currentName);
+    setStockSearchTerm(currentName);
+  }, [accountLedger, partyLedger, salesPurchaseLedger, particulars, journalRows, additionalEntries, stockEntries]);
 
   const handleFieldBlur = useCallback(() => {
     setActiveField(null);
   }, []);
 
-  // Universal Selection Selector
+  // Universal Selection Selector — closes the panel after selection
   const handleLedgerPanelSelect = useCallback((ledger: LedgerType) => {
     if (!activeField) return;
     if (activeField.type === 'account') {
@@ -355,20 +372,18 @@ export function useVoucherForm() {
     } else if (activeField.type === 'additional') {
       handleUpdateAdditionalRow(activeField.rowId, { ledger });
     } else if (activeField.type === 'stockItem') {
-      // Find the row and update stock details
-      const stockRow = stockEntries.find(r => r.id === activeField.rowId);
-      if (stockRow) {
-        // Expose unit if matches stock item
-        const matchingUnit = allUnits.find(u => u.unit_id === (ledger as any).unit_id) || null;
-        handleUpdateStockRow(activeField.rowId, {
-          stockItem: ledger as any,
-          unit: matchingUnit
-        });
-      }
+      const stockItem = ledger as any as import('../../../types/api').StockItemType;
+      const matchingUnit = allUnits.find(u => u.unit_id === stockItem.unit_id) || null;
+      handleUpdateStockRow(activeField.rowId, {
+        stockItem,
+        unit: matchingUnit,
+      });
     }
-    setLedgerSearchTerm(ledger.name);
-    setStockSearchTerm(ledger.name);
-  }, [activeField, handleUpdateParticularRow, handleUpdateAdditionalRow, handleUpdateStockRow, stockEntries, allUnits]);
+    // Close the panel immediately after selection to prevent cross-field confusion
+    setActiveField(null);
+    setLedgerSearchTerm("");
+    setStockSearchTerm("");
+  }, [activeField, handleUpdateParticularRow, handleUpdateAdditionalRow, handleUpdateStockRow, allUnits]);
 
   const resetForm = useCallback(() => {
     setAccountLedger(null);
@@ -395,6 +410,11 @@ export function useVoucherForm() {
     setStockSearchTerm("");
     fetchNextNumber();
   }, [voucherType, fetchNextNumber]);
+
+  // Reset form data on voucher type change to prevent crosstalk
+  useEffect(() => {
+    resetForm();
+  }, [voucherType, resetForm]);
 
   const validate = useCallback((): string | null => {
     if (!companyId) return "No company selected";
@@ -507,17 +527,17 @@ export function useVoucherForm() {
         const stockSubtotal = filledItems.reduce((sum, r) => sum + (Number(r.amountRaw) || 0), 0);
 
         stock_entries = filledItems.map(r => ({
-          stock_item_id: (r.stockItem as any).stock_item_id,
+          stock_item_id: r.stockItem!.item_id ?? null,
           item_name: r.stockItem!.name,
-          godown_id: r.godown?.godown_id || null,
-          unit_id: r.unit?.unit_id || null,
+          godown_id: r.godown?.godown_id ?? null,
+          unit_id: r.unit?.unit_id ?? null,
           quantity: Number(r.quantityRaw),
           rate: Number(r.rateRaw),
           amount: Number(r.amountRaw),
         }));
 
         // Build Balancing Accounting Entries for Sales/Purchase
-        // F8 Sales: Party Dr (total), Sales Cr (subtotal), Taxes/Adj Cr (Cr if negative Dr, etc)
+        // F8 Sales: Party Dr (total), Sales Cr (subtotal), Taxes/Adj Cr or Dr
         // F9 Purchase: Purchase Dr (subtotal), Taxes/Adj Dr, Party Cr (total)
         const partyType = voucherType === "Sales" ? 'Dr' : 'Cr';
         const salesPurchaseType = voucherType === "Sales" ? 'Cr' : 'Dr';
@@ -556,6 +576,8 @@ export function useVoucherForm() {
         reference_date: referenceDate || null,
         place_of_supply: placeOfSupply !== "Select" ? placeOfSupply : null,
         narration: narration || null,
+        party_ledger_id: ["Sales", "Purchase"].includes(voucherType) ? (partyLedger?.ledger_id || null) : null,
+        party_name: ["Sales", "Purchase"].includes(voucherType) ? (partyLedger?.name || null) : null,
         is_accounting_voucher: 1,
         is_invoice: ["Sales", "Purchase"].includes(voucherType) ? 1 : 0,
         is_inventory_voucher: ["Sales", "Purchase"].includes(voucherType) ? 1 : 0,
