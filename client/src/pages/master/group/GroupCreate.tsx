@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import GroupTree from "@/components/GroupTree";
@@ -80,6 +80,14 @@ export default function GroupCreate() {
   const parentGroup = form.parent_group_id
     ? flatGroups.find((g) => g.group_id === form.parent_group_id)
     : null;
+
+  const groupNameMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    for (const g of flatGroups) {
+      if (g.group_id != null) map[g.group_id] = g.name;
+    }
+    return map;
+  }, [flatGroups]);
 
   const isPrimarySelected = !form.parent_group_id;
 
@@ -265,6 +273,7 @@ export default function GroupCreate() {
               tree={groupTree}
               selectedId={form.parent_group_id as number}
               onSelect={handleGroupSelect}
+              groupNameMap={groupNameMap}
             />
           </div>
         </div>

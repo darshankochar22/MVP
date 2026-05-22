@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import GroupTree from "@/components/GroupTree";
@@ -8,6 +8,7 @@ export default function GroupAlter() {
   const { selectedCompany } = useCompany();
   const navigate = useNavigate();
   const [groupTree, setGroupTree] = useState<(GroupType & { children?: GroupType[] })[]>([]);
+  const [flatGroups, setFlatGroups] = useState<GroupType[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -18,15 +19,27 @@ export default function GroupAlter() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await window.api.group.getTree(companyId);
+        const [treeRes, allRes] = await Promise.all([
+          window.api.group.getTree(companyId),
+          window.api.group.getAll(companyId),
+        ]);
         if (cancelled) return;
-        if (res.success && res.tree) setGroupTree(res.tree ?? []);
+        if (treeRes.success && treeRes.tree) setGroupTree(treeRes.tree ?? []);
+        if (allRes.success && allRes.groups) setFlatGroups(allRes.groups ?? []);
       } catch (e) {
         if (!cancelled) setError("Failed to load groups.");
       }
     })();
     return () => { cancelled = true; };
   }, [companyId]);
+
+  const groupNameMap = useMemo(() => {
+    const map: Record<number, string> = {};
+    for (const g of flatGroups) {
+      if (g.group_id != null) map[g.group_id] = g.name;
+    }
+    return map;
+  }, [flatGroups]);
 
   const handleSelect = (group: GroupType) => {
     navigate(`/master/alter/group/${group.group_id}`);
@@ -92,6 +105,7 @@ export default function GroupAlter() {
           onSelect={handleSelect}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          groupNameMap={groupNameMap}
         />
       </div>
     </div>

@@ -13,6 +13,7 @@ interface GroupTreeProps {
   showActions?: boolean;
   onEdit?: (group: GroupType) => void;
   onDelete?: (group: GroupType) => void;
+  groupNameMap?: Record<number, string>;
 }
 
 function TreeNodeRow({
@@ -24,6 +25,7 @@ function TreeNodeRow({
   showActions,
   onEdit,
   onDelete,
+  groupNameMap,
 }: {
   node: TreeNode;
   depth: number;
@@ -33,7 +35,11 @@ function TreeNodeRow({
   showActions?: boolean;
   onEdit?: (group: GroupType) => void;
   onDelete?: (group: GroupType) => void;
+  groupNameMap?: Record<number, string>;
 }) {
+  const parentName = node.parent_group_id && groupNameMap
+    ? groupNameMap[node.parent_group_id as number]
+    : undefined;
   const [expanded, setExpanded] = useState(true);
   const hasChildren = node.children && node.children.length > 0;
   const isSelected = node.group_id === selectedId;
@@ -63,9 +69,14 @@ function TreeNodeRow({
             <span className="text-xs leading-none">·</span>
           )}
         </span>
-        <span className={`flex-1 truncate ${isSelected ? "font-medium text-zinc-900" : "text-zinc-700"}`}>
-          {node.name}
-        </span>
+        <div className="flex-1 truncate">
+          <span className={isSelected ? "font-medium text-zinc-900" : "text-zinc-700"}>
+            {node.name}
+          </span>
+          {parentName && (
+            <span className="text-xs text-zinc-400 ml-1">({parentName})</span>
+          )}
+        </div>
         {showActions && !isProtected && (
           <span className="flex items-center gap-1 opacity-0 group-hover:opacity-100 pr-1">
             {onEdit && (
@@ -106,6 +117,7 @@ function TreeNodeRow({
               showActions={showActions}
               onEdit={onEdit}
               onDelete={onDelete}
+              groupNameMap={groupNameMap}
             />
           ))}
         </div>
@@ -122,6 +134,7 @@ export default function GroupTree({
   showActions,
   onEdit,
   onDelete,
+  groupNameMap,
 }: GroupTreeProps) {
   if (!tree || tree.length === 0) {
     return <div className="text-sm text-zinc-400 p-4">No groups found</div>;
@@ -140,6 +153,7 @@ export default function GroupTree({
           showActions={showActions}
           onEdit={onEdit}
           onDelete={onDelete}
+          groupNameMap={groupNameMap}
         />
       ))}
     </div>
