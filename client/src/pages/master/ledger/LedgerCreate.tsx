@@ -38,6 +38,7 @@ const INITIAL_FORM: Partial<LedgerType> = {
   name: "",
   alias: "",
   opening_balance: 0,
+  ledger_type: "General",
   mailing_name: "",
   address1: "",
   address2: "",
@@ -50,6 +51,8 @@ const INITIAL_FORM: Partial<LedgerType> = {
   gstin: "",
   pan: "",
   registration_type: "Unregistered",
+  default_credit_period: 0,
+  check_credit_days: 0,
 };
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
@@ -111,6 +114,8 @@ export default function LedgerCreate() {
       isTax: false,
       isDebtorCreditor: false,
       isInventory: false,
+      primaryGroupName: null as string | null,
+      hideMailingExtras: false,
     };
     if (!selectedGroup || flatGroups.length === 0) return lineage;
 
@@ -121,7 +126,7 @@ export default function LedgerCreate() {
     const checkLineage = (current: GroupType) => {
       const name = current.name.toLowerCase().trim();
       if (name === "bank accounts") lineage.isBank = true;
-      if (name === "bank od a/c" || name === "bank od accounts" || name === "bank od account") {
+      if (name === "bank od a/c" || name === "bank od accounts" || name === "bank od account" || name === "bank occ a/c") {
         lineage.isBank = true;
         lineage.isOD = true;
       }
@@ -140,11 +145,34 @@ export default function LedgerCreate() {
         lineage.isInventory = true;
       }
 
-      if (current.parent_group_id) {
-        const parent = findGroup(current.parent_group_id);
-        if (parent) {
-          checkLineage(parent);
-        }
+      if (
+        [
+          "cash-in-hand",
+          "duties & taxes",
+          "misc. expenses(asset)",
+          "misc.expenses(asset)",
+          "provisions",
+          "purchase accounts",
+          "sales accounts",
+          "reserves & surplus",
+          "reserve & surplus",
+          "retained earnings",
+          "stock-in-hand",
+          "stock in hand",
+          "suspense a/c",
+        ].includes(name)
+      ) {
+        lineage.hideMailingExtras = true;
+      }
+
+      if (!current.parent_group_id) {
+        lineage.primaryGroupName = current.name;
+        return;
+      }
+
+      const parent = findGroup(current.parent_group_id);
+      if (parent) {
+        checkLineage(parent);
       }
     };
 
@@ -223,7 +251,7 @@ export default function LedgerCreate() {
         name: form.name!.trim(),
         alias: form.alias?.trim() || undefined,
         group_id: form.group_id || undefined,
-        ledger_type: "General",
+        ledger_type: form.ledger_type || "General",
         opening_balance: Number(form.opening_balance) || 0,
         closing_balance: 0,
         is_bill_wise: form.is_bill_wise || 0,
@@ -240,6 +268,8 @@ export default function LedgerCreate() {
         gstin: form.gstin?.trim() || undefined,
         pan: form.pan?.trim() || undefined,
         registration_type: form.registration_type || "Unregistered",
+        default_credit_period: form.default_credit_period || 0,
+        check_credit_days: form.check_credit_days || 0,
       };
 
       const hasBankData = provideBank === "Yes" || groupLineage.isBank;
@@ -383,6 +413,9 @@ export default function LedgerCreate() {
               <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted underline-offset-2 decoration-zinc-400 group-hover:decoration-zinc-800">
                 {selectedGroup?.name || "—"}
               </span>
+              {groupLineage.primaryGroupName && groupLineage.primaryGroupName !== selectedGroup?.name && (
+                <span className="text-xs text-zinc-400 ml-2 font-normal">(Group: {groupLineage.primaryGroupName})</span>
+              )}
             </div>
           </div>
 
@@ -412,18 +445,23 @@ export default function LedgerCreate() {
             </div>
           </div>
 
-          {/* Context 1: Inventory (Sales/Purchase/Expenses/Incomes) */}
+          {/* Context 1: Type of Ledger (Sales/Purchase/Expenses/Incomes) */}
           {groupLineage.isInventory && (
             <div className="p-3 border-t border-zinc-100 bg-white">
-              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Inventory Affected</div>
-              <FormRow label="Inventory values are affected" labelWidth="w-52" className="flex items-center min-h-[26px]">
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Ledger Type</div>
+              <FormRow label="Type of ledger" labelWidth="w-52" className="flex items-center min-h-[26px]">
                 <select
                   className={selectCls}
-                  value={form.maintain_inventory_values ? "Yes" : "No"}
-                  onChange={(e) => setForm((f) => ({ ...f, maintain_inventory_values: e.target.value === "Yes" ? 1 : 0 }))}
+                  value={form.ledger_type || "General"}
+                  onChange={setField("ledger_type")}
                 >
-                  <option>No</option>
-                  <option>Yes</option>
+                  <option value="General">General</option>
+                  <option value="Sales">Sales</option>
+                  <option value="Purchase">Purchase</option>
+                  <option value="Income">Income</option>
+                  <option value="Expenses">Expenses</option>
+                  <option value="Assets">Assets</option>
+                  <option value="Liabilities">Liabilities</option>
                 </select>
               </FormRow>
             </div>
@@ -586,16 +624,36 @@ export default function LedgerCreate() {
               {groupLineage.isDebtorCreditor && (
                 <div className="p-3 border-t border-zinc-100 bg-white">
                   <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Bill-wise Details</div>
-                  <FormRow label="Maintain balances bill-by-bill" labelWidth="w-52" className="flex items-center min-h-[26px]">
-                    <select
-                      className={selectCls}
-                      value={form.is_bill_wise ? "Yes" : "No"}
-                      onChange={(e) => setForm((f) => ({ ...f, is_bill_wise: e.target.value === "Yes" ? 1 : 0 }))}
-                    >
-                      <option>No</option>
-                      <option>Yes</option>
-                    </select>
-                  </FormRow>
+                  <div className="space-y-1">
+                    <FormRow label="Maintain balances bill-by-bill" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                      <select
+                        className={selectCls}
+                        value={form.is_bill_wise ? "Yes" : "No"}
+                        onChange={(e) => setForm((f) => ({ ...f, is_bill_wise: e.target.value === "Yes" ? 1 : 0 }))}
+                      >
+                        <option>No</option>
+                        <option>Yes</option>
+                      </select>
+                    </FormRow>
+                    <FormRow label="Default credit period (days)" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                      <input
+                        type="number"
+                        className={`${inputCls} max-w-[80px] text-right font-mono`}
+                        value={form.default_credit_period ?? 0}
+                        onChange={setNumber("default_credit_period")}
+                      />
+                    </FormRow>
+                    <FormRow label="Check for credit days during voucher entry" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                      <select
+                        className={selectCls}
+                        value={form.check_credit_days ? "Yes" : "No"}
+                        onChange={(e) => setForm((f) => ({ ...f, check_credit_days: e.target.value === "Yes" ? 1 : 0 }))}
+                      >
+                        <option>No</option>
+                        <option>Yes</option>
+                      </select>
+                    </FormRow>
+                  </div>
                 </div>
               )}
 
@@ -614,18 +672,22 @@ export default function LedgerCreate() {
                       <input className={`${inputCls} w-full`} value={form.address2 || ""} onChange={setField("address2")} />
                     </div>
                   </div>
-                  <FormRow label="State" labelWidth="w-20" className="flex items-center min-h-[26px]">
-                    <select className={selectCls} value={form.state || "Select"} onChange={setField("state")}>
-                      <option value="Select">Select</option>
-                      {INDIAN_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                  </FormRow>
-                  <FormRow label="Country" labelWidth="w-20" className="flex items-center min-h-[26px]">
-                    <input className={inputCls} value={form.country || ""} onChange={setField("country")} />
-                  </FormRow>
-                  <FormRow label="Pincode" labelWidth="w-20" className="flex items-center min-h-[26px]">
-                    <input className={inputCls} value={form.pincode || ""} onChange={setField("pincode")} />
-                  </FormRow>
+                  {!groupLineage.hideMailingExtras && (
+                    <>
+                      <FormRow label="State" labelWidth="w-20" className="flex items-center min-h-[26px]">
+                        <select className={selectCls} value={form.state || "Select"} onChange={setField("state")}>
+                          <option value="Select">Select</option>
+                          {INDIAN_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </FormRow>
+                      <FormRow label="Country" labelWidth="w-20" className="flex items-center min-h-[26px]">
+                        <input className={inputCls} value={form.country || ""} onChange={setField("country")} />
+                      </FormRow>
+                      <FormRow label="Pincode" labelWidth="w-20" className="flex items-center min-h-[26px]">
+                        <input className={inputCls} value={form.pincode || ""} onChange={setField("pincode")} />
+                      </FormRow>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -673,19 +735,6 @@ export default function LedgerCreate() {
                   <FormRow label="PAN/IT No." labelWidth="w-40" className="flex items-center min-h-[26px]">
                     <input className={inputCls} value={form.pan || ""} onChange={setField("pan")} />
                   </FormRow>
-                  <FormRow label="Registration Type" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                    <select className={selectCls} value={form.registration_type || "Unregistered"} onChange={setField("registration_type")}>
-                      <option value="Regular">Regular</option>
-                      <option value="Composition">Composition</option>
-                      <option value="Consumer">Consumer</option>
-                      <option value="Unregistered">Unregistered</option>
-                    </select>
-                  </FormRow>
-                  {(form.registration_type === "Regular" || form.registration_type === "Composition") && (
-                    <FormRow label="GSTIN/UIN" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                      <input className={inputCls} value={form.gstin || ""} onChange={setField("gstin")} />
-                    </FormRow>
-                  )}
                 </div>
               </div>
             </>
@@ -697,7 +746,15 @@ export default function LedgerCreate() {
           <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
             <div className="px-3 py-2 border-b border-zinc-200 bg-zinc-50 text-xs font-bold text-zinc-500 uppercase tracking-wider flex justify-between items-center select-none">
               <span>List of Groups</span>
-              <button onClick={() => setShowGroupPanel(false)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors">&times;</button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => { setShowGroupPanel(false); navigate("/master/create/group"); }}
+                  className="text-[11px] text-zinc-500 hover:text-zinc-800 font-medium transition-colors"
+                >
+                  + Create
+                </button>
+                <button onClick={() => setShowGroupPanel(false)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors">&times;</button>
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto">
               <GroupTree

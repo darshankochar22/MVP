@@ -31,8 +31,8 @@ const seedDefaultLedgers = async (company_id, groups) => {
               opening_balance, closing_balance, is_bill_wise, maintain_inventory_values,
               mailing_name, address1, address2, city, state, country, pincode,
               phone, email, gstin, pan, registration_type,
-              is_active, is_predefined
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              default_credit_period, check_credit_days, is_active, is_predefined
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         company_id,
         l.group_id,
@@ -56,6 +56,8 @@ const seedDefaultLedgers = async (company_id, groups) => {
         null,
         null,
         "Unregistered",
+        0,
+        0,
         1,
         1,
       ],
@@ -89,8 +91,9 @@ module.exports = {
                 opening_balance, closing_balance, is_bill_wise, maintain_inventory_values,
                 mailing_name, address1, address2, city, state, country, pincode,
                 phone, email, gstin, pan, registration_type,
+                default_credit_period, check_credit_days,
                 is_active, is_predefined
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           data.company_id,
           data.group_id || null,
@@ -114,6 +117,8 @@ module.exports = {
           data.gstin || null,
           data.pan || null,
           data.registration_type || "Unregistered",
+          data.default_credit_period || 0,
+          data.check_credit_days ? 1 : 0,
           1,
           0,
         ],
@@ -337,6 +342,8 @@ module.exports = {
                 gstin = ?,
                 pan = ?,
                 registration_type = ?,
+                default_credit_period = ?,
+                check_credit_days = ?,
                 updated_at = datetime('now')
               WHERE ledger_id = ?`,
         args: [
@@ -361,6 +368,8 @@ module.exports = {
           data.gstin ?? ledger.gstin,
           data.pan ?? ledger.pan,
           data.registration_type ?? ledger.registration_type,
+          data.default_credit_period ?? ledger.default_credit_period ?? 0,
+          data.check_credit_days ? 1 : 0,
           data.ledger_id,
         ],
       });

@@ -75,6 +75,14 @@ const init = async (db) => {
       ADD COLUMN transaction_type TEXT
     `);
   } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN default_credit_period INTEGER DEFAULT 0`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN check_credit_days INTEGER DEFAULT 0`);
+  } catch (err) {}
 };
 
 module.exports = { init };

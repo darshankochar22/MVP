@@ -22,6 +22,8 @@ export interface LedgerType {
   gstin?: string;
   pan?: string;
   registration_type?: string;
+  default_credit_period?: number;
+  check_credit_days?: number;
   is_active?: number;
   is_predefined?: number;
   created_at?: string;

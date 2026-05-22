@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import FormRow from "@/components/ui/FormRow";
 
 const TXN_TYPES_DEFAULT = ["End of List", "Cheque", "e-Fund Transfer", "Others"];
-const TXN_TYPES_EXTRA = ["ATM-Card", "ECS", "Electronic Cheque", "Electronic DD/PO"];
+const TXN_TYPES_EXTRA = ["ATM", "-Card", "ECS", "Electronic Cheque", "Electronic DD/PO", "others"];
 
 export interface BankDetails {
   account_holder_name?: string;
