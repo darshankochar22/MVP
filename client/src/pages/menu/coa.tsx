@@ -37,12 +37,12 @@ export default function COA() {
       Location: "/master/coa/godown",
       "GST Registration": "/data/gstRegistration",
       "GST Classification": "/data/gstClassification",
-      "Employee Group": "/data/employeeGroup",
-      Employee: "/data/employee",
-      "Attendance Type": "/data/attendanceType",
-      "Pay Head": "/data/payHead",
-      "Payroll Unit": "/data/payrollUnit",
-      "Salary Structure": "/data/salaryStructure",
+      "Employee Group": "/master/coa/employee-group",
+      Employee: "/master/coa/employee",
+      "Attendance Type": "/master/coa/attendance-type",
+      "Pay Head": "/master/coa/pay-head",
+      "Payroll Unit": "/master/coa/payroll-unit",
+      "Salary Structure": "/master/coa/salary-structure",
     };
     return map[item] ?? null;
   };
