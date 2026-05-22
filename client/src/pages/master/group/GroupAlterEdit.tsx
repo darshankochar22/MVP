@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import GroupTree from "@/components/GroupTree";
 import type { GroupType } from "@/types/api";
+import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 
 function Row({ label, required, children, onClick }: { label: string; required?: boolean; children: React.ReactNode; onClick?: () => void }) {
   return (
@@ -22,6 +23,19 @@ const selectCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-
 const NATURES = ["Assets", "Liabilities", "Income", "Expenses"];
 const ALLOC_METHODS = ["Not Applicable", "Appropriate by Quantity", "Appropriate by Value"];
 
+const INITIAL_GROUP: Partial<GroupType> = {
+  name: "",
+  alias: "",
+  parent_group_id: undefined,
+  is_primary: 0,
+  nature: "Assets",
+  affect_gross_profit: 0,
+  behaves_like_subledger: 0,
+  show_net_debit_credit: 0,
+  used_for_calculation: 0,
+  allocation_method: "Not Applicable",
+};
+
 export default function GroupAlterEdit() {
   const { id } = useParams<{ id: string }>();
   const { selectedCompany } = useCompany();
@@ -34,20 +48,15 @@ export default function GroupAlterEdit() {
   const [originalGroup, setOriginalGroup] = useState<GroupType | null>(null);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
 
-  const [form, setForm] = useState<Partial<GroupType>>({
-    name: "",
-    alias: "",
-    parent_group_id: undefined,
-    is_primary: 0,
-    nature: "Assets",
-    affect_gross_profit: 0,
-    behaves_like_subledger: 0,
-    show_net_debit_credit: 0,
-    used_for_calculation: 0,
-    allocation_method: "Not Applicable",
-  });
-
   const companyId = selectedCompany?.company_id;
+  const persistKey = companyId && id ? `groupAlterEdit_${companyId}_${id}` : null;
+  const persisted = persistKey ? loadFormState<any>(persistKey ?? "") : null;
+  const wasRestored = !!(persisted?.form);
+  const hasSavedOnce = useRef(wasRestored);
+
+  const [form, setForm] = useState<Partial<GroupType>>(
+    () => persisted?.form ?? INITIAL_GROUP
+  );
 
   useEffect(() => {
     if (!companyId || !id) return;
@@ -63,7 +72,9 @@ export default function GroupAlterEdit() {
         if (cancelled) return;
         if (groupRes.success && groupRes.group) {
           setOriginalGroup(groupRes.group);
-          setForm({ ...groupRes.group });
+          if (!wasRestored) {
+            setForm({ ...groupRes.group });
+          }
         } else {
           setError(groupRes.error || "Group not found.");
         }
@@ -77,6 +88,15 @@ export default function GroupAlterEdit() {
     })();
     return () => { cancelled = true; };
   }, [companyId, id]);
+
+  useEffect(() => {
+    if (!persistKey) return;
+    if (!hasSavedOnce.current) {
+      hasSavedOnce.current = true;
+      return;
+    }
+    saveFormState(persistKey, { form });
+  }, [persistKey, form]);
 
   const parentGroup = form.parent_group_id
     ? flatGroups.find((g) => g.group_id === form.parent_group_id)
@@ -145,6 +165,8 @@ export default function GroupAlterEdit() {
       const res = await window.api.group.update(payload);
       if (res.success) {
         setSuccess(`Group "${form.name}" updated.`);
+        if (persistKey) clearFormState(persistKey);
+        hasSavedOnce.current = false;
         setTimeout(() => navigate("/master/alter/group"), 1000);
       } else {
         setError(res.error || "Failed to update group.");

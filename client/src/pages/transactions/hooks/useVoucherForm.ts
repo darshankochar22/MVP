@@ -1,5 +1,6 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useCompany } from "../../../context/CompanyContext";
+import { loadFormState, saveFormState, clearFormState } from "../../../utils/formPersistence";
 import type { LedgerType, GroupType, StockItemType, GodownType, UnitType } from "../../../types/api";
 
 let idCounter = 0;
@@ -58,25 +59,42 @@ const todayStr = (): string => {
 export function useVoucherForm() {
   const { selectedCompany, activeFY } = useCompany();
 
+  const companyId = selectedCompany?.company_id;
+  const fyId = activeFY?.fy_id;
+  const persistKey = companyId ? `voucherForm_${companyId}` : null;
+  const hasRestored = useRef(false);
+
   // Basic Voucher Details
-  const [voucherType, setVoucherType] = useState<string>("Receipt");
+  const [voucherType, setVoucherType] = useState<string>(() => {
+    return loadFormState<any>(persistKey ?? "")?.voucherType ?? "Receipt";
+  });
   const [voucherNumber, setVoucherNumber] = useState<number>(1);
   const [voucherNumberLoading, setVoucherNumberLoading] = useState(true);
   const [date] = useState<string>(todayStr());
-  const [narration, setNarration] = useState<string>( "");
+  const [narration, setNarration] = useState<string>(
+    () => loadFormState<any>(persistKey ?? "")?.narration ?? ""
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   // Advanced Allocations State
   const [activeAllocation, setActiveAllocation] = useState<ActiveAllocation>(null);
-  const [partyBillReferences, setPartyBillReferences] = useState<any[]>([]);
-  const [bankDetails, setBankDetails] = useState<any | null>(null);
+  const [partyBillReferences, setPartyBillReferences] = useState<any[]>(
+    () => loadFormState<any>(persistKey ?? "")?.partyBillReferences ?? []
+  );
+  const [bankDetails, setBankDetails] = useState<any | null>(
+    () => loadFormState<any>(persistKey ?? "")?.bankDetails ?? null
+  );
 
   // References (For F8/F9 Invoice layouts)
-  const [referenceNumber, setReferenceNumber] = useState<string>("");
+  const [referenceNumber, setReferenceNumber] = useState<string>(
+    () => loadFormState<any>(persistKey ?? "")?.referenceNumber ?? ""
+  );
   const [referenceDate, setReferenceDate] = useState<string>(todayStr());
-  const [placeOfSupply, setPlaceOfSupply] = useState<string>("Select");
+  const [placeOfSupply, setPlaceOfSupply] = useState<string>(
+    () => loadFormState<any>(persistKey ?? "")?.placeOfSupply ?? "Select"
+  );
 
   // Selection Data Lists
   const [allLedgers, setAllLedgers] = useState<LedgerType[]>([]);
@@ -84,7 +102,7 @@ export function useVoucherForm() {
   const [allStockItems, setAllStockItems] = useState<StockItemType[]>([]);
   const [allGodowns, setAllGodowns] = useState<GodownType[]>([]);
   const [allUnits, setAllUnits] = useState<UnitType[]>([]);
-  
+
   const [ledgersLoading, setLedgersLoading] = useState(false);
   const [ledgerSearchTerm, setLedgerSearchTerm] = useState("");
   const [stockSearchTerm, setStockSearchTerm] = useState("");
@@ -92,30 +110,59 @@ export function useVoucherForm() {
 
   // Layout-specific States
   // 1. Single-Entry (Receipt F6, Payment F5, Contra F4)
-  const [accountLedger, setAccountLedger] = useState<LedgerType | null>(null);
+  const [accountLedger, setAccountLedger] = useState<LedgerType | null>(
+    () => loadFormState<any>(persistKey ?? "")?.accountLedger ?? null
+  );
   const [accountBalance, setAccountBalance] = useState<string>("");
-  const [particulars, setParticulars] = useState<ParticularRow[]>([
-    { id: nextId(), type: 'Cr', ledger: null, ledgerBalance: "", amountRaw: "" }
-  ]);
+  const [particulars, setParticulars] = useState<ParticularRow[]>(() => {
+    const saved = loadFormState<any>(persistKey ?? "");
+    if (saved?.particulars?.length) return saved.particulars;
+    return [{ id: nextId(), type: 'Cr', ledger: null, ledgerBalance: "", amountRaw: "" }];
+  });
 
   // 2. Double-Entry (Journal F7)
-  const [journalRows, setJournalRows] = useState<ParticularRow[]>([
-    { id: nextId(), type: 'Dr', ledger: null, ledgerBalance: "", amountRaw: "" },
-    { id: nextId(), type: 'Cr', ledger: null, ledgerBalance: "", amountRaw: "" }
-  ]);
+  const [journalRows, setJournalRows] = useState<ParticularRow[]>(() => {
+    const saved = loadFormState<any>(persistKey ?? "");
+    if (saved?.journalRows?.length) return saved.journalRows;
+    return [
+      { id: nextId(), type: 'Dr', ledger: null, ledgerBalance: "", amountRaw: "" },
+      { id: nextId(), type: 'Cr', ledger: null, ledgerBalance: "", amountRaw: "" }
+    ];
+  });
 
   // 3. Inventory Mode (Sales F8, Purchase F9)
-  const [partyLedger, setPartyLedger] = useState<LedgerType | null>(null);
+  const [partyLedger, setPartyLedger] = useState<LedgerType | null>(
+    () => loadFormState<any>(persistKey ?? "")?.partyLedger ?? null
+  );
   const [partyBalance, setPartyBalance] = useState<string>("");
-  const [salesPurchaseLedger, setSalesPurchaseLedger] = useState<LedgerType | null>(null);
+  const [salesPurchaseLedger, setSalesPurchaseLedger] = useState<LedgerType | null>(
+    () => loadFormState<any>(persistKey ?? "")?.salesPurchaseLedger ?? null
+  );
   const [salesPurchaseBalance, setSalesPurchaseBalance] = useState<string>("");
-  const [stockEntries, setStockEntries] = useState<StockEntryRow[]>([
-    { id: nextId(), stockItem: null, godown: null, unit: null, quantityRaw: "", rateRaw: "", amountRaw: "" }
-  ]);
-  const [additionalEntries, setAdditionalEntries] = useState<ParticularRow[]>([]);
+  const [stockEntries, setStockEntries] = useState<StockEntryRow[]>(() => {
+    const saved = loadFormState<any>(persistKey ?? "");
+    if (saved?.stockEntries?.length) return saved.stockEntries;
+    return [{ id: nextId(), stockItem: null, godown: null, unit: null, quantityRaw: "", rateRaw: "", amountRaw: "" }];
+  });
+  const [additionalEntries, setAdditionalEntries] = useState<ParticularRow[]>(
+    () => loadFormState<any>(persistKey ?? "")?.additionalEntries ?? []
+  );
 
-  const companyId = selectedCompany?.company_id;
-  const fyId = activeFY?.fy_id;
+  const getSnapshot = useCallback(() => ({
+    voucherType,
+    narration,
+    accountLedger,
+    particulars,
+    journalRows,
+    partyLedger,
+    salesPurchaseLedger,
+    stockEntries,
+    additionalEntries,
+    referenceNumber,
+    placeOfSupply,
+    partyBillReferences,
+    bankDetails,
+  }), [voucherType, narration, accountLedger, particulars, journalRows, partyLedger, salesPurchaseLedger, stockEntries, additionalEntries, referenceNumber, placeOfSupply, partyBillReferences, bankDetails]);
 
   // Context loading
   const fetchContextData = useCallback(async () => {
@@ -170,6 +217,17 @@ export function useVoucherForm() {
     fetchContextData();
     fetchNextNumber();
   }, [fetchContextData, fetchNextNumber]);
+
+  // Auto-save form state to sessionStorage (skip first render: restoration just happened)
+  useEffect(() => {
+    if (!persistKey) return;
+    if (!hasRestored.current) {
+      hasRestored.current = true;
+      return;
+    }
+    const snapshot = getSnapshot();
+    saveFormState(persistKey, snapshot);
+  }, [persistKey, getSnapshot]);
 
   // Balance Sync Hooks
   useEffect(() => {
@@ -404,6 +462,8 @@ export function useVoucherForm() {
   }, [activeField, handleUpdateParticularRow, handleUpdateAdditionalRow, handleUpdateStockRow, allUnits]);
 
   const resetForm = useCallback(() => {
+    if (persistKey) clearFormState(persistKey);
+    hasRestored.current = false;
     setAccountLedger(null);
     setAccountBalance("");
     setPartyLedger(null);
@@ -430,7 +490,7 @@ export function useVoucherForm() {
     setLedgerSearchTerm("");
     setStockSearchTerm("");
     fetchNextNumber();
-  }, [voucherType, fetchNextNumber]);
+  }, [voucherType, fetchNextNumber, persistKey]);
 
   // Reset form data on voucher type change to prevent crosstalk
   useEffect(() => {

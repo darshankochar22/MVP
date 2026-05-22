@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import type { StockGroupType } from "@/types/api";
+import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
 const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent cursor-pointer";
@@ -84,7 +85,12 @@ const INITIAL: FormData = {
 export default function StockGroupCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
-  const [form, setForm] = useState<FormData>(INITIAL);
+  const companyId = selectedCompany?.company_id;
+  const persistKey = companyId ? `stockGroupCreate_${companyId}` : null;
+  const hasRestored = useRef(false);
+  const [form, setForm] = useState<FormData>(
+    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL
+  );
   const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +104,15 @@ export default function StockGroupCreate() {
       if (r.success) setStockGroups(r.stockGroups ?? []);
     });
   }, [selectedCompany]);
+
+  useEffect(() => {
+    if (!persistKey) return;
+    if (!hasRestored.current) {
+      hasRestored.current = true;
+      return;
+    }
+    saveFormState(persistKey, { form });
+  }, [persistKey, form]);
 
   const setField = (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -126,6 +141,8 @@ export default function StockGroupCreate() {
         if (updated.success) setStockGroups(updated.stockGroups ?? []);
         setSuccess(`Stock Group "${form.name}" created.`);
         setForm(INITIAL);
+        if (persistKey) clearFormState(persistKey);
+        hasRestored.current = false;
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(result.error || "Failed to create stock group.");

@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import GroupTree from "@/components/GroupTree";
 import type { GroupType } from "@/types/api";
 
@@ -22,16 +23,7 @@ const selectCls = "w-full bg-transparent text-sm outline-none py-1 px-1 rounded-
 const NATURES = ["Assets", "Liabilities", "Income", "Expenses"];
 const ALLOC_METHODS = ["Not Applicable", "Appropriate by Quantity", "Appropriate by Value"];
 
-export default function GroupCreate() {
-  const { selectedCompany } = useCompany();
-  const [groupTree, setGroupTree] = useState<(GroupType & { children?: GroupType[] })[]>([]);
-  const [flatGroups, setFlatGroups] = useState<GroupType[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  const [showGroupPanel, setShowGroupPanel] = useState(false);
-
-  const [form, setForm] = useState<Partial<GroupType>>({
+const INITIAL_FORM: Partial<GroupType> = {
     name: "",
     alias: "",
     parent_group_id: undefined,
@@ -42,9 +34,47 @@ export default function GroupCreate() {
     show_net_debit_credit: 0,
     used_for_calculation: 0,
     allocation_method: "Not Applicable",
-  });
+  };
 
+export default function GroupCreate() {
+  const { selectedCompany } = useCompany();
+  const navigate = useNavigate();
   const companyId = selectedCompany?.company_id;
+  const persistKey = companyId ? `groupCreate_${companyId}` : null;
+  const hasRestored = useRef(false);
+
+  const [groupTree, setGroupTree] = useState<(GroupType & { children?: GroupType[] })[]>([]);
+  const [flatGroups, setFlatGroups] = useState<GroupType[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [showGroupPanel, setShowGroupPanel] = useState(false);
+
+  const [form, setForm] = useState<Partial<GroupType>>(
+    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL_FORM
+  );
+
+  // Auto-save to sessionStorage
+  useEffect(() => {
+    if (!persistKey) return;
+    if (!hasRestored.current) {
+      hasRestored.current = true;
+      return;
+    }
+    saveFormState(persistKey, { form });
+  }, [persistKey, form]);
+
+  // Escape key handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !showGroupPanel) {
+        e.preventDefault();
+        navigate("/master/create");
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showGroupPanel, navigate]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -142,6 +172,8 @@ export default function GroupCreate() {
 
       const res = await window.api.group.create(payload);
       if (res.success) {
+        if (persistKey) clearFormState(persistKey);
+        hasRestored.current = false;
         setSuccess(`Group "${form.name}" created.`);
         const capital = flatGroups.find((g) => g.name === "Capital Account");
         setForm((f) => ({

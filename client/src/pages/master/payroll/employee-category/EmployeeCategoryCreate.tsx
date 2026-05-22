@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
+import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-24";
@@ -23,11 +24,24 @@ const INITIAL: FormData = {
 export default function EmployeeCategoryCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
-  const [form, setForm] = useState<FormData>(INITIAL);
+  const companyId = selectedCompany?.company_id;
+  const persistKey = companyId ? `employeeCategoryCreate_${companyId}` : null;
+  const hasRestored = useRef(false);
+  const [form, setForm] = useState<FormData>(
+    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const companyId = selectedCompany?.company_id;
+
+  useEffect(() => {
+    if (!persistKey) return;
+    if (!hasRestored.current) {
+      hasRestored.current = true;
+      return;
+    }
+    saveFormState(persistKey, { form });
+  }, [persistKey, form]);
 
   const setField = (key: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -59,6 +73,8 @@ export default function EmployeeCategoryCreate() {
       if (result.success) {
         setSuccess(`Employee Category "${form.name}" created successfully.`);
         setForm(INITIAL);
+        if (persistKey) clearFormState(persistKey);
+        hasRestored.current = false;
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(result.error || "Failed to create employee category.");

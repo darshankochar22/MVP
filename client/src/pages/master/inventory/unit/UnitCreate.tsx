@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
+import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
 const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent cursor-pointer focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
@@ -23,10 +24,24 @@ const INITIAL: FormData = {
 export default function UnitCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
-  const [form, setForm] = useState<FormData>(INITIAL);
+  const companyId = selectedCompany?.company_id;
+  const persistKey = companyId ? `unitCreate_${companyId}` : null;
+  const hasRestored = useRef(false);
+  const [form, setForm] = useState<FormData>(
+    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!persistKey) return;
+    if (!hasRestored.current) {
+      hasRestored.current = true;
+      return;
+    }
+    saveFormState(persistKey, { form });
+  }, [persistKey, form]);
 
   const setField = (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -55,6 +70,8 @@ export default function UnitCreate() {
       if (result.success) {
         setSuccess(`Unit "${form.symbol}" created successfully.`);
         setForm(INITIAL);
+        if (persistKey) clearFormState(persistKey);
+        hasRestored.current = false;
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(result.error || "Failed to create unit.");

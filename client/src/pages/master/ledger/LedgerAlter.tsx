@@ -5,6 +5,7 @@ import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import BankDetailsPopup, { EMPTY_BANK_DETAILS } from "./components/BankDetailsPopup";
 import type { BankDetails } from "./components/BankDetailsPopup";
 import { useCompany } from "@/context/CompanyContext";
+import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import { INDIAN_STATES } from "@/constants/states";
 import type { GroupType, LedgerType } from "@/types/api";
 
@@ -99,11 +100,16 @@ function LedgerListPanel({
 export default function LedgerAlter() {
   const { selectedCompany, activeFY } = useCompany();
   const navigate = useNavigate();
+  const companyId = selectedCompany?.company_id;
+  const persistKey = companyId ? `ledgerAlter_${companyId}` : null;
+  const hasRestored = useRef(false);
 
   const [ledgers, setLedgers] = useState<LedgerType[]>([]);
   const [flatGroups, setFlatGroups] = useState<GroupType[]>([]);
   const [groupTree, setGroupTree] = useState<any[]>([]);
-  const [selectedLedgerId, setSelectedLedgerId] = useState<number | null>(null);
+  const [selectedLedgerId, setSelectedLedgerId] = useState<number | null>(
+    () => loadFormState<any>(persistKey ?? "")?.selectedLedgerId ?? null
+  );
   const [loadedGroupId, setLoadedGroupId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -112,9 +118,11 @@ export default function LedgerAlter() {
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const [showLedgerPanel, setShowLedgerPanel] = useState(false);
   const [showBankPopup, setShowBankPopup] = useState(false);
-  const [provideBank, setProvideBank] = useState<"No" | "Yes">("No");
+  const [provideBank, setProvideBank] = useState<"No" | "Yes">(
+    () => loadFormState<any>(persistKey ?? "")?.provideBank ?? "No"
+  );
 
-  const [form, setForm] = useState<any>({
+  const INITIAL_FORM: any = {
     name: "", alias: "", group_id: null, ledger_type: "General",
     opening_balance: 0, closing_balance: 0,
     is_bill_wise: 0, maintain_inventory_values: 0,
@@ -123,12 +131,29 @@ export default function LedgerAlter() {
     email: "", pan: "", gstin: "", registration_type: "Unregistered",
     default_credit_period: 0, check_credit_days: 0,
     allow_cost_centres: 0,
-  });
+  };
 
-  const [bankForm, setBankForm] = useState<BankDetails>(EMPTY_BANK_DETAILS);
-  const [statutoryForm, setStatutoryForm] = useState<StatutoryDetails>(EMPTY_STATUTORY);
+  const [form, setForm] = useState<any>(
+    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL_FORM
+  );
 
-  const companyId = selectedCompany?.company_id;
+  const [bankForm, setBankForm] = useState<BankDetails>(
+    () => loadFormState<any>(persistKey ?? "")?.bankForm ?? EMPTY_BANK_DETAILS
+  );
+  const [statutoryForm, setStatutoryForm] = useState<StatutoryDetails>(
+    () => loadFormState<any>(persistKey ?? "")?.statutoryForm ?? EMPTY_STATUTORY
+  );
+
+  // Auto-save to sessionStorage
+  useEffect(() => {
+    if (!persistKey) return;
+    if (!hasRestored.current) {
+      hasRestored.current = true;
+      return;
+    }
+    if (!selectedLedgerId) return;
+    saveFormState(persistKey, { form, bankForm, statutoryForm, provideBank, selectedLedgerId });
+  }, [persistKey, form, bankForm, statutoryForm, provideBank, selectedLedgerId]);
 
   // Compute selected group lineage flags in real time
   const selectedGroup = useMemo(() => {
@@ -421,6 +446,8 @@ export default function LedgerAlter() {
 
       const res = await window.api.ledger.update(payload);
       if (!res.success) { setError(res.error || "Failed to update ledger."); return; }
+      if (persistKey) clearFormState(persistKey);
+      hasRestored.current = false;
       setSuccess("Ledger updated successfully.");
       setLoadedGroupId(form.group_id);
       await loadInitial();

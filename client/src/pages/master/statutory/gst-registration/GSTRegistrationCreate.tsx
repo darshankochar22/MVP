@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar, RightActionPanel, FormRow } from "@/components/ui";
 import { INDIAN_STATES } from "@/constants/states";
+import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 
 const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded ";
 const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-44 ";
@@ -51,11 +52,24 @@ export default function GSTRegistrationCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
+  const persistKey = companyId ? `gstRegistrationCreate_${companyId}` : null;
+  const hasRestored = useRef(false);
 
-  const [form, setForm] = useState<FormData>(INITIAL_FORM);
+  const [form, setForm] = useState<FormData>(
+    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL_FORM
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!persistKey) return;
+    if (!hasRestored.current) {
+      hasRestored.current = true;
+      return;
+    }
+    saveFormState(persistKey, { form });
+  }, [persistKey, form]);
 
   const setField = (key: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -113,6 +127,8 @@ export default function GSTRegistrationCreate() {
       if (result.success) {
         setSuccess(`GST Registration for "${form.gstin.toUpperCase()}" created successfully.`);
         setForm({ ...INITIAL_FORM, state_id: form.state_id });
+        if (persistKey) clearFormState(persistKey);
+        hasRestored.current = false;
         setTimeout(() => setSuccess(null), 2000);
       } else {
         setError(result.error || "Failed to create GST registration.");

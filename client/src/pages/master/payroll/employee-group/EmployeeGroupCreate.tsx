@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar } from "@/components/ui";
 import type { EmployeeGroupType } from "@/types/entities/Employee";
+import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 
@@ -17,14 +18,18 @@ const INITIAL: FormData = { name: "", alias: "", parent_group_id: null };
 export default function EmployeeGroupCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
-  const [form, setForm] = useState<FormData>(INITIAL);
+  const companyId = selectedCompany?.company_id;
+  const persistKey = companyId ? `employeeGroupCreate_${companyId}` : null;
+  const hasRestored = useRef(false);
+  const [form, setForm] = useState<FormData>(
+    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [groups, setGroups] = useState<EmployeeGroupType[]>([]);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const [selectedParent, setSelectedParent] = useState<EmployeeGroupType | null>(null);
-  const companyId = selectedCompany?.company_id;
 
   useEffect(() => {
     if (!companyId) return;
@@ -36,6 +41,15 @@ export default function EmployeeGroupCreate() {
       }
     });
   }, [companyId]);
+
+  useEffect(() => {
+    if (!persistKey) return;
+    if (!hasRestored.current) {
+      hasRestored.current = true;
+      return;
+    }
+    saveFormState(persistKey, { form });
+  }, [persistKey, form]);
 
   const setField = (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [key]: e.target.value }));
@@ -60,6 +74,8 @@ export default function EmployeeGroupCreate() {
       if (result.success) {
         setSuccess(`Employee Group "${form.name}" created.`);
         setForm(INITIAL);
+        if (persistKey) clearFormState(persistKey);
+        hasRestored.current = false;
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(result.error || "Failed to create employee group.");

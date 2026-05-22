@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import GroupTree from "@/components/GroupTree";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import BankDetailsPopup, { EMPTY_BANK_DETAILS } from "./components/BankDetailsPopup";
@@ -62,6 +63,10 @@ const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border bord
 export default function LedgerCreate() {
   const { selectedCompany, activeFY } = useCompany();
   const navigate = useNavigate();
+  const companyId = selectedCompany?.company_id;
+  const persistKey = companyId ? `ledgerCreate_${companyId}` : null;
+  const hasRestored = useRef(false);
+
   const [groupTree, setGroupTree] = useState<(GroupType & { children?: GroupType[] })[]>([]);
   const [flatGroups, setFlatGroups] = useState<GroupType[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<GroupType | null>(null);
@@ -69,14 +74,30 @@ export default function LedgerCreate() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
-  const [provideBank, setProvideBank] = useState<"No" | "Yes">("No");
+  const [provideBank, setProvideBank] = useState<"No" | "Yes">(
+    () => loadFormState<any>(persistKey ?? "")?.provideBank ?? "No"
+  );
   const [showBankPopup, setShowBankPopup] = useState(false);
 
-  const [form, setForm] = useState<Partial<LedgerType>>(INITIAL_FORM);
-  const [bankForm, setBankForm] = useState<BankDetails>(EMPTY_BANK_DETAILS);
-  const [statutoryForm, setStatutoryForm] = useState<StatutoryDetails>(EMPTY_STATUTORY);
+  const [form, setForm] = useState<Partial<LedgerType>>(
+    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL_FORM
+  );
+  const [bankForm, setBankForm] = useState<BankDetails>(
+    () => loadFormState<any>(persistKey ?? "")?.bankForm ?? EMPTY_BANK_DETAILS
+  );
+  const [statutoryForm, setStatutoryForm] = useState<StatutoryDetails>(
+    () => loadFormState<any>(persistKey ?? "")?.statutoryForm ?? EMPTY_STATUTORY
+  );
 
-  const companyId = selectedCompany?.company_id;
+  // Auto-save to sessionStorage
+  useEffect(() => {
+    if (!persistKey) return;
+    if (!hasRestored.current) {
+      hasRestored.current = true;
+      return;
+    }
+    saveFormState(persistKey, { form, bankForm, statutoryForm, provideBank });
+  }, [persistKey, form, bankForm, statutoryForm, provideBank]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -313,6 +334,8 @@ export default function LedgerCreate() {
 
       const res = await window.api.ledger.create(payload);
       if (res.success) {
+        if (persistKey) clearFormState(persistKey);
+        hasRestored.current = false;
         setSuccess(`Ledger "${form.name}" created.`);
         setForm(INITIAL_FORM);
         setProvideBank("No");
