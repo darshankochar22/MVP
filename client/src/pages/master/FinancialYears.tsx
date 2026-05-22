@@ -181,7 +181,7 @@ export default function FinancialYears() {
             ← Back
           </button>
           <span className="font-bold text-sm text-zinc-800">Financial Years Management</span>
-          <span className="bg-zinc-100 border border-zinc-200 text-zinc-600 text-[10px] font-semibold px-2 py-0.5 rounded font-mono">
+          <span className="bg-zinc-100 border border-zinc-200 text-zinc-600 text-[10px] font-semibold px-2 py-0.5 rounded">
             {sortedFYs.length} Total Years
           </span>
         </div>
@@ -205,7 +205,7 @@ export default function FinancialYears() {
           <span>{error}</span>
           <button
             onClick={() => setError(null)}
-            className="text-red-500 hover:text-red-700 text-xs font-bold font-mono"
+            className="text-red-500 hover:text-red-700 text-xs font-bold"
           >
             ✕
           </button>
@@ -225,7 +225,7 @@ export default function FinancialYears() {
                 <span className="text-xs font-bold text-zinc-800 uppercase tracking-wider">
                   Add New Financial Year
                 </span>
-                <span className="text-[10px] text-zinc-400 font-mono">Press Ctrl+A to Save</span>
+                <span className="text-[10px] text-zinc-400">Press Ctrl+A to Save</span>
               </div>
 
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
@@ -236,7 +236,7 @@ export default function FinancialYears() {
                   <select
                     value={newStartDate}
                     onChange={(e) => setNewStartDate(e.target.value)}
-                    className="border border-zinc-300 rounded px-3 py-1.5 text-xs bg-white text-zinc-800 focus:outline-none focus:border-zinc-500 shadow-sm w-full sm:w-64 font-mono font-medium"
+                    className="border border-zinc-300 rounded px-3 py-1.5 text-xs bg-white text-zinc-800 focus:outline-none focus:border-zinc-500 shadow-sm w-full sm:w-64 font-medium"
                   >
                     <option value="">— Select Start Date —</option>
                     {FY_YEARS.map((y) => (
@@ -295,14 +295,14 @@ export default function FinancialYears() {
                   >
                     {/* Date Span and Index */}
                     <div className="flex items-center gap-4">
-                      <div className="w-6 h-6 rounded-full bg-zinc-100 flex items-center justify-center text-[11px] font-bold text-zinc-400 shrink-0 font-mono">
+                      <div className="w-6 h-6 rounded-full bg-zinc-100 flex items-center justify-center text-[11px] font-bold text-zinc-400 shrink-0">
                         {idx + 1}
                       </div>
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-bold text-zinc-900 font-mono tracking-wide">
+                        <span className="text-sm font-bold text-zinc-900 tracking-wide">
                           {formatDate(fy.start_date)} — {formatDate(fy.end_date)}
                         </span>
-                        <span className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider">
+                        <span className="text-[10px] text-zinc-400 uppercase tracking-wider">
                           FY {new Date(fy.start_date).getFullYear()}-{String(new Date(fy.end_date).getFullYear()).slice(-2)}
                         </span>
                       </div>
@@ -363,7 +363,7 @@ export default function FinancialYears() {
         </div>
 
         {/* Right-Hand Tally Action Sidebar */}
-        <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium font-mono text-zinc-700">
+        <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium text-zinc-700">
           
           <button
             onClick={() => {
@@ -425,7 +425,7 @@ export default function FinancialYears() {
       </div>
 
       {/* Footer */}
-      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 font-mono">
+      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400">
         <span>Active Company: {selectedCompany?.name || "None"}</span>
         <span>Active FY: {activeFY ? `${formatDate(activeFY.start_date)} — ${formatDate(activeFY.end_date)}` : "None"}</span>
       </div>

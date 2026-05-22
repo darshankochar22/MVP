@@ -136,14 +136,14 @@ export default function Footer() {
           <div className="bg-white border border-zinc-300 rounded-lg shadow-2xl w-96 overflow-hidden select-none flex flex-col font-sans">
             
             {/* Header */}
-            <div className="bg-zinc-100 px-4 py-3 text-sm font-bold text-zinc-800 border-b border-zinc-200 flex justify-between items-center font-mono">
+            <div className="bg-zinc-100 px-4 py-3 text-sm font-bold text-zinc-800 border-b border-zinc-200 flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <span className="bg-black text-white text-[10px] px-1.5 py-0.5 rounded">F12</span>
                 <span>System Configuration</span>
               </div>
               <button
                 onClick={() => setShowConfigure(false)}
-                className="text-zinc-450 hover:text-black font-semibold font-mono text-xs"
+                className="text-zinc-450 hover:text-black font-semibold text-xs"
               >
                 ✕
               </button>
@@ -154,7 +154,7 @@ export default function Footer() {
               
               {/* Preferences Section */}
               <div className="flex flex-col gap-2.5">
-                <h4 className="font-bold text-[10px] uppercase tracking-wider text-zinc-400 font-mono">
+                <h4 className="font-bold text-[10px] uppercase tracking-wider text-zinc-400">
                   User Preferences
                 </h4>
                 <label className="flex items-center gap-2.5 cursor-pointer hover:text-black select-none">
@@ -189,7 +189,7 @@ export default function Footer() {
               <hr className="border-zinc-100" />
 
               {/* Active State Diagnosis Details */}
-              <div className="flex flex-col gap-2 font-mono text-[11px] bg-zinc-50 p-3.5 border border-zinc-200/60 rounded-md">
+              <div className="flex flex-col gap-2 text-[11px] bg-zinc-50 p-3.5 border border-zinc-200/60 rounded-md">
                 <h4 className="font-bold text-[9px] uppercase tracking-wider text-zinc-400 select-none mb-1">
                   Active Context Diagnosis
                 </h4>

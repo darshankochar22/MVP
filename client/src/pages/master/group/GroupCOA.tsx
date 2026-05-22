@@ -346,13 +346,13 @@ export default function GroupCOA() {
               {node.gst_rate !== null && Number(node.gst_rate) > 0 && (
                 <div className="flex border-b border-zinc-100 pb-1">
                   <span className="text-zinc-400 w-32 shrink-0 select-none">GST Rate</span>
-                  <span className="text-zinc-800 font-mono font-medium">{Number(node.gst_rate).toFixed(2)}%</span>
+                  <span className="text-zinc-800 font-medium">{Number(node.gst_rate).toFixed(2)}%</span>
                 </div>
               )}
               {node.hsn_sac_code && (
                 <div className="flex border-b border-zinc-100 pb-1">
                   <span className="text-zinc-400 w-32 shrink-0 select-none">HSN / SAC Code</span>
-                  <span className="text-zinc-800 font-mono">{node.hsn_sac_code}</span>
+                  <span className="text-zinc-800">{node.hsn_sac_code}</span>
                 </div>
               )}
               {node.statutory_details && (
@@ -568,13 +568,13 @@ export default function GroupCOA() {
                               {group.gst_rate !== null && Number(group.gst_rate) > 0 && (
                                 <div className="flex border-b border-zinc-100 pb-1">
                                   <span className="text-zinc-400 w-32 shrink-0 select-none">GST Rate</span>
-                                  <span className="text-zinc-800 font-mono font-medium">{Number(group.gst_rate).toFixed(2)}%</span>
+                                  <span className="text-zinc-800 font-medium">{Number(group.gst_rate).toFixed(2)}%</span>
                                 </div>
                               )}
                               {group.hsn_sac_code && (
                                 <div className="flex border-b border-zinc-100 pb-1">
                                   <span className="text-zinc-400 w-32 shrink-0 select-none">HSN / SAC Code</span>
-                                  <span className="text-zinc-800 font-mono">{group.hsn_sac_code}</span>
+                                  <span className="text-zinc-800">{group.hsn_sac_code}</span>
                                 </div>
                               )}
                               {group.statutory_details && (
@@ -603,7 +603,7 @@ export default function GroupCOA() {
         </div>
 
         {/* Right-Hand Sidebar - Tally Signature Action Bar */}
-        <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium font-mono text-zinc-700">
+        <div className="w-44 border-l border-zinc-200 bg-zinc-100 flex flex-col gap-1 p-2 shrink-0 select-none text-[11px] font-medium text-zinc-700">
           <button
             onClick={() => setIsFlatView((prev) => !prev)}
             className="flex flex-col items-start w-full px-2 py-1.5 border border-zinc-300 rounded bg-white hover:bg-zinc-50 transition-colors text-left shadow-sm hover:border-zinc-400"
@@ -780,7 +780,7 @@ export default function GroupCOA() {
       )}
 
       {/* Footer Status Bar */}
-      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 font-mono select-none">
+      <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400 select-none">
         <span>Total Groups Displayed: {isFlatView ? filteredFlatGroups.length : flatGroups.length}</span>
         <span>TallyPrime COA Engine v2.0 (Keyboard Enabled)</span>
       </div>

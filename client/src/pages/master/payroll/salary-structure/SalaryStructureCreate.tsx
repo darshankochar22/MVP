@@ -101,13 +101,13 @@ export default function SalaryStructureCreate() {
       <PageTitleBar title="Salary Structure Creation" subtitle={selectedCompany?.name} />
 
       {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center font-mono">
+        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
           <span>* {error}</span>
           <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold">&times;</button>
         </div>
       )}
       {success && (
-        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center font-mono">
+        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
           <span>* {success}</span>
           <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold">&times;</button>
         </div>
@@ -141,7 +141,7 @@ export default function SalaryStructureCreate() {
                 <input
                   type="number"
                   step="0.01"
-                  className={`${inputCls} col-span-3 text-right font-mono`}
+                  className={`${inputCls} col-span-3 text-right`}
                   value={entry.amount}
                   onChange={ev => setEntries(es => es.map((en, idx) => idx === i ? { ...en, amount: Number(ev.target.value) } : en))}
                 />

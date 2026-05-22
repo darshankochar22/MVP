@@ -171,7 +171,7 @@ export default function Banking() {
   const currentDetails = UTILITY_DETAILS[activeItem] || UTILITY_DETAILS["Banking Activities"];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-zinc-50 font-mono text-xs select-none relative overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-zinc-50 text-xs select-none relative overflow-hidden">
       
       {/* Title Bar */}
       <PageTitleBar title="Banking Utilities" subtitle={selectedCompany?.name} />
@@ -207,7 +207,7 @@ export default function Banking() {
                         <div className="flex justify-between items-center">
                           <span className="font-bold">{item.name}</span>
                           <span
-                            className={`text-[8px] font-bold px-1 py-0.5 rounded font-mono ${
+                            className={`text-[8px] font-bold px-1 py-0.5 rounded ${
                               isSelected ? "bg-zinc-800 text-zinc-300" : "bg-zinc-100 text-zinc-500"
                             }`}
                           >
@@ -251,7 +251,7 @@ export default function Banking() {
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" title="System feeds operational" />
               </div>
               
-              <div className="divide-y divide-zinc-100 font-mono">
+              <div className="divide-y divide-zinc-100">
                 {currentDetails.stats.map((stat, idx) => (
                   <div key={idx} className="grid grid-cols-12 items-center px-4 py-3 hover:bg-zinc-50/30">
                     <span className="col-span-4 font-semibold text-zinc-400">{stat.label}</span>
