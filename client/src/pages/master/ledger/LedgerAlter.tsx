@@ -809,7 +809,7 @@ export default function LedgerAlter() {
                         <FormRow label="Default credit period (days)" labelWidth="w-52" className="flex items-center min-h-[26px]">
                           <input
                             type="number"
-                            className={`${inputCls} max-w-[80px] text-right font-mono`}
+                            className={`${inputCls} max-w-[80px] text-right`}
                             value={form.default_credit_period ?? 0}
                             onChange={setNumber("default_credit_period")}
                           />
