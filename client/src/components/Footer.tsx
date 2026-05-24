@@ -7,15 +7,11 @@ export default function Footer() {
   const location = useLocation();
   const { selectedCompany, activeFY } = useCompany();
 
-  // F12 Configuration drawer state
   const [showConfigure, setShowConfigure] = useState(false);
-
-  // Configuration preferences
   const [enableSound, setEnableSound] = useState(true);
   const [highDensity, setHighDensity] = useState(false);
   const [showSubBadges, setShowSubBadges] = useState(true);
 
-  // Helper to programmatically dispatch KeyboardEvents on the global window
   const dispatchKey = (
     key: string,
     modifiers: { ctrlKey?: boolean; altKey?: boolean; metaKey?: boolean } = {}
@@ -44,12 +40,10 @@ export default function Footer() {
     return () => window.removeEventListener("keydown", handleGlobalKeyDown);
   }, []);
 
-  // Action Click Dispatchers
   const handleQuit = () => {
     const currentPath = location.pathname;
     dispatchKey("Escape");
 
-    // If Escape didn't handle/navigate us away, fallback to smart routing
     setTimeout(() => {
       if (location.pathname === currentPath && currentPath !== "/") {
         if (currentPath.startsWith("/master/coa/")) {
@@ -108,7 +102,6 @@ export default function Footer() {
 
   return (
     <>
-      {/* Restored White Simple Footer Layout */}
       <div className="flex flex-row items-center justify-between px-10 py-10 border-t bg-white select-none text-zinc-800">
         <button onClick={handleQuit} className="hover:underline focus:outline-none transition-all">
           Quit
@@ -130,7 +123,6 @@ export default function Footer() {
         </button>
       </div>
 
-      {/* Overlay Drawer: F12 Configuration Modal */}
       {showConfigure && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center z-50 animate-fadeIn">
           <div className="bg-white border border-zinc-300 rounded-lg shadow-2xl w-96 overflow-hidden select-none flex flex-col font-sans">

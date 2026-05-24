@@ -328,7 +328,7 @@ export default function LedgerCreate() {
           igst_rate: Number(statutoryForm.igst_rate) || 0,
           type_of_duty_tax: statutoryForm.type_of_duty_tax || undefined,
           percentage_of_calculation: Number(statutoryForm.percentage_of_calculation) || 0,
-          statutory_details: statutoryForm.statutory_details || undefined, // rounding method
+          statutory_details: statutoryForm.statutory_details || undefined,
         };
       }
 
@@ -354,22 +354,18 @@ export default function LedgerCreate() {
   // Keyboard navigation & shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Escape key to navigate back (only if no dialog/popup is open)
       if (e.key === "Escape" && !showBankPopup && !showGroupPanel) {
         e.preventDefault();
         navigate("/master/create");
       }
-      // Alt+A to save/create
       if (e.altKey && (e.key === "a" || e.key === "A") && !showBankPopup) {
         e.preventDefault();
         handleSubmit();
       }
-      // Alt+G to toggle group panel
       if (e.altKey && (e.key === "g" || e.key === "G") && !showBankPopup) {
         e.preventDefault();
         setShowGroupPanel(prev => !prev);
       }
-      // Alt+C to navigate to alter ledger
       if (e.altKey && (e.key === "c" || e.key === "C") && !showBankPopup) {
         e.preventDefault();
         navigate("/master/alter/ledger");
@@ -417,7 +413,7 @@ export default function LedgerCreate() {
 
       <div className="flex-1 flex min-h-0 overflow-x-auto">
 
-        {/* Left: Name / Group / Opening Balance */}
+        {/* Left: Name / Group / Bank (if bank group) / Opening Balance */}
         <div className="flex-1 flex flex-col min-w-0 shrink-0 bg-white">
           <div className="p-3 space-y-1">
             <FormRow label="Name" labelWidth="w-20" className="flex items-center min-h-[26px]">
@@ -444,6 +440,67 @@ export default function LedgerCreate() {
             </div>
           </div>
 
+          {/* Bank Configuration — shown in left column for Bank groups */}
+          {groupLineage.isBank && (
+            <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Bank Configurations</div>
+              <FormRow label="Account Holder Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                <input className={inputCls} value={bankForm.account_holder_name || ""} onChange={setBankField("account_holder_name")} />
+              </FormRow>
+              <FormRow label="Account Number" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                <input className={inputCls} value={bankForm.account_number || ""} onChange={setBankField("account_number")} />
+              </FormRow>
+              <FormRow label="IFSC Code" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                <input className={inputCls} value={bankForm.ifsc_code || ""} onChange={setBankField("ifsc_code")} />
+              </FormRow>
+              <FormRow label="SWIFT Code" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                <input className={inputCls} value={bankForm.swift_code || ""} onChange={setBankField("swift_code")} />
+              </FormRow>
+              <FormRow label="Bank Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                <input className={inputCls} value={bankForm.bank_name || ""} onChange={setBankField("bank_name")} />
+              </FormRow>
+              <FormRow label="Branch Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                <input className={inputCls} value={bankForm.branch_name || ""} onChange={setBankField("branch_name")} />
+              </FormRow>
+              {groupLineage.isOD && (
+                <FormRow label="OD Limit" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                  <input
+                    type="number"
+                    step="0.01"
+                    className={`${inputCls} text-right font-medium max-w-[120px]`}
+                    value={bankForm.od_limit ?? 0}
+                    onChange={setBankNumber("od_limit")}
+                  />
+                </FormRow>
+              )}
+              <div className="pt-2 border-t border-zinc-100 my-2" />
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Cheque Configuration</div>
+              <FormRow label="Enable Cheque Printing" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                <select
+                  className={selectCls}
+                  value={bankForm.enable_cheque_printing ? "Yes" : "No"}
+                  onChange={(e) => setBankForm((f) => ({ ...f, enable_cheque_printing: e.target.value === "Yes" ? 1 : 0 }))}
+                >
+                  <option>No</option>
+                  <option>Yes</option>
+                </select>
+              </FormRow>
+              {!!bankForm.enable_cheque_printing && (
+                <div className="pl-3 border-l-2 border-zinc-200 space-y-1.5 py-1">
+                  <FormRow label="Cheque Start No" labelWidth="w-40" className="flex items-center min-h-[26px]">
+                    <input className={inputCls} value={bankForm.cheque_book_start_no || ""} onChange={setBankField("cheque_book_start_no")} />
+                  </FormRow>
+                  <FormRow label="Cheque End No" labelWidth="w-40" className="flex items-center min-h-[26px]">
+                    <input className={inputCls} value={bankForm.cheque_book_end_no || ""} onChange={setBankField("cheque_book_end_no")} />
+                  </FormRow>
+                  <FormRow label="Cheque Print Config" labelWidth="w-40" className="flex items-center min-h-[26px]">
+                    <input className={inputCls} value={bankForm.cheque_printing_configuration || ""} onChange={setBankField("cheque_printing_configuration")} />
+                  </FormRow>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex-1" />
 
           <div className="border-t border-zinc-200 bg-zinc-50/50 p-3 flex items-center justify-center gap-2">
@@ -459,7 +516,7 @@ export default function LedgerCreate() {
           </div>
         </div>
 
-        {/* Right: Mailing, Banking, Tax */}
+        {/* Right: Mailing, Banking, Tax — always shown regardless of group */}
         <div className="w-[480px] border-l border-zinc-200 flex flex-col overflow-y-auto shrink-0 bg-zinc-50/25">
           <div className="p-3 flex justify-end">
             <div className="w-44 border border-zinc-200 rounded shrink-0 bg-white shadow-sm overflow-hidden">
@@ -579,206 +636,140 @@ export default function LedgerCreate() {
             </div>
           )}
 
-          {/* Context 3: Bank Accounts inline parameters */}
-          {groupLineage.isBank ? (
-            <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
-              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Bank Configurations</div>
-              
-              <FormRow label="Account Holder Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={bankForm.account_holder_name || ""} onChange={setBankField("account_holder_name")} />
-              </FormRow>
-              <FormRow label="Account Number" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={bankForm.account_number || ""} onChange={setBankField("account_number")} />
-              </FormRow>
-              <FormRow label="IFSC Code" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={bankForm.ifsc_code || ""} onChange={setBankField("ifsc_code")} />
-              </FormRow>
-              <FormRow label="SWIFT Code" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={bankForm.swift_code || ""} onChange={setBankField("swift_code")} />
-              </FormRow>
-              <FormRow label="Bank Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={bankForm.bank_name || ""} onChange={setBankField("bank_name")} />
-              </FormRow>
-              <FormRow label="Branch Name" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={bankForm.branch_name || ""} onChange={setBankField("branch_name")} />
-              </FormRow>
-
-              {groupLineage.isOD && (
-                <FormRow label="OD Limit" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                  <input
-                    type="number"
-                    step="0.01"
-                    className={`${inputCls} text-right font-medium max-w-[120px]`}
-                    value={bankForm.od_limit ?? 0}
-                    onChange={setBankNumber("od_limit")}
-                  />
-                </FormRow>
-              )}
-
-              <div className="pt-2 border-t border-zinc-100 my-2" />
-              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Cheque Configuration</div>
-
-              <FormRow label="Enable Cheque Printing" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <select
-                  className={selectCls}
-                  value={bankForm.enable_cheque_printing ? "Yes" : "No"}
-                  onChange={(e) => setBankForm((f) => ({ ...f, enable_cheque_printing: e.target.value === "Yes" ? 1 : 0 }))}
-                >
-                  <option>No</option>
-                  <option>Yes</option>
-                </select>
-              </FormRow>
-
-              {!!bankForm.enable_cheque_printing && (
-                <div className="pl-3 border-l-2 border-zinc-200 space-y-1.5 py-1">
-                  <FormRow label="Cheque Start No" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                    <input className={inputCls} value={bankForm.cheque_book_start_no || ""} onChange={setBankField("cheque_book_start_no")} />
-                  </FormRow>
-                  <FormRow label="Cheque End No" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                    <input className={inputCls} value={bankForm.cheque_book_end_no || ""} onChange={setBankField("cheque_book_end_no")} />
-                  </FormRow>
-                  <FormRow label="Cheque Print Config" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                    <input className={inputCls} value={bankForm.cheque_printing_configuration || ""} onChange={setBankField("cheque_printing_configuration")} />
-                  </FormRow>
-                </div>
-              )}
-            </div>
-          ) : (
-            /* Context 4: General/Mailing/Debtor/Creditor fields */
-            <>
-              {groupLineage.isDebtorCreditor && (
-                <div className="p-3 border-t border-zinc-100 bg-white">
-                  <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Bill-wise Details</div>
-                  <div className="space-y-1">
-                    <FormRow label="Maintain balances bill-by-bill" labelWidth="w-52" className="flex items-center min-h-[26px]">
-                      <select
-                        className={selectCls}
-                        value={form.is_bill_wise ? "Yes" : "No"}
-                        onChange={(e) => setForm((f) => ({ ...f, is_bill_wise: e.target.value === "Yes" ? 1 : 0 }))}
-                      >
-                        <option>No</option>
-                        <option>Yes</option>
-                      </select>
-                    </FormRow>
-                    <FormRow label="Default credit period (days)" labelWidth="w-52" className="flex items-center min-h-[26px]">
-                      <input
-                        type="number"
-                        className={`${inputCls} max-w-[80px] text-right`}
-                        value={form.default_credit_period ?? 0}
-                        onChange={setNumber("default_credit_period")}
-                      />
-                    </FormRow>
-                    <FormRow label="Check for credit days during voucher entry" labelWidth="w-52" className="flex items-center min-h-[26px]">
-                      <select
-                        className={selectCls}
-                        value={form.check_credit_days ? "Yes" : "No"}
-                        onChange={(e) => setForm((f) => ({ ...f, check_credit_days: e.target.value === "Yes" ? 1 : 0 }))}
-                      >
-                        <option>No</option>
-                        <option>Yes</option>
-                      </select>
-                    </FormRow>
-                  </div>
-                </div>
-              )}
-
-              {/* Cost Centre Details */}
-              <div className="p-3 border-t border-zinc-100 bg-white">
-                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Cost Centre Details</div>
-                <FormRow label="Cost Centres are applicable" labelWidth="w-52" className="flex items-center min-h-[26px]">
+          {/* Context 3: Debtor/Creditor bill-wise details */}
+          {groupLineage.isDebtorCreditor && (
+            <div className="p-3 border-t border-zinc-100 bg-white">
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Bill-wise Details</div>
+              <div className="space-y-1">
+                <FormRow label="Maintain balances bill-by-bill" labelWidth="w-52" className="flex items-center min-h-[26px]">
                   <select
                     className={selectCls}
-                    value={form.allow_cost_centres ? "Yes" : "No"}
-                    onChange={(e) => setForm((f) => ({ ...f, allow_cost_centres: e.target.value === "Yes" ? 1 : 0 }))}
+                    value={form.is_bill_wise ? "Yes" : "No"}
+                    onChange={(e) => setForm((f) => ({ ...f, is_bill_wise: e.target.value === "Yes" ? 1 : 0 }))}
+                  >
+                    <option>No</option>
+                    <option>Yes</option>
+                  </select>
+                </FormRow>
+                <FormRow label="Default credit period (days)" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input
+                    type="number"
+                    className={`${inputCls} max-w-[80px] text-right`}
+                    value={form.default_credit_period ?? 0}
+                    onChange={setNumber("default_credit_period")}
+                  />
+                </FormRow>
+                <FormRow label="Check for credit days during voucher entry" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <select
+                    className={selectCls}
+                    value={form.check_credit_days ? "Yes" : "No"}
+                    onChange={(e) => setForm((f) => ({ ...f, check_credit_days: e.target.value === "Yes" ? 1 : 0 }))}
                   >
                     <option>No</option>
                     <option>Yes</option>
                   </select>
                 </FormRow>
               </div>
-
-              {/* Mailing Details */}
-              <div className="p-3 border-t border-zinc-100 bg-white">
-                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Mailing Details</div>
-                <div className="space-y-1">
-                  <FormRow label="Name" labelWidth="w-20" className="flex items-center min-h-[26px]">
-                    <input className={inputCls} value={form.mailing_name || ""} onChange={setField("mailing_name")} />
-                  </FormRow>
-                  <div className="flex items-start min-h-[26px]">
-                    <span className="w-20 text-sm shrink-0 pt-1 text-zinc-400 font-medium">Address</span>
-                    <span className="text-zinc-400 mr-2 shrink-0 pt-1">:</span>
-                    <div className="flex-1 space-y-1">
-                      <input className={`${inputCls} w-full`} value={form.address1 || ""} onChange={setField("address1")} />
-                      <input className={`${inputCls} w-full`} value={form.address2 || ""} onChange={setField("address2")} />
-                    </div>
-                  </div>
-                  {!groupLineage.hideMailingExtras && (
-                    <>
-                      <FormRow label="State" labelWidth="w-20" className="flex items-center min-h-[26px]">
-                        <select className={selectCls} value={form.state || "Select"} onChange={setField("state")}>
-                          <option value="Select">Select</option>
-                          {INDIAN_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                      </FormRow>
-                      <FormRow label="Country" labelWidth="w-20" className="flex items-center min-h-[26px]">
-                        <input className={inputCls} value={form.country || ""} onChange={setField("country")} />
-                      </FormRow>
-                      <FormRow label="Pincode" labelWidth="w-20" className="flex items-center min-h-[26px]">
-                        <input className={inputCls} value={form.pincode || ""} onChange={setField("pincode")} />
-                      </FormRow>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Banking Details popup trigger */}
-              <div className="p-3 border-t border-zinc-100 bg-white">
-                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Banking Details</div>
-                <FormRow label="Provide bank details" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                  <select className={selectCls} value={provideBank} onChange={handleProvideBankChange}>
-                    <option>No</option>
-                    <option>Yes</option>
-                  </select>
-                </FormRow>
-
-                {provideBank === "Yes" && !showBankPopup && (
-                  <div className="mt-2 pl-3 border-l-2 border-zinc-200 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
-                    {bankForm.bank_name && (
-                      <FormRow label="Bank Name" labelWidth="w-36" className="flex items-center min-h-[22px] text-xs">
-                        <span className="text-sm text-zinc-700 font-medium">{bankForm.bank_name}</span>
-                      </FormRow>
-                    )}
-                    {bankForm.account_number && (
-                      <FormRow label="Account Number" labelWidth="w-36" className="flex items-center min-h-[22px] text-xs">
-                        <span className="text-sm text-zinc-700">{bankForm.account_number}</span>
-                      </FormRow>
-                    )}
-                    {bankForm.transaction_type && (
-                      <FormRow label="Transaction Type" labelWidth="w-36" className="flex items-center min-h-[22px] text-xs">
-                        <span className="text-sm text-zinc-700 font-medium">{bankForm.transaction_type}</span>
-                      </FormRow>
-                    )}
-                    <button
-                      onClick={() => setShowBankPopup(true)}
-                      className="text-xs text-zinc-500 hover:text-zinc-800 underline underline-offset-1 mt-1 block transition-colors font-medium"
-                    >
-                      Edit bank details
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Tax Registration Details */}
-              <div className="p-3 border-t border-zinc-100 bg-white">
-                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Tax Registration Details</div>
-                <div className="space-y-1">
-                  <FormRow label="PAN/IT No." labelWidth="w-40" className="flex items-center min-h-[26px]">
-                    <input className={inputCls} value={form.pan || ""} onChange={setField("pan")} />
-                  </FormRow>
-                </div>
-              </div>
-            </>
+            </div>
           )}
+
+          {/* Cost Centre Details */}
+          <div className="p-3 border-t border-zinc-100 bg-white">
+            <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Cost Centre Details</div>
+            <FormRow label="Cost Centres are applicable" labelWidth="w-52" className="flex items-center min-h-[26px]">
+              <select
+                className={selectCls}
+                value={form.allow_cost_centres ? "Yes" : "No"}
+                onChange={(e) => setForm((f) => ({ ...f, allow_cost_centres: e.target.value === "Yes" ? 1 : 0 }))}
+              >
+                <option>No</option>
+                <option>Yes</option>
+              </select>
+            </FormRow>
+          </div>
+
+          {/* Mailing Details — always shown */}
+          <div className="p-3 border-t border-zinc-100 bg-white">
+            <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Mailing Details</div>
+            <div className="space-y-1">
+              <FormRow label="Name" labelWidth="w-20" className="flex items-center min-h-[26px]">
+                <input className={inputCls} value={form.mailing_name || ""} onChange={setField("mailing_name")} />
+              </FormRow>
+              <div className="flex items-start min-h-[26px]">
+                <span className="w-20 text-sm shrink-0 pt-1 text-zinc-400 font-medium">Address</span>
+                <span className="text-zinc-400 mr-2 shrink-0 pt-1">:</span>
+                <div className="flex-1 space-y-1">
+                  <input className={`${inputCls} w-full`} value={form.address1 || ""} onChange={setField("address1")} />
+                  <input className={`${inputCls} w-full`} value={form.address2 || ""} onChange={setField("address2")} />
+                </div>
+              </div>
+              {!groupLineage.hideMailingExtras && (
+                <>
+                  <FormRow label="State" labelWidth="w-20" className="flex items-center min-h-[26px]">
+                    <select className={selectCls} value={form.state || "Select"} onChange={setField("state")}>
+                      <option value="Select">Select</option>
+                      {INDIAN_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </FormRow>
+                  <FormRow label="Country" labelWidth="w-20" className="flex items-center min-h-[26px]">
+                    <input className={inputCls} value={form.country || ""} onChange={setField("country")} />
+                  </FormRow>
+                  <FormRow label="Pincode" labelWidth="w-20" className="flex items-center min-h-[26px]">
+                    <input className={inputCls} value={form.pincode || ""} onChange={setField("pincode")} />
+                  </FormRow>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Banking Details popup trigger — shown for non-bank groups only */}
+          {!groupLineage.isBank && (
+            <div className="p-3 border-t border-zinc-100 bg-white">
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Banking Details</div>
+              <FormRow label="Provide bank details" labelWidth="w-40" className="flex items-center min-h-[26px]">
+                <select className={selectCls} value={provideBank} onChange={handleProvideBankChange}>
+                  <option>No</option>
+                  <option>Yes</option>
+                </select>
+              </FormRow>
+
+              {provideBank === "Yes" && !showBankPopup && (
+                <div className="mt-2 pl-3 border-l-2 border-zinc-200 space-y-1 animate-in fade-in slide-in-from-top-1 duration-150">
+                  {bankForm.bank_name && (
+                    <FormRow label="Bank Name" labelWidth="w-36" className="flex items-center min-h-[22px] text-xs">
+                      <span className="text-sm text-zinc-700 font-medium">{bankForm.bank_name}</span>
+                    </FormRow>
+                  )}
+                  {bankForm.account_number && (
+                    <FormRow label="Account Number" labelWidth="w-36" className="flex items-center min-h-[22px] text-xs">
+                      <span className="text-sm text-zinc-700">{bankForm.account_number}</span>
+                    </FormRow>
+                  )}
+                  {bankForm.transaction_type && (
+                    <FormRow label="Transaction Type" labelWidth="w-36" className="flex items-center min-h-[22px] text-xs">
+                      <span className="text-sm text-zinc-700 font-medium">{bankForm.transaction_type}</span>
+                    </FormRow>
+                  )}
+                  <button
+                    onClick={() => setShowBankPopup(true)}
+                    className="text-xs text-zinc-500 hover:text-zinc-800 underline underline-offset-1 mt-1 block transition-colors font-medium"
+                  >
+                    Edit bank details
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tax Registration Details */}
+          <div className="p-3 border-t border-zinc-100 bg-white">
+            <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Tax Registration Details</div>
+            <div className="space-y-1">
+              <FormRow label="PAN/IT No." labelWidth="w-40" className="flex items-center min-h-[26px]">
+                <input className={inputCls} value={form.pan || ""} onChange={setField("pan")} />
+              </FormRow>
+            </div>
+          </div>
         </div>
 
         {/* Group Panel */}
