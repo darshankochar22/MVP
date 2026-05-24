@@ -397,11 +397,12 @@ module.exports = {
         });
         for (const entry of data.entries) {
           await db.execute({
-            sql: `INSERT INTO voucher_entries (voucher_id, ledger_id, type, amount, amount_forex, currency, narration)
-                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO voucher_entries (voucher_id, ledger_id, ledger_name, type, amount, amount_forex, currency, narration)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
               data.voucher_id,
               nullify(entry.ledger_id),
+              nullify(entry.ledger_name) || null,
               entry.type,
               entry.amount,
               nullify(entry.amount_forex) || entry.amount,

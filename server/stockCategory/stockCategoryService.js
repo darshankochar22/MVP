@@ -10,12 +10,12 @@ module.exports = {
       if (exists.rows.length > 0) return { success: false, error: 'Stock Category already exists' };
 
       const result = await db.execute({
-        sql: `INSERT INTO stock_categories (company_id, name, description, parent_category_id, is_active)
-              VALUES (?, ?, ?, ?, 1)`,
+        sql: `INSERT INTO stock_categories (company_id, name, alias, description, parent_category_id, is_active)
+              VALUES (?, ?, ?, ?, ?, 1)`,
         args: [
           data.company_id,
           data.name,
-          data.alias || null, 
+          data.alias || null,
           data.description || null,
           data.parent_category_id || null,
         ],
