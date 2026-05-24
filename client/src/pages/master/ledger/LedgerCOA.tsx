@@ -64,6 +64,29 @@ function LedgerDetailsGrid({ ledger }: { ledger: LedgerType }) {
         </span>
       </div>
 
+      {/* Invoice Rounding Details */}
+      {ledger.invoice_rounding === 1 && (
+        <>
+          <div className="col-span-2 pt-2 pb-1 mt-1 border-t border-zinc-200">
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Invoice Rounding Details</span>
+          </div>
+          <div className="flex border-b border-zinc-100 pb-1">
+            <span className="text-zinc-400 w-32 shrink-0 select-none">Invoice Rounding</span>
+            <span className="text-zinc-800">Yes</span>
+          </div>
+          {ledger.rounding_method && (
+            <div className="flex border-b border-zinc-100 pb-1">
+              <span className="text-zinc-400 w-32 shrink-0 select-none">Rounding Method</span>
+              <span className="text-zinc-800">{ledger.rounding_method}</span>
+            </div>
+          )}
+          <div className="flex border-b border-zinc-100 pb-1">
+            <span className="text-zinc-400 w-32 shrink-0 select-none">Rounding Limit</span>
+            <span className="text-zinc-800">{Number(ledger.rounding_limit ?? 0).toFixed(2)}</span>
+          </div>
+        </>
+      )}
+
       {/* Bank Details — shown only if present */}
       {bank && (
         <>
