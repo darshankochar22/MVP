@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import GroupTree from "@/components/GroupTree";
+import GroupFlatList from "@/components/GroupFlatList";
 import type { GroupType } from "@/types/api";
 import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 
@@ -40,7 +40,6 @@ export default function GroupAlterEdit() {
   const { id } = useParams<{ id: string }>();
   const { selectedCompany } = useCompany();
   const navigate = useNavigate();
-  const [groupTree, setGroupTree] = useState<(GroupType & { children?: GroupType[] })[]>([]);
   const [flatGroups, setFlatGroups] = useState<GroupType[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,9 +63,8 @@ export default function GroupAlterEdit() {
     (async () => {
       try {
         setLoading(true);
-        const [groupRes, treeRes, allRes] = await Promise.all([
+        const [groupRes, allRes] = await Promise.all([
           window.api.group.getById(Number(id)),
-          window.api.group.getTree(companyId),
           window.api.group.getAll(companyId),
         ]);
         if (cancelled) return;
@@ -78,7 +76,6 @@ export default function GroupAlterEdit() {
         } else {
           setError(groupRes.error || "Group not found.");
         }
-        if (treeRes.success && treeRes.tree) setGroupTree(treeRes.tree ?? []);
         if (allRes.success && allRes.groups) setFlatGroups(allRes.groups ?? []);
       } catch (e) {
         if (!cancelled) setError("Failed to load group.");
@@ -102,13 +99,15 @@ export default function GroupAlterEdit() {
     ? flatGroups.find((g) => g.group_id === form.parent_group_id)
     : null;
 
-  const groupNameMap = useMemo(() => {
-    const map: Record<number, string> = {};
-    for (const g of flatGroups) {
-      if (g.group_id != null) map[g.group_id] = g.name;
+  const primaryGroupName = useMemo(() => {
+    if (!parentGroup || flatGroups.length === 0) return null;
+    let current: GroupType | undefined = parentGroup;
+    while (current) {
+      if (!current.parent_group_id) return current.name;
+      current = flatGroups.find((g) => g.group_id === current!.parent_group_id);
     }
-    return map;
-  }, [flatGroups]);
+    return null;
+  }, [parentGroup, flatGroups]);
 
   const isPrimarySelected = !form.parent_group_id;
 
@@ -224,6 +223,9 @@ export default function GroupAlterEdit() {
                 <span className="text-sm py-1 font-medium text-zinc-800 cursor-pointer">
                   {parentGroup ? parentGroup.name : "\u2014 Primary \u2014"}
                 </span>
+                {primaryGroupName && primaryGroupName !== parentGroup?.name && (
+                  <span className="text-xs text-zinc-400 ml-2 font-normal">(Group: {primaryGroupName})</span>
+                )}
               </Row>
               {isPrimarySelected && (
                 <Row label="Nature of Group" required>
@@ -276,25 +278,23 @@ export default function GroupAlterEdit() {
       </div>
 
       {showGroupPanel && (
-        <div className="w-72 border-l bg-zinc-50/50 flex flex-col">
-          <div className="px-4 py-3 border-b text-sm font-medium text-zinc-600 flex justify-between items-center">
-            <span>Under Group</span>
-            <button onClick={() => setShowGroupPanel(false)} className="text-xs text-zinc-400 hover:text-zinc-600">&times;</button>
+        <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
+          <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-200 bg-zinc-50 select-none">
+            <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Under Group</span>
+            <button onClick={() => setShowGroupPanel(false)} className="text-sm font-bold text-zinc-400 hover:text-zinc-800 transition-colors">&times;</button>
           </div>
           <div
-            className={`px-4 py-2 cursor-pointer text-sm border-b ${isPrimarySelected ? "bg-zinc-100 font-medium" : "hover:bg-zinc-50"}`}
+            className={`flex items-center min-h-[28px] px-3 cursor-pointer text-[13px] select-none border-b ${isPrimarySelected ? "bg-zinc-100 font-semibold text-black" : "text-zinc-700 hover:bg-zinc-50"}`}
             onClick={handleSelectPrimary}
           >
-            &mdash; Primary &mdash;
+            <span className="truncate">Primary</span>
           </div>
-          <div className="flex-1 overflow-y-auto">
-            <GroupTree
-              tree={groupTree}
-              selectedId={form.parent_group_id as number}
-              onSelect={handleGroupSelect}
-              groupNameMap={groupNameMap}
-            />
-          </div>
+          <GroupFlatList
+            groups={flatGroups}
+            selectedId={form.parent_group_id as number}
+            onSelect={handleGroupSelect}
+            showHeader={false}
+          />
         </div>
       )}
     </div>
