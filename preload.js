@@ -145,6 +145,14 @@ contextBridge.exposeInMainWorld('api', {
         update:  (data)       => invoke('gstClassification:update', data),
         delete:  (id)         => invoke('gstClassification:delete', id),
     },
+    gst: {
+        computeTax:    (payload) => invoke('gst:computeTax', payload),
+        generateGSTR1: (data)    => invoke('gst:generateGSTR1', data),
+        getGSTR1:      (data)    => invoke('gst:getGSTR1', data),
+        getHSNRates:   (cid)     => invoke('gst:getHSNRates', cid),
+        upsertHSNRate: (data)    => invoke('gst:upsertHSNRate', data),
+        deleteHSNRate: (data)    => invoke('gst:deleteHSNRate', data),
+    },
     master: {
         getMenu: (company_id) => invoke('master:getMenu', company_id),
     },

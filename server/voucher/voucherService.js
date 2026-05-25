@@ -84,6 +84,18 @@ const validateDoubleEntry = (entries) => {
 module.exports = {
   create: async (data) => {
     try {
+      if (data.is_accounting_voucher && (data.voucher_type === 'Sales' || data.voucher_type === 'Purchase' || data.voucher_type === 'Credit Note' || data.voucher_type === 'Debit Note')) {
+        try {
+          const gstTaxEngine = require('../gst/gstTaxEngine');
+          const computed = await gstTaxEngine.computeVoucherTaxLines(db, data);
+          data.entries = computed.entries;
+          data.stock_entries = computed.stock_entries;
+          data.computedGST = computed;
+        } catch (gstErr) {
+          console.error("GST calculation failed:", gstErr);
+        }
+      }
+
       if (data.is_accounting_voucher && data.entries) {
         if (!validateDoubleEntry(data.entries)) {
           return { success: false, error: 'Debit and Credit amounts must be equal' };
@@ -232,6 +244,11 @@ module.exports = {
               nullify(data.bank_details.amount) || 0,
             ],
           });
+        }
+
+        if (data.computedGST) {
+          const gstTaxEngine = require('../gst/gstTaxEngine');
+          await gstTaxEngine.saveVoucherTaxLines(db, voucher_id, data.computedGST);
         }
 
         await db.execute({ sql: 'COMMIT', args: [] });
