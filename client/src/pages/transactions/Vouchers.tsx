@@ -614,14 +614,8 @@ export default function Vouchers() {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // RENDER
-  // ─────────────────────────────────────────────────────────────────────────
-
   return (
-    <div className="flex flex-col h-full bg-white text-black text-sm select-none overflow-hidden">
-
-      {/* ── Toasts ─────────────────────────────────────────────────────────── */}
+    <div className="flex flex-col h-screen bg-white text-black text-sm select-none overflow-hidden">
       {form.error && (
         <AlertBanner type="error" message={form.error} onDismiss={() => form.setError(null)} />
       )}
@@ -641,8 +635,6 @@ export default function Vouchers() {
         />
       )}
 
-      {/* ── Top title bar ──────────────────────────────────────────────────── */}
-      {/* Tally shows "Accounting Voucher Creation   [Company Name]" on one line */}
       <div className="flex items-center justify-between px-3 py-1 border-b border-black bg-white shrink-0">
         <span className="text-sm font-semibold text-black">Accounting Voucher Creation</span>
         <span className="text-sm text-black">{selectedCompany?.name ?? ""}</span>
@@ -654,8 +646,7 @@ export default function Vouchers() {
         </button>
       </div>
 
-      {/* ── Voucher type + number + date row ──────────────────────────────── */}
-      {/* Tally: [Contra] No. 1    (right) 1-Apr-26  Wednesday */}
+
       <div className="flex items-center px-3 py-1 border-b border-black bg-white shrink-0">
         <div
           className="text-xs font-bold text-white bg-black px-3 py-0.5 min-w-[80px] text-center uppercase"
@@ -679,22 +670,12 @@ export default function Vouchers() {
         </div>
       </div>
 
-      {/* ── Body: form area + ledger panel + right sidebar ─────────────────── */}
       <div className="flex-1 flex min-h-0 overflow-hidden">
-
-        {/* ── Form area ────────────────────────────────────────────────────── */}
         <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden border-r border-black">
 
-          {/* ================================================================
-              RECEIPT / PAYMENT / CONTRA
-              Structure: Account : [field]
-                         Current balance : [value]
-                         Particulars table (Ledger | Amount)
-                         Narration
-              ================================================================ */}
           {["Receipt", "Payment", "Contra"].includes(form.voucherType) && (
             <>
-              {/* Account field */}
+
               <div className="border-b border-gray-300 shrink-0 py-1">
                 <FieldRow
                   label="Account"
