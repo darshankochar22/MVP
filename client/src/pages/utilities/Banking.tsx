@@ -230,11 +230,10 @@ export default function Banking() {
           </div>
         </div>
 
-        {/* Middle Area: Interactive Live Mock Data & Details */}
+
         <div className="flex-1 flex flex-col p-6 min-w-0 overflow-y-auto bg-zinc-50/50">
           <div className="max-w-xl w-full mx-auto space-y-6">
             
-            {/* Header info */}
             <div className="border border-zinc-200 bg-white rounded-lg p-5 shadow-sm space-y-2">
               <h2 className="text-sm font-bold uppercase tracking-wider text-zinc-900">
                 {currentDetails.title}
@@ -244,7 +243,6 @@ export default function Banking() {
               </p>
             </div>
 
-            {/* Live Statistic Metrics Card */}
             <div className="border border-zinc-200 bg-white rounded-lg overflow-hidden shadow-sm">
               <div className="bg-zinc-50 border-b border-zinc-200 px-4 py-2 flex justify-between items-center">
                 <span className="text-[9px] font-bold uppercase tracking-wider text-zinc-400">Live Ledger & Process Monitor</span>
@@ -267,7 +265,7 @@ export default function Banking() {
               </div>
             </div>
 
-            {/* Quick Actions Panel */}
+
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => alert(`${currentDetails.title} action triggered.`)}
@@ -280,7 +278,6 @@ export default function Banking() {
           </div>
         </div>
 
-        {/* Right Side: Action Panel */}
         <RightActionPanel actions={bankingActions} />
 
       </div>

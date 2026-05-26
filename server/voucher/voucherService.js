@@ -14,7 +14,7 @@ const prefixMap = {
   'Receipt Note':  'RCN',
 };
 
-// Helper: coerce undefined to null so @libsql/client never gets undefined args
+
 const nullify = (v) => (v === undefined ? null : v);
 
 const generateVoucherNumber = async (company_id, fy_id, voucher_type) => {
