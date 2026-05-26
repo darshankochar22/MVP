@@ -360,11 +360,6 @@ export default function Vouchers() {
     form.stockEntries,
   ]);
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // FIX #3 — smart search-change handler: stock rows use stockSearchTerm,
-  // all ledger rows (including additional) use ledgerSearchTerm.
-  // ─────────────────────────────────────────────────────────────────────────────
-
   const handleInventorySearchChange = useCallback(
     (term: string) => {
       if (form.activeField?.type === "stockItem") {
@@ -376,9 +371,6 @@ export default function Vouchers() {
     [form.activeField, form.setStockSearchTerm, form.setLedgerSearchTerm]
   );
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Right action panel items
-  // ─────────────────────────────────────────────────────────────────────────────
 
   const voucherActions = useMemo(
     () => [

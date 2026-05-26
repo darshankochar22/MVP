@@ -87,10 +87,18 @@ module.exports = {
       if (data.is_accounting_voucher && (data.voucher_type === 'Sales' || data.voucher_type === 'Purchase' || data.voucher_type === 'Credit Note' || data.voucher_type === 'Debit Note')) {
         try {
           const gstTaxEngine = require('../gst/gstTaxEngine');
+          if (data.is_accounting_voucher && data.entries) {
+                 if (!validateDoubleEntry(data.entries)) {
+                 return { success: false, error: 'Debit and Credit amounts must be equal' };
+                }
+          }
+
+        if (['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(data.voucher_type)) {
           const computed = await gstTaxEngine.computeVoucherTaxLines(db, data);
           data.entries = computed.entries;
           data.stock_entries = computed.stock_entries;
           data.computedGST = computed;
+       }
         } catch (gstErr) {
           console.error("GST calculation failed:", gstErr);
         }
