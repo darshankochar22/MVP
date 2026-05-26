@@ -147,13 +147,11 @@ function LedgerListPanel({
 
   return (
     <div className="w-64 border-l border-black flex flex-col shrink-0 bg-white h-full">
-      {/* Panel header — same dark blue header Tally uses */}
-      <div className="bg-[#003366] text-white px-2 py-1 text-xs font-semibold select-none flex justify-between items-center">
+      <div className="bg-black text-white px-2 py-1 text-xs font-semibold select-none flex justify-between items-center">
         <span>{title}</span>
         <button onClick={onClose} className="text-white hover:text-gray-300 font-bold leading-none">&times;</button>
       </div>
 
-      {/* Search box */}
       <div className="border-b border-gray-300">
         <input
           autoFocus
@@ -165,7 +163,6 @@ function LedgerListPanel({
         />
       </div>
 
-      {/* Create shortcut */}
       <div
         className="px-2 py-1 text-xs cursor-pointer hover:bg-gray-100 border-b border-gray-200 text-black select-none"
         onClick={onCreateNew}
@@ -173,7 +170,6 @@ function LedgerListPanel({
         {createLabel}
       </div>
 
-      {/* Item list */}
       <div ref={listRef} className="flex-1 overflow-y-auto min-h-0">
         {filtered.map((item, idx) => (
           <div
@@ -318,10 +314,6 @@ export default function Vouchers() {
     ]
   );
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // handleAmountConfirm — open bill-wise / cost-centre popup if needed
-  // ─────────────────────────────────────────────────────────────────────────
-
   const handleAmountConfirm = useCallback(
     (row: any, idx: number) => {
       const { ledger, amountRaw, id } = row;
@@ -352,10 +344,6 @@ export default function Vouchers() {
     },
     [form.setActiveAllocation, proceedToNextRow]
   );
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Popup save handlers
-  // ─────────────────────────────────────────────────────────────────────────
 
   const handleSaveBillWise = useCallback(
     (allocations: any[]) => {
@@ -441,10 +429,6 @@ export default function Vouchers() {
     [form.setBankDetails, form.setActiveAllocation]
   );
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Ledger panel — what items to show depends on which field is active
-  // ─────────────────────────────────────────────────────────────────────────
-
   const panelOpen = !!form.activeField;
 
   const panelItems = useMemo(() => {
@@ -500,10 +484,6 @@ export default function Vouchers() {
     },
     [form.activeField, form.setStockSearchTerm, form.setLedgerSearchTerm]
   );
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // Keyboard shortcuts
-  // ─────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -565,7 +545,7 @@ export default function Vouchers() {
           <span className="text-sm text-black mr-2 shrink-0">:</span>
           <input
             type="text"
-            className="w-64 text-sm border border-gray-400 bg-yellow-50 px-1 py-0 outline-none focus:border-black"
+            className="w-64 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
             value={isActive ? st : (ledger?.name ?? "")}
             onFocus={() => form.handleFieldFocus({ type: fieldType })}
             onChange={(e) => {
@@ -661,7 +641,7 @@ export default function Vouchers() {
                 <div className="w-40 text-right text-sm font-semibold text-black">Amount</div>
               </div>
 
-              {/* Particulars rows */}
+
               <div className="flex-1 overflow-y-auto min-h-0">
                 {form.particulars.map((row, idx) => {
                   const isActive = form.activeField?.type === "particular" && form.activeField.rowId === row.id;
@@ -670,12 +650,12 @@ export default function Vouchers() {
                       key={row.id}
                       className="flex items-center border-b border-gray-100 min-h-[22px] group"
                     >
-                      {/* Ledger name input */}
+
                       <div className="flex-1 flex items-center px-3 gap-1">
                         <input
                           data-particular-ledger={idx + 1}
                           type="text"
-                          className="flex-1 text-sm bg-transparent outline-none focus:bg-yellow-50 px-1 border border-transparent focus:border-black"
+                          className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                           value={isActive ? form.ledgerSearchTerm : (row.ledger?.name ?? "")}
                           placeholder={idx === 0 ? "Select Ledger…" : ""}
                           onFocus={() => form.handleFieldFocus({ type: "particular", rowId: row.id })}
@@ -700,12 +680,12 @@ export default function Vouchers() {
                           </button>
                         )}
                       </div>
-                      {/* Amount input */}
+                 
                       <div className="w-40 pr-3">
                         <input
                           type="text"
                           inputMode="decimal"
-                          className="w-full text-right text-sm bg-transparent outline-none focus:bg-yellow-50 px-1 border border-transparent focus:border-black"
+                          className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                           value={row.amountRaw}
                           placeholder=""
                           onChange={(e) =>
@@ -722,7 +702,6 @@ export default function Vouchers() {
                   );
                 })}
 
-                {/* Empty filler rows so the table looks like Tally */}
                 {Array.from({ length: Math.max(0, 10 - form.particulars.length) }).map((_, i) => (
                   <div key={`ep-${i}`} className="flex border-b border-gray-50 min-h-[22px]">
                     <div className="flex-1 px-3" />
@@ -731,7 +710,6 @@ export default function Vouchers() {
                 ))}
               </div>
 
-              {/* Particulars total row */}
               <div className="flex border-t border-black shrink-0 px-3 py-0.5 bg-white">
                 <div className="flex-1 text-xs text-gray-600">
                   {Math.abs(form.debitTotal - form.creditTotal) > 0.01 && form.debitTotal > 0 && (
@@ -759,13 +737,8 @@ export default function Vouchers() {
             </>
           )}
 
-          {/* ================================================================
-              JOURNAL
-              Structure: Particulars table with By/To | Ledger | Debit | Credit
-              ================================================================ */}
           {form.voucherType === "Journal" && (
             <>
-              {/* Table header */}
               <div className="grid grid-cols-12 border-b border-black shrink-0 px-3 py-0.5 bg-white">
                 <div className="col-span-1" />
                 <div className="col-span-7 text-sm font-semibold text-black">Particulars</div>
@@ -773,7 +746,7 @@ export default function Vouchers() {
                 <div className="col-span-2 text-right text-sm font-semibold text-black">Credit</div>
               </div>
 
-              {/* Journal rows */}
+    
               <div className="flex-1 overflow-y-auto min-h-0">
                 {form.journalRows.map((row, idx) => {
                   const isActive =
@@ -784,17 +757,16 @@ export default function Vouchers() {
                       key={row.id}
                       className="grid grid-cols-12 items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
                     >
-                      {/* By / To prefix */}
+    
                       <div className="col-span-1 text-sm font-semibold text-black select-none">
                         {row.type === "Dr" ? "By" : "To"}
                       </div>
 
-                      {/* Ledger name input */}
                       <div className="col-span-7 flex items-center gap-1">
                         <input
                           data-particular-ledger={idx + 1}
                           type="text"
-                          className="flex-1 text-sm bg-transparent outline-none focus:bg-yellow-50 px-1 border border-transparent focus:border-black"
+                          className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                           value={isActive ? form.ledgerSearchTerm : (row.ledger?.name ?? "")}
                           onFocus={() =>
                             form.handleFieldFocus({ type: "particular", rowId: row.id })
@@ -817,13 +789,13 @@ export default function Vouchers() {
                         )}
                       </div>
 
-                      {/* Debit amount */}
+                  
                       <div className="col-span-2 text-right pr-1">
                         {row.type === "Dr" ? (
                           <input
                             type="text"
                             inputMode="decimal"
-                            className="w-full text-right text-sm bg-transparent outline-none focus:bg-yellow-50 px-1 border border-transparent focus:border-black"
+                            className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                             value={row.amountRaw}
                             placeholder=""
                             onChange={(e) =>
@@ -840,13 +812,12 @@ export default function Vouchers() {
                         )}
                       </div>
 
-                      {/* Credit amount */}
                       <div className="col-span-2 text-right">
                         {row.type === "Cr" ? (
                           <input
                             type="text"
                             inputMode="decimal"
-                            className="w-full text-right text-sm bg-transparent outline-none focus:bg-yellow-50 px-1 border border-transparent focus:border-black"
+                            className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                             value={row.amountRaw}
                             placeholder=""
                             onChange={(e) =>
@@ -866,13 +837,11 @@ export default function Vouchers() {
                   );
                 })}
 
-                {/* Empty filler */}
                 {Array.from({ length: Math.max(0, 10 - form.journalRows.length) }).map((_, i) => (
                   <div key={`ej-${i}`} className="grid grid-cols-12 border-b border-gray-50 min-h-[22px]" />
                 ))}
               </div>
 
-              {/* Journal totals */}
               <div className="grid grid-cols-12 border-t border-black shrink-0 px-3 py-0.5 bg-white">
                 <div className="col-span-8 text-xs text-gray-600">
                   {Math.abs(form.debitTotal - form.creditTotal) > 0.01 && form.debitTotal > 0 && (
@@ -908,21 +877,9 @@ export default function Vouchers() {
             </>
           )}
 
-          {/* ================================================================
-              SALES / PURCHASE
-              Structure:
-                Purchase only: Supplier Invoice No. : [input]   Date : [input]
-                Party A/c name : [input]
-                Current balance :
-                Sales/Purchase ledger : [input]
-                Current balance :
-                Name of Item table (Item | Godown | Qty | Rate | per | Amount)
-                Additional ledger rows (taxes)
-                Narration
-              ================================================================ */}
           {["Sales", "Purchase"].includes(form.voucherType) && (
             <>
-              {/* Purchase: Supplier Invoice No + Date */}
+
               {form.voucherType === "Purchase" && (
                 <div className="flex items-center border-b border-gray-300 shrink-0 px-3 py-1 gap-6 bg-white">
                   <div className="flex items-center gap-2">
@@ -930,7 +887,7 @@ export default function Vouchers() {
                     <span className="text-sm text-black shrink-0">:</span>
                     <input
                       type="text"
-                      className="text-sm border border-gray-400 bg-yellow-50 px-1 py-0 outline-none focus:border-black w-36"
+                      className="text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black w-36"
                       value={form.supplierInvoiceNo}
                       onChange={(e) => form.setSupplierInvoiceNo(e.target.value)}
                     />
@@ -940,7 +897,7 @@ export default function Vouchers() {
                     <span className="text-sm text-black shrink-0">:</span>
                     <input
                       type="date"
-                      className="text-sm border border-gray-400 bg-yellow-50 px-1 py-0 outline-none focus:border-black"
+                      className="text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
                       value={form.supplierInvoiceDate}
                       onChange={(e) => form.setSupplierInvoiceDate(e.target.value)}
                     />
@@ -948,7 +905,6 @@ export default function Vouchers() {
                 </div>
               )}
 
-              {/* Party A/c name */}
               <div className="border-b border-gray-300 shrink-0 py-1">
                 <FieldRow
                   label="Party A/c name"
@@ -958,7 +914,6 @@ export default function Vouchers() {
                 />
               </div>
 
-              {/* Sales / Purchase ledger */}
               <div className="border-b border-gray-300 shrink-0 py-1">
                 <FieldRow
                   label={`${form.voucherType} ledger`}
@@ -995,8 +950,7 @@ export default function Vouchers() {
                 </div>
               </div>
 
-              {/* Inventory table header */}
-              {/* Tally columns: Name of Item | Godown | Quantity | Rate | per | Amount */}
+
               <div className="grid grid-cols-12 border-b border-black shrink-0 px-3 py-0.5 bg-white">
                 <div className="col-span-4 text-sm font-semibold text-black">Name of Item</div>
                 <div className="col-span-2 text-sm font-semibold text-black">Godown</div>
@@ -1006,9 +960,7 @@ export default function Vouchers() {
                 <div className="col-span-2 text-right text-sm font-semibold text-black">Amount</div>
               </div>
 
-              {/* Stock item rows + additional ledger rows */}
               <div className="flex-1 overflow-y-auto min-h-0">
-                {/* Stock rows */}
                 {form.stockEntries.map((row, idx) => {
                   const isActive =
                     form.activeField?.type === "stockItem" &&
@@ -1018,12 +970,12 @@ export default function Vouchers() {
                       key={row.id}
                       className="grid grid-cols-12 items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
                     >
-                      {/* Item name */}
+
                       <div className="col-span-4 flex items-center gap-1">
                         <input
                           data-stock-item={idx + 1}
                           type="text"
-                          className="flex-1 text-sm bg-transparent outline-none focus:bg-yellow-50 px-1 border border-transparent focus:border-black"
+                          className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                           value={isActive ? form.stockSearchTerm : (row.stockItem?.name ?? "")}
                           placeholder={idx === 0 ? "Select Item…" : ""}
                           onFocus={() => form.handleFieldFocus({ type: "stockItem", rowId: row.id })}
@@ -1045,7 +997,6 @@ export default function Vouchers() {
                         )}
                       </div>
 
-                      {/* Godown */}
                       <div className="col-span-2 px-1">
                         <select
                           className="w-full text-sm bg-transparent outline-none border-b border-transparent focus:border-black"
@@ -1064,12 +1015,11 @@ export default function Vouchers() {
                         </select>
                       </div>
 
-                      {/* Quantity */}
                       <div className="col-span-2 text-right pr-1">
                         <input
                           type="text"
                           inputMode="decimal"
-                          className="w-full text-right text-sm bg-transparent outline-none focus:bg-yellow-50 px-1 border border-transparent focus:border-black"
+                          className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                           value={row.quantityRaw}
                           placeholder=""
                           onChange={(e) =>
@@ -1078,12 +1028,12 @@ export default function Vouchers() {
                         />
                       </div>
 
-                      {/* Rate */}
+
                       <div className="col-span-1 text-right pr-1">
                         <input
                           type="text"
                           inputMode="decimal"
-                          className="w-full text-right text-sm bg-transparent outline-none focus:bg-yellow-50 px-1 border border-transparent focus:border-black"
+                          className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                           value={row.rateRaw}
                           placeholder=""
                           onChange={(e) =>
@@ -1092,7 +1042,6 @@ export default function Vouchers() {
                         />
                       </div>
 
-                      {/* per (unit) */}
                       <div className="col-span-1 text-center px-1">
                         <select
                           className="w-full text-sm bg-transparent outline-none"
@@ -1158,7 +1107,7 @@ export default function Vouchers() {
                         <input
                           data-additional-ledger={idx + 1}
                           type="text"
-                          className="flex-1 text-sm bg-transparent outline-none focus:bg-yellow-50 px-1 border border-transparent focus:border-black"
+                          className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                           value={isAddActive ? form.ledgerSearchTerm : (row.ledger?.name ?? "")}
                           placeholder="Tax / Ledger…"
                           onFocus={() =>
@@ -1180,7 +1129,7 @@ export default function Vouchers() {
                         </button>
                       </div>
 
-                      {/* Dr/Cr */}
+  
                       <div className="col-span-1 text-center">
                         <select
                           className="text-xs bg-transparent outline-none font-semibold text-black"
@@ -1194,15 +1143,12 @@ export default function Vouchers() {
                         </select>
                       </div>
 
-                      {/* Spacer */}
                       <div className="col-span-4" />
-
-                      {/* Amount */}
                       <div className="col-span-2 text-right">
                         <input
                           type="text"
                           inputMode="decimal"
-                          className="w-full text-right text-sm bg-transparent outline-none focus:bg-yellow-50 px-1 border border-transparent focus:border-black font-semibold"
+                          className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black font-semibold"
                           value={row.amountRaw}
                           placeholder=""
                           onChange={(e) =>
@@ -1244,7 +1190,6 @@ export default function Vouchers() {
             </>
           )}
 
-          {/* ── Narration row — same for all voucher types ──────────────────── */}
           <div className="flex items-center border-t border-black shrink-0 px-3 py-1 bg-white">
             <span className="text-sm text-black shrink-0 w-24">Narration</span>
             <span className="text-sm text-black shrink-0 mr-2">:</span>
