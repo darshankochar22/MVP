@@ -3,7 +3,7 @@ import { useCompany } from "../../../context/CompanyContext";
 import { loadFormState, saveFormState, clearFormState } from "../../../utils/formPersistence";
 import type { LedgerType, GroupType, StockItemType, GodownType, UnitType } from "../../../types/api";
 
-// ─── ID factory ──────────────────────────────────────────────────────────────
+// ─── ID factory ───────────────────────────────────────────────────────────────
 
 let idCounter = 0;
 const nextId = () => `row_${++idCounter}_${Date.now()}`;
@@ -79,7 +79,7 @@ export type ActiveAllocation =
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const monthNames = [
+const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
@@ -88,12 +88,14 @@ const formatDateDisplay = (dateStr: string | undefined): string => {
   if (!dateStr) return "";
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr;
-  return `${d.getDate()}-${monthNames[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
+  return `${d.getDate()}-${MONTH_NAMES[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
 };
 
 const todayStr = (): string => {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
 };
 
 // ─── Default row factories ────────────────────────────────────────────────────
@@ -125,11 +127,11 @@ export function useVoucherForm() {
   const fyId = activeFY?.fy_id;
   const persistKey = companyId ? `voucherForm_${companyId}` : null;
 
-  // Track whether the very first render has passed so the auto-save effect
-  // does not immediately overwrite the just-restored state.
+  // Tracks whether the first render has passed so auto-save doesn't overwrite
+  // the just-restored state on mount.
   const hasRestored = useRef(false);
 
-  // ── Basic voucher meta ──────────────────────────────────────────────────────
+  // ── Voucher meta ────────────────────────────────────────────────────────────
 
   const [voucherType, setVoucherType] = useState<string>(
     () => loadFormState<any>(persistKey ?? "")?.voucherType ?? "Receipt"
@@ -157,7 +159,7 @@ export function useVoucherForm() {
     () => loadFormState<any>(persistKey ?? "")?.bankDetails ?? null
   );
 
-  // ── Reference / invoice fields ─────────────────────────────────────────────
+  // ── Reference / invoice fields ──────────────────────────────────────────────
 
   const [referenceNumber, setReferenceNumber] = useState<string>(
     () => loadFormState<any>(persistKey ?? "")?.referenceNumber ?? ""
@@ -167,7 +169,7 @@ export function useVoucherForm() {
     () => loadFormState<any>(persistKey ?? "")?.placeOfSupply ?? "Select"
   );
 
-  // ── Master data lists ───────────────────────────────────────────────────────
+  // ── Master data ─────────────────────────────────────────────────────────────
 
   const [allLedgers, setAllLedgers] = useState<LedgerType[]>([]);
   const [allGroups, setAllGroups] = useState<GroupType[]>([]);
@@ -182,14 +184,26 @@ export function useVoucherForm() {
   const [stockSearchTerm, setStockSearchTerm] = useState("");
   const [activeField, setActiveField] = useState<ActiveField | null>(null);
 
-  // ── Layout 1: Single-entry (Receipt F6, Payment F5, Contra F4) ─────────────
+  // ── Layout 1: Single-entry  (Receipt F6 · Payment F5 · Contra F4) ──────────
+  //
+  //   ACCOUNT field  = cash/bank side  (the "one" side in single-entry)
+  //     Receipt  → Account is Dr  (money comes IN to cash/bank)
+  //     Payment  → Account is Cr  (money goes OUT from cash/bank)
+  //     Contra   → Account is Cr  (source side, e.g. withdraw from bank)
+  //
+  //   PARTICULARS rows = opposite side
+  //     Receipt  → all rows are Cr  (the income/party being receipted from)
+  //     Payment  → all rows are Dr  (the expense/party being paid to)
+  //     Contra   → all rows are Dr  (destination side, e.g. cash-in-hand)
 
-  const [accountLedger, setAccountLedger] = useState<LedgerType | null>(null);
+  const [accountLedger, setAccountLedger] = useState<LedgerType | null>(
+    () => loadFormState<any>(persistKey ?? "")?.accountLedger ?? null
+  );
   const [accountBalance, setAccountBalance] = useState<string>("");
 
   const [particulars, setParticulars] = useState<ParticularRow[]>(() => {
     const saved = loadFormState<any>(persistKey ?? "");
-    return saved?.particulars?.length ? saved.particulars : [makeParticularRow("Dr")];
+    return saved?.particulars?.length ? saved.particulars : [makeParticularRow("Cr")];
   });
 
   // ── Layout 2: Double-entry Journal (F7) ────────────────────────────────────
@@ -201,7 +215,10 @@ export function useVoucherForm() {
       : [makeParticularRow("Dr"), makeParticularRow("Cr")];
   });
 
-  // ── Layout 3: Inventory invoice (Sales F8, Purchase F9) ───────────────────
+  // ── Layout 3: Inventory invoice (Sales F8 · Purchase F9) ──────────────────
+  //
+  //   Sales:    Party Dr (total)  ·  Sales Cr (subtotal)  ·  Tax Cr (each tax)
+  //   Purchase: Party Cr (total)  ·  Purchase Dr (subtotal)  ·  Tax Dr (each tax)
 
   const [partyLedger, setPartyLedger] = useState<LedgerType | null>(
     () => loadFormState<any>(persistKey ?? "")?.partyLedger ?? null
@@ -218,6 +235,9 @@ export function useVoucherForm() {
     return saved?.stockEntries?.length ? saved.stockEntries : [makeStockRow()];
   });
 
+  // additionalEntries = tax ledgers, discounts, freight, etc.
+  // Sales default: Cr  (tax collected is a liability/output)
+  // Purchase default: Dr  (tax paid is an asset/input credit)
   const [additionalEntries, setAdditionalEntries] = useState<ParticularRow[]>(
     () => loadFormState<any>(persistKey ?? "")?.additionalEntries ?? []
   );
@@ -312,7 +332,6 @@ export function useVoucherForm() {
   // Effects
   // ─────────────────────────────────────────────────────────────────────────────
 
-  // Initial load
   useEffect(() => {
     fetchContextData();
     fetchNextNumber();
@@ -328,17 +347,17 @@ export function useVoucherForm() {
     saveFormState(persistKey, getSnapshot());
   }, [persistKey, getSnapshot]);
 
-  // Reset form when voucher type changes
+  // Reset when voucher type changes (via stable ref to avoid circular deps)
+  const resetFormRef = useRef<() => void>(() => {});
   const prevVoucherType = useRef(voucherType);
   useEffect(() => {
     if (prevVoucherType.current !== voucherType) {
       prevVoucherType.current = voucherType;
-      // resetForm() is defined later — we call it via ref to avoid circular deps
       resetFormRef.current?.();
     }
   }, [voucherType]);
 
-  // Balance sync: account ledger
+  // Balance sync helpers
   useEffect(() => {
     if (accountLedger?.ledger_id) {
       fetchLedgerBalance(accountLedger.ledger_id).then(setAccountBalance);
@@ -347,7 +366,6 @@ export function useVoucherForm() {
     }
   }, [accountLedger, fetchLedgerBalance]);
 
-  // Balance sync: party ledger
   useEffect(() => {
     if (partyLedger?.ledger_id) {
       fetchLedgerBalance(partyLedger.ledger_id).then(setPartyBalance);
@@ -356,7 +374,6 @@ export function useVoucherForm() {
     }
   }, [partyLedger, fetchLedgerBalance]);
 
-  // Balance sync: sales/purchase ledger
   useEffect(() => {
     if (salesPurchaseLedger?.ledger_id) {
       fetchLedgerBalance(salesPurchaseLedger.ledger_id).then(setSalesPurchaseBalance);
@@ -366,21 +383,20 @@ export function useVoucherForm() {
   }, [salesPurchaseLedger, fetchLedgerBalance]);
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Business logic helpers
+  // Group / cash-bank helpers
   // ─────────────────────────────────────────────────────────────────────────────
 
-  /** Walk the group hierarchy to see if a ledger ultimately belongs to any of the named groups. */
+  /** Walk the group hierarchy to check if a ledger belongs to any of the named groups. */
   const checkLedgerGroup = useCallback(
     (ledger: LedgerType | null, targetGroupNames: string[]): boolean => {
       if (!ledger || allGroups.length === 0) return false;
+      const targets = targetGroupNames.map((n) => n.toLowerCase().trim());
 
-      const findGroup = (groupId?: number): GroupType | undefined =>
-        allGroups.find((g) => g.group_id === groupId);
+      const findGroup = (id?: number): GroupType | undefined =>
+        allGroups.find((g) => g.group_id === id);
 
       const check = (grp: GroupType): boolean => {
-        if (targetGroupNames.map((n) => n.toLowerCase().trim()).includes(grp.name.toLowerCase().trim())) {
-          return true;
-        }
+        if (targets.includes(grp.name.toLowerCase().trim())) return true;
         if (grp.parent_group_id) {
           const parent = findGroup(grp.parent_group_id);
           if (parent) return check(parent);
@@ -406,28 +422,52 @@ export function useVoucherForm() {
     [checkLedgerGroup]
   );
 
-  /**
-   * FIX #9 — auto-derive Dr/Cr for single-entry voucher types so the user
-   * never has to pick it manually (matching Tally Prime behaviour).
-   *
-   * Receipt  → cash/bank side is Dr;  all others are Cr
-   * Payment  → cash/bank side is Cr;  all others are Dr
-   * Contra   → no auto-assignment (both sides are cash/bank, user picks)
-   */
-  const autoType = useCallback(
-    (ledger: LedgerType, currentType: "Dr" | "Cr"): "Dr" | "Cr" => {
-      const isCB = checkIsCashOrBank(ledger);
-      if (voucherType === "Receipt") return isCB ? "Dr" : "Cr";
-      if (voucherType === "Payment") return isCB ? "Cr" : "Dr";
-      return currentType; // Journal / Contra / Sales / Purchase — keep as-is
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Particulars Dr/Cr derivation (single-entry layouts)
+  //
+  // In single-entry mode:
+  //   Receipt  → Particulars are ALWAYS Cr  (income / party side)
+  //   Payment  → Particulars are ALWAYS Dr  (expense / party side)
+  //   Contra   → Particulars are ALWAYS Dr  (destination cash/bank)
+  //
+  // The Account field carries the opposite type automatically (see submit logic).
+  // We do NOT check cash/bank group here — that was the old bug. The group check
+  // is only needed to filter which ledgers appear in the Account field selector.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const deriveParticularType = useCallback(
+    (currentType: "Dr" | "Cr"): "Dr" | "Cr" => {
+      if (voucherType === "Receipt") return "Cr";
+      if (voucherType === "Payment") return "Dr";
+      if (voucherType === "Contra") return "Dr";
+      return currentType; // Journal / Sales / Purchase — keep as-is
     },
-    [voucherType, checkIsCashOrBank]
+    [voucherType]
   );
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Computed totals  (FIX #1 — exported so Vouchers.tsx doesn't need `as any`)
+  // Computed totals
   // ─────────────────────────────────────────────────────────────────────────────
 
+  /**
+   * debitTotal / creditTotal
+   *
+   * For Journal: sum Dr rows / sum Cr rows from journalRows.
+   * For Receipt/Payment/Contra: the Particulars rows are ALL one side (Cr for Receipt,
+   *   Dr for Payment/Contra). The Account field supplies the opposite side. So:
+   *     debitTotal  = Account amount  (for Receipt)  OR  particulars sum  (for Payment/Contra)
+   *     creditTotal = particulars sum (for Receipt)  OR  Account amount   (for Payment/Contra)
+   *   But for the "balanced" indicator we just need the two sides to match.
+   *   We compute particularsTotal separately and compare to accountAmount.
+   */
+
+  /** Sum of all amounts in the Particulars rows (single-entry layouts). */
+  const particularsTotal = useMemo(
+    () => particulars.reduce((s, p) => s + (Number(p.amountRaw) || 0), 0),
+    [particulars]
+  );
+
+  /** Sum of all Dr amounts in journalRows. */
   const debitTotal = useMemo(() => {
     if (voucherType === "Journal") {
       return journalRows.reduce(
@@ -435,12 +475,12 @@ export function useVoucherForm() {
         0
       );
     }
-    return particulars.reduce(
-      (sum, p) => sum + (p.type === "Dr" ? Number(p.amountRaw) || 0 : 0),
-      0
-    );
-  }, [voucherType, particulars, journalRows]);
+    // Receipt: Account is Dr; Payment/Contra: particulars are Dr
+    if (voucherType === "Receipt") return particularsTotal; // Account amount = particularsTotal when balanced
+    return particularsTotal; // Payment/Contra: particulars rows are all Dr
+  }, [voucherType, journalRows, particularsTotal]);
 
+  /** Sum of all Cr amounts in journalRows. */
   const creditTotal = useMemo(() => {
     if (voucherType === "Journal") {
       return journalRows.reduce(
@@ -448,55 +488,79 @@ export function useVoucherForm() {
         0
       );
     }
-    return particulars.reduce(
-      (sum, p) => sum + (p.type === "Cr" ? Number(p.amountRaw) || 0 : 0),
-      0
-    );
-  }, [voucherType, particulars, journalRows]);
+    // Mirror of debitTotal for single-entry
+    return particularsTotal;
+  }, [voucherType, journalRows, particularsTotal]);
 
+  /**
+   * totalAmount — the grand total shown in the voucher footer and used for
+   * the Account field amount and the party ledger entry in Sales/Purchase.
+   *
+   * Receipt / Payment / Contra:
+   *   = sum of Particulars rows  (Account leg always equals this when balanced)
+   *
+   * Journal:
+   *   = debitTotal  (Dr side; equals creditTotal when balanced)
+   *
+   * Sales / Purchase:
+   *   stockSubtotal + adjustments
+   *   Sales:    Cr entries (taxes) add to party receivable; Dr entries (discounts) reduce it
+   *   Purchase: Dr entries (taxes/charges) add to party payable; Cr entries (discounts) reduce it
+   */
   const totalAmount = useMemo(() => {
-    if (voucherType === "Journal") return debitTotal;
+    if (["Receipt", "Payment", "Contra"].includes(voucherType)) {
+      return particularsTotal;
+    }
+
+    if (voucherType === "Journal") {
+      return debitTotal;
+    }
 
     if (voucherType === "Sales" || voucherType === "Purchase") {
       const stockSum = stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
       const adjSum = additionalEntries.reduce((s, r) => {
         const amt = Number(r.amountRaw) || 0;
+        // Sales:    Cr = tax/charge adds (+), Dr = discount/deduction subtracts (-)
+        // Purchase: Dr = tax/charge adds (+), Cr = discount/deduction subtracts (-)
         if (voucherType === "Sales") return r.type === "Cr" ? s + amt : s - amt;
         return r.type === "Dr" ? s + amt : s - amt;
       }, 0);
       return Math.max(0, stockSum + adjSum);
     }
 
-    // Receipt / Payment / Contra
-    return particulars.reduce((s, p) => s + (Number(p.amountRaw) || 0), 0);
-  }, [voucherType, debitTotal, particulars, stockEntries, additionalEntries]);
+    return 0;
+  }, [voucherType, particularsTotal, debitTotal, stockEntries, additionalEntries]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Particular row handlers (single-entry layouts)
   // ─────────────────────────────────────────────────────────────────────────────
 
   const handleAddParticularRow = useCallback(() => {
-    setParticulars((prev) => [...prev, makeParticularRow("Dr")]);
-  }, []);
+    setParticulars((prev) => [
+      ...prev,
+      makeParticularRow(
+        // New rows always get the correct side for the active voucher type
+        voucherType === "Receipt" ? "Cr"
+        : voucherType === "Payment" ? "Dr"
+        : "Dr" // Contra
+      ),
+    ]);
+  }, [voucherType]);
 
   const handleUpdateParticularRow = useCallback(
     async (id: string, updates: Partial<Omit<ParticularRow, "id">>) => {
-      // FIX #9 — auto-assign Dr/Cr when a ledger is selected for Receipt/Payment
-      if (updates.ledger && ["Receipt", "Payment"].includes(voucherType)) {
-        setParticulars((prev) =>
-          prev.map((p) => {
-            if (p.id !== id) return p;
-            const derivedType = autoType(updates.ledger!, p.type);
-            return { ...p, ...updates, type: derivedType };
-          })
-        );
-      } else {
-        setParticulars((prev) =>
-          prev.map((p) => (p.id !== id ? p : { ...p, ...updates }))
-        );
-      }
+      setParticulars((prev) =>
+        prev.map((p) => {
+          if (p.id !== id) return p;
+          const next = { ...p, ...updates };
+          // When a ledger is selected, enforce the correct Dr/Cr for this voucher type
+          if (updates.ledger !== undefined) {
+            next.type = deriveParticularType(p.type);
+          }
+          return next;
+        })
+      );
 
-      // Fetch balance after ledger selection
       if (updates.ledger?.ledger_id) {
         const bal = await fetchLedgerBalance(updates.ledger.ledger_id);
         setParticulars((prev) =>
@@ -504,7 +568,7 @@ export function useVoucherForm() {
         );
       }
     },
-    [voucherType, autoType, fetchLedgerBalance]
+    [deriveParticularType, fetchLedgerBalance]
   );
 
   const handleRemoveParticularRow = useCallback((id: string) => {
@@ -517,8 +581,10 @@ export function useVoucherForm() {
 
   const handleAddJournalRow = useCallback(() => {
     setJournalRows((prev) => {
+      // Alternate Dr/Cr to help the user build a balanced entry
       const lastType = prev[prev.length - 1]?.type ?? "Dr";
-      return [...prev, makeParticularRow(lastType)];
+      const nextType: "Dr" | "Cr" = lastType === "Dr" ? "Cr" : "Dr";
+      return [...prev, makeParticularRow(nextType)];
     });
   }, []);
 
@@ -555,7 +621,7 @@ export function useVoucherForm() {
         prev.map((r) => {
           if (r.id !== id) return r;
           const updated = { ...r, ...updates };
-          // Auto-compute amount when quantity or rate changes
+          // Auto-compute amount whenever quantity or rate changes
           if (updates.quantityRaw !== undefined || updates.rateRaw !== undefined) {
             const qty = Number(updated.quantityRaw) || 0;
             const rate = Number(updated.rateRaw) || 0;
@@ -574,10 +640,14 @@ export function useVoucherForm() {
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Additional ledger row handlers (Sales/Purchase taxes & adjustments)
+  //
+  //   Sales default    → Cr  (tax collected = output liability, adds to party receivable)
+  //   Purchase default → Dr  (tax paid = input credit asset, adds to party payable)
+  //
+  //   User can flip to the opposite type to record discounts / contra-adjustments.
   // ─────────────────────────────────────────────────────────────────────────────
 
   const handleAddAdditionalRow = useCallback(() => {
-    // Default type: Sales → Cr (tax adds to revenue side), Purchase → Dr
     setAdditionalEntries((prev) => [
       ...prev,
       makeParticularRow(voucherType === "Sales" ? "Cr" : "Dr"),
@@ -611,8 +681,6 @@ export function useVoucherForm() {
     (field: ActiveField) => {
       setActiveField(field);
 
-      // Populate the search box with the currently selected item's name
-      // so the user sees it highlighted and can start filtering immediately.
       let currentName = "";
       if (field.type === "account") {
         currentName = accountLedger?.name ?? "";
@@ -647,7 +715,7 @@ export function useVoucherForm() {
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Universal selection handler (called when user clicks an item in LedgerPanel)
+  // Universal selection handler
   // ─────────────────────────────────────────────────────────────────────────────
 
   const handleLedgerPanelSelect = useCallback(
@@ -692,7 +760,6 @@ export function useVoucherForm() {
           break;
       }
 
-      // Close the panel immediately to prevent cross-field confusion
       setActiveField(null);
       setLedgerSearchTerm("");
       setStockSearchTerm("");
@@ -719,7 +786,12 @@ export function useVoucherForm() {
     setSalesPurchaseLedger(null);
     setSalesPurchaseBalance("");
 
-    setParticulars([makeParticularRow("Dr")]);
+    // Default first row type to the correct Cr/Dr for the current voucher type
+    const defaultParticular: "Dr" | "Cr" =
+      voucherType === "Receipt" ? "Cr"
+      : voucherType === "Payment" ? "Dr"
+      : "Dr"; // Contra
+    setParticulars([makeParticularRow(defaultParticular)]);
     setJournalRows([makeParticularRow("Dr"), makeParticularRow("Cr")]);
     setStockEntries([makeStockRow()]);
     setAdditionalEntries([]);
@@ -741,11 +813,8 @@ export function useVoucherForm() {
     setDate(todayStr());
 
     fetchNextNumber();
-  }, [persistKey, fetchNextNumber]);
+  }, [persistKey, voucherType, fetchNextNumber]);
 
-  // Keep a stable ref so the voucherType-change effect can call resetForm
-  // without it being listed as a dependency (which would cause an infinite loop).
-  const resetFormRef = useRef<() => void>(resetForm);
   useEffect(() => {
     resetFormRef.current = resetForm;
   }, [resetForm]);
@@ -759,28 +828,38 @@ export function useVoucherForm() {
     if (!fyId) return "No active financial year.";
 
     if (["Receipt", "Payment", "Contra"].includes(voucherType)) {
-      const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
-      if (filled.length < 2)
-        return "At least two ledger entries are required (one Debit and one Credit).";
+      // Account (cash/bank) side is required
+      if (!accountLedger) return "Account (cash/bank ledger) is required.";
 
+      // Contra: Account must be cash or bank
+      if (voucherType === "Contra" && !checkIsCashOrBank(accountLedger)) {
+        return "Contra Account must be a Cash or Bank ledger.";
+      }
+
+      const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
+      if (filled.length < 1)
+        return "At least one Particulars entry with an amount is required.";
+
+      // Contra: all particulars must also be cash/bank
       if (voucherType === "Contra") {
         for (const row of filled) {
           if (!checkIsCashOrBank(row.ledger))
-            return "Contra vouchers may only use Cash/Bank accounts.";
+            return "Contra vouchers may only use Cash/Bank ledgers on both sides.";
         }
       }
 
-      if (Math.abs(debitTotal - creditTotal) > 0.01)
-        return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(2)}) must balance.`;
-
-      if (debitTotal <= 0) return "Total amount must be greater than zero.";
+      // In single-entry mode the totals always balance by construction
+      // (Account amount = sum of Particulars), so no explicit balance check needed.
+      if (particularsTotal <= 0) return "Total amount must be greater than zero.";
     }
 
     if (voucherType === "Journal") {
       const filled = journalRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
       if (filled.length < 2) return "At least two valid Journal entries are required.";
       if (Math.abs(debitTotal - creditTotal) > 0.01)
-        return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(2)}) must balance.`;
+        return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(
+          2
+        )}) totals must balance.`;
       if (debitTotal <= 0) return "Journal amount must be greater than zero.";
     }
 
@@ -793,16 +872,17 @@ export function useVoucherForm() {
       const filledItems = stockEntries.filter(
         (r) => r.stockItem && Number(r.quantityRaw) > 0 && Number(r.rateRaw) > 0
       );
-      if (filledItems.length === 0) return "At least one Stock Item with quantity and rate is required.";
+      if (filledItems.length === 0)
+        return "At least one Stock Item with quantity and rate is required.";
       if (totalAmount <= 0) return "Total amount must be greater than zero.";
     }
 
     return null;
   }, [
     companyId, fyId, voucherType,
-    particulars, journalRows, stockEntries,
-    partyLedger, salesPurchaseLedger,
-    debitTotal, creditTotal, totalAmount,
+    accountLedger, particulars, particularsTotal,
+    journalRows, debitTotal, creditTotal,
+    stockEntries, partyLedger, salesPurchaseLedger, totalAmount,
     checkIsCashOrBank,
   ]);
 
@@ -825,18 +905,46 @@ export function useVoucherForm() {
       let entries: any[] = [];
       let stock_entries: any[] = [];
 
-      // ── Build entries per voucher type ──────────────────────────────────────
+      // ── Build accounting entries ─────────────────────────────────────────────
 
       if (["Receipt", "Payment", "Contra"].includes(voucherType)) {
-        const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
-        entries = filled.map((p) => ({
-          ledger_id: p.ledger!.ledger_id,
-          ledger_name: p.ledger!.name,
-          type: p.type,
-          amount: Number(p.amountRaw),
+        //
+        // Single-entry layout:
+        //   Receipt:  Account = Dr (cash/bank receives)
+        //             Particulars = Cr (income / party receipted from)
+        //
+        //   Payment:  Account = Cr (cash/bank pays out)
+        //             Particulars = Dr (expense / party paid to)
+        //
+        //   Contra:   Account = Cr (source cash/bank, e.g. bank being withdrawn from)
+        //             Particulars = Dr (destination cash/bank, e.g. cash-in-hand)
+        //
+
+        const accountType: "Dr" | "Cr" =
+          voucherType === "Receipt" ? "Dr" : "Cr"; // Payment & Contra → Cr
+
+        // Account leg — amount equals the sum of all particulars
+        entries.push({
+          ledger_id: accountLedger!.ledger_id,
+          ledger_name: accountLedger!.name,
+          type: accountType,
+          amount: particularsTotal,
           currency: "INR",
-          cost_centres: p.costCentres,
-        }));
+        });
+
+        // Particulars legs
+        const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
+        entries.push(
+          ...filled.map((p) => ({
+            ledger_id: p.ledger!.ledger_id,
+            ledger_name: p.ledger!.name,
+            type: p.type, // already set to correct side by deriveParticularType
+            amount: Number(p.amountRaw),
+            currency: "INR",
+            cost_centres: p.costCentres,
+          }))
+        );
+
       } else if (voucherType === "Journal") {
         const filled = journalRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
         entries = filled.map((r) => ({
@@ -847,11 +955,29 @@ export function useVoucherForm() {
           currency: "INR",
           cost_centres: r.costCentres,
         }));
+
       } else if (["Sales", "Purchase"].includes(voucherType)) {
+        //
+        // Sales:
+        //   Party A/c     → Dr  (total: stock + taxes − discounts)
+        //   Sales ledger  → Cr  (stock subtotal only)
+        //   Tax ledgers   → Cr  (each tax amount, default for additional Cr rows)
+        //   Discount etc. → Dr  (each Dr additional row)
+        //
+        // Purchase:
+        //   Purchase ledger → Dr  (stock subtotal only)
+        //   Tax ledgers     → Dr  (each tax amount, default for additional Dr rows)
+        //   Discount etc.   → Cr  (each Cr additional row)
+        //   Party A/c       → Cr  (total: stock + taxes − discounts)
+        //
+
         const filledItems = stockEntries.filter(
           (r) => r.stockItem && Number(r.quantityRaw) > 0 && Number(r.rateRaw) > 0
         );
-        const stockSubtotal = filledItems.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
+        const stockSubtotal = filledItems.reduce(
+          (s, r) => s + (Number(r.amountRaw) || 0),
+          0
+        );
 
         stock_entries = filledItems.map((r) => ({
           stock_item_id: r.stockItem!.item_id ?? null,
@@ -863,12 +989,11 @@ export function useVoucherForm() {
           amount: Number(r.amountRaw),
         }));
 
-        // Sales: Party Dr (total), Sales Cr (subtotal), taxes ±
-        // Purchase: Purchase Dr (subtotal), taxes ±, Party Cr (total)
-        const partyType = voucherType === "Sales" ? "Dr" : "Cr";
-        const spType = voucherType === "Sales" ? "Cr" : "Dr";
+        const partyType: "Dr" | "Cr" = voucherType === "Sales" ? "Dr" : "Cr";
+        const spType: "Dr" | "Cr" = voucherType === "Sales" ? "Cr" : "Dr";
 
         entries = [
+          // Party: receives the grand total (Dr for Sales, Cr for Purchase)
           {
             ledger_id: partyLedger!.ledger_id,
             ledger_name: partyLedger!.name,
@@ -876,6 +1001,7 @@ export function useVoucherForm() {
             amount: totalAmount,
             currency: "INR",
           },
+          // Sales/Purchase ledger: stock value only
           {
             ledger_id: salesPurchaseLedger!.ledger_id,
             ledger_name: salesPurchaseLedger!.name,
@@ -883,6 +1009,7 @@ export function useVoucherForm() {
             amount: stockSubtotal,
             currency: "INR",
           },
+          // Tax / adjustment ledgers (each keeps its own Dr/Cr as set by user)
           ...additionalEntries
             .filter((p) => p.ledger && Number(p.amountRaw) > 0)
             .map((p) => ({
@@ -896,18 +1023,22 @@ export function useVoucherForm() {
         ];
       }
 
-      // ── Collect bill references ─────────────────────────────────────────────
+      // ── Collect bill references ──────────────────────────────────────────────
 
       let finalBillReferences: any[] = [];
 
       if (["Receipt", "Payment", "Contra"].includes(voucherType)) {
         finalBillReferences = particulars
           .filter((p) => p.ledger && p.billReferences?.length)
-          .flatMap((p) => p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id })));
+          .flatMap((p) =>
+            p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id }))
+          );
       } else if (voucherType === "Journal") {
         finalBillReferences = journalRows
           .filter((r) => r.ledger && r.billReferences?.length)
-          .flatMap((r) => r.billReferences!.map((b) => ({ ...b, ledger_id: r.ledger!.ledger_id })));
+          .flatMap((r) =>
+            r.billReferences!.map((b) => ({ ...b, ledger_id: r.ledger!.ledger_id }))
+          );
       } else if (["Sales", "Purchase"].includes(voucherType)) {
         if (partyLedger && partyBillReferences.length > 0) {
           finalBillReferences = partyBillReferences.map((b) => ({
@@ -917,11 +1048,13 @@ export function useVoucherForm() {
         }
         const additionalRefs = additionalEntries
           .filter((p) => p.ledger && p.billReferences?.length)
-          .flatMap((p) => p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id })));
+          .flatMap((p) =>
+            p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id }))
+          );
         finalBillReferences = [...finalBillReferences, ...additionalRefs];
       }
 
-      // ── Final payload ───────────────────────────────────────────────────────
+      // ── Final payload ────────────────────────────────────────────────────────
 
       const payload: any = {
         company_id: companyId!,
@@ -970,7 +1103,8 @@ export function useVoucherForm() {
     date, status,
     supplierInvoiceNo, supplierInvoiceDate,
     referenceNumber, referenceDate, placeOfSupply,
-    narration, totalAmount,
+    narration, totalAmount, particularsTotal,
+    accountLedger,
     particulars, journalRows,
     partyLedger, salesPurchaseLedger,
     stockEntries, additionalEntries,
@@ -979,7 +1113,7 @@ export function useVoucherForm() {
   ]);
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Derived display values
+  // Derived display
   // ─────────────────────────────────────────────────────────────────────────────
 
   const dateDisplay = useMemo(() => formatDateDisplay(date), [date]);
@@ -989,10 +1123,10 @@ export function useVoucherForm() {
   // ─────────────────────────────────────────────────────────────────────────────
 
   return {
-    // ── Voucher meta ──────────────────────────────────────────────────────────
+    // ── Voucher meta ───────────────────────────────────────────────────────────
     voucherType,
     setVoucherType,
-    voucherNumber,          // string (FIX #4 — was treated as number in VoucherHeader)
+    voucherNumber,
     voucherNumberLoading,
     date,
     setDate,
@@ -1006,12 +1140,13 @@ export function useVoucherForm() {
     narration,
     setNarration,
 
-    // ── Computed totals (FIX #1 — all three exported) ─────────────────────────
-    totalAmount,
-    debitTotal,
-    creditTotal,
+    // ── Computed totals ────────────────────────────────────────────────────────
+    totalAmount,       // grand total (used for footer display, party entry, account entry)
+    debitTotal,        // Journal Dr side; equals particularsTotal for Receipt
+    creditTotal,       // Journal Cr side; equals particularsTotal for Payment/Contra
+    particularsTotal,  // raw sum of all Particulars rows (single-entry layouts)
 
-    // ── Submission state ──────────────────────────────────────────────────────
+    // ── Submission ─────────────────────────────────────────────────────────────
     isSubmitting,
     error,
     setError,
@@ -1020,7 +1155,7 @@ export function useVoucherForm() {
     handleSubmit,
     resetForm,
 
-    // ── Advanced allocations ──────────────────────────────────────────────────
+    // ── Advanced allocations ───────────────────────────────────────────────────
     activeAllocation,
     setActiveAllocation,
     partyBillReferences,
@@ -1028,7 +1163,7 @@ export function useVoucherForm() {
     bankDetails,
     setBankDetails,
 
-    // ── Reference / invoice ───────────────────────────────────────────────────
+    // ── Reference / invoice ────────────────────────────────────────────────────
     referenceNumber,
     setReferenceNumber,
     referenceDate,
@@ -1036,7 +1171,7 @@ export function useVoucherForm() {
     placeOfSupply,
     setPlaceOfSupply,
 
-    // ── Master data lists ─────────────────────────────────────────────────────
+    // ── Master data ────────────────────────────────────────────────────────────
     allLedgers,
     allStockItems,
     allGodowns,
@@ -1044,7 +1179,7 @@ export function useVoucherForm() {
     ledgersLoading,
     fetchContextData,
 
-    // ── Search / panel state ──────────────────────────────────────────────────
+    // ── Search / panel ─────────────────────────────────────────────────────────
     ledgerSearchTerm,
     setLedgerSearchTerm,
     stockSearchTerm,
@@ -1054,7 +1189,7 @@ export function useVoucherForm() {
     handleFieldBlur,
     handleLedgerPanelSelect,
 
-    // ── Layout 1 — single-entry (F4 Contra, F5 Payment, F6 Receipt) ───────────
+    // ── Layout 1 — single-entry (Contra F4 · Payment F5 · Receipt F6) ─────────
     accountLedger,
     accountBalance,
     particulars,
@@ -1063,14 +1198,14 @@ export function useVoucherForm() {
     handleAddParticularRow,
     handleRemoveParticularRow,
 
-    // ── Layout 2 — journal (F7) ───────────────────────────────────────────────
+    // ── Layout 2 — journal (F7) ────────────────────────────────────────────────
     journalRows,
     setJournalRows,
     handleUpdateJournalRow,
     handleAddJournalRow,
     handleRemoveJournalRow,
 
-    // ── Layout 3 — inventory invoice (F8 Sales, F9 Purchase) ──────────────────
+    // ── Layout 3 — inventory invoice (Sales F8 · Purchase F9) ─────────────────
     partyLedger,
     partyBalance,
     salesPurchaseLedger,
@@ -1085,7 +1220,7 @@ export function useVoucherForm() {
     handleAddAdditionalRow,
     handleRemoveAdditionalRow,
 
-    // ── Context helpers ───────────────────────────────────────────────────────
+    // ── Context helpers ────────────────────────────────────────────────────────
     checkIsCashOrBank,
     checkLedgerGroup,
     companyId,

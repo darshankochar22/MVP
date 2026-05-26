@@ -9,6 +9,8 @@ import CostCentreAllocationPopup from "./components/popups/CostCentreAllocationP
 import BankAllocationPopup from "./components/popups/BankAllocationPopup";
 import DatePickerPopup from "./components/popups/DatePickerPopup";
 
+// ─── Right sidebar ────────────────────────────────────────────────────────────
+
 function RightSidebar({
   voucherType,
   onTypeChange,
@@ -42,7 +44,10 @@ function RightSidebar({
   return (
     <div className="w-36 border-l border-black flex flex-col shrink-0 bg-white">
       <div className="border-b border-black px-2 py-1">
-        <button onClick={onDateClick} className="w-full text-left text-xs text-black hover:underline">
+        <button
+          onClick={onDateClick}
+          className="w-full text-left text-xs text-black hover:underline"
+        >
           <span className="text-gray-500">F2</span>: Date
         </button>
       </div>
@@ -57,20 +62,30 @@ function RightSidebar({
                 : "text-black hover:bg-gray-100"
             }`}
           >
-            <span className={voucherType === label ? "text-gray-300" : "text-gray-500"}>{key}</span>: {label}
+            <span className={voucherType === label ? "text-gray-300" : "text-gray-500"}>
+              {key}
+            </span>
+            : {label}
           </button>
         </div>
       ))}
 
       <div className="border-b border-gray-200">
-        <button onClick={onCreateLedger} className="w-full text-left px-2 py-1 text-xs text-black hover:bg-gray-100">
+        <button
+          onClick={onCreateLedger}
+          className="w-full text-left px-2 py-1 text-xs text-black hover:bg-gray-100"
+        >
           <span className="text-gray-500">Alt+C</span>: Create Ldgr
         </button>
       </div>
 
       <div className="border-b border-gray-200">
-        <button onClick={onStatusChange} className="w-full text-left px-2 py-1 text-xs text-black hover:bg-gray-100">
-          <span className="text-gray-500">T</span>: {status === "Post-Dated" ? "✓ " : ""}Post-Dated
+        <button
+          onClick={onStatusChange}
+          className="w-full text-left px-2 py-1 text-xs text-black hover:bg-gray-100"
+        >
+          <span className="text-gray-500">T</span>:{" "}
+          {status === "Post-Dated" ? "✓ " : ""}Post-Dated
         </button>
       </div>
 
@@ -93,6 +108,8 @@ function RightSidebar({
     </div>
   );
 }
+
+// ─── Ledger list panel ────────────────────────────────────────────────────────
 
 function LedgerListPanel({
   title,
@@ -149,7 +166,12 @@ function LedgerListPanel({
     <div className="w-64 border-l border-black flex flex-col shrink-0 bg-white h-full">
       <div className="bg-black text-white px-2 py-1 text-xs font-semibold select-none flex justify-between items-center">
         <span>{title}</span>
-        <button onClick={onClose} className="text-white hover:text-gray-300 font-bold leading-none">&times;</button>
+        <button
+          onClick={onClose}
+          className="text-white hover:text-gray-300 font-bold leading-none"
+        >
+          &times;
+        </button>
       </div>
 
       <div className="border-b border-gray-300">
@@ -176,7 +198,9 @@ function LedgerListPanel({
             key={item.ledger_id ?? item.item_id ?? item.godown_id ?? idx}
             data-hi={idx === hi ? "true" : undefined}
             className={`px-2 py-0.5 text-xs cursor-pointer select-none ${
-              idx === hi ? "bg-[#f0c040] text-black font-semibold" : "text-black hover:bg-gray-50"
+              idx === hi
+                ? "bg-[#f0c040] text-black font-semibold"
+                : "text-black hover:bg-gray-50"
             }`}
             onClick={() => onSelect(item)}
             onMouseEnter={() => setHi(idx)}
@@ -196,6 +220,8 @@ function LedgerListPanel({
   );
 }
 
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export default function Vouchers() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
@@ -203,19 +229,32 @@ export default function Vouchers() {
 
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  // Stable ref so async callbacks (bill-wise save → accept) always call the
+  // latest version of handleAccept without stale closure issues.
   const acceptRef = useRef<() => void>(() => {});
+
+  // ─── canAccept ──────────────────────────────────────────────────────────────
+  //
+  // Receipt / Payment / Contra (single-entry):
+  //   • Account ledger must be selected
+  //   • At least one Particulars row must have a ledger + amount
+  //   (Balance is guaranteed by construction — Particulars sum = Account amount)
+  //
+  // Journal (double-entry):
+  //   • ≥ 2 rows with ledger + amount
+  //   • Dr total === Cr total
+  //
+  // Sales / Purchase (invoice):
+  //   • Party ledger + Sales/Purchase ledger selected
+  //   • At least one stock item with amount
 
   const canAccept = useMemo(() => {
     if (form.isSubmitting) return false;
 
     if (["Receipt", "Payment", "Contra"].includes(form.voucherType)) {
-      const filled = form.particulars.filter(
-        (p) => !!p.ledger && (Number(p.amountRaw) || 0) > 0
-      );
       return (
-        filled.length >= 2 &&
-        filled.some((p) => p.type === "Dr") &&
-        filled.some((p) => p.type === "Cr")
+        !!form.accountLedger &&
+        form.particulars.some((p) => !!p.ledger && (Number(p.amountRaw) || 0) > 0)
       );
     }
 
@@ -241,6 +280,7 @@ export default function Vouchers() {
   }, [
     form.isSubmitting,
     form.voucherType,
+    form.accountLedger,
     form.particulars,
     form.journalRows,
     form.debitTotal,
@@ -250,8 +290,15 @@ export default function Vouchers() {
     form.stockEntries,
   ]);
 
+  // ─── handleAccept ───────────────────────────────────────────────────────────
+  //
+  // Before submitting, intercept for:
+  //   1. Sales/Purchase: party ledger bill-wise allocation
+  //   2. Receipt/Payment: account ledger bill-wise allocation (if is_bill_wise)
+  //   3. Receipt/Payment: account ledger bank details (if is_bank)
 
   const handleAccept = useCallback(() => {
+    // ── Sales / Purchase: bill-wise for party ───────────────────────────────
     if (
       ["Sales", "Purchase"].includes(form.voucherType) &&
       form.partyLedger?.is_bill_wise === 1 &&
@@ -266,17 +313,40 @@ export default function Vouchers() {
       });
       return;
     }
+
+    // ── Receipt / Payment / Contra: bill-wise for account ledger ───────────
+    if (
+      ["Receipt", "Payment", "Contra"].includes(form.voucherType) &&
+      form.accountLedger?.is_bill_wise === 1 &&
+      form.partyBillReferences.length === 0
+    ) {
+      form.setActiveAllocation({
+        type: "billWiseParty",
+        ledgerId: form.accountLedger.ledger_id,
+        ledgerName: form.accountLedger.name,
+        amount: form.particularsTotal,
+        initialAllocations: [],
+      });
+      return;
+    }
+
     form.handleSubmit();
   }, [
     form.voucherType,
     form.partyLedger,
+    form.accountLedger,
     form.partyBillReferences,
     form.totalAmount,
+    form.particularsTotal,
     form.handleSubmit,
     form.setActiveAllocation,
   ]);
 
   useEffect(() => { acceptRef.current = handleAccept; }, [handleAccept]);
+
+  // ─── proceedToNextRow ────────────────────────────────────────────────────────
+  //
+  // After confirming an amount (Enter), advance focus to the next row.
 
   const proceedToNextRow = useCallback(
     (idx: number) => {
@@ -314,6 +384,11 @@ export default function Vouchers() {
     ]
   );
 
+  // ─── handleAmountConfirm ────────────────────────────────────────────────────
+  //
+  // Called on Enter in an amount field.
+  // Opens bill-wise or cost-centre popup if applicable, otherwise advances row.
+
   const handleAmountConfirm = useCallback(
     (row: any, idx: number) => {
       const { ledger, amountRaw, id } = row;
@@ -345,24 +420,33 @@ export default function Vouchers() {
     [form.setActiveAllocation, proceedToNextRow]
   );
 
+  // ─── Allocation save handlers ────────────────────────────────────────────────
+
   const handleSaveBillWise = useCallback(
     (allocations: any[]) => {
-      if (form.activeAllocation?.type === "billWiseParty") {
+      // Party bill-wise (Sales/Purchase) or account bill-wise (Receipt/Payment)
+      if (
+        form.activeAllocation?.type === "billWiseParty"
+      ) {
         form.setPartyBillReferences(allocations);
         form.setActiveAllocation(null);
         setTimeout(() => acceptRef.current(), 50);
         return;
       }
+
       const alloc = form.activeAllocation;
       if (!alloc || !("rowId" in alloc)) return;
       const { rowId } = alloc;
       const isJ = form.voucherType === "Journal";
       const isInv = ["Sales", "Purchase"].includes(form.voucherType);
+
       if (isJ) form.handleUpdateJournalRow(rowId, { billReferences: allocations });
       else if (isInv) form.handleUpdateAdditionalRow(rowId, { billReferences: allocations });
       else form.handleUpdateParticularRow(rowId, { billReferences: allocations });
+
       const list = isJ ? form.journalRows : isInv ? form.additionalEntries : form.particulars;
       const targetRow = list.find((r) => r.id === rowId);
+
       if (targetRow?.ledger?.allow_cost_centres === 1) {
         form.setActiveAllocation({
           type: "costCentre",
@@ -399,9 +483,11 @@ export default function Vouchers() {
       const { rowId } = alloc;
       const isJ = form.voucherType === "Journal";
       const isInv = ["Sales", "Purchase"].includes(form.voucherType);
+
       if (isJ) form.handleUpdateJournalRow(rowId, { costCentres: allocations });
       else if (isInv) form.handleUpdateAdditionalRow(rowId, { costCentres: allocations });
       else form.handleUpdateParticularRow(rowId, { costCentres: allocations });
+
       form.setActiveAllocation(null);
       const list = isJ ? form.journalRows : isInv ? form.additionalEntries : form.particulars;
       proceedToNextRow(list.findIndex((r) => r.id === rowId));
@@ -429,13 +515,26 @@ export default function Vouchers() {
     [form.setBankDetails, form.setActiveAllocation]
   );
 
+  // ─── Ledger panel items ─────────────────────────────────────────────────────
+  //
+  // FIX: Receipt and Payment Particulars accept ANY ledger (parties, expenses,
+  // income — not just cash/bank). The cash/bank filter only applies to the
+  // Account field and to Contra (both sides must be cash/bank).
+
   const panelOpen = !!form.activeField;
 
   const panelItems = useMemo(() => {
     const af = form.activeField;
     if (!af) return [];
+
     if (af.type === "stockItem") return form.allStockItems;
-    if (af.type === "party")
+
+    if (af.type === "account") {
+      // Account field is always cash/bank for all three single-entry types
+      return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
+    }
+
+    if (af.type === "party") {
       return form.allLedgers.filter((l) =>
         form.checkLedgerGroup(l, [
           "bank accounts",
@@ -446,15 +545,23 @@ export default function Vouchers() {
           "sundry creditors",
         ])
       );
-    if (af.type === "salesPurchase")
+    }
+
+    if (af.type === "salesPurchase") {
       return form.allLedgers.filter((l) =>
         form.checkLedgerGroup(
           l,
           form.voucherType === "Sales" ? ["sales accounts"] : ["purchase accounts"]
         )
       );
-    if (form.voucherType === "Contra")
+    }
+
+    // Contra Particulars: also restricted to cash/bank (destination side)
+    if (form.voucherType === "Contra" && af.type === "particular") {
       return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
+    }
+
+    // Receipt / Payment Particulars + Journal + additional: any ledger
     return form.allLedgers;
   }, [
     form.activeField,
@@ -469,6 +576,7 @@ export default function Vouchers() {
     const af = form.activeField;
     if (!af) return "List of Ledger Accounts";
     if (af.type === "stockItem") return "List of Stock Items";
+    if (af.type === "account") return "List of Cash / Bank Accounts";
     if (af.type === "party") return "List of Party Accounts";
     if (af.type === "salesPurchase") return `List of ${form.voucherType} Ledgers`;
     return "List of Ledger Accounts";
@@ -484,6 +592,8 @@ export default function Vouchers() {
     },
     [form.activeField, form.setStockSearchTerm, form.setLedgerSearchTerm]
   );
+
+  // ─── Keyboard shortcuts ──────────────────────────────────────────────────────
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -524,6 +634,8 @@ export default function Vouchers() {
     navigate,
   ]);
 
+  // ─── FieldRow (named ledger + balance display) ───────────────────────────────
+
   function FieldRow({
     label,
     fieldType,
@@ -536,7 +648,11 @@ export default function Vouchers() {
     balance: string;
   }) {
     const isActive = form.activeField?.type === fieldType;
-    const st = isActive ? (fieldType === "stockItem" ? form.stockSearchTerm : form.ledgerSearchTerm) : "";
+    const st = isActive
+      ? fieldType === "stockItem"
+        ? form.stockSearchTerm
+        : form.ledgerSearchTerm
+      : "";
 
     return (
       <>
@@ -564,10 +680,49 @@ export default function Vouchers() {
     );
   }
 
+  // ─── Balanced / diff indicator ───────────────────────────────────────────────
+  //
+  // Single-entry: compare particularsTotal vs itself — always balanced by
+  // construction. We just show "✓ Balanced" when there's an amount entered.
+  // We don't show a diff warning because the Account amount IS always equal
+  // to the sum of Particulars (the user only enters Particulars amounts).
+  //
+  // Journal: compare debitTotal vs creditTotal as before.
+
+  function BalanceIndicator() {
+    if (["Receipt", "Payment", "Contra"].includes(form.voucherType)) {
+      return form.particularsTotal > 0 ? (
+        <span className="text-gray-500">✓ Balanced</span>
+      ) : null;
+    }
+    if (form.voucherType === "Journal") {
+      if (form.debitTotal <= 0) return null;
+      if (Math.abs(form.debitTotal - form.creditTotal) > 0.01) {
+        return (
+          <span className="text-red-700">
+            ⚠ Diff:{" "}
+            {Math.abs(form.debitTotal - form.creditTotal).toLocaleString("en-IN", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </span>
+        );
+      }
+      return <span className="text-gray-500">✓ Balanced</span>;
+    }
+    return null;
+  }
+
+  // ─── Render ──────────────────────────────────────────────────────────────────
+
   return (
     <div className="flex flex-col h-screen bg-white text-black text-sm select-none overflow-hidden">
       {form.error && (
-        <AlertBanner type="error" message={form.error} onDismiss={() => form.setError(null)} />
+        <AlertBanner
+          type="error"
+          message={form.error}
+          onDismiss={() => form.setError(null)}
+        />
       )}
       {form.success && (
         <AlertBanner
@@ -585,6 +740,7 @@ export default function Vouchers() {
         />
       )}
 
+      {/* ── Title bar ── */}
       <div className="flex items-center justify-between px-3 py-1 border-b border-black bg-white shrink-0">
         <span className="text-sm font-semibold text-black">Accounting Voucher Creation</span>
         <span className="text-sm text-black">{selectedCompany?.name ?? ""}</span>
@@ -596,36 +752,38 @@ export default function Vouchers() {
         </button>
       </div>
 
-
+      {/* ── Voucher type / number / date bar ── */}
       <div className="flex items-center px-3 py-1 border-b border-black bg-white shrink-0">
-        <div
-          className="text-xs font-bold text-white bg-black px-3 py-0.5 min-w-[80px] text-center uppercase"
-        >
+        <div className="text-xs font-bold text-white bg-black px-3 py-0.5 min-w-[80px] text-center uppercase">
           {form.voucherType}
         </div>
         <span className="text-sm text-black ml-3">No.</span>
         <span className="text-sm font-bold text-black ml-2 mr-6">{form.voucherNumber}</span>
         <div className="flex-1" />
         {form.status === "Post-Dated" && (
-          <span className="text-xs text-black border border-black px-2 py-0 mr-4">Post-Dated</span>
+          <span className="text-xs text-black border border-black px-2 py-0 mr-4">
+            Post-Dated
+          </span>
         )}
-        <div className="flex flex-col items-end">
-          <button
-            onClick={() => setShowDatePicker(true)}
-            className="text-sm font-semibold text-black hover:underline focus:outline-none"
-            title="F2: Change Date"
-          >
-            {form.dateDisplay}
-          </button>
-        </div>
+        <button
+          onClick={() => setShowDatePicker(true)}
+          className="text-sm font-semibold text-black hover:underline focus:outline-none"
+          title="F2: Change Date"
+        >
+          {form.dateDisplay}
+        </button>
       </div>
 
       <div className="flex-1 flex min-h-0 overflow-hidden">
         <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden border-r border-black">
 
+          {/* ════════════════════════════════════════════════════════════════
+              Layout 1 — Receipt · Payment · Contra
+              Account (cash/bank) + Particulars table
+          ════════════════════════════════════════════════════════════════ */}
           {["Receipt", "Payment", "Contra"].includes(form.voucherType) && (
             <>
-
+              {/* Account field */}
               <div className="border-b border-gray-300 shrink-0 py-1">
                 <FieldRow
                   label="Account"
@@ -641,16 +799,17 @@ export default function Vouchers() {
                 <div className="w-40 text-right text-sm font-semibold text-black">Amount</div>
               </div>
 
-
+              {/* Particulars rows */}
               <div className="flex-1 overflow-y-auto min-h-0">
                 {form.particulars.map((row, idx) => {
-                  const isActive = form.activeField?.type === "particular" && form.activeField.rowId === row.id;
+                  const isActive =
+                    form.activeField?.type === "particular" &&
+                    form.activeField.rowId === row.id;
                   return (
                     <div
                       key={row.id}
                       className="flex items-center border-b border-gray-100 min-h-[22px] group"
                     >
-
                       <div className="flex-1 flex items-center px-3 gap-1">
                         <input
                           data-particular-ledger={idx + 1}
@@ -658,10 +817,13 @@ export default function Vouchers() {
                           className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                           value={isActive ? form.ledgerSearchTerm : (row.ledger?.name ?? "")}
                           placeholder={idx === 0 ? "Select Ledger…" : ""}
-                          onFocus={() => form.handleFieldFocus({ type: "particular", rowId: row.id })}
+                          onFocus={() =>
+                            form.handleFieldFocus({ type: "particular", rowId: row.id })
+                          }
                           onChange={(e) => {
                             form.setLedgerSearchTerm(e.target.value);
-                            if (!row.ledger) form.handleFieldFocus({ type: "particular", rowId: row.id });
+                            if (!row.ledger)
+                              form.handleFieldFocus({ type: "particular", rowId: row.id });
                           }}
                           autoComplete="off"
                         />
@@ -680,7 +842,6 @@ export default function Vouchers() {
                           </button>
                         )}
                       </div>
-                 
                       <div className="w-40 pr-3">
                         <input
                           type="text"
@@ -702,6 +863,7 @@ export default function Vouchers() {
                   );
                 })}
 
+                {/* Filler rows */}
                 {Array.from({ length: Math.max(0, 10 - form.particulars.length) }).map((_, i) => (
                   <div key={`ep-${i}`} className="flex border-b border-gray-50 min-h-[22px]">
                     <div className="flex-1 px-3" />
@@ -710,24 +872,14 @@ export default function Vouchers() {
                 ))}
               </div>
 
+              {/* Footer — balanced indicator + total */}
               <div className="flex border-t border-black shrink-0 px-3 py-0.5 bg-white">
                 <div className="flex-1 text-xs text-gray-600">
-                  {Math.abs(form.debitTotal - form.creditTotal) > 0.01 && form.debitTotal > 0 && (
-                    <span className="text-red-700">
-                      ⚠ Diff:{" "}
-                      {Math.abs(form.debitTotal - form.creditTotal).toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </span>
-                  )}
-                  {Math.abs(form.debitTotal - form.creditTotal) < 0.01 && form.debitTotal > 0 && (
-                    <span className="text-gray-500">✓ Balanced</span>
-                  )}
+                  <BalanceIndicator />
                 </div>
                 <div className="w-40 text-right text-sm font-semibold text-black pr-0">
-                  {form.totalAmount > 0
-                    ? form.totalAmount.toLocaleString("en-IN", {
+                  {form.particularsTotal > 0
+                    ? form.particularsTotal.toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
                       })
@@ -737,6 +889,10 @@ export default function Vouchers() {
             </>
           )}
 
+          {/* ════════════════════════════════════════════════════════════════
+              Layout 2 — Journal
+              By/To rows with separate Dr/Cr columns
+          ════════════════════════════════════════════════════════════════ */}
           {form.voucherType === "Journal" && (
             <>
               <div className="grid grid-cols-12 border-b border-black shrink-0 px-3 py-0.5 bg-white">
@@ -746,7 +902,6 @@ export default function Vouchers() {
                 <div className="col-span-2 text-right text-sm font-semibold text-black">Credit</div>
               </div>
 
-    
               <div className="flex-1 overflow-y-auto min-h-0">
                 {form.journalRows.map((row, idx) => {
                   const isActive =
@@ -757,7 +912,7 @@ export default function Vouchers() {
                       key={row.id}
                       className="grid grid-cols-12 items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
                     >
-    
+                      {/* By / To label */}
                       <div className="col-span-1 text-sm font-semibold text-black select-none">
                         {row.type === "Dr" ? "By" : "To"}
                       </div>
@@ -789,7 +944,7 @@ export default function Vouchers() {
                         )}
                       </div>
 
-                  
+                      {/* Debit column — only shown for Dr rows */}
                       <div className="col-span-2 text-right pr-1">
                         {row.type === "Dr" ? (
                           <input
@@ -812,6 +967,7 @@ export default function Vouchers() {
                         )}
                       </div>
 
+                      {/* Credit column — only shown for Cr rows */}
                       <div className="col-span-2 text-right">
                         {row.type === "Cr" ? (
                           <input
@@ -837,25 +993,19 @@ export default function Vouchers() {
                   );
                 })}
 
+                {/* Filler rows */}
                 {Array.from({ length: Math.max(0, 10 - form.journalRows.length) }).map((_, i) => (
-                  <div key={`ej-${i}`} className="grid grid-cols-12 border-b border-gray-50 min-h-[22px]" />
+                  <div
+                    key={`ej-${i}`}
+                    className="grid grid-cols-12 border-b border-gray-50 min-h-[22px]"
+                  />
                 ))}
               </div>
 
+              {/* Footer — Dr / Cr totals with balance indicator */}
               <div className="grid grid-cols-12 border-t border-black shrink-0 px-3 py-0.5 bg-white">
                 <div className="col-span-8 text-xs text-gray-600">
-                  {Math.abs(form.debitTotal - form.creditTotal) > 0.01 && form.debitTotal > 0 && (
-                    <span className="text-red-700">
-                      ⚠ Diff:{" "}
-                      {Math.abs(form.debitTotal - form.creditTotal).toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })}
-                    </span>
-                  )}
-                  {Math.abs(form.debitTotal - form.creditTotal) < 0.01 && form.debitTotal > 0 && (
-                    <span className="text-gray-500">✓ Balanced</span>
-                  )}
+                  <BalanceIndicator />
                 </div>
                 <div className="col-span-2 text-right text-sm font-semibold text-black">
                   {form.debitTotal > 0
@@ -877,9 +1027,13 @@ export default function Vouchers() {
             </>
           )}
 
+          {/* ════════════════════════════════════════════════════════════════
+              Layout 3 — Sales · Purchase
+              Party + Sales/Purchase ledger + stock items + additional entries
+          ════════════════════════════════════════════════════════════════ */}
           {["Sales", "Purchase"].includes(form.voucherType) && (
             <>
-
+              {/* Purchase: supplier invoice fields */}
               {form.voucherType === "Purchase" && (
                 <div className="flex items-center border-b border-gray-300 shrink-0 px-3 py-1 gap-6 bg-white">
                   <div className="flex items-center gap-2">
@@ -905,6 +1059,7 @@ export default function Vouchers() {
                 </div>
               )}
 
+              {/* Party */}
               <div className="border-b border-gray-300 shrink-0 py-1">
                 <FieldRow
                   label="Party A/c name"
@@ -914,6 +1069,7 @@ export default function Vouchers() {
                 />
               </div>
 
+              {/* Sales/Purchase ledger */}
               <div className="border-b border-gray-300 shrink-0 py-1">
                 <FieldRow
                   label={`${form.voucherType} ledger`}
@@ -923,6 +1079,7 @@ export default function Vouchers() {
                 />
               </div>
 
+              {/* Ref no. + place of supply */}
               <div className="flex items-center gap-6 border-b border-gray-300 shrink-0 px-3 py-1 bg-white">
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-black shrink-0 w-28">Ref No.</span>
@@ -950,7 +1107,7 @@ export default function Vouchers() {
                 </div>
               </div>
 
-
+              {/* Stock items table header */}
               <div className="grid grid-cols-12 border-b border-black shrink-0 px-3 py-0.5 bg-white">
                 <div className="col-span-4 text-sm font-semibold text-black">Name of Item</div>
                 <div className="col-span-2 text-sm font-semibold text-black">Godown</div>
@@ -961,6 +1118,7 @@ export default function Vouchers() {
               </div>
 
               <div className="flex-1 overflow-y-auto min-h-0">
+                {/* Stock item rows */}
                 {form.stockEntries.map((row, idx) => {
                   const isActive =
                     form.activeField?.type === "stockItem" &&
@@ -970,7 +1128,6 @@ export default function Vouchers() {
                       key={row.id}
                       className="grid grid-cols-12 items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
                     >
-
                       <div className="col-span-4 flex items-center gap-1">
                         <input
                           data-stock-item={idx + 1}
@@ -978,7 +1135,9 @@ export default function Vouchers() {
                           className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                           value={isActive ? form.stockSearchTerm : (row.stockItem?.name ?? "")}
                           placeholder={idx === 0 ? "Select Item…" : ""}
-                          onFocus={() => form.handleFieldFocus({ type: "stockItem", rowId: row.id })}
+                          onFocus={() =>
+                            form.handleFieldFocus({ type: "stockItem", rowId: row.id })
+                          }
                           onChange={(e) => {
                             form.setStockSearchTerm(e.target.value);
                             if (!row.stockItem)
@@ -1028,7 +1187,6 @@ export default function Vouchers() {
                         />
                       </div>
 
-
                       <div className="col-span-1 text-right pr-1">
                         <input
                           type="text"
@@ -1060,7 +1218,6 @@ export default function Vouchers() {
                         </select>
                       </div>
 
-                      {/* Amount */}
                       <div className="col-span-2 text-right text-sm font-semibold text-black select-none">
                         {row.amountRaw
                           ? Number(row.amountRaw).toLocaleString("en-IN", {
@@ -1075,10 +1232,13 @@ export default function Vouchers() {
 
                 {/* Filler rows */}
                 {Array.from({ length: Math.max(0, 5 - form.stockEntries.length) }).map((_, i) => (
-                  <div key={`sf-${i}`} className="grid grid-cols-12 border-b border-gray-50 min-h-[22px]" />
+                  <div
+                    key={`sf-${i}`}
+                    className="grid grid-cols-12 border-b border-gray-50 min-h-[22px]"
+                  />
                 ))}
 
-                {/* Subtotal line */}
+                {/* Stock subtotal */}
                 {form.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0) > 0 && (
                   <div className="grid grid-cols-12 border-t border-gray-300 border-b border-gray-300 px-3 py-0.5 bg-white">
                     <div className="col-span-10 text-xs text-gray-700">Subtotal</div>
@@ -1093,6 +1253,7 @@ export default function Vouchers() {
                   </div>
                 )}
 
+                {/* Additional ledger rows (taxes, freight, discounts) */}
                 {form.additionalEntries.map((row, idx) => {
                   const isAddActive =
                     form.activeField?.type === "additional" &&
@@ -1102,7 +1263,6 @@ export default function Vouchers() {
                       key={row.id}
                       className="grid grid-cols-12 items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
                     >
-
                       <div className="col-span-5 flex items-center gap-1 pl-4">
                         <input
                           data-additional-ledger={idx + 1}
@@ -1129,13 +1289,19 @@ export default function Vouchers() {
                         </button>
                       </div>
 
-  
+                      {/* Dr/Cr selector
+                          Sales:    Cr = tax adds to party receivable (default)
+                                    Dr = discount reduces party receivable
+                          Purchase: Dr = tax adds to party payable (default)
+                                    Cr = discount reduces party payable */}
                       <div className="col-span-1 text-center">
                         <select
                           className="text-xs bg-transparent outline-none font-semibold text-black"
                           value={row.type}
                           onChange={(e) =>
-                            form.handleUpdateAdditionalRow(row.id, { type: e.target.value })
+                            form.handleUpdateAdditionalRow(row.id, {
+                              type: e.target.value as "Dr" | "Cr",
+                            })
                           }
                         >
                           <option value="Dr">Dr</option>
@@ -1144,6 +1310,7 @@ export default function Vouchers() {
                       </div>
 
                       <div className="col-span-4" />
+
                       <div className="col-span-2 text-right">
                         <input
                           type="text"
@@ -1176,6 +1343,7 @@ export default function Vouchers() {
                 </div>
               </div>
 
+              {/* Grand total footer */}
               <div className="grid grid-cols-12 border-t border-black shrink-0 px-3 py-0.5 bg-white">
                 <div className="col-span-10 text-sm font-semibold text-black" />
                 <div className="col-span-2 text-right text-sm font-semibold text-black">
@@ -1190,6 +1358,7 @@ export default function Vouchers() {
             </>
           )}
 
+          {/* ── Narration + grand total ── */}
           <div className="flex items-center border-t border-black shrink-0 px-3 py-1 bg-white">
             <span className="text-sm text-black shrink-0 w-24">Narration</span>
             <span className="text-sm text-black shrink-0 mr-2">:</span>
@@ -1209,6 +1378,7 @@ export default function Vouchers() {
             )}
           </div>
 
+          {/* ── Accept / Quit / Cancel ── */}
           <div className="flex items-center justify-between border-t border-black shrink-0 px-3 py-1.5 bg-white">
             <button
               onClick={() => navigate("/")}
@@ -1234,6 +1404,7 @@ export default function Vouchers() {
           </div>
         </div>
 
+        {/* ── Ledger list panel (right of main, left of sidebar) ── */}
         {panelOpen && (
           <LedgerListPanel
             title={panelTitle}
@@ -1253,7 +1424,7 @@ export default function Vouchers() {
           />
         )}
 
-
+        {/* ── Right sidebar ── */}
         <RightSidebar
           voucherType={form.voucherType}
           onTypeChange={form.setVoucherType}
@@ -1268,6 +1439,8 @@ export default function Vouchers() {
           canAccept={canAccept}
         />
       </div>
+
+      {/* ── Popups ── */}
 
       {showDatePicker && (
         <DatePickerPopup
