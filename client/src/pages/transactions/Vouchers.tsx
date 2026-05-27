@@ -7,6 +7,8 @@ import { AlertBanner } from "../../components/ui";
 import BillWiseAllocationPopup from "./components/popups/BillWiseAllocationPopup";
 import CostCentreAllocationPopup from "./components/popups/CostCentreAllocationPopup";
 import BankAllocationPopup from "./components/popups/BankAllocationPopup";
+import DispatchDetailsPopup from "./components/popups/DispatchDetailsPopup";
+import ReceiptDetailsPopup from "./components/popups/ReceiptDetailsPopup";
 import DatePickerPopup from "./components/popups/DatePickerPopup";
 
 function RightSidebar({
@@ -107,7 +109,7 @@ function RightSidebar({
   );
 }
 
-// ─── Ledger list panel ────────────────────────────────────────────────────────
+// ─── Ledger list panel ──────────────────────────────────────────────────────
 
 function LedgerListPanel({
   title,
@@ -218,7 +220,7 @@ function LedgerListPanel({
   );
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Main component ─────────────────────────────────────────────────────
 
 export default function Vouchers() {
   const navigate = useNavigate();
@@ -226,25 +228,14 @@ export default function Vouchers() {
   const form = useVoucherForm();
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showDispatchDetails, setShowDispatchDetails] = useState(false);
+  const [showReceiptDetails, setShowReceiptDetails] = useState(false);
 
   // Stable ref so async callbacks (bill-wise save → accept) always call the
   // latest version of handleAccept without stale closure issues.
   const acceptRef = useRef<() => void>(() => {});
 
-  // ─── canAccept ──────────────────────────────────────────────────────────────
-  //
-  // Receipt / Payment / Contra (single-entry):
-  //   • Account ledger must be selected
-  //   • At least one Particulars row must have a ledger + amount
-  //   (Balance is guaranteed by construction — Particulars sum = Account amount)
-  //
-  // Journal (double-entry):
-  //   • ≥ 2 rows with ledger + amount
-  //   • Dr total === Cr total
-  //
-  // Sales / Purchase (invoice):
-  //   • Party ledger + Sales/Purchase ledger selected
-  //   • At least one stock item with amount
+  // ─── canAccept ──────────────────────────────────────────────────────
 
   const canAccept = useMemo(() => {
     if (form.isSubmitting) return false;
@@ -288,15 +279,22 @@ export default function Vouchers() {
     form.stockEntries,
   ]);
 
-  // ─── handleAccept ───────────────────────────────────────────────────────────
-  //
-  // Before submitting, intercept for:
-  //   1. Sales/Purchase: party ledger bill-wise allocation
-  //   2. Receipt/Payment: account ledger bill-wise allocation (if is_bill_wise)
-  //   3. Receipt/Payment: account ledger bank details (if is_bank)
+  // ─── handleAccept ────────────────────────────────────────────────────
 
   const handleAccept = useCallback(() => {
-    // ── Sales / Purchase: bill-wise for party ───────────────────────────────
+    // ── Sales: dispatch details ──────────────────────────────────────────
+    if (form.voucherType === "Sales" && form.partyLedger) {
+      setShowDispatchDetails(true);
+      return;
+    }
+
+    // ── Purchase: receipt details ────────────────────────────────────────
+    if (form.voucherType === "Purchase" && form.partyLedger) {
+      setShowReceiptDetails(true);
+      return;
+    }
+
+    // ── Sales / Purchase: bill-wise for party ───────────────────────────
     if (
       ["Sales", "Purchase"].includes(form.voucherType) &&
       form.partyLedger?.is_bill_wise === 1 &&
@@ -312,7 +310,7 @@ export default function Vouchers() {
       return;
     }
 
-    // ── Receipt / Payment / Contra: bill-wise for account ledger ───────────
+    // ── Receipt / Payment / Contra: bill-wise for account ledger ────────
     if (
       ["Receipt", "Payment", "Contra"].includes(form.voucherType) &&
       form.accountLedger?.is_bill_wise === 1 &&
@@ -328,6 +326,22 @@ export default function Vouchers() {
       return;
     }
 
+    // ── Contra: bank details for bank account ────────────────────────────
+    if (
+      form.voucherType === "Contra" &&
+      form.accountLedger?.is_bank === 1 &&
+      !form.bankDetails
+    ) {
+      form.setActiveAllocation({
+        type: "bankDetails",
+        ledgerId: form.accountLedger.ledger_id,
+        ledgerName: form.accountLedger.name,
+        amount: form.particularsTotal,
+        initialDetails: null,
+      });
+      return;
+    }
+
     form.handleSubmit();
   }, [
     form.voucherType,
@@ -336,15 +350,14 @@ export default function Vouchers() {
     form.partyBillReferences,
     form.totalAmount,
     form.particularsTotal,
+    form.bankDetails,
     form.handleSubmit,
     form.setActiveAllocation,
   ]);
 
   useEffect(() => { acceptRef.current = handleAccept; }, [handleAccept]);
 
-  // ─── proceedToNextRow ────────────────────────────────────────────────────────
-  //
-  // After confirming an amount (Enter), advance focus to the next row.
+  // ─── proceedToNextRow ────────────────────────────────────────────────
 
   const proceedToNextRow = useCallback(
     (idx: number) => {
@@ -382,10 +395,7 @@ export default function Vouchers() {
     ]
   );
 
-  // ─── handleAmountConfirm ────────────────────────────────────────────────────
-  //
-  // Called on Enter in an amount field.
-  // Opens bill-wise or cost-centre popup if applicable, otherwise advances row.
+  // ─── handleAmountConfirm ─────────────────────────────────────────────
 
   const handleAmountConfirm = useCallback(
     (row: any, idx: number) => {
@@ -418,7 +428,7 @@ export default function Vouchers() {
     [form.setActiveAllocation, proceedToNextRow]
   );
 
-  // ─── Allocation save handlers ────────────────────────────────────────────────
+  // ─── Allocation save handlers ────────────────────────────────────────
 
   const handleSaveBillWise = useCallback(
     (allocations: any[]) => {
@@ -513,11 +523,25 @@ export default function Vouchers() {
     [form.setBankDetails, form.setActiveAllocation]
   );
 
-  // ─── Ledger panel items ─────────────────────────────────────────────────────
-  //
-  // FIX: Receipt and Payment Particulars accept ANY ledger (parties, expenses,
-  // income — not just cash/bank). The cash/bank filter only applies to the
-  // Account field and to Contra (both sides must be cash/bank).
+  const handleSaveDispatchDetails = useCallback(
+    (details: any) => {
+      // Store dispatch details (could be added to form state if needed)
+      setShowDispatchDetails(false);
+      setTimeout(() => acceptRef.current(), 50);
+    },
+    []
+  );
+
+  const handleSaveReceiptDetails = useCallback(
+    (details: any) => {
+      // Store receipt details (could be added to form state if needed)
+      setShowReceiptDetails(false);
+      setTimeout(() => acceptRef.current(), 50);
+    },
+    []
+  );
+
+  // ─── Ledger panel items ──────────────────────────────────────────────
 
   const panelOpen = !!form.activeField;
 
@@ -591,7 +615,7 @@ export default function Vouchers() {
     [form.activeField, form.setStockSearchTerm, form.setLedgerSearchTerm]
   );
 
-  // ─── Keyboard shortcuts ──────────────────────────────────────────────────────
+  // ─── Keyboard shortcuts ──────────────────────────────────────────────
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -614,7 +638,9 @@ export default function Vouchers() {
         e.key === "Escape" &&
         !form.activeField &&
         !form.activeAllocation &&
-        !showDatePicker
+        !showDatePicker &&
+        !showDispatchDetails &&
+        !showReceiptDetails
       ) {
         e.preventDefault();
         navigate("/");
@@ -629,10 +655,12 @@ export default function Vouchers() {
     canAccept,
     handleAccept,
     showDatePicker,
+    showDispatchDetails,
+    showReceiptDetails,
     navigate,
   ]);
 
-  // ─── FieldRow (named ledger + balance display) ───────────────────────────────
+  // ─── FieldRow (named ledger + balance display) ──────────────────────
 
   function FieldRow({
     label,
@@ -678,14 +706,7 @@ export default function Vouchers() {
     );
   }
 
-  // ─── Balanced / diff indicator ───────────────────────────────────────────────
-  //
-  // Single-entry: compare particularsTotal vs itself — always balanced by
-  // construction. We just show "✓ Balanced" when there's an amount entered.
-  // We don't show a diff warning because the Account amount IS always equal
-  // to the sum of Particulars (the user only enters Particulars amounts).
-  //
-  // Journal: compare debitTotal vs creditTotal as before.
+  // ─── Balanced / diff indicator ───────────────────────────────────────
 
   function BalanceIndicator() {
     if (["Receipt", "Payment", "Contra"].includes(form.voucherType)) {
@@ -711,7 +732,7 @@ export default function Vouchers() {
     return null;
   }
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
+  // ─── Render ─────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col h-screen bg-white text-black text-sm select-none overflow-hidden">
@@ -775,10 +796,10 @@ export default function Vouchers() {
       <div className="flex-1 flex min-h-0 overflow-hidden">
         <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden border-r border-black">
 
-          {/* ════════════════════════════════════════════════════════════════
+          {/* ════════════════════════════════════════════════════════════
               Layout 1 — Receipt · Payment · Contra
               Account (cash/bank) + Particulars table
-          ════════════════════════════════════════════════════════════════ */}
+          ═════════════════════════════════════════════════════════════ */}
           {["Receipt", "Payment", "Contra"].includes(form.voucherType) && (
             <>
               {/* Account field */}
@@ -887,10 +908,10 @@ export default function Vouchers() {
             </>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════
+          {/* ════════════════════════════════════════════════════════════
               Layout 2 — Journal
               By/To rows with separate Dr/Cr columns
-          ════════════════════════════════════════════════════════════════ */}
+          ═════════════════════════════════════════════════════════════ */}
           {form.voucherType === "Journal" && (
             <>
               <div className="grid grid-cols-12 border-b border-black shrink-0 px-3 py-0.5 bg-white">
@@ -1025,10 +1046,10 @@ export default function Vouchers() {
             </>
           )}
 
-          {/* ════════════════════════════════════════════════════════════════
+          {/* ════════════════════════════════════════════════════════════
               Layout 3 — Sales · Purchase
               Party + Sales/Purchase ledger + stock items + additional entries
-          ════════════════════════════════════════════════════════════════ */}
+          ═════════════════════════════════════════════════════════════ */}
           {["Sales", "Purchase"].includes(form.voucherType) && (
             <>
               {/* Purchase: supplier invoice fields */}
@@ -1289,9 +1310,9 @@ export default function Vouchers() {
 
                       {/* Dr/Cr selector
                           Sales:    Cr = tax adds to party receivable (default)
-                                    Dr = discount reduces party receivable
+                                     Dr = discount reduces party receivable
                           Purchase: Dr = tax adds to party payable (default)
-                                    Cr = discount reduces party payable */}
+                                     Cr = discount reduces party payable */}
                       <div className="col-span-1 text-center">
                         <select
                           className="text-xs bg-transparent outline-none font-semibold text-black"
@@ -1446,6 +1467,24 @@ export default function Vouchers() {
           onClose={() => setShowDatePicker(false)}
           onConfirm={form.setDate}
           label="Voucher Date"
+        />
+      )}
+
+      {showDispatchDetails && form.partyLedger && (
+        <DispatchDetailsPopup
+          partyName={form.partyLedger.name}
+          totalAmount={form.totalAmount}
+          onClose={() => setShowDispatchDetails(false)}
+          onSave={handleSaveDispatchDetails}
+        />
+      )}
+
+      {showReceiptDetails && form.partyLedger && (
+        <ReceiptDetailsPopup
+          partyName={form.partyLedger.name}
+          totalAmount={form.totalAmount}
+          onClose={() => setShowReceiptDetails(false)}
+          onSave={handleSaveReceiptDetails}
         />
       )}
 
