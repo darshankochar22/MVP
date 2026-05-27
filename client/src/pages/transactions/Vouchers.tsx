@@ -7,6 +7,7 @@ import { AlertBanner } from "../../components/ui";
 import BillWiseAllocationPopup from "./components/popups/BillWiseAllocationPopup";
 import CostCentreAllocationPopup from "./components/popups/CostCentreAllocationPopup";
 import BankAllocationPopup from "./components/popups/BankAllocationPopup";
+import DenominationPopup from "./components/popups/DenominationPopup";
 import DispatchDetailsPopup from "./components/popups/DispatchDetailsPopup";
 import ReceiptDetailsPopup from "./components/popups/ReceiptDetailsPopup";
 import DatePickerPopup from "./components/popups/DatePickerPopup";
@@ -328,22 +329,6 @@ export default function Vouchers() {
       return;
     }
 
-    // ── Contra: bank details for bank account ────────────────────────────
-    if (
-      form.voucherType === "Contra" &&
-      form.accountLedger?.is_bank === 1 &&
-      !form.bankDetails
-    ) {
-      form.setActiveAllocation({
-        type: "bankDetails",
-        ledgerId: form.accountLedger.ledger_id,
-        ledgerName: form.accountLedger.name,
-        amount: form.particularsTotal,
-        initialDetails: null,
-      });
-      return;
-    }
-
     form.handleSubmit();
   }, [
     form.voucherType,
@@ -352,7 +337,6 @@ export default function Vouchers() {
     form.partyBillReferences,
     form.totalAmount,
     form.particularsTotal,
-    form.bankDetails,
     form.handleSubmit,
     form.setActiveAllocation,
   ]);
@@ -405,6 +389,34 @@ export default function Vouchers() {
       const amount = Number(amountRaw) || 0;
       if (!ledger || amount <= 0) { proceedToNextRow(idx); return; }
 
+      // Contra: bank allocation for bank ledgers, denomination for cash ledgers
+      if (form.voucherType === "Contra") {
+        if (form.checkIsBank(ledger)) {
+          form.setActiveAllocation({
+            type: "bankDetails",
+            rowId: id,
+            ledgerId: ledger.ledger_id,
+            ledgerName: ledger.name,
+            amount,
+            initialDetails: form.bankDetails,
+          });
+          return;
+        }
+        if (form.checkIsCash(ledger)) {
+          form.setActiveAllocation({
+            type: "cashDenomination",
+            rowId: id,
+            ledgerId: ledger.ledger_id,
+            ledgerName: ledger.name,
+            amount,
+            initialDetails: form.cashDenominations,
+          });
+          return;
+        }
+        proceedToNextRow(idx);
+        return;
+      }
+
       if (ledger.is_bill_wise === 1) {
         form.setActiveAllocation({
           type: "billWise",
@@ -427,7 +439,7 @@ export default function Vouchers() {
         proceedToNextRow(idx);
       }
     },
-    [form.setActiveAllocation, proceedToNextRow]
+    [form.voucherType, form.checkIsBank, form.checkIsCash, form.bankDetails, form.cashDenominations, form.setActiveAllocation, proceedToNextRow]
   );
 
   // ─── Allocation save handlers ────────────────────────────────────────
@@ -518,15 +530,34 @@ export default function Vouchers() {
 
   const handleSaveBankDetails = useCallback(
     (details: any) => {
+      const alloc = form.activeAllocation;
       form.setBankDetails(details);
       form.setActiveAllocation(null);
-      setTimeout(() => acceptRef.current(), 50);
+      if (alloc && "rowId" in alloc) {
+        const list = form.particulars;
+        const rowIdx = list.findIndex((r) => r.id === alloc.rowId);
+        proceedToNextRow(rowIdx);
+      }
     },
-    [form.setBankDetails, form.setActiveAllocation]
+    [form.activeAllocation, form.setBankDetails, form.setActiveAllocation, form.particulars, proceedToNextRow]
+  );
+
+  const handleSaveCashDenomination = useCallback(
+    (details: any) => {
+      const alloc = form.activeAllocation;
+      form.setCashDenominations(details);
+      form.setActiveAllocation(null);
+      if (alloc && "rowId" in alloc) {
+        const list = form.particulars;
+        const rowIdx = list.findIndex((r) => r.id === alloc.rowId);
+        proceedToNextRow(rowIdx);
+      }
+    },
+    [form.activeAllocation, form.setCashDenominations, form.setActiveAllocation, form.particulars, proceedToNextRow]
   );
 
   const handleSaveDispatchDetails = useCallback(
-    (details: any) => {
+    (_details: any) => {
       // Store dispatch details in form state (can be extended later)
       setShowDispatchDetails(false);
     },
@@ -534,7 +565,7 @@ export default function Vouchers() {
   );
 
   const handleSaveReceiptDetails = useCallback(
-    (details: any) => {
+    (_details: any) => {
       // Store receipt details in form state (can be extended later)
       setShowReceiptDetails(false);
     },
@@ -674,11 +705,7 @@ export default function Vouchers() {
     balance: string;
   }) {
     const isActive = form.activeField?.type === fieldType;
-    const st = isActive
-      ? fieldType === "stockItem"
-        ? form.stockSearchTerm
-        : form.ledgerSearchTerm
-      : "";
+    const st = isActive ? form.ledgerSearchTerm : "";
 
     return (
       <>
@@ -1387,7 +1414,7 @@ export default function Vouchers() {
               value={form.narration}
               onChange={(e) => form.setNarration(e.target.value)}
             />
-            {form.totalAmount > 0 && (
+            {form.totalAmount > 0 && form.voucherType !== "Contra" && (
               <span className="text-sm font-semibold text-black ml-4 shrink-0 tabular-nums">
                 {form.totalAmount.toLocaleString("en-IN", {
                   minimumFractionDigits: 2,
@@ -1529,6 +1556,17 @@ export default function Vouchers() {
           initialDetails={form.bankDetails}
           onClose={() => form.setActiveAllocation(null)}
           onSave={handleSaveBankDetails}
+        />
+      )}
+
+      {form.activeAllocation?.type === "cashDenomination" && (
+        <DenominationPopup
+          ledgerId={form.activeAllocation.ledgerId}
+          ledgerName={form.activeAllocation.ledgerName}
+          amount={form.activeAllocation.amount}
+          initialDetails={form.cashDenominations}
+          onClose={() => form.setActiveAllocation(null)}
+          onSave={handleSaveCashDenomination}
         />
       )}
     </div>

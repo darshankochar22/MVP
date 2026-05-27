@@ -68,8 +68,17 @@ export type ActiveAllocation =
       amount: number;
       initialAllocations?: any[];
     }
-  | {
+    | {
       type: "bankDetails";
+      rowId: string;
+      ledgerId: number;
+      ledgerName: string;
+      amount: number;
+      initialDetails?: any;
+    }
+    | {
+      type: "cashDenomination";
+      rowId: string;
       ledgerId: number;
       ledgerName: string;
       amount: number;
@@ -158,6 +167,7 @@ export function useVoucherForm() {
   const [bankDetails, setBankDetails] = useState<any | null>(
     () => loadFormState<any>(persistKey ?? "")?.bankDetails ?? null
   );
+  const [cashDenominations, setCashDenominations] = useState<any | null>(null);
 
   // ── Reference / invoice fields ──────────────────────────────────────────────
 
@@ -429,6 +439,23 @@ export function useVoucherForm() {
     [checkLedgerGroup]
   );
 
+  const checkIsCash = useCallback(
+    (ledger: LedgerType | null): boolean =>
+      checkLedgerGroup(ledger, ["cash-in-hand"]),
+    [checkLedgerGroup]
+  );
+
+  const checkIsBank = useCallback(
+    (ledger: LedgerType | null): boolean =>
+      checkLedgerGroup(ledger, [
+        "bank accounts",
+        "bank od accounts",
+        "bank od a/c",
+        "bank od account",
+      ]),
+    [checkLedgerGroup]
+  );
+
   // ─────────────────────────────────────────────────────────────────────────────
   // Particulars Dr/Cr derivation (single-entry layouts)
   //
@@ -446,7 +473,7 @@ export function useVoucherForm() {
     (currentType: "Dr" | "Cr"): "Dr" | "Cr" => {
       if (voucherType === "Receipt") return "Cr";
       if (voucherType === "Payment") return "Dr";
-      if (voucherType === "Contra") return "Dr";
+      if (voucherType === "Contra") return "Dr"; // destination side
       return currentType; // Journal / Sales / Purchase — keep as-is
     },
     [voucherType]
@@ -483,8 +510,7 @@ export function useVoucherForm() {
       );
     }
     // Receipt: Account is Dr; Payment/Contra: particulars are Dr
-    if (voucherType === "Receipt") return particularsTotal; // Account amount = particularsTotal when balanced
-    return particularsTotal; // Payment/Contra: particulars rows are all Dr
+    return particularsTotal;
   }, [voucherType, journalRows, particularsTotal]);
 
   /** Sum of all Cr amounts in journalRows. */
@@ -912,7 +938,6 @@ export function useVoucherForm() {
           ledger_name: accountLedger!.name,
           type: accountType,
           amount: particularsTotal,
-          currency: "INR",
         });
 
         // Particulars legs
@@ -1065,6 +1090,7 @@ export function useVoucherForm() {
         stock_entries,
         bill_references: finalBillReferences.length > 0 ? finalBillReferences : undefined,
         bank_details: bankDetails || undefined,
+        cash_denominations: cashDenominations || undefined,
       };
 
       const res = await window.api.voucher.create(payload);
@@ -1072,6 +1098,8 @@ export function useVoucherForm() {
         const savedNumber = voucherNumber;
         resetForm();
         setSuccess(`Voucher No. ${savedNumber} saved successfully.`);
+        // Refresh all ledger balances and master data after successful entry
+        fetchContextData();
       } else {
         setError(res.error || "Failed to save voucher.");
       }
@@ -1091,8 +1119,8 @@ export function useVoucherForm() {
     particulars, journalRows,
     partyLedger, salesPurchaseLedger,
     stockEntries, additionalEntries,
-    partyBillReferences, bankDetails,
-    voucherNumber, resetForm,
+    partyBillReferences, bankDetails, cashDenominations,
+    voucherNumber, resetForm, fetchContextData,
   ]);
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -1145,6 +1173,8 @@ export function useVoucherForm() {
     setPartyBillReferences,
     bankDetails,
     setBankDetails,
+    cashDenominations,
+    setCashDenominations,
 
     // ── Reference / invoice ────────────────────────────────────────────────────
     referenceNumber,
@@ -1205,6 +1235,8 @@ export function useVoucherForm() {
 
     // ── Context helpers ────────────────────────────────────────────────────────
     checkIsCashOrBank,
+    checkIsCash,
+    checkIsBank,
     checkLedgerGroup,
     companyId,
     fyId,

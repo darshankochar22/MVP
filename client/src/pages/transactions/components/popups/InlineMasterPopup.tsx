@@ -155,7 +155,7 @@ export default function InlineMasterPopup({
           // FIX — pass sg_id as group_id (API field name) using the corrected state key
           group_id: stockItemForm.sg_id ? Number(stockItemForm.sg_id) : undefined,
           unit_id: stockItemForm.unit_id ? Number(stockItemForm.unit_id) : undefined,
-          opening_qty: Number(stockItemForm.opening_qty) || 0,
+          opening_quantity: Number(stockItemForm.opening_qty) || 0,
           opening_rate: Number(stockItemForm.opening_rate) || 0,
           opening_value: Number(stockItemForm.opening_value) || 0,
         });

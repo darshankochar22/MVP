@@ -10,7 +10,6 @@ interface Props {
   onSearchChange: (term: string) => void;
   searchTerm: string;
   activeRowId: string | null;
-  isJournal?: boolean;
   onAmountConfirm?: (row: ParticularRow, index: number) => void;
   voucherType?: string;
   // FIX #1 — accept pre-computed totals from the hook instead of recalculating
@@ -36,7 +35,6 @@ export default function ParticularsTable({
   onSearchChange,
   searchTerm,
   activeRowId,
-  isJournal = false,
   onAmountConfirm,
   voucherType,
   debitTotal,

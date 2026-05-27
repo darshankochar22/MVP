@@ -44,8 +44,9 @@ const getLedgerBalance = async (ledger_id, company_id, fy_id) => {
   const result = await db.execute({
     sql: `SELECT
            l.opening_balance,
-           COALESCE(SUM(CASE WHEN e.type = 'Dr' THEN e.amount ELSE 0 END), 0) as total_dr,
-           COALESCE(SUM(CASE WHEN e.type = 'Cr' THEN e.amount ELSE 0 END), 0) as total_cr
+           l.nature,
+           COALESCE(SUM(CASE WHEN e.type = 'Dr' AND v.voucher_id IS NOT NULL THEN e.amount ELSE 0 END), 0) as total_dr,
+           COALESCE(SUM(CASE WHEN e.type = 'Cr' AND v.voucher_id IS NOT NULL THEN e.amount ELSE 0 END), 0) as total_cr
          FROM ledgers l
          LEFT JOIN voucher_entries e ON e.ledger_id = l.ledger_id
          LEFT JOIN vouchers v ON v.voucher_id = e.voucher_id AND v.fy_id = ? AND v.is_cancelled = 0
@@ -55,7 +56,16 @@ const getLedgerBalance = async (ledger_id, company_id, fy_id) => {
   });
   const row = result.rows[0];
   if (!row) return { success: false, error: 'Ledger not found' };
-  const balance = (row.opening_balance || 0) + (row.total_dr || 0) - (row.total_cr || 0);
+
+  const isDrNature = row.nature !== 'Liabilities' && row.nature !== 'Income';
+  const openingBal = Number(row.opening_balance) || 0;
+  const totalDr = Number(row.total_dr) || 0;
+  const totalCr = Number(row.total_cr) || 0;
+
+  const balance = isDrNature
+    ? openingBal + totalDr - totalCr
+    : openingBal + totalCr - totalDr;
+
   let label;
   if (balance > 0.01) label = `${balance.toFixed(2)} Dr`;
   else if (balance < -0.01) label = `${Math.abs(balance).toFixed(2)} Cr`;
@@ -72,6 +82,26 @@ const searchLedgers = async (company_id, searchTerm) => {
     args: [company_id, likeTerm, likeTerm],
   });
   return { success: true, ledgers: result.rows };
+};
+
+const recalculateLedgerBalances = async (voucher_id, company_id, fy_id) => {
+  try {
+    const affected = await db.execute({
+      sql: `SELECT DISTINCT ledger_id FROM voucher_entries WHERE voucher_id = ? AND ledger_id IS NOT NULL`,
+      args: [voucher_id],
+    });
+    for (const row of affected.rows) {
+      try {
+        const balRes = await getLedgerBalance(row.ledger_id, company_id, fy_id);
+        if (balRes.success && balRes.rawBalance != null) {
+          await db.execute({
+            sql: `UPDATE ledgers SET closing_balance = ? WHERE ledger_id = ?`,
+            args: [balRes.rawBalance, row.ledger_id],
+          });
+        }
+      } catch (_e) { /* ignore individual errors */ }
+    }
+  } catch (_e) { /* ignore */ }
 };
 
 const validateDoubleEntry = (entries) => {
@@ -239,12 +269,13 @@ module.exports = {
 
         if (data.bank_details) {
           await db.execute({
-            sql: `INSERT INTO voucher_bank_details (voucher_id, ledger_id, transaction_type, instrument_number, instrument_date, bank_name, branch, amount)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            sql: `INSERT INTO voucher_bank_details (voucher_id, ledger_id, transaction_type, cheque_range, instrument_number, instrument_date, bank_name, branch, amount)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             args: [
               voucher_id,
               nullify(data.bank_details.ledger_id),
               nullify(data.bank_details.transaction_type) || 'Cheque',
+              nullify(data.bank_details.cheque_range) || null,
               nullify(data.bank_details.instrument_number) || null,
               nullify(data.bank_details.instrument_date) || null,
               nullify(data.bank_details.bank_name) || null,
@@ -254,12 +285,42 @@ module.exports = {
           });
         }
 
+        if (data.cash_denominations) {
+          const cd = data.cash_denominations;
+          const ledgerId = cd.ledger_id || (cd.entries && cd.entries[0]?.ledger_id) || null;
+          if (cd.entries && cd.entries.length > 0) {
+            for (const entry of cd.entries) {
+              await db.execute({
+                sql: `INSERT INTO voucher_cash_denominations (voucher_id, ledger_id, denomination, quantity, amount)
+                      VALUES (?, ?, ?, ?, ?)`,
+                args: [
+                  voucher_id,
+                  ledgerId,
+                  String(entry.denomination),
+                  entry.quantity || 0,
+                  entry.amount || 0,
+                ],
+              });
+            }
+          }
+          if (cd.others && cd.others > 0) {
+            await db.execute({
+              sql: `INSERT INTO voucher_cash_denominations (voucher_id, ledger_id, denomination, quantity, amount)
+                    VALUES (?, ?, ?, ?, ?)`,
+              args: [voucher_id, ledgerId, 'Others', 0, cd.others],
+            });
+          }
+        }
+
         if (data.computedGST) {
           const gstTaxEngine = require('../gst/gstTaxEngine');
           await gstTaxEngine.saveVoucherTaxLines(db, voucher_id, data.computedGST);
         }
 
         await db.execute({ sql: 'COMMIT', args: [] });
+
+        // Update closing_balance for all ledgers involved in this voucher
+        await recalculateLedgerBalances(voucher_id, data.company_id, data.fy_id);
 
         const voucher = await db.execute({
           sql: `SELECT * FROM vouchers WHERE voucher_id = ?`,
@@ -317,6 +378,10 @@ module.exports = {
         sql: `SELECT * FROM voucher_cost_centres WHERE voucher_id = ?`,
         args: [id],
       });
+      const cashDenoms = await db.execute({
+        sql: `SELECT * FROM voucher_cash_denominations WHERE voucher_id = ?`,
+        args: [id],
+      });
 
       const stockWithBatches = await Promise.all(
         stockItems.rows.map(async (s) => {
@@ -337,6 +402,7 @@ module.exports = {
           bill_references: bills.rows,
           bank_details: bank.rows[0] || null,
           cost_centres: costCentres.rows,
+          cash_denominations: cashDenoms.rows,
         },
       };
     } catch (err) {
@@ -460,10 +526,12 @@ module.exports = {
       });
       if (existing.rows.length === 0) return { success: false, error: 'Voucher not found' };
 
+      const voucher = existing.rows[0];
       await db.execute({
         sql: `UPDATE vouchers SET is_cancelled = 1, updated_at = datetime('now') WHERE voucher_id = ?`,
         args: [id],
       });
+      await recalculateLedgerBalances(id, voucher.company_id, voucher.fy_id);
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
@@ -478,7 +546,26 @@ module.exports = {
       });
       if (existing.rows.length === 0) return { success: false, error: 'Voucher not found' };
 
+      const voucher = existing.rows[0];
+      // Fetch affected ledger IDs before cascade delete removes entries
+      const affected = await db.execute({
+        sql: `SELECT DISTINCT ledger_id FROM voucher_entries WHERE voucher_id = ? AND ledger_id IS NOT NULL`,
+        args: [id],
+      });
       await db.execute({ sql: `DELETE FROM vouchers WHERE voucher_id = ?`, args: [id] });
+
+      // Recalculate balances for all affected ledgers
+      for (const row of affected.rows) {
+        try {
+          const balRes = await getLedgerBalance(row.ledger_id, voucher.company_id, voucher.fy_id);
+          if (balRes.success && balRes.rawBalance != null) {
+            await db.execute({
+              sql: `UPDATE ledgers SET closing_balance = ? WHERE ledger_id = ?`,
+              args: [balRes.rawBalance, row.ledger_id],
+            });
+          }
+        } catch (_e) { /* ignore individual errors */ }
+      }
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };

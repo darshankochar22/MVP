@@ -134,13 +134,13 @@ export default function DatePickerPopup({
 
   // Build the calendar grid weeks
   const renderCalendar = () => {
-    const weeks: JSX.Element[] = [];
+    const weeks: React.ReactElement[] = [];
     let dayCounter = 1;
     let nextMonthDay = 1;
     let weekIndex = 0;
 
     while (dayCounter <= daysInMonth) {
-      const week: JSX.Element[] = [];
+      const week: React.ReactElement[] = [];
 
       for (let col = 0; col < 7; col++) {
         if (weekIndex === 0 && col < firstWeekday) {

@@ -93,6 +93,7 @@ const init = async (db) => {
       voucher_id        INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
       ledger_id         INTEGER REFERENCES ledgers(ledger_id),
       transaction_type  TEXT DEFAULT 'Cheque',
+      cheque_range      TEXT,
       instrument_number TEXT,
       instrument_date   TEXT,
       bank_name         TEXT,
@@ -111,6 +112,17 @@ const init = async (db) => {
     )
   `);
 
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS voucher_cash_denominations (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      voucher_id    INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
+      ledger_id     INTEGER REFERENCES ledgers(ledger_id),
+      denomination  TEXT,
+      quantity      INTEGER DEFAULT 0,
+      amount        REAL DEFAULT 0
+    )
+  `);
+
   try {
     await db.execute(`ALTER TABLE vouchers ADD COLUMN status TEXT DEFAULT 'Regular'`);
   } catch (err) {}
@@ -121,6 +133,10 @@ const init = async (db) => {
 
   try {
     await db.execute(`ALTER TABLE vouchers ADD COLUMN supplier_invoice_date TEXT`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN cheque_range TEXT`);
   } catch (err) {}
 };
 
