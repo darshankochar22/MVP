@@ -279,21 +279,23 @@ export default function Vouchers() {
     form.stockEntries,
   ]);
 
+  // ─── Monitor party ledger changes to open dispatch/receipt details ────────
+
+  useEffect(() => {
+    if (form.voucherType === "Sales" && form.partyLedger) {
+      setShowDispatchDetails(true);
+    }
+  }, [form.partyLedger, form.voucherType]);
+
+  useEffect(() => {
+    if (form.voucherType === "Purchase" && form.partyLedger) {
+      setShowReceiptDetails(true);
+    }
+  }, [form.partyLedger, form.voucherType]);
+
   // ─── handleAccept ────────────────────────────────────────────────────
 
   const handleAccept = useCallback(() => {
-    // ── Sales: dispatch details ──────────────────────────────────────────
-    if (form.voucherType === "Sales" && form.partyLedger) {
-      setShowDispatchDetails(true);
-      return;
-    }
-
-    // ── Purchase: receipt details ────────────────────────────────────────
-    if (form.voucherType === "Purchase" && form.partyLedger) {
-      setShowReceiptDetails(true);
-      return;
-    }
-
     // ── Sales / Purchase: bill-wise for party ───────────────────────────
     if (
       ["Sales", "Purchase"].includes(form.voucherType) &&
@@ -525,18 +527,16 @@ export default function Vouchers() {
 
   const handleSaveDispatchDetails = useCallback(
     (details: any) => {
-      // Store dispatch details (could be added to form state if needed)
+      // Store dispatch details in form state (can be extended later)
       setShowDispatchDetails(false);
-      setTimeout(() => acceptRef.current(), 50);
     },
     []
   );
 
   const handleSaveReceiptDetails = useCallback(
     (details: any) => {
-      // Store receipt details (could be added to form state if needed)
+      // Store receipt details in form state (can be extended later)
       setShowReceiptDetails(false);
-      setTimeout(() => acceptRef.current(), 50);
     },
     []
   );
