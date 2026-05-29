@@ -477,9 +477,9 @@ export default function Vouchers() {
       const amount = Number(amountRaw) || 0;
       if (!ledger || amount <= 0) { proceedToNextRow(idx); return; }
 
-      // Contra / Receipt double-entry: bank popup only for Debit bank rows
+      // Contra / Receipt double-entry: bank allocation for any bank ledger
       if (form.voucherType === "Contra" || (form.voucherType === "Receipt" && form.receiptEntryMode === "double")) {
-        if (row.type === "Dr" && form.checkIsBank(ledger)) {
+        if (form.checkIsBank(ledger)) {
           form.setActiveAllocation({
             type: "bankDetails",
             rowId: id,
@@ -737,14 +737,14 @@ export default function Vouchers() {
       return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
     }
 
-    // Receipt double-entry: Dr rows = cash/bank only, Cr rows = non-cash/bank
+    // Receipt double-entry: Dr rows = cash/bank only, Cr rows = all ledgers
     if (form.voucherType === "Receipt" && form.receiptEntryMode === "double" && af.type === "particular") {
       const row = form.receiptDoubleRows.find((r) => r.id === af.rowId);
       if (row?.type === "Dr") {
         return form.allLedgers.filter((l) => form.checkIsCashOrBank(l));
       }
       if (row?.type === "Cr") {
-        return form.allLedgers.filter((l) => !form.checkIsCashOrBank(l));
+        return form.allLedgers;
       }
     }
 

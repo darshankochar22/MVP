@@ -463,6 +463,7 @@ export function useVoucherForm() {
         "bank od accounts",
         "bank od a/c",
         "bank od account",
+        "bank occ a/c",
         "cash-in-hand",
       ]),
     [checkLedgerGroup]
@@ -481,6 +482,7 @@ export function useVoucherForm() {
         "bank od accounts",
         "bank od a/c",
         "bank od account",
+        "bank occ a/c",
       ]),
     [checkLedgerGroup]
   );
@@ -711,8 +713,11 @@ export function useVoucherForm() {
 
   const handleAddContraDoubleRow = useCallback(() => {
     setContraDoubleRows((prev) => {
-      const lastType = prev[prev.length - 1]?.type ?? "Dr";
-      const nextType: "Dr" | "Cr" = lastType === "Dr" ? "Cr" : "Dr";
+      const drSum = prev.reduce((s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
+      const crSum = prev.reduce((s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
+      const diff = drSum - crSum;
+      const nextType: "Dr" | "Cr" =
+        diff < -0.01 ? "Dr" : diff > 0.01 ? "Cr" : (prev[prev.length - 1]?.type === "Dr" ? "Cr" : "Dr");
       return [...prev, makeParticularRow(nextType)];
     });
   }, []);
@@ -763,8 +768,11 @@ export function useVoucherForm() {
 
   const handleAddReceiptDoubleRow = useCallback(() => {
     setReceiptDoubleRows((prev) => {
-      const lastType = prev[prev.length - 1]?.type ?? "Dr";
-      const nextType: "Dr" | "Cr" = lastType === "Dr" ? "Cr" : "Dr";
+      const drSum = prev.reduce((s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
+      const crSum = prev.reduce((s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
+      const diff = drSum - crSum;
+      const nextType: "Dr" | "Cr" =
+        diff < -0.01 ? "Dr" : diff > 0.01 ? "Cr" : (prev[prev.length - 1]?.type === "Dr" ? "Cr" : "Dr");
       return [...prev, makeParticularRow(nextType)];
     });
   }, []);
@@ -1031,8 +1039,6 @@ export function useVoucherForm() {
         for (const row of filled) {
           if (row.type === "Dr" && !checkIsCashOrBank(row.ledger))
             return "Receipt Debit entries must be Cash or Bank ledgers.";
-          if (row.type === "Cr" && checkIsCashOrBank(row.ledger))
-            return "Receipt Credit entries cannot be Cash or Bank ledgers (use Contra for transfers).";
         }
         if (Math.abs(debitTotal - creditTotal) > 0.01)
           return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(
