@@ -18,7 +18,7 @@ const formatAmount = (n: number): string =>
     ? n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     : "";
 
-export default function ContraDoubleEntryTable({
+export default function VoucherDoubleEntryTable({
   rows,
   onUpdateRow,
   onAddRow,

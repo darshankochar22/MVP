@@ -242,6 +242,24 @@ export function useVoucherForm() {
       : [makeParticularRow("Dr"), makeParticularRow("Cr")];
   });
 
+  // ── Layout 1d: Double-entry Payment (F5 double-entry mode) ────────────────
+  //
+  //   Cr rows: ONLY Cash-in-Hand, Bank Accounts, Bank OD / OCC
+  //   Dr rows: ALL ledgers EXCEPT Cash/Bank groups
+  //
+  //   Single-entry: Account field (= Cr, cash/bank) + Particulars rows (= Dr, non-cash/bank).
+
+  const [paymentEntryMode, setPaymentEntryMode] = useState<"single" | "double">(
+    () => loadFormState<any>(persistKey ?? "")?.paymentEntryMode ?? "double"
+  );
+
+  const [paymentDoubleRows, setPaymentDoubleRows] = useState<ParticularRow[]>(() => {
+    const saved = loadFormState<any>(persistKey ?? "");
+    return saved?.paymentDoubleRows?.length
+      ? saved.paymentDoubleRows
+      : [makeParticularRow("Cr"), makeParticularRow("Dr")];
+  });
+
   // ── Layout 2: Journal (F7) ────────────────────────────────────────────────
   //
   //   Double-entry (default): Dr/Cr selector on each row, like Contra/Receipt
@@ -306,6 +324,8 @@ export function useVoucherForm() {
       contraDoubleRows,
       receiptEntryMode,
       receiptDoubleRows,
+      paymentEntryMode,
+      paymentDoubleRows,
       partyLedger,
       salesPurchaseLedger,
       stockEntries,
@@ -320,6 +340,7 @@ export function useVoucherForm() {
     [
       voucherType, narration, accountLedger, particulars, journalRows,
       journalEntryMode, contraEntryMode, contraDoubleRows, receiptEntryMode, receiptDoubleRows,
+      paymentEntryMode, paymentDoubleRows,
       partyLedger, salesPurchaseLedger, stockEntries, additionalEntries,
       referenceNumber, placeOfSupply, partyBillReferences, bankDetails,
       supplierInvoiceNo, supplierInvoiceDate,
@@ -568,9 +589,15 @@ export function useVoucherForm() {
         0
       );
     }
+    if (voucherType === "Payment" && paymentEntryMode === "double") {
+      return paymentDoubleRows.reduce(
+        (sum, r) => sum + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0),
+        0
+      );
+    }
     // Receipt/Payment single-entry: Account is Dr; Contra single-entry: particulars are Dr
     return particularsTotal;
-  }, [voucherType, journalRows, journalEntryMode, contraDoubleRows, contraEntryMode, receiptDoubleRows, receiptEntryMode, particularsTotal]);
+  }, [voucherType, journalRows, journalEntryMode, contraDoubleRows, contraEntryMode, receiptDoubleRows, receiptEntryMode, paymentDoubleRows, paymentEntryMode, particularsTotal]);
 
   /** Sum of all Cr amounts in journalRows or contraDoubleRows or receiptDoubleRows. */
   const creditTotal = useMemo(() => {
@@ -592,9 +619,15 @@ export function useVoucherForm() {
         0
       );
     }
+    if (voucherType === "Payment" && paymentEntryMode === "double") {
+      return paymentDoubleRows.reduce(
+        (sum, r) => sum + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0),
+        0
+      );
+    }
     // Mirror of debitTotal for single-entry
     return particularsTotal;
-  }, [voucherType, journalRows, journalEntryMode, contraDoubleRows, contraEntryMode, receiptDoubleRows, receiptEntryMode, particularsTotal]);
+  }, [voucherType, journalRows, journalEntryMode, contraDoubleRows, contraEntryMode, receiptDoubleRows, receiptEntryMode, paymentDoubleRows, paymentEntryMode, particularsTotal]);
 
   /**
    * totalAmount — the grand total shown in the voucher footer and used for
@@ -620,6 +653,9 @@ export function useVoucherForm() {
     }
 
     if (voucherType === "Payment") {
+      if (paymentEntryMode === "double") {
+        return debitTotal;
+      }
       return particularsTotal;
     }
 
@@ -648,7 +684,7 @@ export function useVoucherForm() {
     }
 
     return 0;
-  }, [voucherType, particularsTotal, debitTotal, contraEntryMode, receiptEntryMode, journalEntryMode, stockEntries, additionalEntries]);
+  }, [voucherType, particularsTotal, debitTotal, contraEntryMode, receiptEntryMode, journalEntryMode, paymentEntryMode, stockEntries, additionalEntries]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // Particular row handlers (single-entry layouts)
@@ -858,6 +894,59 @@ export function useVoucherForm() {
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // Payment double-entry row handlers
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  const handleAddPaymentDoubleRow = useCallback(() => {
+    setPaymentDoubleRows((prev) => {
+      const drSum = prev.reduce((s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
+      const crSum = prev.reduce((s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
+      const diff = drSum - crSum;
+      const nextType: "Dr" | "Cr" =
+        diff < -0.01 ? "Dr" : diff > 0.01 ? "Cr" : (prev[prev.length - 1]?.type === "Dr" ? "Cr" : "Dr");
+      return [...prev, makeParticularRow(nextType)];
+    });
+  }, []);
+
+  const handleUpdatePaymentDoubleRow = useCallback(
+    async (id: string, updates: Partial<Omit<ParticularRow, "id">>) => {
+      setPaymentDoubleRows((prev) => {
+        const nextRows = prev.map((r) => (r.id !== id ? r : {
+          ...r,
+          ...updates,
+          ...(updates.ledger !== undefined ? { ledgerBalance: "" } : {}),
+        }));
+
+        if (updates.ledger?.ledger_id) {
+          const updatedRow = nextRows.find((r) => r.id === id);
+          if (updatedRow && (!updatedRow.amountRaw || Number(updatedRow.amountRaw) === 0)) {
+            const drTotal = nextRows.reduce((s, r) => s + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
+            const crTotal = nextRows.reduce((s, r) => s + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
+            const deficit = updatedRow.type === "Dr" ? crTotal - drTotal : drTotal - crTotal;
+            if (Math.abs(deficit) > 0.01) {
+              return nextRows.map((r) =>
+                r.id === id ? { ...r, amountRaw: Math.abs(deficit).toFixed(2) } : r
+              );
+            }
+          }
+        }
+        return nextRows;
+      });
+      if (updates.ledger?.ledger_id) {
+        const bal = await fetchLedgerBalance(updates.ledger.ledger_id);
+        setPaymentDoubleRows((prev) =>
+          prev.map((r) => (r.id !== id ? r : { ...r, ledgerBalance: bal }))
+        );
+      }
+    },
+    [fetchLedgerBalance]
+  );
+
+  const handleRemovePaymentDoubleRow = useCallback((id: string) => {
+    setPaymentDoubleRows((prev) => (prev.length > 2 ? prev.filter((r) => r.id !== id) : prev));
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // Stock entry handlers
   // ─────────────────────────────────────────────────────────────────────────────
   // Stock entry handlers
@@ -1028,6 +1117,7 @@ export function useVoucherForm() {
     setJournalRows([makeParticularRow("Dr"), makeParticularRow("Cr")]);
     setContraDoubleRows([makeParticularRow("Dr"), makeParticularRow("Cr")]);
     setReceiptDoubleRows([makeParticularRow("Dr"), makeParticularRow("Cr")]);
+    setPaymentDoubleRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
     setStockEntries([makeStockRow()]);
     setAdditionalEntries([]);
 
@@ -1049,6 +1139,7 @@ export function useVoucherForm() {
     setContraEntryMode("double");
     setReceiptEntryMode("double");
     setJournalEntryMode("double");
+    setPaymentEntryMode("double");
     setDate(todayStr());
 
     fetchNextNumber();
@@ -1090,11 +1181,26 @@ export function useVoucherForm() {
     }
 
     if (voucherType === "Payment") {
-      if (!accountLedger) return "Account (cash/bank ledger) is required.";
-      const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
-      if (filled.length < 1)
-        return "At least one Particulars entry with an amount is required.";
-      if (particularsTotal <= 0) return "Total amount must be greater than zero.";
+      if (paymentEntryMode === "single") {
+        if (!accountLedger) return "Account (cash/bank ledger) is required.";
+        const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
+        if (filled.length < 1)
+          return "At least one Particulars entry with an amount is required.";
+        if (particularsTotal <= 0) return "Total amount must be greater than zero.";
+      } else {
+        const filled = paymentDoubleRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
+        if (filled.length < 2)
+          return "At least two valid entries are required.";
+        for (const row of filled) {
+          if (row.type === "Cr" && !checkIsCashOrBank(row.ledger))
+            return "Payment Credit entries must be Cash or Bank ledgers.";
+        }
+        if (Math.abs(debitTotal - creditTotal) > 0.01)
+          return `Debit (${debitTotal.toFixed(2)}) and Credit (${creditTotal.toFixed(
+            2
+          )}) totals must balance.`;
+        if (debitTotal <= 0) return "Amount must be greater than zero.";
+      }
     }
 
     if (voucherType === "Contra") {
@@ -1166,9 +1272,9 @@ export function useVoucherForm() {
 
     return null;
   }, [
-    companyId, fyId, voucherType, contraEntryMode, receiptEntryMode, journalEntryMode,
+    companyId, fyId, voucherType, contraEntryMode, receiptEntryMode, journalEntryMode, paymentEntryMode,
     accountLedger, particulars, particularsTotal,
-    contraDoubleRows, receiptDoubleRows, journalRows, debitTotal, creditTotal,
+    contraDoubleRows, receiptDoubleRows, paymentDoubleRows, journalRows, debitTotal, creditTotal,
     stockEntries, partyLedger, salesPurchaseLedger, totalAmount,
     checkIsCashOrBank,
   ]);
@@ -1229,26 +1335,38 @@ export function useVoucherForm() {
         }
 
       } else if (voucherType === "Payment") {
-        const accountType: "Dr" | "Cr" = "Cr";
+        if (paymentEntryMode === "single") {
+          const accountType: "Dr" | "Cr" = "Cr";
 
-        entries.push({
-          ledger_id: accountLedger!.ledger_id,
-          ledger_name: accountLedger!.name,
-          type: accountType,
-          amount: particularsTotal,
-        });
+          entries.push({
+            ledger_id: accountLedger!.ledger_id,
+            ledger_name: accountLedger!.name,
+            type: accountType,
+            amount: particularsTotal,
+          });
 
-        const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
-        entries.push(
-          ...filled.map((p) => ({
-            ledger_id: p.ledger!.ledger_id,
-            ledger_name: p.ledger!.name,
-            type: p.type,
-            amount: Number(p.amountRaw),
+          const filled = particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0);
+          entries.push(
+            ...filled.map((p) => ({
+              ledger_id: p.ledger!.ledger_id,
+              ledger_name: p.ledger!.name,
+              type: p.type,
+              amount: Number(p.amountRaw),
+              currency: "INR",
+              cost_centres: p.costCentres,
+            }))
+          );
+        } else {
+          const filled = paymentDoubleRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
+          entries = filled.map((r) => ({
+            ledger_id: r.ledger!.ledger_id,
+            ledger_name: r.ledger!.name,
+            type: r.type,
+            amount: Number(r.amountRaw),
             currency: "INR",
-            cost_centres: p.costCentres,
-          }))
-        );
+            cost_centres: r.costCentres,
+          }));
+        }
 
       } else if (voucherType === "Contra") {
         if (contraEntryMode === "single") {
@@ -1405,11 +1523,19 @@ export function useVoucherForm() {
             );
         }
       } else if (voucherType === "Payment") {
-        finalBillReferences = particulars
-          .filter((p) => p.ledger && p.billReferences?.length)
-          .flatMap((p) =>
-            p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id }))
-          );
+        if (paymentEntryMode === "single") {
+          finalBillReferences = particulars
+            .filter((p) => p.ledger && p.billReferences?.length)
+            .flatMap((p) =>
+              p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id }))
+            );
+        } else {
+          finalBillReferences = paymentDoubleRows
+            .filter((r) => r.ledger && r.billReferences?.length)
+            .flatMap((r) =>
+              r.billReferences!.map((b) => ({ ...b, ledger_id: r.ledger!.ledger_id }))
+            );
+        }
       } else if (voucherType === "Contra") {
         if (contraEntryMode === "single") {
           finalBillReferences = particulars
@@ -1493,13 +1619,13 @@ export function useVoucherForm() {
     }
   }, [
     validate,
-    companyId, fyId, voucherType, contraEntryMode, receiptEntryMode, journalEntryMode,
+    companyId, fyId, voucherType, contraEntryMode, receiptEntryMode, journalEntryMode, paymentEntryMode,
     date, status,
     supplierInvoiceNo, supplierInvoiceDate,
     referenceNumber, referenceDate, placeOfSupply,
     narration, totalAmount, particularsTotal,
     accountLedger,
-    particulars, contraDoubleRows, receiptDoubleRows, journalRows,
+    particulars, contraDoubleRows, receiptDoubleRows, paymentDoubleRows, journalRows,
     partyLedger, salesPurchaseLedger,
     stockEntries, additionalEntries,
     partyBillReferences, bankDetails, cashDenominations,
@@ -1611,6 +1737,15 @@ export function useVoucherForm() {
     handleUpdateReceiptDoubleRow,
     handleAddReceiptDoubleRow,
     handleRemoveReceiptDoubleRow,
+
+    // ── Layout 1d — Payment double-entry ──────────────────────────────────────
+    paymentEntryMode,
+    setPaymentEntryMode,
+    paymentDoubleRows,
+    setPaymentDoubleRows,
+    handleUpdatePaymentDoubleRow,
+    handleAddPaymentDoubleRow,
+    handleRemovePaymentDoubleRow,
 
     // ── Layout 2 — journal (F7) ────────────────────────────────────────────────
     journalEntryMode,
