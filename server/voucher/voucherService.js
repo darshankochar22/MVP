@@ -312,6 +312,41 @@ module.exports = {
           }
         }
 
+        if (data.receipt_details) {
+          const rd = data.receipt_details;
+          await db.execute({
+            sql: `INSERT INTO voucher_receipt_details (voucher_id, receipt_note_no, receipt_doc_no, dispatched_through, destination, carrier_name, bill_of_lading_no, bill_of_lading_date, motor_vehicle_no)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [
+              voucher_id,
+              nullify(rd.receipt_note_no) || null,
+              nullify(rd.receipt_doc_no) || null,
+              nullify(rd.dispatched_through) || null,
+              nullify(rd.destination) || null,
+              nullify(rd.carrier_name) || null,
+              nullify(rd.bill_of_lading_no) || null,
+              nullify(rd.bill_of_lading_date) || null,
+              nullify(rd.motor_vehicle_no) || null,
+            ],
+          });
+        }
+
+        if (data.party_details) {
+          const pd = data.party_details;
+          await db.execute({
+            sql: `INSERT INTO voucher_party_details (voucher_id, supplier_name, mailing_name, address, state, country)
+                  VALUES (?, ?, ?, ?, ?, ?)`,
+            args: [
+              voucher_id,
+              nullify(pd.supplier_name) || null,
+              nullify(pd.mailing_name) || null,
+              nullify(pd.address) || null,
+              nullify(pd.state) || null,
+              nullify(pd.country) || null,
+            ],
+          });
+        }
+
         if (data.computedGST) {
           const gstTaxEngine = require('../gst/gstTaxEngine');
           await gstTaxEngine.saveVoucherTaxLines(db, voucher_id, data.computedGST);
@@ -393,6 +428,15 @@ module.exports = {
         })
       );
 
+      const receiptDetails = await db.execute({
+        sql: `SELECT * FROM voucher_receipt_details WHERE voucher_id = ?`,
+        args: [id],
+      });
+      const partyDetails = await db.execute({
+        sql: `SELECT * FROM voucher_party_details WHERE voucher_id = ?`,
+        args: [id],
+      });
+
       return {
         success: true,
         voucher: {
@@ -403,6 +447,8 @@ module.exports = {
           bank_details: bank.rows[0] || null,
           cost_centres: costCentres.rows,
           cash_denominations: cashDenoms.rows,
+          receipt_details: receiptDetails.rows[0] || null,
+          party_details: partyDetails.rows[0] || null,
         },
       };
     } catch (err) {
@@ -503,6 +549,53 @@ module.exports = {
               nullify(entry.amount_forex) || entry.amount,
               nullify(entry.currency) || 'INR',
               nullify(entry.narration) || null,
+            ],
+          });
+        }
+      }
+
+      if (data.receipt_details !== undefined) {
+        await db.execute({
+          sql: `DELETE FROM voucher_receipt_details WHERE voucher_id = ?`,
+          args: [data.voucher_id],
+        });
+        if (data.receipt_details) {
+          const rd = data.receipt_details;
+          await db.execute({
+            sql: `INSERT INTO voucher_receipt_details (voucher_id, receipt_note_no, receipt_doc_no, dispatched_through, destination, carrier_name, bill_of_lading_no, bill_of_lading_date, motor_vehicle_no)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [
+              data.voucher_id,
+              nullify(rd.receipt_note_no) || null,
+              nullify(rd.receipt_doc_no) || null,
+              nullify(rd.dispatched_through) || null,
+              nullify(rd.destination) || null,
+              nullify(rd.carrier_name) || null,
+              nullify(rd.bill_of_lading_no) || null,
+              nullify(rd.bill_of_lading_date) || null,
+              nullify(rd.motor_vehicle_no) || null,
+            ],
+          });
+        }
+      }
+
+      if (data.party_details !== undefined) {
+        await db.execute({
+          sql: `DELETE FROM voucher_party_details WHERE voucher_id = ?`,
+          args: [data.voucher_id],
+        });
+        if (data.party_details) {
+          const pd = data.party_details;
+          await db.execute({
+            sql: `INSERT INTO voucher_party_details (voucher_id, supplier_name, mailing_name, address, state, country)
+                  VALUES (?, ?, ?, ?, ?, ?)`,
+            args: [
+              data.voucher_id,
+              nullify(pd.supplier_name) || null,
+              nullify(pd.mailing_name) || null,
+              nullify(pd.address) || null,
+              nullify(pd.state) || null,
+              nullify(pd.country) || null,
             ],
           });
         }

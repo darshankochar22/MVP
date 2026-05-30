@@ -169,6 +169,8 @@ export function useVoucherForm() {
     () => loadFormState<any>(persistKey ?? "")?.bankDetails ?? null
   );
   const [cashDenominations, setCashDenominations] = useState<any | null>(null);
+  const [receiptDetails, setReceiptDetails] = useState<any | null>(null);
+  const [partyDetails, setPartyDetails] = useState<any | null>(null);
 
   // ── Reference / invoice fields ──────────────────────────────────────────────
 
@@ -337,6 +339,8 @@ export function useVoucherForm() {
       bankDetails,
       supplierInvoiceNo,
       supplierInvoiceDate,
+      receiptDetails,
+      partyDetails,
     }),
     [
       voucherType, narration, accountLedger, particulars, journalRows,
@@ -344,7 +348,7 @@ export function useVoucherForm() {
       paymentEntryMode, paymentDoubleRows,
       partyLedger, salesPurchaseLedger, stockEntries, additionalEntries,
       referenceNumber, placeOfSupply, partyBillReferences, bankDetails,
-      supplierInvoiceNo, supplierInvoiceDate,
+      supplierInvoiceNo, supplierInvoiceDate, receiptDetails, partyDetails,
     ]
   );
 
@@ -1061,6 +1065,8 @@ export function useVoucherForm() {
             handleUpdateContraDoubleRow(activeField.rowId, { ledger });
           } else if (voucherType === "Receipt" && receiptEntryMode === "double") {
             handleUpdateReceiptDoubleRow(activeField.rowId, { ledger });
+          } else if (voucherType === "Payment" && paymentEntryMode === "double") {
+            handleUpdatePaymentDoubleRow(activeField.rowId, { ledger });
           } else {
             handleUpdateParticularRow(activeField.rowId, { ledger });
           }
@@ -1087,9 +1093,9 @@ export function useVoucherForm() {
       setStockSearchTerm("");
     },
     [
-      activeField, voucherType, contraEntryMode, receiptEntryMode, allUnits,
+      activeField, voucherType, contraEntryMode, receiptEntryMode, paymentEntryMode, allUnits,
       handleUpdateParticularRow, handleUpdateJournalRow,
-      handleUpdateContraDoubleRow, handleUpdateReceiptDoubleRow,
+      handleUpdateContraDoubleRow, handleUpdateReceiptDoubleRow, handleUpdatePaymentDoubleRow,
       handleUpdateAdditionalRow, handleUpdateStockRow,
     ]
   );
@@ -1126,6 +1132,8 @@ export function useVoucherForm() {
     setPartyBillReferences([]);
     setBankDetails(null);
     setCashDenominations(null);
+    setReceiptDetails(null);
+    setPartyDetails(null);
 
     setReferenceNumber("");
     setNarration("");
@@ -1592,6 +1600,8 @@ export function useVoucherForm() {
         bill_references: finalBillReferences.length > 0 ? finalBillReferences : undefined,
         bank_details: bankDetails || undefined,
         cash_denominations: cashDenominations || undefined,
+        receipt_details: receiptDetails || undefined,
+        party_details: partyDetails || undefined,
       };
 
       const res = await window.api.voucher.create(payload);
@@ -1620,7 +1630,7 @@ export function useVoucherForm() {
     particulars, contraDoubleRows, receiptDoubleRows, paymentDoubleRows, journalRows,
     partyLedger, salesPurchaseLedger,
     stockEntries, additionalEntries,
-    partyBillReferences, bankDetails, cashDenominations,
+    partyBillReferences, bankDetails, cashDenominations, receiptDetails, partyDetails,
     voucherNumber, resetForm, fetchContextData,
   ]);
 
@@ -1676,6 +1686,10 @@ export function useVoucherForm() {
     setBankDetails,
     cashDenominations,
     setCashDenominations,
+    receiptDetails,
+    setReceiptDetails,
+    partyDetails,
+    setPartyDetails,
 
     // ── Reference / invoice ────────────────────────────────────────────────────
     referenceNumber,

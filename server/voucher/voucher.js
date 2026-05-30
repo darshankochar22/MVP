@@ -123,6 +123,33 @@ const init = async (db) => {
     )
   `);
 
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS voucher_receipt_details (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+      voucher_id          INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
+      receipt_note_no     TEXT,
+      receipt_doc_no      TEXT,
+      dispatched_through  TEXT,
+      destination         TEXT,
+      carrier_name        TEXT,
+      bill_of_lading_no   TEXT,
+      bill_of_lading_date TEXT,
+      motor_vehicle_no    TEXT
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS voucher_party_details (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      voucher_id      INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
+      supplier_name   TEXT,
+      mailing_name    TEXT,
+      address         TEXT,
+      state           TEXT,
+      country         TEXT
+    )
+  `);
+
   try {
     await db.execute(`ALTER TABLE vouchers ADD COLUMN status TEXT DEFAULT 'Regular'`);
   } catch (err) {}

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../context/CompanyContext";
 import { useVoucherForm } from "./hooks/useVoucherForm";
-import { INDIAN_STATES } from "../../constants/states";
 import { AlertBanner } from "../../components/ui";
 import BillWiseAllocationPopup from "./components/popups/BillWiseAllocationPopup";
 import CostCentreAllocationPopup from "./components/popups/CostCentreAllocationPopup";
@@ -10,8 +9,10 @@ import BankAllocationPopup from "./components/popups/BankAllocationPopup";
 import DenominationPopup from "./components/popups/DenominationPopup";
 import DispatchDetailsPopup from "./components/popups/DispatchDetailsPopup";
 import ReceiptDetailsPopup from "./components/popups/ReceiptDetailsPopup";
+import PartyDetailsPopup from "./components/popups/PartyDetailsPopup";
 import DatePickerPopup from "./components/popups/DatePickerPopup";
 import VoucherDoubleEntryTable from "./components/VoucherDoubleEntryTable";
+import LedgerListPanel from "./components/LedgerListPanel";
 
 function RightSidebar({
   voucherType,
@@ -127,117 +128,6 @@ function RightSidebar({
   );
 }
 
-// ─── Ledger list panel ──────────────────────────────────────────────────────
-
-function LedgerListPanel({
-  title,
-  items,
-  searchTerm,
-  onSearchChange,
-  onSelect,
-  onClose,
-  onCreateNew,
-  createLabel,
-}: {
-  title: string;
-  items: any[];
-  searchTerm: string;
-  onSearchChange: (v: string) => void;
-  onSelect: (item: any) => void;
-  onClose: () => void;
-  onCreateNew: () => void;
-  createLabel: string;
-}) {
-  const [hi, setHi] = useState(0);
-  const listRef = useRef<HTMLDivElement>(null);
-
-  const filtered = useMemo(
-    () =>
-      items.filter(
-        (it) =>
-          !searchTerm ||
-          it.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (it.alias && it.alias.toLowerCase().includes(searchTerm.toLowerCase()))
-      ),
-    [items, searchTerm]
-  );
-
-  useEffect(() => { setHi(0); }, [searchTerm]);
-
-  useEffect(() => {
-    const el = listRef.current?.querySelector("[data-hi]") as HTMLElement | null;
-    el?.scrollIntoView({ block: "nearest" });
-  }, [hi]);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); onClose(); return; }
-      if (e.key === "ArrowDown") { e.preventDefault(); setHi((p) => Math.min(p + 1, filtered.length - 1)); }
-      if (e.key === "ArrowUp") { e.preventDefault(); setHi((p) => Math.max(p - 1, 0)); }
-      if (e.key === "Enter") { e.preventDefault(); if (filtered[hi]) onSelect(filtered[hi]); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [filtered, hi, onSelect, onClose]);
-
-  return (
-    <div className="w-64 border-l border-black flex flex-col shrink-0 bg-white h-full">
-      <div className="bg-black text-white px-2 py-1 text-xs font-semibold select-none flex justify-between items-center">
-        <span>{title}</span>
-        <button
-          onClick={onClose}
-          className="text-white hover:text-gray-300 font-bold leading-none"
-        >
-          &times;
-        </button>
-      </div>
-
-      <div className="border-b border-gray-300">
-        <input
-          autoFocus
-          type="text"
-          className="w-full text-xs outline-none px-2 py-1 bg-white"
-          value={searchTerm}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder="Search..."
-        />
-      </div>
-
-      <div
-        className="px-2 py-1 text-xs cursor-pointer hover:bg-gray-100 border-b border-gray-200 text-black select-none"
-        onClick={onCreateNew}
-      >
-        {createLabel}
-      </div>
-
-      <div ref={listRef} className="flex-1 overflow-y-auto min-h-0">
-        {filtered.map((item, idx) => (
-          <div
-            key={item.ledger_id ?? item.item_id ?? item.godown_id ?? idx}
-            data-hi={idx === hi ? "true" : undefined}
-            className={`px-2 py-0.5 text-xs cursor-pointer select-none ${
-              idx === hi
-                ? "bg-[#f0c040] text-black font-semibold"
-                : "text-black hover:bg-gray-50"
-            }`}
-            onClick={() => onSelect(item)}
-            onMouseEnter={() => setHi(idx)}
-          >
-            {item.name}
-          </div>
-        ))}
-        {filtered.length === 0 && (
-          <div className="px-2 py-2 text-xs text-gray-400 italic">No results</div>
-        )}
-      </div>
-
-      <div className="border-t border-gray-200 px-2 py-1 text-[10px] text-gray-500 select-none bg-gray-50">
-        ↑↓ Navigate &nbsp;·&nbsp; Enter Select
-      </div>
-    </div>
-  );
-}
-
 // ─── Main component ─────────────────────────────────────────────────────
 
 export default function Vouchers() {
@@ -248,6 +138,10 @@ export default function Vouchers() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showDispatchDetails, setShowDispatchDetails] = useState(false);
   const [showReceiptDetails, setShowReceiptDetails] = useState(false);
+  const [showPartyDetails, setShowPartyDetails] = useState(false);
+
+  // Prevent auto-opening receipt details on mount when form is restored from persistence
+  const hasAutoOpenedReceipt = useRef(false);
 
   // Stable ref so async callbacks (bill-wise save → accept) always call the
   // latest version of handleAccept without stale closure issues.
@@ -360,10 +254,17 @@ export default function Vouchers() {
   }, [form.partyLedger, form.voucherType]);
 
   useEffect(() => {
-    if (form.voucherType === "Purchase" && form.partyLedger) {
+    if (form.voucherType === "Purchase" && form.partyLedger && !hasAutoOpenedReceipt.current) {
+      hasAutoOpenedReceipt.current = true;
       setShowReceiptDetails(true);
     }
   }, [form.partyLedger, form.voucherType]);
+
+  useEffect(() => {
+    if (!form.partyLedger) {
+      hasAutoOpenedReceipt.current = false;
+    }
+  }, [form.partyLedger]);
 
   // ─── handleAccept ────────────────────────────────────────────────────
 
@@ -791,11 +692,23 @@ export default function Vouchers() {
   );
 
   const handleSaveReceiptDetails = useCallback(
-    (_details: any) => {
-      // Store receipt details in form state (can be extended later)
+    (details: any) => {
+      form.setReceiptDetails(details);
       setShowReceiptDetails(false);
+      setShowPartyDetails(true);
     },
-    []
+    [form.setReceiptDetails]
+  );
+
+  const handleSavePartyDetails = useCallback(
+    (details: any) => {
+      form.setPartyDetails(details);
+      if (details.state) {
+        form.setPlaceOfSupply(details.state);
+      }
+      setShowPartyDetails(false);
+    },
+    [form.setPartyDetails, form.setPlaceOfSupply]
   );
 
   // ─── Ledger panel items ──────────────────────────────────────────────
@@ -1449,42 +1362,15 @@ export default function Vouchers() {
                 />
               </div>
 
-              {/* Ref no. + place of supply */}
-              <div className="flex items-center gap-6 border-b border-gray-300 shrink-0 px-3 py-1 bg-white">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-black shrink-0 w-28">Ref No.</span>
-                  <span className="text-sm text-black shrink-0">:</span>
-                  <input
-                    type="text"
-                    className="text-sm border border-gray-300 bg-transparent px-1 py-0 outline-none focus:border-black w-32"
-                    value={form.referenceNumber}
-                    onChange={(e) => form.setReferenceNumber(e.target.value)}
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-black shrink-0">Place of Supply</span>
-                  <span className="text-sm text-black shrink-0">:</span>
-                  <select
-                    className="text-sm border border-gray-300 bg-transparent px-1 py-0 outline-none focus:border-black"
-                    value={form.placeOfSupply}
-                    onChange={(e) => form.setPlaceOfSupply(e.target.value)}
-                  >
-                    <option value="Select">Select</option>
-                    {INDIAN_STATES.map((s: string) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+              {/* Separator line like Tally */}
+              <div className="border-b border-black shrink-0" />
 
               {/* Stock items table header */}
-              <div className="grid grid-cols-12 border-b border-black shrink-0 px-3 py-0.5 bg-white">
-                <div className="col-span-4 text-sm font-semibold text-black">Name of Item</div>
-                <div className="col-span-2 text-sm font-semibold text-black">Godown</div>
-                <div className="col-span-2 text-right text-sm font-semibold text-black">Quantity</div>
-                <div className="col-span-1 text-right text-sm font-semibold text-black">Rate</div>
-                <div className="col-span-1 text-center text-sm font-semibold text-black">per</div>
-                <div className="col-span-2 text-right text-sm font-semibold text-black">Amount</div>
+              <div className="flex border-b border-black shrink-0 px-3 py-0.5 bg-white">
+                <div className="flex-1 text-sm font-semibold text-black">Name of Item</div>
+                <div className="w-24 text-right text-sm font-semibold text-black">Quantity</div>
+                <div className="w-32 text-right text-sm font-semibold text-black">Rate per</div>
+                <div className="w-32 text-right text-sm font-semibold text-black">Amount</div>
               </div>
 
               <div className="flex-1 overflow-y-auto min-h-0">
@@ -1496,9 +1382,9 @@ export default function Vouchers() {
                   return (
                     <div
                       key={row.id}
-                      className="grid grid-cols-12 items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
+                      className="flex items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
                     >
-                      <div className="col-span-4 flex items-center gap-1">
+                      <div className="flex-1 flex items-center gap-1">
                         <input
                           data-stock-item={idx + 1}
                           type="text"
@@ -1526,25 +1412,7 @@ export default function Vouchers() {
                         )}
                       </div>
 
-                      <div className="col-span-2 px-1">
-                        <select
-                          className="w-full text-sm bg-transparent outline-none border-b border-transparent focus:border-black"
-                          value={row.godown?.godown_id ?? ""}
-                          onChange={(e) => {
-                            const id = Number(e.target.value);
-                            form.handleUpdateStockRow(row.id, {
-                              godown: form.allGodowns.find((g) => g.godown_id === id) ?? null,
-                            });
-                          }}
-                        >
-                          <option value="">—</option>
-                          {form.allGodowns.map((g) => (
-                            <option key={g.godown_id} value={g.godown_id}>{g.name}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="col-span-2 text-right pr-1">
+                      <div className="w-24 text-right pr-1">
                         <input
                           type="text"
                           inputMode="decimal"
@@ -1557,38 +1425,21 @@ export default function Vouchers() {
                         />
                       </div>
 
-                      <div className="col-span-1 text-right pr-1">
+                      <div className="w-32 text-right pr-1 flex items-center gap-1">
                         <input
                           type="text"
                           inputMode="decimal"
-                          className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
+                          className="flex-1 text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
                           value={row.rateRaw}
                           placeholder=""
                           onChange={(e) =>
                             form.handleUpdateStockRow(row.id, { rateRaw: e.target.value })
                           }
                         />
+                        <span className="text-xs text-gray-500">{row.unit?.symbol ?? ""}</span>
                       </div>
 
-                      <div className="col-span-1 text-center px-1">
-                        <select
-                          className="w-full text-sm bg-transparent outline-none"
-                          value={row.unit?.unit_id ?? ""}
-                          onChange={(e) => {
-                            const id = Number(e.target.value);
-                            form.handleUpdateStockRow(row.id, {
-                              unit: form.allUnits.find((u) => u.unit_id === id) ?? null,
-                            });
-                          }}
-                        >
-                          <option value="">—</option>
-                          {form.allUnits.map((u) => (
-                            <option key={u.unit_id} value={u.unit_id}>{u.symbol}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="col-span-2 text-right text-sm font-semibold text-black select-none">
+                      <div className="w-32 text-right text-sm font-semibold text-black select-none">
                         {row.amountRaw
                           ? Number(row.amountRaw).toLocaleString("en-IN", {
                               minimumFractionDigits: 2,
@@ -1604,15 +1455,17 @@ export default function Vouchers() {
                 {Array.from({ length: Math.max(0, 5 - form.stockEntries.length) }).map((_, i) => (
                   <div
                     key={`sf-${i}`}
-                    className="grid grid-cols-12 border-b border-gray-50 min-h-[22px]"
+                    className="flex border-b border-gray-50 min-h-[22px] px-3"
                   />
                 ))}
 
                 {/* Stock subtotal */}
                 {form.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0) > 0 && (
-                  <div className="grid grid-cols-12 border-t border-gray-300 border-b border-gray-300 px-3 py-0.5 bg-white">
-                    <div className="col-span-10 text-xs text-gray-700">Subtotal</div>
-                    <div className="col-span-2 text-right text-sm font-semibold text-black">
+                  <div className="flex border-t border-gray-300 border-b border-gray-300 px-3 py-0.5 bg-white">
+                    <div className="flex-1 text-xs text-gray-700">Subtotal</div>
+                    <div className="w-24 text-right pr-1" />
+                    <div className="w-32 text-right pr-1" />
+                    <div className="w-32 text-right text-sm font-semibold text-black">
                       {form.stockEntries
                         .reduce((s, r) => s + (Number(r.amountRaw) || 0), 0)
                         .toLocaleString("en-IN", {
@@ -1631,9 +1484,24 @@ export default function Vouchers() {
                   return (
                     <div
                       key={row.id}
-                      className="grid grid-cols-12 items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
+                      className="flex items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
                     >
-                      <div className="col-span-5 flex items-center gap-1 pl-4">
+                      <div className="w-10 text-center">
+                        <select
+                          className="text-xs bg-transparent outline-none font-semibold text-black"
+                          value={row.type}
+                          onChange={(e) =>
+                            form.handleUpdateAdditionalRow(row.id, {
+                              type: e.target.value as "Dr" | "Cr",
+                            })
+                          }
+                        >
+                          <option value="Dr">Dr</option>
+                          <option value="Cr">Cr</option>
+                        </select>
+                      </div>
+
+                      <div className="flex-1 flex items-center gap-1 pl-2">
                         <input
                           data-additional-ledger={idx + 1}
                           type="text"
@@ -1659,29 +1527,7 @@ export default function Vouchers() {
                         </button>
                       </div>
 
-                      {/* Dr/Cr selector
-                          Sales:    Cr = tax adds to party receivable (default)
-                                     Dr = discount reduces party receivable
-                          Purchase: Dr = tax adds to party payable (default)
-                                     Cr = discount reduces party payable */}
-                      <div className="col-span-1 text-center">
-                        <select
-                          className="text-xs bg-transparent outline-none font-semibold text-black"
-                          value={row.type}
-                          onChange={(e) =>
-                            form.handleUpdateAdditionalRow(row.id, {
-                              type: e.target.value as "Dr" | "Cr",
-                            })
-                          }
-                        >
-                          <option value="Dr">Dr</option>
-                          <option value="Cr">Cr</option>
-                        </select>
-                      </div>
-
-                      <div className="col-span-4" />
-
-                      <div className="col-span-2 text-right">
+                      <div className="w-32 text-right">
                         <input
                           type="text"
                           inputMode="decimal"
@@ -1714,9 +1560,9 @@ export default function Vouchers() {
               </div>
 
               {/* Grand total footer */}
-              <div className="grid grid-cols-12 border-t border-black shrink-0 px-3 py-0.5 bg-white">
-                <div className="col-span-10 text-sm font-semibold text-black" />
-                <div className="col-span-2 text-right text-sm font-semibold text-black">
+              <div className="flex border-t border-black shrink-0 px-3 py-0.5 bg-white">
+                <div className="flex-1 text-sm font-semibold text-black" />
+                <div className="w-32 text-right text-sm font-semibold text-black">
                   {form.totalAmount > 0
                     ? form.totalAmount.toLocaleString("en-IN", {
                         minimumFractionDigits: 2,
@@ -1849,10 +1695,20 @@ export default function Vouchers() {
 
       {showReceiptDetails && form.partyLedger && (
         <ReceiptDetailsPopup
-          partyName={form.partyLedger.name}
-          totalAmount={form.totalAmount}
+          initialDetails={form.receiptDetails}
           onClose={() => setShowReceiptDetails(false)}
           onSave={handleSaveReceiptDetails}
+        />
+      )}
+
+      {showPartyDetails && form.partyLedger && (
+        <PartyDetailsPopup
+          partyLedger={form.partyLedger}
+          allLedgers={form.allLedgers}
+          initialDetails={form.partyDetails}
+          onClose={() => setShowPartyDetails(false)}
+          onSave={handleSavePartyDetails}
+          onCreateLedger={() => navigate("/master/create/ledger")}
         />
       )}
 
