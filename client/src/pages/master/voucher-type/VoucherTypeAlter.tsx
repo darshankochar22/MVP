@@ -21,7 +21,6 @@ const CATEGORIES = [
   "Sales", "Sales Order", "Stock Journal",
 ];
 
-// Local UI state — "Yes"/"No" strings for selects
 interface FormData {
   name: string;
   short_name: string;
@@ -39,7 +38,7 @@ interface ConfigData {
   print_after_save: "Yes" | "No";
 }
 
-// Helper: "Yes"/"No" → 0/1
+
 const toInt = (v: "Yes" | "No") => (v === "Yes" ? 1 : 0);
 
 function YesNoSelect({
@@ -64,7 +63,7 @@ function YesNoSelect({
   );
 }
 
-// Tally-style right-side panel dropdown
+
 function CategoryDropdown({
   value,
   onChange,
@@ -150,7 +149,6 @@ function CategoryDropdown({
   );
 }
 
-// ─── Selection Panel ──────────────────────────────────────────────────────────
 
 function SelectionPanel({
   voucherTypes,
@@ -257,8 +255,6 @@ function SelectionPanel({
   );
 }
 
-// ─── Main Alter Form ──────────────────────────────────────────────────────────
-
 export default function VoucherTypeAlter() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
@@ -339,7 +335,6 @@ export default function VoucherTypeAlter() {
     setLoading(true);
     setError(null);
     try {
-      // Update main fields — typed as VoucherTypeUpdatePayload
       if (selectedVT.is_predefined !== 1) {
         const payload: VoucherTypeUpdatePayload = {
           vt_id:            selectedVT.vt_id!,
@@ -356,7 +351,6 @@ export default function VoucherTypeAlter() {
         }
       }
 
-      // Update config — typed as VoucherTypeConfigUpdatePayload
       if (configForm) {
         const configPayload: VoucherTypeConfigUpdatePayload = {
           voucher_type_id:               selectedVT.vt_id!,
@@ -442,7 +436,6 @@ export default function VoucherTypeAlter() {
     return () => window.removeEventListener("keydown", handler);
   }, [handleSubmit, handleDelete, navigate, selectedVT]);
 
-  // ── Selection screen ──────────────────────────────────────────────────────
   if (!selectedVT || !form) {
     return (
       <SelectionPanel
@@ -493,8 +486,6 @@ export default function VoucherTypeAlter() {
           <div className="p-4 space-y-3 max-w-4xl">
 
             <div className="grid grid-cols-3 border border-zinc-200 rounded overflow-visible">
-
-              {/* GENERAL */}
               <div className="p-3 border-r border-zinc-200 space-y-1.5">
                 <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">General</div>
 
@@ -566,7 +557,7 @@ export default function VoucherTypeAlter() {
                 )}
               </div>
 
-              {/* PRINTING */}
+
               <div className="p-3 border-r border-zinc-200 space-y-1.5">
                 <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">Printing</div>
                 {configForm && (
@@ -576,7 +567,7 @@ export default function VoucherTypeAlter() {
                 )}
               </div>
 
-              {/* NAME OF CLASS */}
+
               <div className="p-3 space-y-1.5">
                 <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">Name of Class</div>
               </div>

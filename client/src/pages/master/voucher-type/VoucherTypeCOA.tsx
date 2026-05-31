@@ -101,7 +101,6 @@ export default function VoucherTypeCOA() {
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-800 font-sans">
 
-      {/* Header */}
       <div className="px-4 py-2 border-b border-zinc-200 bg-zinc-50 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link to="/master/coa" className="text-xs text-zinc-500 hover:text-zinc-800 font-medium">
@@ -127,7 +126,6 @@ export default function VoucherTypeCOA() {
       <div className="flex-1 flex overflow-hidden min-h-0">
         <div className="flex-1 flex flex-col min-w-0">
 
-          {/* Search bar */}
           <div className="px-4 py-1.5 border-b border-zinc-100 flex items-center gap-2">
             <span className="text-xs text-zinc-400 font-medium">Search:</span>
             <input
@@ -144,7 +142,6 @@ export default function VoucherTypeCOA() {
             )}
           </div>
 
-          {/* List */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="p-8 text-center text-xs text-zinc-400 italic">Loading voucher types...</div>
@@ -186,7 +183,6 @@ export default function VoucherTypeCOA() {
                     {isSelected && (
                       <div className="px-6 py-3 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-2 gap-x-6 gap-y-1.5">
 
-                        {/* Main fields */}
                         <div>
                           <span className="text-zinc-400">Numbering Method:</span>{" "}
                           <span className="font-semibold text-zinc-800">{node.numbering_method || "Automatic"}</span>
@@ -237,7 +233,6 @@ export default function VoucherTypeCOA() {
           </div>
         </div>
 
-        {/* Right action panel */}
         <div className="w-44 border-l border-zinc-200 flex flex-col bg-zinc-50/30 text-[10px] select-none shrink-0">
           <button
             onClick={() => setShowChangeView(true)}
@@ -261,13 +256,12 @@ export default function VoucherTypeCOA() {
         </div>
       </div>
 
-      {/* Footer */}
       <div className="border-t border-zinc-200 px-4 py-1.5 flex justify-between items-center bg-zinc-50 text-[10px] text-zinc-400">
         <span>{vts.length} voucher types</span>
         <span>Startup ERP</span>
       </div>
 
-      {/* Change View modal */}
+
       {showChangeView && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-xs"

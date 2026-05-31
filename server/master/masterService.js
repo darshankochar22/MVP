@@ -19,7 +19,12 @@ const getMenu = async (company_id = 1) => {
     }
     menu.push({
       title: "Statutory Masters",
-      items: ["GST Registration", "GST Classification", "Statutory Details", "Company GST Details", "PAN / CIN Details"]
+      items: ["GST Registration", "GST Classification"]
+    });
+
+    menu.push({
+      title: "Statutory Details",
+      items: ["Company GST Details", "PAN / CIN Details"]
     });
 
     menu.push({

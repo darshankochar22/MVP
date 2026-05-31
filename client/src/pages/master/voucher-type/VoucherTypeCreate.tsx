@@ -47,7 +47,6 @@ const INITIAL: FormData = {
   print_after_save: "No",
 };
 
-// Helper: "Yes"/"No" -> 0/1
 const toInt = (v: "Yes" | "No") => (v === "Yes" ? 1 : 0);
 
 function YesNoSelect({
@@ -69,7 +68,6 @@ function YesNoSelect({
   );
 }
 
-// Tally-style: fixed panel pinned to the right edge of the viewport
 function CategoryDropdown({
   value,
   onChange,
@@ -265,7 +263,6 @@ export default function VoucherTypeCreate() {
 
             <div className="grid grid-cols-3 border border-zinc-200 rounded overflow-visible mt-2">
 
-              {/* GENERAL */}
               <div className="p-3 border-r border-zinc-200 space-y-1.5">
                 <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">General</div>
 
@@ -305,7 +302,6 @@ export default function VoucherTypeCreate() {
                 </FormRow>
               </div>
 
-              {/* PRINTING */}
               <div className="p-3 border-r border-zinc-200 space-y-1.5">
                 <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">Printing</div>
                 <FormRow label="Print voucher after saving" labelWidth="w-48" className="flex items-center min-h-[26px]">
@@ -313,7 +309,6 @@ export default function VoucherTypeCreate() {
                 </FormRow>
               </div>
 
-              {/* NAME OF CLASS */}
               <div className="p-3 space-y-1.5">
                 <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">Name of Class</div>
               </div>
