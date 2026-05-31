@@ -2,24 +2,35 @@ const { db } = require('../db/index');
 
 const seedDefaultGSTClassifications = async (company_id) => {
   const defaults = [
-    { name: 'GST 0%',    gst_rate: 0,  cgst_rate: 0,   sgst_rate: 0,   igst_rate: 0,  cess_rate: 0, nature_of_transaction: 'Taxable'  },
-    { name: 'GST 5%',    gst_rate: 5,  cgst_rate: 2.5, sgst_rate: 2.5, igst_rate: 5,  cess_rate: 0, nature_of_transaction: 'Taxable'  },
-    { name: 'GST 12%',   gst_rate: 12, cgst_rate: 6,   sgst_rate: 6,   igst_rate: 12, cess_rate: 0, nature_of_transaction: 'Taxable'  },
-    { name: 'GST 18%',   gst_rate: 18, cgst_rate: 9,   sgst_rate: 9,   igst_rate: 18, cess_rate: 0, nature_of_transaction: 'Taxable'  },
-    { name: 'GST 28%',   gst_rate: 28, cgst_rate: 14,  sgst_rate: 14,  igst_rate: 28, cess_rate: 0, nature_of_transaction: 'Taxable'  },
-    { name: 'Exempt',    gst_rate: 0,  cgst_rate: 0,   sgst_rate: 0,   igst_rate: 0,  cess_rate: 0, nature_of_transaction: 'Exempt'   },
-    { name: 'Nil Rated', gst_rate: 0,  cgst_rate: 0,   sgst_rate: 0,   igst_rate: 0,  cess_rate: 0, nature_of_transaction: 'Nil Rated'},
-    { name: 'Non GST',   gst_rate: 0,  cgst_rate: 0,   sgst_rate: 0,   igst_rate: 0,  cess_rate: 0, nature_of_transaction: 'Non GST'  },
+    { name: 'GST 0%',    igst_rate: 0,  cgst_rate: 0,   sgst_rate: 0,   cess_rate: 0, taxability: 'Taxable',  nature_of_transaction: 'Not Applicable' },
+    { name: 'GST 5%',    igst_rate: 5,  cgst_rate: 2.5, sgst_rate: 2.5, cess_rate: 0, taxability: 'Taxable',  nature_of_transaction: 'Not Applicable' },
+    { name: 'GST 12%',   igst_rate: 12, cgst_rate: 6,   sgst_rate: 6,   cess_rate: 0, taxability: 'Taxable',  nature_of_transaction: 'Not Applicable' },
+    { name: 'GST 18%',   igst_rate: 18, cgst_rate: 9,   sgst_rate: 9,   cess_rate: 0, taxability: 'Taxable',  nature_of_transaction: 'Not Applicable' },
+    { name: 'GST 28%',   igst_rate: 28, cgst_rate: 14,  sgst_rate: 14,  cess_rate: 0, taxability: 'Taxable',  nature_of_transaction: 'Not Applicable' },
+    { name: 'Exempt',    igst_rate: 0,  cgst_rate: 0,   sgst_rate: 0,   cess_rate: 0, taxability: 'Exempt',   nature_of_transaction: 'Not Applicable' },
+    { name: 'Nil Rated', igst_rate: 0,  cgst_rate: 0,   sgst_rate: 0,   cess_rate: 0, taxability: 'Nil Rated',nature_of_transaction: 'Not Applicable' },
+    { name: 'Non GST',   igst_rate: 0,  cgst_rate: 0,   sgst_rate: 0,   cess_rate: 0, taxability: 'Unknown',  nature_of_transaction: 'Not Applicable', is_non_gst_goods: 1 },
   ];
 
   for (const g of defaults) {
     await db.execute(
       `INSERT INTO gst_classifications (
-        company_id, name, nature_of_transaction, hsn_sac_code,
-        gst_rate, cgst_rate, sgst_rate, igst_rate, cess_rate,
-        valuation_type, description, is_predefined, is_active
-      ) VALUES (?, ?, ?, null, ?, ?, ?, ?, ?, 'Based on Value', null, 1, 1)`,
-      [company_id, g.name, g.nature_of_transaction, g.gst_rate, g.cgst_rate, g.sgst_rate, g.igst_rate, g.cess_rate]
+        company_id, name, description, hsn_sac_code,
+        is_non_gst_goods, nature_of_transaction, taxability,
+        is_reverse_charge, is_ineligible_for_itc,
+        igst_rate, igst_valuation_type,
+        cgst_rate, cgst_valuation_type,
+        sgst_rate, sgst_valuation_type,
+        cess_rate, cess_valuation_type,
+        is_predefined, is_active
+      ) VALUES (?, ?, null, null, ?, ?, ?, 0, 0, ?, 'Based on Value', ?, 'Based on Value', ?, 'Based on Value', ?, 'Based on Value', 1, 1)`,
+      [
+        company_id, g.name,
+        g.is_non_gst_goods ?? 0,
+        g.nature_of_transaction,
+        g.taxability,
+        g.igst_rate, g.cgst_rate, g.sgst_rate, g.cess_rate,
+      ]
     );
   }
 };
@@ -37,22 +48,33 @@ module.exports = {
 
       const result = await db.execute(
         `INSERT INTO gst_classifications (
-          company_id, name, nature_of_transaction, hsn_sac_code,
-          gst_rate, cgst_rate, sgst_rate, igst_rate, cess_rate,
-          valuation_type, description, is_predefined, is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)`,
+          company_id, name, description, hsn_sac_code,
+          is_non_gst_goods, nature_of_transaction, taxability,
+          is_reverse_charge, is_ineligible_for_itc,
+          igst_rate, igst_valuation_type,
+          cgst_rate, cgst_valuation_type,
+          sgst_rate, sgst_valuation_type,
+          cess_rate, cess_valuation_type,
+          is_predefined, is_active
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)`,
         [
           data.company_id,
           data.name,
-          data.nature_of_transaction || 'Taxable',
-          data.hsn_sac_code || null,
-          data.gst_rate || 0,
-          data.cgst_rate || 0,
-          data.sgst_rate || 0,
-          data.igst_rate || 0,
-          data.cess_rate || 0,
-          data.valuation_type || 'Based on Value',
           data.description || null,
+          data.hsn_sac_code || null,
+          data.is_non_gst_goods ?? 0,
+          data.nature_of_transaction || 'Not Applicable',
+          data.taxability || 'Unknown',
+          data.is_reverse_charge ?? 0,
+          data.is_ineligible_for_itc ?? 0,
+          data.igst_rate ?? 0,
+          data.igst_valuation_type || 'Based on Value',
+          data.cgst_rate ?? 0,
+          data.cgst_valuation_type || 'Based on Value',
+          data.sgst_rate ?? 0,
+          data.sgst_valuation_type || 'Based on Value',
+          data.cess_rate ?? 0,
+          data.cess_valuation_type || 'Based on Value',
         ]
       );
 
@@ -100,25 +122,35 @@ module.exports = {
       if (existing.rows.length === 0) return { success: false, error: 'GST Classification not found' };
       if (existing.rows[0].is_predefined) return { success: false, error: 'Cannot edit predefined GST classifications' };
 
-      const current = existing.rows[0];
+      const c = existing.rows[0];
       await db.execute(
         `UPDATE gst_classifications SET
-          name = ?, nature_of_transaction = ?, hsn_sac_code = ?,
-          gst_rate = ?, cgst_rate = ?, sgst_rate = ?, igst_rate = ?,
-          cess_rate = ?, valuation_type = ?, description = ?,
+          name = ?, description = ?, hsn_sac_code = ?,
+          is_non_gst_goods = ?, nature_of_transaction = ?, taxability = ?,
+          is_reverse_charge = ?, is_ineligible_for_itc = ?,
+          igst_rate = ?, igst_valuation_type = ?,
+          cgst_rate = ?, cgst_valuation_type = ?,
+          sgst_rate = ?, sgst_valuation_type = ?,
+          cess_rate = ?, cess_valuation_type = ?,
           updated_at = datetime('now')
-         WHERE gc_id = ?`,
+        WHERE gc_id = ?`,
         [
-          data.name ?? current.name,
-          data.nature_of_transaction ?? current.nature_of_transaction,
-          data.hsn_sac_code ?? current.hsn_sac_code,
-          data.gst_rate ?? current.gst_rate,
-          data.cgst_rate ?? current.cgst_rate,
-          data.sgst_rate ?? current.sgst_rate,
-          data.igst_rate ?? current.igst_rate,
-          data.cess_rate ?? current.cess_rate,
-          data.valuation_type ?? current.valuation_type,
-          data.description ?? current.description,
+          data.name              ?? c.name,
+          data.description       ?? c.description,
+          data.hsn_sac_code      ?? c.hsn_sac_code,
+          data.is_non_gst_goods  ?? c.is_non_gst_goods,
+          data.nature_of_transaction ?? c.nature_of_transaction,
+          data.taxability        ?? c.taxability,
+          data.is_reverse_charge ?? c.is_reverse_charge,
+          data.is_ineligible_for_itc ?? c.is_ineligible_for_itc,
+          data.igst_rate         ?? c.igst_rate,
+          data.igst_valuation_type ?? c.igst_valuation_type,
+          data.cgst_rate         ?? c.cgst_rate,
+          data.cgst_valuation_type ?? c.cgst_valuation_type,
+          data.sgst_rate         ?? c.sgst_rate,
+          data.sgst_valuation_type ?? c.sgst_valuation_type,
+          data.cess_rate         ?? c.cess_rate,
+          data.cess_valuation_type ?? c.cess_valuation_type,
           data.gc_id,
         ]
       );

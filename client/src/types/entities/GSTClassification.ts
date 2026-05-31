@@ -4,21 +4,21 @@ export interface GSTClassificationType {
   name?: string;
   description?: string;
   hsn_sac_code?: string;
-  is_non_gst_goods?: number;           // add
+  is_non_gst_goods?: number;          
   nature_of_transaction?: string;
-  taxability?: string;                  // add
-  is_reverse_charge?: number;           // add
-  is_ineligible_for_itc?: number;       // add
+  taxability?: string;             
+  is_reverse_charge?: number;         
+  is_ineligible_for_itc?: number;       
   igst_rate?: number;
-  igst_valuation_type?: string;         // add
+  igst_valuation_type?: string;         
   cgst_rate?: number;
-  cgst_valuation_type?: string;         // add
+  cgst_valuation_type?: string;       
   sgst_rate?: number;
-  sgst_valuation_type?: string;         // add
+  sgst_valuation_type?: string;
   cess_rate?: number;
-  cess_valuation_type?: string;         // add
-  valuation_type?: string;              // purana — rakhlo backward compat ke liye
-  gst_rate?: number;                    // purana — rakhlo
+  cess_valuation_type?: string;         
+  valuation_type?: string;            
+  gst_rate?: number;                    
   is_predefined?: number;
   is_active?: number;
 }

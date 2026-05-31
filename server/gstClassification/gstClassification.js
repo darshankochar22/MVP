@@ -4,15 +4,23 @@ const init = async (db) => {
       gc_id                   INTEGER PRIMARY KEY AUTOINCREMENT,
       company_id              INTEGER NOT NULL REFERENCES companies(company_id) ON DELETE CASCADE,
       name                    TEXT NOT NULL,
-      nature_of_transaction   TEXT DEFAULT 'Taxable',
-      hsn_sac_code            TEXT,
-      gst_rate                REAL DEFAULT 0,
-      cgst_rate               REAL DEFAULT 0,
-      sgst_rate               REAL DEFAULT 0,
-      igst_rate               REAL DEFAULT 0,
-      cess_rate               REAL DEFAULT 0,
-      valuation_type          TEXT DEFAULT 'Based on Value',
       description             TEXT,
+      hsn_sac_code            TEXT,
+      is_non_gst_goods        INTEGER DEFAULT 0,
+      nature_of_transaction   TEXT DEFAULT 'Not Applicable',
+      taxability              TEXT DEFAULT 'Unknown',
+      is_reverse_charge       INTEGER DEFAULT 0,
+      is_ineligible_for_itc   INTEGER DEFAULT 0,
+      igst_rate               REAL DEFAULT 0,
+      igst_valuation_type     TEXT DEFAULT 'Based on Value',
+      cgst_rate               REAL DEFAULT 0,
+      cgst_valuation_type     TEXT DEFAULT 'Based on Value',
+      sgst_rate               REAL DEFAULT 0,
+      sgst_valuation_type     TEXT DEFAULT 'Based on Value',
+      cess_rate               REAL DEFAULT 0,
+      cess_valuation_type     TEXT DEFAULT 'Based on Value',
+      gst_rate                REAL DEFAULT 0,
+      valuation_type          TEXT DEFAULT 'Based on Value',
       is_predefined           INTEGER DEFAULT 0,
       is_active               INTEGER DEFAULT 1,
       created_at              TEXT DEFAULT (datetime('now')),
@@ -20,5 +28,4 @@ const init = async (db) => {
     )
   `);
 };
-
 module.exports = { init };
