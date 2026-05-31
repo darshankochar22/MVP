@@ -1,39 +1,143 @@
+"use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 
-const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded ";
-const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-44 ";
+const inputCls =
+  "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
+const selectCls =
+  "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-44";
+
+const CATEGORIES = [
+  "Attendance",
+  "Contra",
+  "Credit Note",
+  "Debit Note",
+  "Delivery Note",
+  "Job Work In Order",
+  "Job Work Out Order",
+  "Journal",
+  "Material In",
+  "Material Out",
+  "Memorandum",
+  "Payment",
+  "Payroll",
+  "Physical Stock",
+  "Purchase",
+  "Purchase Order",
+  "Receipt",
+  "Receipt Note",
+  "Rejections In",
+  "Rejections Out",
+  "Reversing Journal",
+  "Sales",
+  "Sales Order",
+  "Stock Journal",
+];
 
 interface FormData {
   name: string;
   short_name: string;
   category: string;
-  default_voucher_class: string;
-  affects_inventory: "No" | "Yes";
-  affects_accounting: "No" | "Yes";
-  affects_gst: "No" | "Yes";
+  is_active: "Yes" | "No";
   numbering_method: "Automatic" | "Manual" | "None";
-  numbering_prefix: string;
-  numbering_suffix: string;
-  starts_with: string;
+  use_effective_dates: "No" | "Yes";
+  allow_zero_value_transactions: "No" | "Yes";
+  make_voucher_optional: "No" | "Yes";
+  allow_narration: "Yes" | "No";
+  allow_narration_per_ledger: "No" | "Yes";
+  print_after_save: "No" | "Yes";
 }
 
 const INITIAL: FormData = {
   name: "",
   short_name: "",
   category: "Receipt",
-  default_voucher_class: "",
-  affects_inventory: "No",
-  affects_accounting: "Yes",
-  affects_gst: "No",
+  is_active: "Yes",
   numbering_method: "Automatic",
-  numbering_prefix: "",
-  numbering_suffix: "",
-  starts_with: "1",
+  use_effective_dates: "No",
+  allow_zero_value_transactions: "No",
+  make_voucher_optional: "No",
+  allow_narration: "Yes",
+  allow_narration_per_ledger: "No",
+  print_after_save: "No",
 };
+
+function YesNoSelect({
+  value,
+  onChange,
+}: {
+  value: "Yes" | "No";
+  onChange: (v: "Yes" | "No") => void;
+}) {
+  return (
+    <select
+      className={selectCls}
+      value={value}
+      onChange={(e) => onChange(e.target.value as "Yes" | "No")}
+    >
+      <option>Yes</option>
+      <option>No</option>
+    </select>
+  );
+}
+
+// Inline dropdown list — white bg panel, opens on the right side
+function CategoryDropdown({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  return (
+    <div className="relative flex-1" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full text-left text-sm px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 focus:outline-none rounded bg-white/50 transition-colors"
+      >
+        {value || <span className="text-zinc-400">Select...</span>}
+      </button>
+
+      {open && (
+        <div className="absolute left-full top-0 ml-1 z-50 w-52 bg-white border border-zinc-200 rounded shadow-lg">
+          <div className="text-[11px] uppercase font-bold text-zinc-400 px-3 py-1.5 border-b border-zinc-100 tracking-wide">
+            List of Voucher Types
+          </div>
+          <ul className="max-h-72 overflow-y-auto">
+            {CATEGORIES.map((cat) => (
+              <li
+                key={cat}
+                onClick={() => { onChange(cat); setOpen(false); }}
+                className={`px-3 py-1 text-sm cursor-pointer transition-colors ${
+                  cat === value
+                    ? "bg-zinc-800 text-white"
+                    : "hover:bg-zinc-100 text-zinc-800"
+                }`}
+              >
+                {cat}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function VoucherTypeCreate() {
   const navigate = useNavigate();
@@ -41,6 +145,7 @@ export default function VoucherTypeCreate() {
   const companyId = selectedCompany?.company_id;
   const persistKey = companyId ? `voucherTypeCreate_${companyId}` : null;
   const hasRestored = useRef(false);
+
   const [form, setForm] = useState<FormData>(
     () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL
   );
@@ -50,32 +155,29 @@ export default function VoucherTypeCreate() {
 
   useEffect(() => {
     if (!persistKey) return;
-    if (!hasRestored.current) {
-      hasRestored.current = true;
-      return;
-    }
+    if (!hasRestored.current) { hasRestored.current = true; return; }
     saveFormState(persistKey, { form });
   }, [persistKey, form]);
 
-  const setField = (key: keyof FormData) => (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const setField =
+    (key: keyof FormData) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const setToggle =
+    (key: keyof FormData) => (v: "Yes" | "No") =>
+      setForm((f) => ({ ...f, [key]: v }));
 
   const validate = (): string | null => {
-    if (!form.name.trim()) return "Voucher Type name is required.";
+    if (!form.name.trim()) return "Voucher type name is required.";
     if (!form.category.trim()) return "Category is required.";
     if (!companyId) return "No company selected.";
-    const startNum = Number(form.starts_with);
-    if (isNaN(startNum) || startNum < 0) return "Starts with must be a positive number.";
     return null;
   };
 
   const handleSubmit = useCallback(async () => {
     const err = validate();
-    if (err) {
-      setError(err);
-      return;
-    }
+    if (err) { setError(err); return; }
     setLoading(true);
     setError(null);
     try {
@@ -84,14 +186,14 @@ export default function VoucherTypeCreate() {
         name: form.name.trim(),
         short_name: form.short_name.trim() || undefined,
         category: form.category,
-        default_voucher_class: form.default_voucher_class.trim() || undefined,
-        affects_inventory: form.affects_inventory === "Yes" ? 1 : 0,
-        affects_accounting: form.affects_accounting === "Yes" ? 1 : 0,
-        affects_gst: form.affects_gst === "Yes" ? 1 : 0,
         numbering_method: form.numbering_method,
-        numbering_prefix: form.numbering_prefix.trim() || undefined,
-        numbering_suffix: form.numbering_suffix.trim() || undefined,
-        starts_with: Number(form.starts_with) || 1,
+        is_active: form.is_active === "Yes" ? 1 : 0,
+        use_effective_dates: form.use_effective_dates === "Yes" ? 1 : 0,
+        allow_zero_value_transactions: form.allow_zero_value_transactions === "Yes" ? 1 : 0,
+        make_voucher_optional: form.make_voucher_optional === "Yes" ? 1 : 0,
+        allow_narration: form.allow_narration === "Yes" ? 1 : 0,
+        allow_narration_per_ledger: form.allow_narration_per_ledger === "Yes" ? 1 : 0,
+        print_after_save: form.print_after_save === "Yes" ? 1 : 0,
       });
 
       if (result.success) {
@@ -112,22 +214,9 @@ export default function VoucherTypeCreate() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        navigate("/master/create");
-      }
-      if (e.altKey && e.key.toLowerCase() === "a") {
-        e.preventDefault();
-        handleSubmit();
-      }
-      if (e.ctrlKey && e.key.toLowerCase() === "a") {
-        e.preventDefault();
-        handleSubmit();
-      }
-      if (e.altKey && e.key.toLowerCase() === "c") {
-        e.preventDefault();
-        navigate("/master/alter/voucher-type");
-      }
+      if (e.key === "Escape") { e.preventDefault(); navigate("/master/create"); }
+      if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") { e.preventDefault(); handleSubmit(); }
+      if (e.altKey && e.key.toLowerCase() === "c") { e.preventDefault(); navigate("/master/alter/voucher-type"); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -136,10 +225,8 @@ export default function VoucherTypeCreate() {
   const voucherActions = [
     { key: "Alt+A", label: "Accept", onClick: handleSubmit },
     { key: "Alt+C", label: "Alter Mode", onClick: () => navigate("/master/alter/voucher-type") },
-    { key: "Esc", label: "Quit", onClick: () => navigate("/master/create") },
+    { key: "Esc",   label: "Quit",      onClick: () => navigate("/master/create") },
   ];
-
-  const CATEGORIES = ["Receipt", "Payment", "Contra", "Journal", "Sales", "Purchase", "Credit Note", "Debit Note", "Stock Journal", "Delivery Note", "Receipt Note", "Memorandum", "Payroll"];
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none">
@@ -148,70 +235,86 @@ export default function VoucherTypeCreate() {
       {error && (
         <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
           <span>• {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold">&times;</button>
         </div>
       )}
       {success && (
         <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
           <span>• {success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
+          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold">&times;</button>
         </div>
       )}
 
       <div className="flex-1 flex min-h-0">
-        <div className="flex-1 flex flex-col min-w-0 bg-white">
-          <div className="p-3 space-y-1.5 max-w-2xl">
-            <FormRow label="Name" required labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} placeholder="e.g. Sales (GST)" />
+        <div className="flex-1 flex flex-col min-w-0 bg-white overflow-y-auto">
+          <div className="p-4 space-y-3 max-w-4xl">
+
+            {/* Name + Alias */}
+            <FormRow label="Name" required labelWidth="w-40" className="flex items-center min-h-[26px]">
+              <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} placeholder="e.g. Cash Payment" />
             </FormRow>
-            <FormRow label="Short Name" labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.short_name} onChange={setField("short_name")} placeholder="e.g. SGST" maxLength={4} />
+            <FormRow label="(alias)" labelWidth="w-40" className="flex items-center min-h-[26px]">
+              <input className={inputCls} value={form.short_name} onChange={setField("short_name")} placeholder="" maxLength={6} />
             </FormRow>
-            <FormRow label="Voucher Type Category" required labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={form.category} onChange={setField("category")}>
-                {CATEGORIES.map((cat) => (
-                  <option key={cat}>{cat}</option>
-                ))}
-              </select>
-            </FormRow>
-            <FormRow label="Default Voucher Class" labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.default_voucher_class} onChange={setField("default_voucher_class")} placeholder="e.g. Export Class" />
-            </FormRow>
-            <FormRow label="Method of Voucher Numbering" labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={form.numbering_method} onChange={setField("numbering_method")}>
-                <option>Automatic</option>
-                <option>Manual</option>
-                <option>None</option>
-              </select>
-            </FormRow>
-            <FormRow label="Starts With" labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <input className={inputCls} type="number" min="1" value={form.starts_with} onChange={setField("starts_with")} />
-            </FormRow>
-            <FormRow label="Numbering Prefix (if Auto)" labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.numbering_prefix} onChange={setField("numbering_prefix")} placeholder="e.g. GST/" />
-            </FormRow>
-            <FormRow label="Numbering Suffix (if Auto)" labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.numbering_suffix} onChange={setField("numbering_suffix")} placeholder="e.g. /26-27" />
-            </FormRow>
-            <div className="border-t border-zinc-100 my-2 pt-2 text-[10px] uppercase font-bold text-zinc-400 select-none">Effects & Accounting</div>
-            <FormRow label="Affects Inventory" labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={form.affects_inventory} onChange={setField("affects_inventory")}>
-                <option>No</option>
-                <option>Yes</option>
-              </select>
-            </FormRow>
-            <FormRow label="Affects Accounting" labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={form.affects_accounting} onChange={setField("affects_accounting")}>
-                <option>Yes</option>
-                <option>No</option>
-              </select>
-            </FormRow>
-            <FormRow label="Affects GST" labelWidth="w-64" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={form.affects_gst} onChange={setField("affects_gst")}>
-                <option>No</option>
-                <option>Yes</option>
-              </select>
-            </FormRow>
+
+            {/* 3-column panel */}
+            <div className="grid grid-cols-3 border border-zinc-200 rounded overflow-visible mt-2">
+
+              {/* GENERAL */}
+              <div className="p-3 border-r border-zinc-200 space-y-1.5">
+                <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">General</div>
+
+                <FormRow label="Select type of voucher" labelWidth="w-48" className="flex items-center min-h-[26px]">
+                  <CategoryDropdown value={form.category} onChange={(v) => setForm((f) => ({ ...f, category: v }))} />
+                </FormRow>
+                <FormRow label="Abbreviation" labelWidth="w-48" className="flex items-center min-h-[26px]">
+                  <input className={inputCls} value={form.short_name} onChange={setField("short_name")} maxLength={6} />
+                </FormRow>
+                <FormRow label="Activate this Voucher Type" labelWidth="w-48" className="flex items-center min-h-[26px]">
+                  <YesNoSelect value={form.is_active} onChange={setToggle("is_active")} />
+                </FormRow>
+                <FormRow label="Method of voucher numbering" labelWidth="w-48" className="flex items-center min-h-[26px]">
+                  <select className={selectCls} value={form.numbering_method} onChange={setField("numbering_method")}>
+                    <option>Automatic</option>
+                    <option>Manual</option>
+                    <option>None</option>
+                  </select>
+                </FormRow>
+
+                <div className="border-t border-zinc-100 my-1" />
+
+                <FormRow label="Use effective dates for vouchers" labelWidth="w-48" className="flex items-center min-h-[26px]">
+                  <YesNoSelect value={form.use_effective_dates} onChange={setToggle("use_effective_dates")} />
+                </FormRow>
+                <FormRow label="Allow zero-valued transactions" labelWidth="w-48" className="flex items-center min-h-[26px]">
+                  <YesNoSelect value={form.allow_zero_value_transactions} onChange={setToggle("allow_zero_value_transactions")} />
+                </FormRow>
+                <FormRow label="Make this voucher type as 'Optional' by default" labelWidth="w-48" className="flex items-center min-h-[26px]">
+                  <YesNoSelect value={form.make_voucher_optional} onChange={setToggle("make_voucher_optional")} />
+                </FormRow>
+                <FormRow label="Allow narration in voucher" labelWidth="w-48" className="flex items-center min-h-[26px]">
+                  <YesNoSelect value={form.allow_narration} onChange={setToggle("allow_narration")} />
+                </FormRow>
+                <FormRow label="Provide narrations for each ledger in voucher" labelWidth="w-48" className="flex items-center min-h-[26px]">
+                  <YesNoSelect value={form.allow_narration_per_ledger} onChange={setToggle("allow_narration_per_ledger")} />
+                </FormRow>
+              </div>
+
+              {/* PRINTING */}
+              <div className="p-3 border-r border-zinc-200 space-y-1.5">
+                <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">Printing</div>
+                <FormRow label="Print voucher after saving" labelWidth="w-48" className="flex items-center min-h-[26px]">
+                  <YesNoSelect value={form.print_after_save} onChange={setToggle("print_after_save")} />
+                </FormRow>
+              </div>
+
+              {/* NAME OF CLASS */}
+              <div className="p-3 space-y-1.5">
+                <div className="text-[11px] font-bold text-zinc-500 mb-2 text-center">Name of Class</div>
+                {/* Empty — classes are added after voucher type is created, just like Tally */}
+              </div>
+
+            </div>
           </div>
           <div className="flex-1" />
         </div>
@@ -220,7 +323,10 @@ export default function VoucherTypeCreate() {
       </div>
 
       <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50">
-        <button onClick={() => navigate("/master/create")} className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium">
+        <button
+          onClick={() => navigate("/master/create")}
+          className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium"
+        >
           &larr; Back to Masters
         </button>
         <button
@@ -234,3 +340,4 @@ export default function VoucherTypeCreate() {
     </div>
   );
 }
+
