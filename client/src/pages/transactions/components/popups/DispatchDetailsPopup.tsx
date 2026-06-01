@@ -1,44 +1,37 @@
 import { useState, useEffect } from "react";
 
-interface DispatchDetail {
-  id: string;
-  dispatch_date: string;
-  place_of_dispatch: string;
-  port_of_shipment?: string;
-  port_of_destination?: string;
-  shipping_mode: "Air" | "Sea" | "Rail" | "Road" | "Others";
-  vehicle_number?: string;
-  awb_or_bill_of_lading?: string;
-  additional_notes?: string;
+export interface DispatchDetails {
+  delivery_note_nos?: string;
+  dispatch_doc_no?: string;
+  dispatched_through?: string;
+  destination?: string;
+  carrier_name?: string;
+  bill_of_lading_no?: string;
+  bill_of_lading_date?: string;
+  motor_vehicle_no?: string;
 }
 
 interface Props {
-  partyName: string;
-  totalAmount: number;
-  initialDetails?: DispatchDetail | null;
+  initialDetails?: DispatchDetails | null;
   onClose: () => void;
-  onSave: (details: DispatchDetail) => void;
+  onSave: (details: DispatchDetails) => void;
 }
 
 export default function DispatchDetailsPopup({
-  partyName,
-  totalAmount,
   initialDetails,
   onClose,
   onSave,
 }: Props) {
-  const [form, setForm] = useState<DispatchDetail>({
-    id: initialDetails?.id ?? `dispatch_${Date.now()}`,
-    dispatch_date: initialDetails?.dispatch_date ?? new Date().toISOString().split("T")[0],
-    place_of_dispatch: initialDetails?.place_of_dispatch ?? "",
-    port_of_shipment: initialDetails?.port_of_shipment ?? "",
-    port_of_destination: initialDetails?.port_of_destination ?? "",
-    shipping_mode: initialDetails?.shipping_mode ?? "Road",
-    vehicle_number: initialDetails?.vehicle_number ?? "",
-    awb_or_bill_of_lading: initialDetails?.awb_or_bill_of_lading ?? "",
-    additional_notes: initialDetails?.additional_notes ?? "",
+  const [form, setForm] = useState<DispatchDetails>({
+    delivery_note_nos: initialDetails?.delivery_note_nos ?? "",
+    dispatch_doc_no: initialDetails?.dispatch_doc_no ?? "",
+    dispatched_through: initialDetails?.dispatched_through ?? "",
+    destination: initialDetails?.destination ?? "",
+    carrier_name: initialDetails?.carrier_name ?? "",
+    bill_of_lading_no: initialDetails?.bill_of_lading_no ?? "",
+    bill_of_lading_date: initialDetails?.bill_of_lading_date ?? "",
+    motor_vehicle_no: initialDetails?.motor_vehicle_no ?? "",
   });
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -50,177 +43,137 @@ export default function DispatchDetailsPopup({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form]);
 
-  const set = (field: keyof DispatchDetail, value: any) => {
-    setError(null);
+  const set = (field: keyof DispatchDetails, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = () => {
-    if (!form.dispatch_date.trim()) {
-      setError("Dispatch date is required.");
-      return;
-    }
-    if (!form.place_of_dispatch.trim()) {
-      setError("Place of dispatch is required.");
-      return;
-    }
-    if (!form.shipping_mode) {
-      setError("Shipping mode is required.");
-      return;
-    }
+    // No mandatory fields - user can skip by clicking Accept
     onSave(form);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm">
-      <div className="bg-white border border-zinc-300 rounded-lg shadow-2xl w-[550px] flex flex-col max-h-[90vh] overflow-hidden">
-        
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white border border-black shadow-xl w-[700px] flex flex-col">
         {/* Header */}
-        <div className="bg-zinc-900 px-4 py-2 text-white flex justify-between items-center select-none">
-          <div className="flex flex-col">
-            <span className="text-xs font-bold uppercase tracking-wider">Dispatch Details</span>
-            <span className="text-[10px] text-zinc-400 font-mono">Party: {partyName}</span>
-          </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-white font-bold text-sm">&times;</button>
+        <div className="bg-white text-black px-3 py-1 flex justify-center items-center select-none border-b border-black">
+          <span className="text-sm font-bold">Dispatch Details</span>
         </div>
 
-        {/* Amount Info */}
-        <div className="bg-zinc-50 border-b border-zinc-200 px-4 py-2.5 flex justify-between items-center text-xs font-semibold text-zinc-700">
-          <span>Invoice Amount:</span>
-          <span className="font-mono text-zinc-900 text-sm">
-            ₹{totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-          </span>
-        </div>
-
-        {/* Form Content */}
-        <div className="p-4 flex-1 overflow-y-auto space-y-4 min-h-0">
-          {error && (
-            <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs px-3 py-1.5 rounded flex justify-between items-center">
-              <span>• {error}</span>
-              <button onClick={() => setError(null)} className="font-bold">&times;</button>
+        {/* Form Content — two-column layout matching Tally */}
+        <div className="p-4 flex gap-6">
+          {/* Left column */}
+          <div className="w-1/2">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-sm text-black shrink-0">Delivery Note No(s)</span>
+              <span className="text-sm text-black shrink-0">:</span>
             </div>
-          )}
-
-          {/* Dispatch Date */}
-          <Field label="Dispatch Date *">
-            <input
-              type="date"
-              value={form.dispatch_date}
-              onChange={(e) => set("dispatch_date", e.target.value)}
-              className="text-xs px-2.5 py-1.5 border border-zinc-300 rounded outline-none focus:border-zinc-800 w-full font-semibold bg-white"
-            />
-          </Field>
-
-          {/* Place of Dispatch */}
-          <Field label="Place of Dispatch *">
             <input
               type="text"
-              value={form.place_of_dispatch}
-              onChange={(e) => set("place_of_dispatch", e.target.value)}
-              placeholder="e.g. Mumbai Warehouse"
-              className="text-xs px-2.5 py-1.5 border border-zinc-300 rounded outline-none focus:border-zinc-800 w-full font-semibold bg-white"
+              className="w-full text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-yellow-50"
+              value={form.delivery_note_nos ?? ""}
+              onChange={(e) => set("delivery_note_nos", e.target.value)}
+              autoFocus
             />
-          </Field>
+          </div>
 
-          {/* Shipping Mode */}
-          <Field label="Shipping Mode *">
-            <select
-              value={form.shipping_mode}
-              onChange={(e) => set("shipping_mode", e.target.value as any)}
-              className="text-xs px-2.5 py-1.5 border border-zinc-300 rounded outline-none focus:border-zinc-800 w-full font-semibold bg-white"
-            >
-              <option value="Road">Road</option>
-              <option value="Rail">Rail</option>
-              <option value="Air">Air</option>
-              <option value="Sea">Sea</option>
-              <option value="Others">Others</option>
-            </select>
-          </Field>
+          {/* Right column */}
+          <div className="w-1/2 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-40 text-sm text-black shrink-0">Dispatch Doc No.</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <input
+                type="text"
+                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                value={form.dispatch_doc_no ?? ""}
+                onChange={(e) => set("dispatch_doc_no", e.target.value)}
+              />
+            </div>
 
-          {/* Port of Shipment */}
-          <Field label="Port of Shipment (Optional)">
-            <input
-              type="text"
-              value={form.port_of_shipment ?? ""}
-              onChange={(e) => set("port_of_shipment", e.target.value)}
-              placeholder="e.g. Port of Mumbai"
-              className="text-xs px-2.5 py-1.5 border border-zinc-300 rounded outline-none focus:border-zinc-800 w-full font-semibold bg-white"
-            />
-          </Field>
+            <div className="flex items-center gap-2">
+              <span className="w-40 text-sm text-black shrink-0">Dispatched through</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <input
+                type="text"
+                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                value={form.dispatched_through ?? ""}
+                onChange={(e) => set("dispatched_through", e.target.value)}
+              />
+            </div>
 
-          {/* Port of Destination */}
-          <Field label="Port of Destination (Optional)">
-            <input
-              type="text"
-              value={form.port_of_destination ?? ""}
-              onChange={(e) => set("port_of_destination", e.target.value)}
-              placeholder="e.g. Port of Shanghai"
-              className="text-xs px-2.5 py-1.5 border border-zinc-300 rounded outline-none focus:border-zinc-800 w-full font-semibold bg-white"
-            />
-          </Field>
+            <div className="flex items-center gap-2">
+              <span className="w-40 text-sm text-black shrink-0">Destination</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <input
+                type="text"
+                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                value={form.destination ?? ""}
+                onChange={(e) => set("destination", e.target.value)}
+              />
+            </div>
 
-          {/* Vehicle Number */}
-          <Field label="Vehicle/Container Number (Optional)">
-            <input
-              type="text"
-              value={form.vehicle_number ?? ""}
-              onChange={(e) => set("vehicle_number", e.target.value)}
-              placeholder="e.g. MH01AB1234 or CONT123456"
-              className="text-xs px-2.5 py-1.5 border border-zinc-300 rounded outline-none focus:border-zinc-800 w-full font-semibold bg-white"
-            />
-          </Field>
+            <div className="flex items-center gap-2">
+              <span className="w-40 text-sm text-black shrink-0">Carrier Name/Agent</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <input
+                type="text"
+                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                value={form.carrier_name ?? ""}
+                onChange={(e) => set("carrier_name", e.target.value)}
+              />
+            </div>
 
-          {/* AWB or Bill of Lading */}
-          <Field label="AWB / Bill of Lading (Optional)">
-            <input
-              type="text"
-              value={form.awb_or_bill_of_lading ?? ""}
-              onChange={(e) => set("awb_or_bill_of_lading", e.target.value)}
-              placeholder="e.g. AWB123456 or BOL789"
-              className="text-xs px-2.5 py-1.5 border border-zinc-300 rounded outline-none focus:border-zinc-800 w-full font-semibold bg-white"
-            />
-          </Field>
+            <div className="flex items-center gap-2">
+              <span className="w-40 text-sm text-black shrink-0">Bill of Lading/LR-RR No.</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <input
+                type="text"
+                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                value={form.bill_of_lading_no ?? ""}
+                onChange={(e) => set("bill_of_lading_no", e.target.value)}
+              />
+              <span className="text-sm text-black shrink-0">Date</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <input
+                type="date"
+                className="w-28 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                value={form.bill_of_lading_date ?? ""}
+                onChange={(e) => set("bill_of_lading_date", e.target.value)}
+              />
+            </div>
 
-          {/* Additional Notes */}
-          <Field label="Additional Notes (Optional)">
-            <textarea
-              value={form.additional_notes ?? ""}
-              onChange={(e) => set("additional_notes", e.target.value)}
-              placeholder="Any special instructions or notes about the dispatch…"
-              rows={3}
-              className="text-xs px-2.5 py-1.5 border border-zinc-300 rounded outline-none focus:border-zinc-800 w-full font-semibold bg-white resize-none"
-            />
-          </Field>
+            <div className="flex items-center gap-2">
+              <span className="w-40 text-sm text-black shrink-0">Motor Vehicle No.</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <input
+                type="text"
+                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                value={form.motor_vehicle_no ?? ""}
+                onChange={(e) => set("motor_vehicle_no", e.target.value)}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="border-t border-zinc-200 p-3 bg-zinc-50 flex justify-between items-center select-none">
-          <span className="text-[10px] text-zinc-500">Alt+A: Accept &nbsp;·&nbsp; Esc: Close</span>
+        <div className="border-t border-black px-3 py-2 flex justify-between items-center bg-gray-50">
+          <span className="text-[10px] text-gray-600">Alt+A: Accept &nbsp;&middot;&nbsp; Esc: Close</span>
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="text-xs px-3 py-1.5 border border-zinc-300 rounded text-zinc-700 bg-white hover:bg-zinc-100 font-semibold"
+              className="text-xs px-3 py-1 border border-black text-black hover:bg-gray-100"
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="text-xs px-5 py-1.5 rounded bg-zinc-950 text-white hover:bg-zinc-800 font-semibold shadow-sm active:scale-95"
+              className="text-xs px-4 py-1 bg-black text-white hover:bg-gray-800"
             >
               Accept
             </button>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <label className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">{label}</label>
-      {children}
     </div>
   );
 }

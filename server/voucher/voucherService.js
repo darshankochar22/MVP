@@ -347,6 +347,25 @@ module.exports = {
           });
         }
 
+        if (data.dispatch_details) {
+          const dd = data.dispatch_details;
+          await db.execute({
+            sql: `INSERT INTO voucher_dispatch_details (voucher_id, delivery_note_nos, dispatch_doc_no, dispatched_through, destination, carrier_name, bill_of_lading_no, bill_of_lading_date, motor_vehicle_no)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [
+              voucher_id,
+              nullify(dd.delivery_note_nos) || null,
+              nullify(dd.dispatch_doc_no) || null,
+              nullify(dd.dispatched_through) || null,
+              nullify(dd.destination) || null,
+              nullify(dd.carrier_name) || null,
+              nullify(dd.bill_of_lading_no) || null,
+              nullify(dd.bill_of_lading_date) || null,
+              nullify(dd.motor_vehicle_no) || null,
+            ],
+          });
+        }
+
         if (data.computedGST) {
           const gstTaxEngine = require('../gst/gstTaxEngine');
           await gstTaxEngine.saveVoucherTaxLines(db, voucher_id, data.computedGST);
@@ -436,6 +455,10 @@ module.exports = {
         sql: `SELECT * FROM voucher_party_details WHERE voucher_id = ?`,
         args: [id],
       });
+      const dispatchDetails = await db.execute({
+        sql: `SELECT * FROM voucher_dispatch_details WHERE voucher_id = ?`,
+        args: [id],
+      });
 
       return {
         success: true,
@@ -449,6 +472,7 @@ module.exports = {
           cash_denominations: cashDenoms.rows,
           receipt_details: receiptDetails.rows[0] || null,
           party_details: partyDetails.rows[0] || null,
+          dispatch_details: dispatchDetails.rows[0] || null,
         },
       };
     } catch (err) {
@@ -596,6 +620,31 @@ module.exports = {
               nullify(pd.address) || null,
               nullify(pd.state) || null,
               nullify(pd.country) || null,
+            ],
+          });
+        }
+      }
+
+      if (data.dispatch_details !== undefined) {
+        await db.execute({
+          sql: `DELETE FROM voucher_dispatch_details WHERE voucher_id = ?`,
+          args: [data.voucher_id],
+        });
+        if (data.dispatch_details) {
+          const dd = data.dispatch_details;
+          await db.execute({
+            sql: `INSERT INTO voucher_dispatch_details (voucher_id, delivery_note_nos, dispatch_doc_no, dispatched_through, destination, carrier_name, bill_of_lading_no, bill_of_lading_date, motor_vehicle_no)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            args: [
+              data.voucher_id,
+              nullify(dd.delivery_note_nos) || null,
+              nullify(dd.dispatch_doc_no) || null,
+              nullify(dd.dispatched_through) || null,
+              nullify(dd.destination) || null,
+              nullify(dd.carrier_name) || null,
+              nullify(dd.bill_of_lading_no) || null,
+              nullify(dd.bill_of_lading_date) || null,
+              nullify(dd.motor_vehicle_no) || null,
             ],
           });
         }

@@ -140,8 +140,9 @@ export default function Vouchers() {
   const [showReceiptDetails, setShowReceiptDetails] = useState(false);
   const [showPartyDetails, setShowPartyDetails] = useState(false);
 
-  // Prevent auto-opening receipt details on mount when form is restored from persistence
+  // Prevent auto-opening receipt/details on mount when form is restored from persistence
   const hasAutoOpenedReceipt = useRef(false);
+  const hasAutoOpenedDispatch = useRef(false);
 
   // Stable ref so async callbacks (bill-wise save → accept) always call the
   // latest version of handleAccept without stale closure issues.
@@ -248,7 +249,8 @@ export default function Vouchers() {
   // ─── Monitor party ledger changes to open dispatch/receipt details ────────
 
   useEffect(() => {
-    if (form.voucherType === "Sales" && form.partyLedger) {
+    if (form.voucherType === "Sales" && form.partyLedger && !hasAutoOpenedDispatch.current) {
+      hasAutoOpenedDispatch.current = true;
       setShowDispatchDetails(true);
     }
   }, [form.partyLedger, form.voucherType]);
@@ -263,6 +265,7 @@ export default function Vouchers() {
   useEffect(() => {
     if (!form.partyLedger) {
       hasAutoOpenedReceipt.current = false;
+      hasAutoOpenedDispatch.current = false;
     }
   }, [form.partyLedger]);
 
@@ -684,11 +687,12 @@ export default function Vouchers() {
   );
 
   const handleSaveDispatchDetails = useCallback(
-    (_details: any) => {
-      // Store dispatch details in form state (can be extended later)
+    (details: any) => {
+      form.setDispatchDetails(details);
       setShowDispatchDetails(false);
+      setShowPartyDetails(true);
     },
-    []
+    [form.setDispatchDetails]
   );
 
   const handleSaveReceiptDetails = useCallback(
@@ -1671,8 +1675,7 @@ export default function Vouchers() {
 
       {showDispatchDetails && form.partyLedger && (
         <DispatchDetailsPopup
-          partyName={form.partyLedger.name}
-          totalAmount={form.totalAmount}
+          initialDetails={form.dispatchDetails}
           onClose={() => setShowDispatchDetails(false)}
           onSave={handleSaveDispatchDetails}
         />
@@ -1694,6 +1697,7 @@ export default function Vouchers() {
           onClose={() => setShowPartyDetails(false)}
           onSave={handleSavePartyDetails}
           onCreateLedger={() => navigate("/master/create/ledger")}
+          buyerLabel={form.voucherType === "Sales" ? "Buyer (Bill to)" : "Supplier (Bill from)"}
         />
       )}
 

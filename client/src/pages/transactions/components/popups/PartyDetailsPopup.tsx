@@ -17,6 +17,7 @@ interface Props {
   onClose: () => void;
   onSave: (details: PartyDetails) => void;
   onCreateLedger: () => void;
+  buyerLabel?: string;
 }
 
 export default function PartyDetailsPopup({
@@ -26,6 +27,7 @@ export default function PartyDetailsPopup({
   onClose,
   onSave,
   onCreateLedger,
+  buyerLabel = "Supplier (Bill from)",
 }: Props) {
   const [form, setForm] = useState<PartyDetails>({
     supplier_name: initialDetails?.supplier_name ?? partyLedger?.name ?? "",
@@ -85,7 +87,7 @@ export default function PartyDetailsPopup({
           {/* Form Content */}
           <div className="p-4 space-y-3">
             <div className="flex items-center gap-2">
-              <span className="w-36 text-sm text-black shrink-0">Supplier (Bill from)</span>
+              <span className="w-36 text-sm text-black shrink-0">{buyerLabel}</span>
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"

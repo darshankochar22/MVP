@@ -171,6 +171,7 @@ export function useVoucherForm() {
   const [cashDenominations, setCashDenominations] = useState<any | null>(null);
   const [receiptDetails, setReceiptDetails] = useState<any | null>(null);
   const [partyDetails, setPartyDetails] = useState<any | null>(null);
+  const [dispatchDetails, setDispatchDetails] = useState<any | null>(null);
 
   // ── Reference / invoice fields ──────────────────────────────────────────────
 
@@ -341,6 +342,7 @@ export function useVoucherForm() {
       supplierInvoiceDate,
       receiptDetails,
       partyDetails,
+      dispatchDetails,
     }),
     [
       voucherType, narration, accountLedger, particulars, journalRows,
@@ -348,7 +350,7 @@ export function useVoucherForm() {
       paymentEntryMode, paymentDoubleRows,
       partyLedger, salesPurchaseLedger, stockEntries, additionalEntries,
       referenceNumber, placeOfSupply, partyBillReferences, bankDetails,
-      supplierInvoiceNo, supplierInvoiceDate, receiptDetails, partyDetails,
+      supplierInvoiceNo, supplierInvoiceDate, receiptDetails, partyDetails, dispatchDetails,
     ]
   );
 
@@ -1134,6 +1136,7 @@ export function useVoucherForm() {
     setCashDenominations(null);
     setReceiptDetails(null);
     setPartyDetails(null);
+    setDispatchDetails(null);
 
     setReferenceNumber("");
     setNarration("");
@@ -1598,6 +1601,7 @@ export function useVoucherForm() {
         cash_denominations: cashDenominations || undefined,
         receipt_details: receiptDetails || undefined,
         party_details: partyDetails || undefined,
+        dispatch_details: dispatchDetails || undefined,
       };
 
       const res = await window.api.voucher.create(payload);
@@ -1626,7 +1630,7 @@ export function useVoucherForm() {
     particulars, contraDoubleRows, receiptDoubleRows, paymentDoubleRows, journalRows,
     partyLedger, salesPurchaseLedger,
     stockEntries, additionalEntries,
-    partyBillReferences, bankDetails, cashDenominations, receiptDetails, partyDetails,
+    partyBillReferences, bankDetails, cashDenominations, receiptDetails, partyDetails, dispatchDetails,
     voucherNumber, resetForm, fetchContextData,
   ]);
 
@@ -1686,6 +1690,8 @@ export function useVoucherForm() {
     setReceiptDetails,
     partyDetails,
     setPartyDetails,
+    dispatchDetails,
+    setDispatchDetails,
 
     // ── Reference / invoice ────────────────────────────────────────────────────
     referenceNumber,

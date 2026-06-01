@@ -29,6 +29,17 @@ export interface VoucherPartyDetails {
   country?: string;
 }
 
+export interface VoucherDispatchDetails {
+  delivery_note_nos?: string;
+  dispatch_doc_no?: string;
+  dispatched_through?: string;
+  destination?: string;
+  carrier_name?: string;
+  bill_of_lading_no?: string;
+  bill_of_lading_date?: string;
+  motor_vehicle_no?: string;
+}
+
 export interface VoucherRecordType {
   voucher_id?: number;
   company_id?: number;
@@ -57,4 +68,5 @@ export interface VoucherRecordType {
   entries?: VoucherEntryType[];
   receipt_details?: VoucherReceiptDetails | null;
   party_details?: VoucherPartyDetails | null;
+  dispatch_details?: VoucherDispatchDetails | null;
 }
