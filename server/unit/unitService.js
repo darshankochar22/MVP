@@ -33,7 +33,7 @@ module.exports = {
 
       const result = await db.execute({
         sql: `INSERT INTO units (company_id, name, symbol, formal_name, decimal_places, unit_quantity_code, unit_type, is_simple, is_active, is_predefined)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [
           data.company_id, data.name, data.symbol,
           data.formal_name || data.name,
@@ -46,7 +46,7 @@ module.exports = {
       });
 
       const unit = await db.execute({
-        sql: `SELECT * FROM units WHERE unit_id = ?`,
+        sql: `SELECT * FROM units WHERE unit_id = ? ORDER BY name ASC`,
         args: [Number(result.lastInsertRowid)],
       });
       return { success: true, unit: unit.rows[0] };
@@ -58,7 +58,7 @@ module.exports = {
   getAll: async (company_id) => {
     try {
       const result = await db.execute({
-        sql: `SELECT * FROM units WHERE company_id = ? AND is_active = 1`,
+        sql: `SELECT * FROM units WHERE company_id = ? AND is_active = 1 ORDER BY is_predefined DESC, name ASC`,
         args: [company_id],
       });
       return { success: true, units: result.rows };
@@ -92,8 +92,8 @@ module.exports = {
 
       await db.execute({
         sql: `UPDATE units SET name = ?, symbol = ?, formal_name = ?, decimal_places = ?,
-              unit_quantity_code = ?, unit_type = ?, is_simple = ?, updated_at = datetime('now')
-              WHERE unit_id = ?`,
+             unit_quantity_code = ?, unit_type = ?, is_simple = ?, updated_at = datetime('now')
+             WHERE unit_id = ?`,
         args: [
           data.name ?? unit.name,
           data.symbol ?? unit.symbol,
