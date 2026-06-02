@@ -11,8 +11,8 @@ const selectCls = "bg-transparent text-sm outline-none px-1 py-0.5 border border
 interface FormData {
   name: string;
   alias: string;
-  group_id: string; // Under (default Primary "")
-  unit_id: string;  // Units (default Not Applicable "")
+  group_id: string;
+  unit_id: string;
   gst_applicable: "Not Applicable" | "Applicable";
   hsn_code: string;
   sac_code: string;
@@ -22,6 +22,12 @@ interface FormData {
   igst_rate: string;
   type_of_supply: "Goods" | "Services";
   rate_of_duty: string;
+  opening_quantity: string;
+  opening_rate: string;
+  has_bom: boolean;
+  bom_name: string;
+  reorder_level: string;
+  reorder_quantity: string;
 }
 
 const INITIAL: FormData = {
@@ -38,6 +44,12 @@ const INITIAL: FormData = {
   igst_rate: "0",
   type_of_supply: "Goods",
   rate_of_duty: "0",
+  opening_quantity: "0",
+  opening_rate: "0",
+  has_bom: false,
+  bom_name: "",
+  reorder_level: "0",
+  reorder_quantity: "0",
 };
 
 export default function StockItemCreate() {
@@ -55,6 +67,16 @@ export default function StockItemCreate() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<"group" | "unit" | null>(null);
+  const [unitsRefreshTrigger, setUnitsRefreshTrigger] = useState(0);
+
+  const loadUnits = useCallback(async (company_id: number) => {
+    try {
+      const r = await window.api.unit.getAll(company_id);
+      if (r.success) setUnits(r.units ?? []);
+    } catch (e) {
+      console.error("Failed to load units:", e);
+    }
+  }, []);
 
   useEffect(() => {
     const company_id = selectedCompany?.company_id;
@@ -62,10 +84,8 @@ export default function StockItemCreate() {
     window.api.stockGroup.getAll(company_id).then(r => {
       if (r.success) setStockGroups(r.stockGroups ?? []);
     });
-    window.api.unit.getAll(company_id).then(r => {
-      if (r.success) setUnits(r.units ?? []);
-    });
-  }, [selectedCompany]);
+    loadUnits(company_id);
+  }, [selectedCompany, loadUnits, unitsRefreshTrigger]);
 
   useEffect(() => {
     if (!persistKey) return;
@@ -77,8 +97,10 @@ export default function StockItemCreate() {
   }, [persistKey, form]);
 
   const setField = (key: keyof FormData) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm(f => ({ ...f, [key]: e.target.value }));
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const value = e.target.type === "checkbox" ? (e.target as HTMLInputElement).checked : e.target.value;
+      setForm(f => ({ ...f, [key]: value }));
+    };
 
   const handleGstChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -94,6 +116,7 @@ export default function StockItemCreate() {
       if (rates.some(v => v < 0)) return "GST rates cannot be negative.";
       if (rates.some(v => v > 100)) return "GST rates cannot exceed 100%.";
     }
+    if (form.has_bom && !form.bom_name.trim()) return "BOM name is required when BOM is enabled.";
     return null;
   };
 
@@ -117,12 +140,14 @@ export default function StockItemCreate() {
         igst_rate: form.gst_applicable === "Applicable" ? (Number(form.igst_rate) || 0) : 0,
         type_of_supply: form.gst_applicable === "Applicable" ? form.type_of_supply : "Goods",
         rate_of_duty: form.gst_applicable === "Applicable" ? (Number(form.rate_of_duty) || 0) : 0,
-        opening_quantity: 0,
-        opening_rate: 0,
-        reorder_level: 0,
-        reorder_quantity: 0,
+        opening_quantity: Number(form.opening_quantity) || 0,
+        opening_rate: Number(form.opening_rate) || 0,
+        reorder_level: Number(form.reorder_level) || 0,
+        reorder_quantity: Number(form.reorder_quantity) || 0,
         track_batches: 0,
         track_expiry: 0,
+        has_bom: form.has_bom,
+        bom_name: form.has_bom ? form.bom_name.trim() : undefined,
       });
       if (result.success) {
         setSuccess(`Stock Item "${form.name}" created successfully.`);
@@ -179,6 +204,8 @@ export default function StockItemCreate() {
   const selectedUnitLabel = form.unit_id
     ? units.find(u => String(u.unit_id) === form.unit_id)?.symbol ?? "Not Applicable"
     : "Not Applicable";
+
+  const openingValue = (Number(form.opening_quantity) || 0) * (Number(form.opening_rate) || 0);
 
   const itemActions = [
     { key: "Alt+G", label: "Select Group", onClick: () => setActivePanel(prev => prev === "group" ? null : "group") },
@@ -238,6 +265,88 @@ export default function StockItemCreate() {
               <span className="text-zinc-600 mr-2 shrink-0">:</span>
               <span className="text-sm px-1 py-0.5 font-bold uppercase tracking-wide text-zinc-900">{selectedUnitLabel}</span>
             </div>
+          </div>
+
+          {/* Opening Inventory Details */}
+          <div className="max-w-2xl space-y-1 border-t border-zinc-100 pt-4">
+            <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans">Opening Inventory</div>
+            
+            <FormRow label="Opening Quantity" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input 
+                className={inputCls} 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                value={form.opening_quantity} 
+                onChange={setField("opening_quantity")} 
+                placeholder="0.00"
+              />
+            </FormRow>
+
+            <FormRow label="Rate Per (Unit Cost)" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input 
+                className={inputCls} 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                value={form.opening_rate} 
+                onChange={setField("opening_rate")} 
+                placeholder="0.00"
+              />
+            </FormRow>
+
+            <FormRow label="Value" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <span className="text-sm px-1 py-0.5 font-mono text-zinc-700">{openingValue.toFixed(2)}</span>
+            </FormRow>
+
+            <FormRow label="Reorder Level" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input 
+                className={inputCls} 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                value={form.reorder_level} 
+                onChange={setField("reorder_level")} 
+                placeholder="0.00"
+              />
+            </FormRow>
+
+            <FormRow label="Reorder Quantity" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input 
+                className={inputCls} 
+                type="number" 
+                min="0" 
+                step="0.01" 
+                value={form.reorder_quantity} 
+                onChange={setField("reorder_quantity")} 
+                placeholder="0.00"
+              />
+            </FormRow>
+          </div>
+
+          {/* Additional Details - BOM Section */}
+          <div className="max-w-2xl space-y-1 border-t border-zinc-100 pt-4">
+            <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans">Additional Details</div>
+            
+            <FormRow label="Has BOM (Bill of Materials)" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <input 
+                type="checkbox" 
+                checked={form.has_bom} 
+                onChange={setField("has_bom")} 
+                className="w-4 h-4 cursor-pointer"
+              />
+            </FormRow>
+
+            {form.has_bom && (
+              <FormRow label="BOM Name" labelWidth="w-56" className="flex items-center min-h-[26px]">
+                <input 
+                  className={inputCls} 
+                  value={form.bom_name} 
+                  onChange={setField("bom_name")} 
+                  placeholder="Enter BOM name..."
+                />
+              </FormRow>
+            )}
           </div>
 
           {/* Statutory Details */}
@@ -311,7 +420,8 @@ export default function StockItemCreate() {
           <SideSelectionPanel
             title="List of Units"
             items={[
-              { id: "create", label: "Create" }
+              { id: "create", label: "Create New Unit" },
+              ...units.map(u => ({ id: String(u.unit_id), label: `${u.symbol} (${u.name})` }))
             ]}
             selected={form.unit_id}
             onSelect={val => {
@@ -319,6 +429,7 @@ export default function StockItemCreate() {
                 navigate("/master/create/unit");
               } else {
                 setForm(f => ({ ...f, unit_id: val }));
+                setActivePanel(null);
               }
             }}
             onClose={() => setActivePanel(null)}
