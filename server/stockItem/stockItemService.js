@@ -19,8 +19,8 @@ module.exports = {
                 type_of_supply, rate_of_duty, statutory_details,
                 opening_quantity, opening_rate, opening_value,
                 reorder_level, reorder_quantity,
-                track_batches, track_expiry, is_active
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+                track_batches, track_expiry, has_bom, bom_name, is_active
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
         args: [
           data.company_id,
           data.name,
@@ -45,6 +45,8 @@ module.exports = {
           data.reorder_quantity || 0,
           data.track_batches ? 1 : 0,
           data.track_expiry ? 1 : 0,
+          data.has_bom ? 1 : 0,
+          data.bom_name || null,
         ],
       });
 
@@ -61,7 +63,7 @@ module.exports = {
   getAll: async (company_id) => {
     try {
       const result = await db.execute({
-        sql: `SELECT * FROM stock_items WHERE company_id = ? AND is_active = 1`,
+        sql: `SELECT * FROM stock_items WHERE company_id = ? AND is_active = 1 ORDER BY name ASC`,
         args: [company_id],
       });
       return { success: true, stockItems: result.rows };
@@ -86,7 +88,7 @@ module.exports = {
   getByGroup: async (company_id, group_id) => {
     try {
       const result = await db.execute({
-        sql: `SELECT * FROM stock_items WHERE company_id = ? AND group_id = ? AND is_active = 1`,
+        sql: `SELECT * FROM stock_items WHERE company_id = ? AND group_id = ? AND is_active = 1 ORDER BY name ASC`,
         args: [company_id, group_id],
       });
       return { success: true, stockItems: result.rows };
@@ -98,7 +100,7 @@ module.exports = {
   getByCategory: async (company_id, category_id) => {
     try {
       const result = await db.execute({
-        sql: `SELECT * FROM stock_items WHERE company_id = ? AND category_id = ? AND is_active = 1`,
+        sql: `SELECT * FROM stock_items WHERE company_id = ? AND category_id = ? AND is_active = 1 ORDER BY name ASC`,
         args: [company_id, category_id],
       });
       return { success: true, stockItems: result.rows };
@@ -138,7 +140,7 @@ module.exports = {
                 type_of_supply = ?, rate_of_duty = ?, statutory_details = ?,
                 opening_quantity = ?, opening_rate = ?, opening_value = ?,
                 reorder_level = ?, reorder_quantity = ?,
-                track_batches = ?, track_expiry = ?,
+                track_batches = ?, track_expiry = ?, has_bom = ?, bom_name = ?,
                 updated_at = datetime('now')
               WHERE item_id = ?`,
         args: [
@@ -160,9 +162,10 @@ module.exports = {
           qty, rate, opening_value,
           data.reorder_level     ?? current.reorder_level,
           data.reorder_quantity  ?? current.reorder_quantity,
-          // fix: don't reset to 0 if field not provided
           data.track_batches !== undefined ? (data.track_batches ? 1 : 0) : current.track_batches,
           data.track_expiry  !== undefined ? (data.track_expiry  ? 1 : 0) : current.track_expiry,
+          data.has_bom !== undefined ? (data.has_bom ? 1 : 0) : current.has_bom,
+          data.bom_name ?? current.bom_name,
           data.item_id,
         ],
       });
@@ -184,13 +187,6 @@ module.exports = {
         args: [id],
       });
       if (existing.rows.length === 0) return { success: false, error: 'Stock Item not found' };
-
-      // future-proof: uncomment when voucher tables exist
-      // const inUse = await db.execute({
-      //   sql: `SELECT 1 FROM voucher_items WHERE item_id = ? LIMIT 1`,
-      //   args: [id],
-      // });
-      // if (inUse.rows.length > 0) return { success: false, error: 'Item is used in transactions, cannot delete' };
 
       await db.execute({
         sql: `UPDATE stock_items SET is_active = 0 WHERE item_id = ?`,
