@@ -279,10 +279,15 @@ export default function Vouchers() {
     }
 
     if (["Sales", "Purchase", "Credit Note", "Debit Note"].includes(form.voucherType)) {
+      const hasValidEntries = form.stockEntries.some((s) => !!s.stockItem && (Number(s.amountRaw) || 0) > 0);
+      const allFilled = (form.voucherType === "Credit Note" || form.voucherType === "Debit Note")
+        ? form.stockEntries.every((s) => !s.stockItem || (s.quantityRaw !== "" && s.rateRaw !== ""))
+        : true;
       return (
         !!form.partyLedger &&
         !!form.salesPurchaseLedger &&
-        form.stockEntries.some((s) => !!s.stockItem && (Number(s.amountRaw) || 0) > 0)
+        hasValidEntries &&
+        allFilled
       );
     }
 
@@ -522,6 +527,52 @@ export default function Vouchers() {
       form.handleAddContraDoubleRow,
       form.handleAddReceiptDoubleRow,
     ]
+  );
+
+  // ─── Stock item entry focus flow ─────────────────────────────────────
+  // item selected → qty → rate → next row (item name)
+
+  const prevActiveFieldRef = useRef(form.activeField);
+
+  useEffect(() => {
+    const prev = prevActiveFieldRef.current;
+    const curr = form.activeField;
+    if (prev?.type === "stockItem" && curr === null) {
+      const rowIdx = form.stockEntries.findIndex((e) => e.id === prev.rowId);
+      if (rowIdx >= 0 && form.stockEntries[rowIdx].stockItem) {
+        setTimeout(() => {
+          const el = document.querySelector(
+            `[data-stock-qty="${rowIdx + 1}"]`
+          ) as HTMLInputElement | null;
+          el?.focus();
+        }, 50);
+      }
+    }
+    prevActiveFieldRef.current = curr;
+  }, [form.activeField, form.stockEntries]);
+
+  const focusStockQty = useCallback((idx: number) => {
+    setTimeout(() => {
+      (document.querySelector(`[data-stock-qty="${idx + 1}"]`) as HTMLInputElement | null)?.focus();
+    }, 50);
+  }, []);
+
+  const focusStockRate = useCallback((idx: number) => {
+    setTimeout(() => {
+      (document.querySelector(`[data-stock-rate="${idx + 1}"]`) as HTMLInputElement | null)?.focus();
+    }, 50);
+  }, []);
+
+  const proceedToNextStockRow = useCallback(
+    (idx: number) => {
+      if (idx === form.stockEntries.length - 1) {
+        form.handleAddStockRow();
+      }
+      setTimeout(() => {
+        (document.querySelector(`[data-stock-item="${idx + 2}"]`) as HTMLInputElement | null)?.focus();
+      }, 50);
+    },
+    [form.stockEntries.length, form.handleAddStockRow]
   );
 
   // ─── handleAmountConfirm ─────────────────────────────────────────────
@@ -862,7 +913,9 @@ export default function Vouchers() {
     }
 
     if (af.type === "party") {
-      // Credit Note / Debit Note → Sundry Debtors (same as Sales)
+      if (form.voucherType === "Credit Note" || form.voucherType === "Debit Note") {
+        return form.allLedgers;
+      }
       const isPurchaseLike = form.voucherType === "Purchase";
       return form.allLedgers.filter((l) =>
         form.checkLedgerGroup(l, [
@@ -876,7 +929,9 @@ export default function Vouchers() {
     }
 
     if (af.type === "salesPurchase") {
-      // Credit Note / Debit Note → Sales Accounts (same as Sales)
+      if (form.voucherType === "Credit Note" || form.voucherType === "Debit Note") {
+        return form.allLedgers;
+      }
       const isPurchaseLike = form.voucherType === "Purchase";
       return form.allLedgers.filter((l) =>
         form.checkLedgerGroup(
@@ -1536,6 +1591,11 @@ export default function Vouchers() {
                             if (!row.stockItem)
                               form.handleFieldFocus({ type: "stockItem", rowId: row.id });
                           }}
+                          onKeyDown={(e) => {
+                            if (e.key !== "Enter" || !row.stockItem) return;
+                            e.preventDefault();
+                            focusStockQty(idx);
+                          }}
                           autoComplete="off"
                         />
                         {form.stockEntries.length > 1 && (
@@ -1551,6 +1611,7 @@ export default function Vouchers() {
 
                       <div className="w-24 text-right pr-1">
                         <input
+                          data-stock-qty={idx + 1}
                           type="text"
                           inputMode="decimal"
                           className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
@@ -1559,11 +1620,17 @@ export default function Vouchers() {
                           onChange={(e) =>
                             form.handleUpdateStockRow(row.id, { quantityRaw: e.target.value })
                           }
+                          onKeyDown={(e) => {
+                            if (e.key !== "Enter") return;
+                            e.preventDefault();
+                            focusStockRate(idx);
+                          }}
                         />
                       </div>
 
                       <div className="w-32 text-right pr-1 flex items-center gap-1">
                         <input
+                          data-stock-rate={idx + 1}
                           type="text"
                           inputMode="decimal"
                           className="flex-1 text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
@@ -1572,6 +1639,11 @@ export default function Vouchers() {
                           onChange={(e) =>
                             form.handleUpdateStockRow(row.id, { rateRaw: e.target.value })
                           }
+                          onKeyDown={(e) => {
+                            if (e.key !== "Enter") return;
+                            e.preventDefault();
+                            proceedToNextStockRow(idx);
+                          }}
                         />
                         <span className="text-xs text-gray-500">{row.unit?.symbol ?? ""}</span>
                       </div>
