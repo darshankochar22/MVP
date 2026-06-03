@@ -12,6 +12,10 @@ const init = async (db) => {
       updated_at         TEXT DEFAULT (datetime('now'))
     )
   `);
+
+  try {
+    await db.execute(`ALTER TABLE stock_categories ADD COLUMN alias TEXT`);
+  } catch (err) {}
 };
 
 module.exports = { init };
