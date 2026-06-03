@@ -880,7 +880,7 @@ export default function LedgerAlter() {
                         onChange={setNumber("default_credit_period")}
                       />
                     </FormRow>
-                    <FormRow label="Check for credit days during voucher entry" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                    <FormRow label="Use default credit period during voucher entry" labelWidth="w-52" className="flex items-center min-h-[26px]">
                       <select
                         className={selectCls}
                         value={form.check_credit_days ? "Yes" : "No"}

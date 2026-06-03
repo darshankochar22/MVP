@@ -107,12 +107,12 @@ const getPendingBills = async (ledger_id, company_id, fy_id) => {
       args: [ledger_id, company_id, fy_id],
     });
 
-    // Also get ledger default credit period for new bills
     const ledgerRes = await db.execute({
-      sql: `SELECT default_credit_period FROM ledgers WHERE ledger_id = ?`,
+      sql: `SELECT default_credit_period, check_credit_days FROM ledgers WHERE ledger_id = ?`,
       args: [ledger_id],
     });
     const defaultCreditPeriod = ledgerRes.rows[0]?.default_credit_period || 0;
+    const checkCreditDays = ledgerRes.rows[0]?.check_credit_days || 0;
 
     const pendingBills = result.rows.map((row) => ({
       bill_name: row.bill_name,
@@ -123,7 +123,7 @@ const getPendingBills = async (ledger_id, company_id, fy_id) => {
       final_balance: Number(row.total_amount) || 0,
     }));
 
-    return { success: true, pendingBills, defaultCreditPeriod };
+    return { success: true, pendingBills, defaultCreditPeriod, checkCreditDays };
   } catch (err) {
     return { success: false, error: err.message };
   }

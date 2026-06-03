@@ -70,6 +70,7 @@ export default function BillWiseAllocationPopup({
   const [error, setError] = useState<string | null>(null);
   const [pendingBills, setPendingBills] = useState<PendingBill[]>([]);
   const [defaultCreditPeriod, setDefaultCreditPeriod] = useState(0);
+  const [checkCreditDays, setCheckCreditDays] = useState(0);
   const [loadingBills, setLoadingBills] = useState(false);
   const [activeAgstRow, setActiveAgstRow] = useState<number | null>(null);
   const nameInputRefs = useRef<(HTMLInputElement | HTMLSelectElement | null)[]>([]);
@@ -105,6 +106,7 @@ export default function BillWiseAllocationPopup({
         if (res.success) {
           setPendingBills(res.pendingBills || []);
           setDefaultCreditPeriod(res.defaultCreditPeriod || 0);
+          setCheckCreditDays(res.checkCreditDays || 0);
         }
       })
       .catch(() => {})
@@ -116,13 +118,15 @@ export default function BillWiseAllocationPopup({
     if (initialAllocations.length > 0) {
       setAllocations(initialAllocations.map((a) => ({ ...a, ledger_id: ledgerId })));
     } else {
+      const cp = checkCreditDays === 1 ? String(defaultCreditPeriod || "") : "";
+      const dd = (checkCreditDays === 1 && defaultCreditPeriod > 0) ? addDays(voucherDate, defaultCreditPeriod) : "";
       setAllocations([{
         ledger_id: ledgerId,
         bill_name: "",
         bill_type: "New Ref",
         amount: totalAmount,
-        credit_period: String(defaultCreditPeriod || ""),
-        due_date: defaultCreditPeriod > 0 ? addDays(voucherDate, defaultCreditPeriod) : "",
+        credit_period: cp,
+        due_date: dd,
       }]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -130,7 +134,7 @@ export default function BillWiseAllocationPopup({
 
   // Update default credit period when fetched
   useEffect(() => {
-    if (initialAllocations.length === 0 && defaultCreditPeriod > 0) {
+    if (initialAllocations.length === 0 && checkCreditDays === 1 && defaultCreditPeriod > 0) {
       setAllocations((prev) =>
         prev.map((row, i) =>
           i === 0 && !row.credit_period
@@ -139,7 +143,7 @@ export default function BillWiseAllocationPopup({
         )
       );
     }
-  }, [defaultCreditPeriod, voucherDate, initialAllocations.length]);
+  }, [defaultCreditPeriod, checkCreditDays, voucherDate, initialAllocations.length]);
 
   const allocated = allocations.reduce((s, a) => s + (Number(a.amount) || 0), 0);
   const remaining = totalAmount - allocated;
@@ -156,6 +160,7 @@ export default function BillWiseAllocationPopup({
   }, [handleKeyDown]);
 
   const getDefaultRow = (type: BillReference["bill_type"], amount: number): BillReference => {
+    const shouldAutoFill = checkCreditDays === 1 && defaultCreditPeriod > 0;
     const base: BillReference = {
       ledger_id: ledgerId,
       bill_name: "",
@@ -171,11 +176,11 @@ export default function BillWiseAllocationPopup({
       base.due_date = "";
     } else if (type === "New Ref") {
       base.bill_name = "New Ref";
-      base.credit_period = String(defaultCreditPeriod || "");
-      base.due_date = defaultCreditPeriod > 0 ? addDays(voucherDate, defaultCreditPeriod) : "";
+      base.credit_period = shouldAutoFill ? String(defaultCreditPeriod) : "";
+      base.due_date = shouldAutoFill ? addDays(voucherDate, defaultCreditPeriod) : "";
     } else if (type === "Advance") {
-      base.credit_period = String(defaultCreditPeriod || "");
-      base.due_date = defaultCreditPeriod > 0 ? addDays(voucherDate, defaultCreditPeriod) : "";
+      base.credit_period = shouldAutoFill ? String(defaultCreditPeriod) : "";
+      base.due_date = shouldAutoFill ? addDays(voucherDate, defaultCreditPeriod) : "";
     } else if (type === "Agst Ref") {
       if (pendingBills.length > 0) {
         const first = pendingBills[0];
