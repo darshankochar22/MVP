@@ -241,4 +241,18 @@ contextBridge.exposeInMainWorld('api', {
         update:  (data)       => invoke('payrollUnit:update', data),
         delete:  (id)         => invoke('payrollUnit:delete', id),
     },
+    physicalStock: {
+        create:        (data)            => invoke('physicalStock:create', data),
+        getAll:        (company_id)      => invoke('physicalStock:getAll', company_id),
+        getById:       (id)              => invoke('physicalStock:getById', id),
+        delete:        (id)              => invoke('physicalStock:delete', id),
+        getNextNumber: (company_id)      => invoke('physicalStock:getNextNumber', { company_id }),
+    },
+    attendance: {
+        create:        (data)            => invoke('attendance:create', data),
+        getAll:        (company_id)      => invoke('attendance:getAll', company_id),
+        getById:       (id)              => invoke('attendance:getById', id),
+        delete:        (id)              => invoke('attendance:delete', id),
+        getNextNumber: (company_id)      => invoke('attendance:getNextNumber', { company_id }),
+    },
 });

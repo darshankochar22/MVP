@@ -20,6 +20,8 @@ const initDB = async () => {
   await require('../stockCategory/stockCategory').init(db);
   await require('../stockItem/stockItem').init(db);
   await require('../godown/godown').init(db);
+  await require('../physicalStock/physicalStock').init(db);
+  await require('../attendance/attendance').init(db);
   await require('../currency/currency').init(db);
   await require('../costCentre/costCentre').init(db);
   await require('../gstRegistration/gstRegistration').init(db);

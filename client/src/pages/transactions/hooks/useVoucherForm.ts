@@ -240,6 +240,40 @@ export function useVoucherForm() {
       if (rows.totalAmount <= 0) return "Total amount must be greater than zero.";
     }
 
+    if (meta.voucherType === "Physical Stock") {
+      const filled = rows.stockEntries.filter(
+        (r) => r.stockItem && Number(r.quantityRaw) > 0
+      );
+      if (filled.length === 0) return "At least one Stock Item with quantity is required.";
+    }
+
+    if (meta.voucherType === "Stock Journal") {
+      const filledSource = rows.sourceStockEntries.filter(
+        (r) => r.stockItem && Number(r.quantityRaw) > 0
+      );
+      const filledDest = rows.destinationStockEntries.filter(
+        (r) => r.stockItem && Number(r.quantityRaw) > 0
+      );
+      if (filledSource.length === 0 && filledDest.length === 0) {
+        return "At least one Stock Item is required (either Source or Destination).";
+      }
+    }
+
+    if (meta.voucherType === "Attendance") {
+      const filled = rows.attendanceEntries.filter(
+        (r) => r.employee && r.attendanceType && Number(r.valueRaw) > 0
+      );
+      if (filled.length === 0) return "At least one Attendance entry with a positive value is required.";
+    }
+
+    if (meta.voucherType === "Payroll") {
+      if (!rows.accountLedger) return "Account (cash/bank ledger) is required.";
+      const filled = rows.payrollEntries.filter(
+        (r) => r.employee && r.payHead && Number(r.amountRaw) > 0
+      );
+      if (filled.length === 0) return "At least one Payroll entry with a positive amount is required.";
+    }
+
     return null;
   }, [companyId, fyId, meta, rows, ledgers.checkIsCashOrBank]);
 
@@ -301,6 +335,31 @@ export function useVoucherForm() {
             ? rows.additionalEntries.filter((p) => p.ledger && Number(p.amountRaw) > 0).map((p) => ({ ledger_id: p.ledger!.ledger_id, ledger_name: p.ledger!.name, type: p.type, amount: Number(p.amountRaw), currency: "INR", cost_centres: p.costCentres }))
             : []),
         ];
+      } else if (meta.voucherType === "Stock Journal") {
+        const filledSource = rows.sourceStockEntries.filter((r) => r.stockItem && Number(r.quantityRaw) > 0);
+        const filledDest = rows.destinationStockEntries.filter((r) => r.stockItem && Number(r.quantityRaw) > 0);
+        stock_entries = [
+          ...filledSource.map((r) => ({
+            stock_item_id: r.stockItem!.item_id ?? null,
+            item_name: r.stockItem!.name,
+            godown_id: r.godown?.godown_id ?? null,
+            unit_id: r.unit?.unit_id ?? null,
+            quantity: Number(r.quantityRaw),
+            rate: Number(r.rateRaw),
+            amount: Number(r.amountRaw),
+            is_source: 1,
+          })),
+          ...filledDest.map((r) => ({
+            stock_item_id: r.stockItem!.item_id ?? null,
+            item_name: r.stockItem!.name,
+            godown_id: r.godown?.godown_id ?? null,
+            unit_id: r.unit?.unit_id ?? null,
+            quantity: Number(r.quantityRaw),
+            rate: Number(r.rateRaw),
+            amount: Number(r.amountRaw),
+            is_source: 0,
+          })),
+        ];
       }
 
       // ── Collect bill references ──────────────────────────────────────────
@@ -326,38 +385,90 @@ export function useVoucherForm() {
         finalBillReferences = [...finalBillReferences, ...rows.additionalEntries.filter((p) => p.ledger && p.billReferences?.length).flatMap((p) => p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id })))];
       }
 
-      // ── Final payload ────────────────────────────────────────────────────
-      const payload: any = {
-        company_id: companyId!,
-        fy_id: fyId!,
-        voucher_type: meta.voucherType,
-        date: meta.date,
-        status: meta.status,
-        supplier_invoice_no: meta.supplierInvoiceNo || null,
-        supplier_invoice_date: meta.supplierInvoiceDate || null,
-        reference_number: meta.referenceNumber || null,
-        reference_date: meta.referenceDate || null,
-        place_of_supply: meta.placeOfSupply !== "Select" ? meta.placeOfSupply : null,
-        narration: meta.narration || null,
-        party_ledger_id: ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(meta.voucherType) ? rows.partyLedger?.ledger_id ?? null : null,
-        party_name: ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(meta.voucherType) ? rows.partyLedger?.name ?? null : null,
-        is_accounting_voucher: 1,
-        is_invoice: ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(meta.voucherType) ? 1 : 0,
-        is_inventory_voucher: ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(meta.voucherType) ? 1 : 0,
-        is_post_dated: meta.status === "Post-Dated" ? 1 : 0,
-        entries,
-        stock_entries,
-        bill_references: finalBillReferences.length > 0 ? finalBillReferences : undefined,
-        bank_details: meta.bankDetails || undefined,
-        cash_denominations: meta.cashDenominations || undefined,
-        receipt_details: meta.receiptDetails || undefined,
-        party_details: meta.partyDetails || undefined,
-        dispatch_details: meta.dispatchDetails || undefined,
-        credit_note_details: meta.creditNoteDetails || undefined,
-        debit_note_details: meta.debitNoteDetails || undefined,
-      };
+      // ── Final payload / API submission ──────────────────────────────────
+      let res: any;
+      if (meta.voucherType === "Physical Stock") {
+        const physicalLines = rows.stockEntries
+          .filter((r) => r.stockItem && Number(r.quantityRaw) > 0)
+          .map((r, lineIdx) => ({
+            stock_item_id: r.stockItem!.item_id,
+            godown_id: r.godown?.godown_id ?? null,
+            batch_no: r.batchNo || null,
+            lot_no: r.lotNo || null,
+            manufacturing_date: r.mfgDate || null,
+            expiry_date: r.expiryDate || null,
+            quantity: Number(r.quantityRaw),
+            rate: Number(r.rateRaw) || 0,
+            amount: Number(r.amountRaw) || 0,
+            line_order: lineIdx + 1,
+          }));
+        res = await window.api.physicalStock.create({
+          company_id: companyId!,
+          voucher_no: meta.voucherNumber,
+          voucher_date: meta.date,
+          reference_no: meta.referenceNumber || null,
+          narration: meta.narration || null,
+          is_optional: 0,
+          is_post_dated: meta.status === "Post-Dated" ? 1 : 0,
+          lines: physicalLines,
+        });
+      } else if (meta.voucherType === "Attendance") {
+        const attEntries = rows.attendanceEntries
+          .filter((r) => r.employee && r.attendanceType)
+          .map((r) => ({
+            employee_id: r.employee!.employee_id,
+            attendance_type_id: r.attendanceType!.attendance_type_id,
+            value: Number(r.valueRaw) || 0,
+          }));
+        res = await window.api.attendance.create({
+          company_id: companyId!,
+          voucher_number: meta.voucherNumber,
+          date: meta.date,
+          narration: meta.narration || null,
+          entries: attEntries,
+        });
+      } else {
+        const payload: any = {
+          company_id: companyId!,
+          fy_id: fyId!,
+          voucher_type: meta.voucherType,
+          date: meta.date,
+          status: meta.status,
+          supplier_invoice_no: meta.supplierInvoiceNo || null,
+          supplier_invoice_date: meta.supplierInvoiceDate || null,
+          reference_number: meta.referenceNumber || null,
+          reference_date: meta.referenceDate || null,
+          place_of_supply: meta.placeOfSupply !== "Select" ? meta.placeOfSupply : null,
+          narration: meta.narration || null,
+          party_ledger_id: meta.voucherType === "Payroll" || ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(meta.voucherType) ? rows.accountLedger?.ledger_id ?? rows.partyLedger?.ledger_id ?? null : null,
+          party_name: meta.voucherType === "Payroll" || ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(meta.voucherType) ? rows.accountLedger?.name ?? rows.partyLedger?.name ?? null : null,
+          is_accounting_voucher: meta.voucherType === "Stock Journal" ? 0 : 1,
+          is_invoice: ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(meta.voucherType) ? 1 : 0,
+          is_inventory_voucher: ["Sales", "Purchase", "Credit Note", "Debit Note", "Stock Journal"].includes(meta.voucherType) ? 1 : 0,
+          is_post_dated: meta.status === "Post-Dated" ? 1 : 0,
+          entries,
+          stock_entries,
+          bill_references: finalBillReferences.length > 0 ? finalBillReferences : undefined,
+          bank_details: meta.bankDetails || undefined,
+          cash_denominations: meta.cashDenominations || undefined,
+          receipt_details: meta.receiptDetails || undefined,
+          party_details: meta.partyDetails || undefined,
+          dispatch_details: meta.dispatchDetails || undefined,
+          credit_note_details: meta.creditNoteDetails || undefined,
+          debit_note_details: meta.debitNoteDetails || undefined,
+          payroll_entries: meta.voucherType === "Payroll"
+            ? rows.payrollEntries
+                .filter((r) => r.employee && r.payHead && Number(r.amountRaw) > 0)
+                .map((r) => ({
+                  employee_id: r.employee!.employee_id,
+                  pay_head_id: r.payHead!.pay_head_id,
+                  amount: Number(r.amountRaw),
+                }))
+            : undefined,
+        };
+        res = await window.api.voucher.create(payload);
+      }
 
-      const res = await window.api.voucher.create(payload);
       if (res.success) {
         const savedNumber = meta.voucherNumber;
         resetForm();
@@ -453,8 +564,33 @@ export function useVoucherForm() {
     allStockItems: ledgers.allStockItems,
     allGodowns: ledgers.allGodowns,
     allUnits: ledgers.allUnits,
+    allEmployees: ledgers.allEmployees,
+    allAttendanceTypes: ledgers.allAttendanceTypes,
+    allPayHeads: ledgers.allPayHeads,
     ledgersLoading: ledgers.ledgersLoading,
     fetchContextData: ledgers.fetchContextData,
+
+    // ── Layout 4 — Attendance & Payroll
+    attendanceEntries: rows.attendanceEntries,
+    setAttendanceEntries: rows.setAttendanceEntries,
+    handleAddAttendanceRow: rows.handleAddAttendanceRow,
+    handleUpdateAttendanceRow: rows.handleUpdateAttendanceRow,
+    handleRemoveAttendanceRow: rows.handleRemoveAttendanceRow,
+    payrollEntries: rows.payrollEntries,
+    setPayrollEntries: rows.setPayrollEntries,
+    handleAddPayrollRow: rows.handleAddPayrollRow,
+    handleUpdatePayrollRow: rows.handleUpdatePayrollRow,
+    handleRemovePayrollRow: rows.handleRemovePayrollRow,
+    sourceStockEntries: rows.sourceStockEntries,
+    setSourceStockEntries: rows.setSourceStockEntries,
+    handleAddSourceStockRow: rows.handleAddSourceStockRow,
+    handleUpdateSourceStockRow: rows.handleUpdateSourceStockRow,
+    handleRemoveSourceStockRow: rows.handleRemoveSourceStockRow,
+    destinationStockEntries: rows.destinationStockEntries,
+    setDestinationStockEntries: rows.setDestinationStockEntries,
+    handleAddDestinationStockRow: rows.handleAddDestinationStockRow,
+    handleUpdateDestinationStockRow: rows.handleUpdateDestinationStockRow,
+    handleRemoveDestinationStockRow: rows.handleRemoveDestinationStockRow,
 
     // ── Search / panel
     ledgerSearchTerm: rows.ledgerSearchTerm,

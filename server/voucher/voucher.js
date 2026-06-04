@@ -229,6 +229,20 @@ const init = async (db) => {
   try {
     await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN cheque_range TEXT`);
   } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE voucher_stock_entries ADD COLUMN is_source INTEGER DEFAULT 0`);
+  } catch (err) {}
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS voucher_payroll_entries (
+      payroll_entry_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+      voucher_id        INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
+      employee_id       INTEGER REFERENCES employees(employee_id),
+      pay_head_id       INTEGER REFERENCES pay_heads(pay_head_id),
+      amount            REAL DEFAULT 0
+    )
+  `);
 };
 
 module.exports = { init };

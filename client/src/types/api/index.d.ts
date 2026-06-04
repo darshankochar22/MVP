@@ -11,6 +11,8 @@ import type { MasterDataAPI } from './MasterData';
 import type { PayrollAPI } from './Payroll';
 import type { FeatureManagementAPI } from './FeatureManagement';
 import type { VoucherTypeAPI } from './VoucherType';
+import type { PhysicalStockAPI } from './PhysicalStock';
+import type { AttendanceAPI } from './Attendance';
 
 export type {
   CompanyType,
@@ -56,6 +58,8 @@ export type WindowAPI =
   & MasterDataAPI
   & PayrollAPI
   & FeatureManagementAPI
+  & PhysicalStockAPI
+  & AttendanceAPI
   & { app: { getDataPath: () => Promise<string> } };
 
 declare global {

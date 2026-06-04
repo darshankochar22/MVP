@@ -83,6 +83,66 @@ export function useInventoryRows({
     setAdditionalEntries((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
+  // ── Stock Journal (Consumption / Production) ──────────────────────────────
+  const [sourceStockEntries, setSourceStockEntries] = useState<StockEntryRow[]>(
+    () => [makeStockRow()]
+  );
+  const [destinationStockEntries, setDestinationStockEntries] = useState<StockEntryRow[]>(
+    () => [makeStockRow()]
+  );
+
+  const handleAddSourceStockRow = useCallback(() => {
+    setSourceStockEntries((prev) => [...prev, makeStockRow()]);
+  }, []);
+
+  const handleUpdateSourceStockRow = useCallback(
+    async (id: string, updates: Partial<Omit<StockEntryRow, "id">>) => {
+      setSourceStockEntries((prev) =>
+        prev.map((r) => {
+          if (r.id !== id) return r;
+          const updated = { ...r, ...updates };
+          if (updates.quantityRaw !== undefined || updates.rateRaw !== undefined) {
+            const qty = Number(updated.quantityRaw) || 0;
+            const rate = Number(updated.rateRaw) || 0;
+            updated.amountRaw = qty > 0 && rate > 0 ? (qty * rate).toFixed(2) : "";
+          }
+          return updated;
+        })
+      );
+    },
+    []
+  );
+
+  const handleRemoveSourceStockRow = useCallback((id: string) => {
+    setSourceStockEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== id) : prev));
+  }, []);
+
+  const handleAddDestinationStockRow = useCallback(() => {
+    setDestinationStockEntries((prev) => [...prev, makeStockRow()]);
+  }, []);
+
+  const handleUpdateDestinationStockRow = useCallback(
+    async (id: string, updates: Partial<Omit<StockEntryRow, "id">>) => {
+      setDestinationStockEntries((prev) =>
+        prev.map((r) => {
+          if (r.id !== id) return r;
+          const updated = { ...r, ...updates };
+          if (updates.quantityRaw !== undefined || updates.rateRaw !== undefined) {
+            const qty = Number(updated.quantityRaw) || 0;
+            const rate = Number(updated.rateRaw) || 0;
+            updated.amountRaw = qty > 0 && rate > 0 ? (qty * rate).toFixed(2) : "";
+          }
+          return updated;
+        })
+      );
+    },
+    []
+  );
+
+  const handleRemoveDestinationStockRow = useCallback((id: string) => {
+    setDestinationStockEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== id) : prev));
+  }, []);
+
   // ─── Reset inventory rows ──────────────────────────────────────────────────
   const resetInventoryRows = useCallback(() => {
     setPartyLedger(null);
@@ -90,6 +150,8 @@ export function useInventoryRows({
     setSalesPurchaseLedger(null);
     setSalesPurchaseBalance("");
     setStockEntries([makeStockRow()]);
+    setSourceStockEntries([makeStockRow()]);
+    setDestinationStockEntries([makeStockRow()]);
     setAdditionalEntries([]);
   }, []);
 
@@ -104,11 +166,21 @@ export function useInventoryRows({
     setSalesPurchaseBalance,
     stockEntries,
     setStockEntries,
+    sourceStockEntries,
+    setSourceStockEntries,
+    destinationStockEntries,
+    setDestinationStockEntries,
     additionalEntries,
     setAdditionalEntries,
     handleAddStockRow,
     handleUpdateStockRow,
     handleRemoveStockRow,
+    handleAddSourceStockRow,
+    handleUpdateSourceStockRow,
+    handleRemoveSourceStockRow,
+    handleAddDestinationStockRow,
+    handleUpdateDestinationStockRow,
+    handleRemoveDestinationStockRow,
     handleAddAdditionalRow,
     handleUpdateAdditionalRow,
     handleRemoveAdditionalRow,

@@ -149,6 +149,49 @@ const recalculateLedgerBalances = async (voucher_id, company_id, fy_id) => {
   } catch (_e) { /* ignore */ }
 };
 
+const getOrCreatePayHeadLedger = async (company_id, payHeadName) => {
+  const existing = await db.execute({
+    sql: `SELECT ledger_id FROM ledgers WHERE company_id = ? AND LOWER(name) = LOWER(?) AND is_active = 1`,
+    args: [company_id, payHeadName],
+  });
+  if (existing.rows.length > 0) {
+    return Number(existing.rows[0].ledger_id);
+  }
+
+  const group = await db.execute({
+    sql: `SELECT group_id FROM groups WHERE company_id = ? AND LOWER(name) = 'indirect expenses'`,
+    args: [company_id],
+  });
+  const groupId = group.rows.length > 0 ? Number(group.rows[0].group_id) : null;
+
+  const result = await db.execute({
+    sql: `INSERT INTO ledgers (
+            company_id, group_id, name, alias, ledger_type, nature,
+            opening_balance, closing_balance, is_bill_wise, maintain_inventory_values,
+            mailing_name, address1, address2, city, state, country, pincode,
+            phone, email, gstin, pan, registration_type,
+            default_credit_period, check_credit_days,
+            allow_cost_centres, invoice_rounding, rounding_method, rounding_limit,
+            is_active, is_predefined
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      company_id,
+      groupId,
+      payHeadName,
+      null,
+      "General",
+      "Expenses",
+      0, 0, 0, 0,
+      null, null, null, null, null, null, null,
+      null, null, null, null, "Unregistered",
+      null, 0,
+      0, 0, null, 0,
+      1, 0
+    ],
+  });
+  return Number(result.lastInsertRowid);
+};
+
 const validateDoubleEntry = (entries) => {
   const total = entries.reduce((sum, e) => {
     return e.type === 'Dr' ? sum + e.amount : sum - e.amount;
@@ -159,6 +202,77 @@ const validateDoubleEntry = (entries) => {
 module.exports = {
   create: async (data) => {
     try {
+      if (data.voucher_type === 'Payroll') {
+        const entries = [];
+        let totalNetDrCr = 0;
+        
+        if (data.payroll_entries && data.payroll_entries.length > 0) {
+          for (const entry of data.payroll_entries) {
+            const phResult = await db.execute({
+              sql: `SELECT name, pay_head_type FROM pay_heads WHERE pay_head_id = ?`,
+              args: [entry.pay_head_id],
+            });
+            if (phResult.rows.length > 0) {
+              const ph = phResult.rows[0];
+              const ledgerId = await getOrCreatePayHeadLedger(data.company_id, ph.name);
+              const isDeduction = ph.pay_head_type && (
+                ph.pay_head_type.toLowerCase().includes('deduction') ||
+                ph.pay_head_type.toLowerCase().includes('pf') ||
+                ph.pay_head_type.toLowerCase().includes('esi')
+              );
+              
+              const amount = Number(entry.amount) || 0;
+              if (amount > 0) {
+                if (isDeduction) {
+                  entries.push({
+                    ledger_id: ledgerId,
+                    ledger_name: ph.name,
+                    type: 'Cr',
+                    amount: amount,
+                  });
+                  totalNetDrCr -= amount;
+                } else {
+                  entries.push({
+                    ledger_id: ledgerId,
+                    ledger_name: ph.name,
+                    type: 'Dr',
+                    amount: amount,
+                  });
+                  totalNetDrCr += amount;
+                }
+              }
+            }
+          }
+        }
+        
+        if (totalNetDrCr !== 0 && data.party_ledger_id) {
+          const bankLedgerId = Number(data.party_ledger_id);
+          const bankLedger = await db.execute({
+            sql: `SELECT name FROM ledgers WHERE ledger_id = ?`,
+            args: [bankLedgerId],
+          });
+          const bankName = bankLedger.rows.length > 0 ? bankLedger.rows[0].name : 'Cash/Bank Account';
+          
+          if (totalNetDrCr > 0) {
+            entries.push({
+              ledger_id: bankLedgerId,
+              ledger_name: bankName,
+              type: 'Cr',
+              amount: totalNetDrCr,
+            });
+          } else {
+            entries.push({
+              ledger_id: bankLedgerId,
+              ledger_name: bankName,
+              type: 'Dr',
+              amount: Math.abs(totalNetDrCr),
+            });
+          }
+        }
+        data.entries = entries;
+        data.is_accounting_voucher = 1;
+      }
+
       if (data.is_accounting_voucher && (data.voucher_type === 'Sales' || data.voucher_type === 'Purchase' || data.voucher_type === 'Credit Note' || data.voucher_type === 'Debit Note')) {
         try {
           const gstTaxEngine = require('../gst/gstTaxEngine');
@@ -264,8 +378,9 @@ module.exports = {
               sql: `INSERT INTO voucher_stock_entries (
                       voucher_id, stock_item_id, item_name, godown_id, unit_id,
                       quantity, rate, amount, additional_amount, discount_amount,
-                      hsn_code, gst_rate, cgst_amount, sgst_amount, igst_amount
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                      hsn_code, gst_rate, cgst_amount, sgst_amount, igst_amount,
+                      is_source
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               args: [
                 voucher_id,
                 nullify(item.stock_item_id),
@@ -282,6 +397,7 @@ module.exports = {
                 nullify(item.cgst_amount) || 0,
                 nullify(item.sgst_amount) || 0,
                 nullify(item.igst_amount) || 0,
+                item.is_source ? 1 : 0,
               ],
             });
 
@@ -299,6 +415,21 @@ module.exports = {
                 ],
               });
             }
+          }
+        }
+
+        if (data.payroll_entries && data.payroll_entries.length > 0) {
+          for (const entry of data.payroll_entries) {
+            await db.execute({
+              sql: `INSERT INTO voucher_payroll_entries (voucher_id, employee_id, pay_head_id, amount)
+                    VALUES (?, ?, ?, ?)`,
+              args: [
+                voucher_id,
+                nullify(entry.employee_id),
+                nullify(entry.pay_head_id),
+                Number(entry.amount) || 0,
+              ],
+            });
           }
         }
 
@@ -696,6 +827,14 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
         sql: `SELECT * FROM voucher_debit_note_details WHERE voucher_id = ?`,
         args: [id],
       });
+      const payrollEntries = await db.execute({
+        sql: `SELECT pe.*, emp.name as employee_name, emp.employee_number, ph.name as pay_head_name
+              FROM voucher_payroll_entries pe
+              LEFT JOIN employees emp ON emp.employee_id = pe.employee_id
+              LEFT JOIN pay_heads ph ON ph.pay_head_id = pe.pay_head_id
+              WHERE pe.voucher_id = ?`,
+        args: [id],
+      });
 
       return {
         success: true,
@@ -712,6 +851,7 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
           dispatch_details: dispatchDetails.rows[0] || null,
           credit_note_details: creditNoteDetails.rows[0] || null,
           debit_note_details: debitNoteDetails.rows[0] || null,
+          payroll_entries: payrollEntries.rows,
         },
       };
     } catch (err) {
@@ -771,11 +911,93 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
       if (existing.rows.length === 0) return { success: false, error: 'Voucher not found' };
       if (existing.rows[0].is_cancelled) return { success: false, error: 'Cannot edit cancelled voucher' };
 
+      const current = existing.rows[0];
+      const voucherType = data.voucher_type || current.voucher_type;
+
+      if (voucherType === 'Payroll') {
+        const entries = [];
+        let totalNetDrCr = 0;
+        
+        let pEntries = data.payroll_entries;
+        if (pEntries === undefined) {
+          const existingPEntries = await db.execute({
+            sql: `SELECT * FROM voucher_payroll_entries WHERE voucher_id = ?`,
+            args: [data.voucher_id],
+          });
+          pEntries = existingPEntries.rows;
+        }
+        
+        if (pEntries && pEntries.length > 0) {
+          const companyId = data.company_id || current.company_id;
+          for (const entry of pEntries) {
+            const phResult = await db.execute({
+              sql: `SELECT name, pay_head_type FROM pay_heads WHERE pay_head_id = ?`,
+              args: [entry.pay_head_id],
+            });
+            if (phResult.rows.length > 0) {
+              const ph = phResult.rows[0];
+              const ledgerId = await getOrCreatePayHeadLedger(companyId, ph.name);
+              const isDeduction = ph.pay_head_type && (
+                ph.pay_head_type.toLowerCase().includes('deduction') ||
+                ph.pay_head_type.toLowerCase().includes('pf') ||
+                ph.pay_head_type.toLowerCase().includes('esi')
+              );
+              
+              const amount = Number(entry.amount) || 0;
+              if (amount > 0) {
+                if (isDeduction) {
+                  entries.push({
+                    ledger_id: ledgerId,
+                    ledger_name: ph.name,
+                    type: 'Cr',
+                    amount: amount,
+                  });
+                  totalNetDrCr -= amount;
+                } else {
+                  entries.push({
+                    ledger_id: ledgerId,
+                    ledger_name: ph.name,
+                    type: 'Dr',
+                    amount: amount,
+                  });
+                  totalNetDrCr += amount;
+                }
+              }
+            }
+          }
+        }
+        
+        const bankLedgerId = data.party_ledger_id !== undefined ? data.party_ledger_id : current.party_ledger_id;
+        if (totalNetDrCr !== 0 && bankLedgerId) {
+          const bankLedger = await db.execute({
+            sql: `SELECT name FROM ledgers WHERE ledger_id = ?`,
+            args: [bankLedgerId],
+          });
+          const bankName = bankLedger.rows.length > 0 ? bankLedger.rows[0].name : 'Cash/Bank Account';
+          
+          if (totalNetDrCr > 0) {
+            entries.push({
+              ledger_id: bankLedgerId,
+              ledger_name: bankName,
+              type: 'Cr',
+              amount: totalNetDrCr,
+            });
+          } else {
+            entries.push({
+              ledger_id: bankLedgerId,
+              ledger_name: bankName,
+              type: 'Dr',
+              amount: Math.abs(totalNetDrCr),
+            });
+          }
+        }
+        data.entries = entries;
+      }
+
       if (data.entries && !validateDoubleEntry(data.entries)) {
         return { success: false, error: 'Debit and Credit amounts must be equal' };
       }
 
-      const current = existing.rows[0];
       await db.execute({
         sql: `UPDATE vouchers SET
                 date = ?, reference_number = ?, reference_date = ?, narration = ?,
@@ -902,6 +1124,27 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
               nullify(dd.motor_vehicle_no) || null,
             ],
           });
+        }
+      }
+
+      if (data.payroll_entries !== undefined) {
+        await db.execute({
+          sql: `DELETE FROM voucher_payroll_entries WHERE voucher_id = ?`,
+          args: [data.voucher_id],
+        });
+        if (data.payroll_entries && data.payroll_entries.length > 0) {
+          for (const entry of data.payroll_entries) {
+            await db.execute({
+              sql: `INSERT INTO voucher_payroll_entries (voucher_id, employee_id, pay_head_id, amount)
+                    VALUES (?, ?, ?, ?)`,
+              args: [
+                data.voucher_id,
+                nullify(entry.employee_id),
+                nullify(entry.pay_head_id),
+                Number(entry.amount) || 0,
+              ],
+            });
+          }
         }
       }
 

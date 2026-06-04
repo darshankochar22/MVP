@@ -22,6 +22,10 @@ import SalesVoucher from "./vouchers/SalesVoucher";
 import PurchaseVoucher from "./vouchers/PurchaseVoucher";
 import CreditNoteVoucher from "./vouchers/CreditNoteVoucher";
 import DebitNoteVoucher from "./vouchers/DebitNoteVoucher";
+import PhysicalStockVoucher from "./vouchers/PhysicalStockVoucher";
+import StockJournalVoucher from "./vouchers/StockJournalVoucher";
+import AttendanceVoucher from "./vouchers/AttendanceVoucher";
+import PayrollVoucher from "./vouchers/PayrollVoucher";
 
 function RightSidebar({
   voucherType,
@@ -63,6 +67,10 @@ function RightSidebar({
   const otherVoucherTypes = [
     { key: "Credit Note", label: "Credit Note" },
     { key: "Debit Note", label: "Debit Note" },
+    { key: "Physical Stock", label: "Physical Stock" },
+    { key: "Stock Journal", label: "Stock Journal" },
+    { key: "Attendance", label: "Attendance" },
+    { key: "Payroll", label: "Payroll" },
   ];
 
   useEffect(() => {
@@ -901,6 +909,10 @@ export default function Vouchers() {
     if (!af) return [];
 
     if (af.type === "stockItem") return form.allStockItems;
+    if (af.type === "stockGodown") return form.allGodowns;
+    if (af.type === "employee") return form.allEmployees;
+    if (af.type === "attendanceType") return form.allAttendanceTypes;
+    if (af.type === "payHead") return form.allPayHeads;
 
     if (af.type === "account") {
       if (form.voucherType === "Journal") {
@@ -976,6 +988,10 @@ export default function Vouchers() {
     form.receiptDoubleRows,
     form.allLedgers,
     form.allStockItems,
+    form.allGodowns,
+    form.allEmployees,
+    form.allAttendanceTypes,
+    form.allPayHeads,
     form.checkIsCashOrBank,
     form.checkLedgerGroup,
   ]);
@@ -984,6 +1000,10 @@ export default function Vouchers() {
     const af = form.activeField;
     if (!af) return "List of Ledger Accounts";
     if (af.type === "stockItem") return "List of Stock Items";
+    if (af.type === "stockGodown") return "List of Godowns";
+    if (af.type === "employee") return "List of Employees";
+    if (af.type === "attendanceType") return "List of Attendance / Production Types";
+    if (af.type === "payHead") return "List of Pay Heads";
     if (af.type === "account") return form.voucherType === "Journal" ? "List of Ledger Accounts" : "List of Cash / Bank Accounts";
     if (af.type === "party") return "List of Party Accounts";
     if (af.type === "salesPurchase") return `List of ${form.voucherType} Ledgers`;
@@ -1013,12 +1033,10 @@ export default function Vouchers() {
       if (e.key === "F9") { e.preventDefault(); form.setVoucherType("Purchase"); }
       if (e.key === "F10") {
         e.preventDefault();
-        // Cycle through Other Vouchers: Credit Note → Debit Note
-        if (form.voucherType === "Credit Note") {
-          form.setVoucherType("Debit Note");
-        } else {
-          form.setVoucherType("Credit Note");
-        }
+        const cycle = ["Credit Note", "Debit Note", "Physical Stock", "Stock Journal", "Attendance", "Payroll"];
+        const currIdx = cycle.indexOf(form.voucherType);
+        const nextIdx = currIdx >= 0 ? (currIdx + 1) % cycle.length : 0;
+        form.setVoucherType(cycle[nextIdx]);
       }
       if (e.altKey && (e.key === "h" || e.key === "H")) {
         e.preventDefault();
@@ -1188,6 +1206,23 @@ export default function Vouchers() {
               focusStockRate={focusStockRate}
               proceedToNextStockRow={proceedToNextStockRow}
             />
+          )}
+          {form.voucherType === "Physical Stock" && (
+            <PhysicalStockVoucher
+              form={form}
+              focusStockQty={focusStockQty}
+              focusStockRate={focusStockRate}
+              proceedToNextStockRow={proceedToNextStockRow}
+            />
+          )}
+          {form.voucherType === "Stock Journal" && (
+            <StockJournalVoucher form={form} />
+          )}
+          {form.voucherType === "Attendance" && (
+            <AttendanceVoucher form={form} />
+          )}
+          {form.voucherType === "Payroll" && (
+            <PayrollVoucher form={form} />
           )}
 
           {/* ── Narration + grand total ── */}

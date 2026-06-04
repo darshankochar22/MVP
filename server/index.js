@@ -38,6 +38,8 @@ const masterController = require("./master/masterController");
 const voucherEntryActionsController = require('./voucherEntryActions/voucherEntryActionsController');
 const eInvoiceController = require('./eInvoice/eInvoiceController');
 const whatsappController = require('./whatsapp/whatsappController');
+const physicalStockController = require('./physicalStock/physicalStockController');
+const attendanceController = require('./attendance/attendanceController');
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);
@@ -195,6 +197,18 @@ ipcMain.handle('payrollUnit:getAll', payrollUnitController.getAll);
 ipcMain.handle('payrollUnit:getById', payrollUnitController.getById);
 ipcMain.handle('payrollUnit:update', payrollUnitController.update);
 ipcMain.handle('payrollUnit:delete', payrollUnitController.delete);
+
+ipcMain.handle('physicalStock:create', physicalStockController.create);
+ipcMain.handle('physicalStock:getAll', physicalStockController.getAll);
+ipcMain.handle('physicalStock:getById', physicalStockController.getById);
+ipcMain.handle('physicalStock:delete', physicalStockController.delete);
+ipcMain.handle('physicalStock:getNextNumber', physicalStockController.getNextNumber);
+
+ipcMain.handle('attendance:create', attendanceController.create);
+ipcMain.handle('attendance:getAll', attendanceController.getAll);
+ipcMain.handle('attendance:getById', attendanceController.getById);
+ipcMain.handle('attendance:delete', attendanceController.delete);
+ipcMain.handle('attendance:getNextNumber', attendanceController.getNextNumber);
 
 ipcMain.handle('tallyFeatures:get', tallyFeaturesController.get);
 ipcMain.handle('tallyFeatures:update', tallyFeaturesController.update);

@@ -15,6 +15,9 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
   const [allStockItems, setAllStockItems] = useState<StockItemType[]>([]);
   const [allGodowns, setAllGodowns] = useState<GodownType[]>([]);
   const [allUnits, setAllUnits] = useState<UnitType[]>([]);
+  const [allEmployees, setAllEmployees] = useState<any[]>([]);
+  const [allAttendanceTypes, setAllAttendanceTypes] = useState<any[]>([]);
+  const [allPayHeads, setAllPayHeads] = useState<any[]>([]);
   const [ledgersLoading, setLedgersLoading] = useState(false);
 
   // ─── Data fetching ────────────────────────────────────────────────────────────
@@ -23,18 +26,24 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
     if (!companyId) return;
     setLedgersLoading(true);
     try {
-      const [ledRes, grpRes, itemRes, godRes, unitRes] = await Promise.all([
+      const [ledRes, grpRes, itemRes, godRes, unitRes, empRes, attRes, phRes] = await Promise.all([
         window.api.ledger.getAll(companyId),
         window.api.group.getAll(companyId),
         window.api.stockItem.getAll(companyId),
         window.api.godown.getAll(companyId),
         window.api.unit.getAll(companyId),
+        window.api.employee.getAll(companyId),
+        window.api.attendanceType.getAll(companyId),
+        window.api.payHead.getAll(companyId),
       ]);
       if (ledRes.success) setAllLedgers((ledRes as any).ledgers ?? []);
       if (grpRes.success) setAllGroups((grpRes as any).groups ?? []);
       if (itemRes.success) setAllStockItems((itemRes as any).stockItems ?? []);
       if (godRes.success) setAllGodowns((godRes as any).godowns ?? []);
       if (unitRes.success) setAllUnits((unitRes as any).units ?? []);
+      if (empRes.success) setAllEmployees((empRes as any).employees ?? []);
+      if (attRes.success) setAllAttendanceTypes((attRes as any).attendanceTypes ?? []);
+      if (phRes.success) setAllPayHeads((phRes as any).payHeads ?? []);
     } catch {
       // silently ignore — user can retry
     } finally {
@@ -47,7 +56,14 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
       if (!companyId || !fyId) return;
       setLoading(true);
       try {
-        const res = await window.api.voucher.getNextNumber(companyId, fyId, voucherType);
+        let res: any;
+        if (voucherType === "Physical Stock") {
+          res = await window.api.physicalStock.getNextNumber(companyId);
+        } else if (voucherType === "Attendance") {
+          res = await window.api.attendance.getNextNumber(companyId);
+        } else {
+          res = await window.api.voucher.getNextNumber(companyId, fyId, voucherType);
+        }
         if (res.success && res.voucher_number) {
           setVoucherNumber(String(res.voucher_number));
         }
@@ -144,6 +160,9 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
     allStockItems,
     allGodowns,
     allUnits,
+    allEmployees,
+    allAttendanceTypes,
+    allPayHeads,
     ledgersLoading,
     fetchContextData,
     fetchNextVoucherNumber,

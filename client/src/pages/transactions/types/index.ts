@@ -1,5 +1,3 @@
-// transactions/types/index.ts
-// ─── Shared types used across all voucher hooks and components ────────────────
 
 export interface ParticularRow {
   id: string;
@@ -24,6 +22,10 @@ export interface StockEntryRow {
   quantityRaw: string;
   rateRaw: string;
   amountRaw: string;
+  batchNo?: string;
+  lotNo?: string;
+  mfgDate?: string;
+  expiryDate?: string;
 }
 
 export type ActiveField =
@@ -33,7 +35,10 @@ export type ActiveField =
   | { type: "particular"; rowId: string }
   | { type: "additional"; rowId: string }
   | { type: "stockItem"; rowId: string }
-  | { type: "stockGodown"; rowId: string };
+  | { type: "stockGodown"; rowId: string }
+  | { type: "employee"; rowId: string }
+  | { type: "attendanceType"; rowId: string }
+  | { type: "payHead"; rowId: string };
 
 export type ActiveAllocation =
   | {
@@ -86,3 +91,17 @@ export type ActiveAllocation =
       initialDetails?: any;
     }
   | null;
+
+export interface AttendanceEntryRow {
+  id: string;
+  employee: import("../../../types/entities/Employee").EmployeeType | null;
+  attendanceType: import("../../../types/entities/Payroll").AttendanceTypeType | null;
+  valueRaw: string;
+}
+
+export interface PayrollEntryRow {
+  id: string;
+  employee: import("../../../types/entities/Employee").EmployeeType | null;
+  payHead: import("../../../types/entities/Payroll").PayHeadType | null;
+  amountRaw: string;
+}
