@@ -5,7 +5,7 @@
 // No other hook or component file requires any modifications.
 
 import { useState, useCallback, useMemo } from "react";
-import type { LedgerType, StockItemType, UnitType } from "../../../types/api";
+import type { LedgerType, StockItemType, UnitType, GodownType } from "../../../types/api";
 import type { ParticularRow, StockEntryRow, ActiveField } from "../types";
 import { useAccountingRows } from "./useAccountingRows";
 import { useInventoryRows } from "./useInventoryRows";
@@ -144,6 +144,15 @@ export function useVoucherRows({
       }, 0);
       return Math.max(0, stockSum + adjSum);
     }
+    if (voucherType === "Physical Stock") {
+      return inv.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
+    }
+    if (voucherType === "Stock Journal") {
+      return inv.destinationStockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
+    }
+    if (voucherType === "Payroll") {
+      return acct.payrollEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
+    }
     return 0;
   }, [
     voucherType,
@@ -154,6 +163,8 @@ export function useVoucherRows({
     acct.journalEntryMode,
     acct.paymentEntryMode,
     inv.stockEntries,
+    inv.destinationStockEntries,
+    acct.payrollEntries,
     inv.additionalEntries,
   ]);
 
@@ -204,7 +215,43 @@ export function useVoucherRows({
         case "stockItem": {
           const stockItem = item as StockItemType;
           const matchingUnit = allUnits.find((u) => u.unit_id === stockItem.unit_id) ?? null;
-          inv.handleUpdateStockRow(activeField.rowId, { stockItem, unit: matchingUnit });
+          if (inv.sourceStockEntries.some(r => r.id === activeField.rowId)) {
+            inv.handleUpdateSourceStockRow(activeField.rowId, { stockItem, unit: matchingUnit });
+          } else if (inv.destinationStockEntries.some(r => r.id === activeField.rowId)) {
+            inv.handleUpdateDestinationStockRow(activeField.rowId, { stockItem, unit: matchingUnit });
+          } else {
+            inv.handleUpdateStockRow(activeField.rowId, { stockItem, unit: matchingUnit });
+          }
+          break;
+        }
+        case "stockGodown": {
+          const godown = item as GodownType;
+          if (inv.sourceStockEntries.some(r => r.id === activeField.rowId)) {
+            inv.handleUpdateSourceStockRow(activeField.rowId, { godown });
+          } else if (inv.destinationStockEntries.some(r => r.id === activeField.rowId)) {
+            inv.handleUpdateDestinationStockRow(activeField.rowId, { godown });
+          } else {
+            inv.handleUpdateStockRow(activeField.rowId, { godown });
+          }
+          break;
+        }
+        case "employee": {
+          const employee = item as any;
+          if (acct.attendanceEntries.some(r => r.id === activeField.rowId)) {
+            acct.handleUpdateAttendanceRow(activeField.rowId, { employee });
+          } else if (acct.payrollEntries.some(r => r.id === activeField.rowId)) {
+            acct.handleUpdatePayrollRow(activeField.rowId, { employee });
+          }
+          break;
+        }
+        case "attendanceType": {
+          const attendanceType = item as any;
+          acct.handleUpdateAttendanceRow(activeField.rowId, { attendanceType });
+          break;
+        }
+        case "payHead": {
+          const payHead = item as any;
+          acct.handleUpdatePayrollRow(activeField.rowId, { payHead });
           break;
         }
         default:
@@ -232,6 +279,14 @@ export function useVoucherRows({
       acct.setAccountLedger,
       inv.setPartyLedger,
       inv.setSalesPurchaseLedger,
+      inv.sourceStockEntries,
+      inv.destinationStockEntries,
+      inv.handleUpdateSourceStockRow,
+      inv.handleUpdateDestinationStockRow,
+      acct.attendanceEntries,
+      acct.payrollEntries,
+      acct.handleUpdateAttendanceRow,
+      acct.handleUpdatePayrollRow,
     ]
   );
 
@@ -310,11 +365,33 @@ export function useVoucherRows({
     handleAddStockRow: inv.handleAddStockRow,
     handleUpdateStockRow: inv.handleUpdateStockRow,
     handleRemoveStockRow: inv.handleRemoveStockRow,
+    sourceStockEntries: inv.sourceStockEntries,
+    setSourceStockEntries: inv.setSourceStockEntries,
+    handleAddSourceStockRow: inv.handleAddSourceStockRow,
+    handleUpdateSourceStockRow: inv.handleUpdateSourceStockRow,
+    handleRemoveSourceStockRow: inv.handleRemoveSourceStockRow,
+    destinationStockEntries: inv.destinationStockEntries,
+    setDestinationStockEntries: inv.setDestinationStockEntries,
+    handleAddDestinationStockRow: inv.handleAddDestinationStockRow,
+    handleUpdateDestinationStockRow: inv.handleUpdateDestinationStockRow,
+    handleRemoveDestinationStockRow: inv.handleRemoveDestinationStockRow,
     additionalEntries: inv.additionalEntries,
     setAdditionalEntries: inv.setAdditionalEntries,
     handleAddAdditionalRow: inv.handleAddAdditionalRow,
     handleUpdateAdditionalRow: inv.handleUpdateAdditionalRow,
     handleRemoveAdditionalRow: inv.handleRemoveAdditionalRow,
+    // ── attendance
+    attendanceEntries: acct.attendanceEntries,
+    setAttendanceEntries: acct.setAttendanceEntries,
+    handleAddAttendanceRow: acct.handleAddAttendanceRow,
+    handleUpdateAttendanceRow: acct.handleUpdateAttendanceRow,
+    handleRemoveAttendanceRow: acct.handleRemoveAttendanceRow,
+    // ── payroll
+    payrollEntries: acct.payrollEntries,
+    setPayrollEntries: acct.setPayrollEntries,
+    handleAddPayrollRow: acct.handleAddPayrollRow,
+    handleUpdatePayrollRow: acct.handleUpdatePayrollRow,
+    handleRemovePayrollRow: acct.handleRemovePayrollRow,
     // ── search / active field
     ledgerSearchTerm,
     setLedgerSearchTerm,

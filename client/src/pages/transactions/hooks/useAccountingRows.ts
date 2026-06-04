@@ -2,7 +2,7 @@
 import { useState, useCallback } from "react";
 import type { LedgerType } from "../../../types/api";
 import type { ParticularRow } from "../types";
-import { makeParticularRow } from "../utils/rowFactories";
+import { makeParticularRow, makeAttendanceRow, makePayrollRow } from "../utils/rowFactories";
 
 interface UseAccountingRowsOptions {
   initialParticulars?: ParticularRow[];
@@ -310,10 +310,56 @@ export function useAccountingRows({
     setContraDoubleRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
     setReceiptDoubleRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
     setPaymentDoubleRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
+    setAttendanceEntries([makeAttendanceRow()]);
+    setPayrollEntries([makePayrollRow()]);
     setContraEntryMode("double");
     setReceiptEntryMode("double");
     setJournalEntryMode("double");
     setPaymentEntryMode("double");
+  }, []);
+
+  // ── Attendance entries ─────────────────────────────────────────────────────
+  const [attendanceEntries, setAttendanceEntries] = useState<import("../types").AttendanceEntryRow[]>(
+    () => [makeAttendanceRow()]
+  );
+
+  const handleAddAttendanceRow = useCallback(() => {
+    setAttendanceEntries((prev) => [...prev, makeAttendanceRow()]);
+  }, []);
+
+  const handleUpdateAttendanceRow = useCallback(
+    (id: string, updates: Partial<Omit<import("../types").AttendanceEntryRow, "id">>) => {
+      setAttendanceEntries((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, ...updates } : r))
+      );
+    },
+    []
+  );
+
+  const handleRemoveAttendanceRow = useCallback((id: string) => {
+    setAttendanceEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== id) : prev));
+  }, []);
+
+  // ── Payroll entries ────────────────────────────────────────────────────────
+  const [payrollEntries, setPayrollEntries] = useState<import("../types").PayrollEntryRow[]>(
+    () => [makePayrollRow()]
+  );
+
+  const handleAddPayrollRow = useCallback(() => {
+    setPayrollEntries((prev) => [...prev, makePayrollRow()]);
+  }, []);
+
+  const handleUpdatePayrollRow = useCallback(
+    (id: string, updates: Partial<Omit<import("../types").PayrollEntryRow, "id">>) => {
+      setPayrollEntries((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, ...updates } : r))
+      );
+    },
+    []
+  );
+
+  const handleRemovePayrollRow = useCallback((id: string) => {
+    setPayrollEntries((prev) => (prev.length > 1 ? prev.filter((r) => r.id !== id) : prev));
   }, []);
 
   return {
@@ -355,6 +401,16 @@ export function useAccountingRows({
     handleAddPaymentDoubleRow,
     handleUpdatePaymentDoubleRow,
     handleRemovePaymentDoubleRow,
+    attendanceEntries,
+    setAttendanceEntries,
+    handleAddAttendanceRow,
+    handleUpdateAttendanceRow,
+    handleRemoveAttendanceRow,
+    payrollEntries,
+    setPayrollEntries,
+    handleAddPayrollRow,
+    handleUpdatePayrollRow,
+    handleRemovePayrollRow,
     resetAccountingRows,
   };
 }

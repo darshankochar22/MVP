@@ -21,3 +21,17 @@ export const makeStockRow = (): StockEntryRow => ({
   rateRaw: "",
   amountRaw: "",
 });
+
+export const makeAttendanceRow = () => ({
+  id: nextId(),
+  employee: null,
+  attendanceType: null,
+  valueRaw: "",
+});
+
+export const makePayrollRow = () => ({
+  id: nextId(),
+  employee: null,
+  payHead: null,
+  amountRaw: "",
+});

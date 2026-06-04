@@ -88,7 +88,7 @@ export default function LedgerListPanel({
       <div ref={listRef} className="flex-1 overflow-y-auto min-h-0">
         {filtered.map((item, idx) => (
           <div
-            key={item.ledger_id ?? item.item_id ?? item.godown_id ?? idx}
+            key={item.ledger_id ?? item.item_id ?? item.godown_id ?? item.employee_id ?? item.attendance_type_id ?? item.pay_head_id ?? idx}
             data-hi={idx === hi ? "true" : undefined}
             className={`px-2 py-0.5 text-xs cursor-pointer select-none ${
               idx === hi
