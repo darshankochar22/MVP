@@ -433,6 +433,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
           cheque_printing_configuration: bankForm.cheque_printing_configuration?.trim() || undefined,
           od_limit: Number(bankForm.od_limit) || 0,
           transaction_type: bankForm.transaction_type?.trim() || undefined,
+          cross_using: bankForm.cross_using?.trim() || undefined,
+          company_bank: bankForm.company_bank?.trim() || undefined,
         };
       } else if (mode === "alter") {
         payload.bank_details = null;

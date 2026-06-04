@@ -78,6 +78,20 @@ const init = async (db) => {
   } catch (err) {}
 
   try {
+    await db.execute(`
+      ALTER TABLE ledger_bank_details
+      ADD COLUMN cross_using TEXT DEFAULT 'A/c Payee'
+    `);
+  } catch (err) {}
+
+  try {
+    await db.execute(`
+      ALTER TABLE ledger_bank_details
+      ADD COLUMN company_bank TEXT
+    `);
+  } catch (err) {}
+
+  try {
     await db.execute(`ALTER TABLE ledgers ADD COLUMN default_credit_period INTEGER DEFAULT 0`);
   } catch (err) {}
 

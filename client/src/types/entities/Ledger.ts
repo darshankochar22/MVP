@@ -47,6 +47,8 @@ export interface LedgerType {
   cheque_printing_configuration?: string;
   od_limit?: number;
   transaction_type?: string;
+  cross_using?: string;
+  company_bank?: string;
 };
 
 statutory_details?: {

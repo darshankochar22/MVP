@@ -153,8 +153,10 @@ module.exports = {
                   enable_cheque_printing,
                   cheque_printing_configuration,
                   od_limit,
-                  transaction_type
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  transaction_type,
+                  cross_using,
+                  company_bank
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [
             ledger_id,
             data.bank_details.account_holder_name || null,
@@ -170,6 +172,8 @@ module.exports = {
             data.bank_details.cheque_printing_configuration || null,
             data.bank_details.od_limit || 0,
             data.bank_details.transaction_type || null,
+            data.bank_details.cross_using || null,
+            data.bank_details.company_bank || null,
           ],
         });
       }
@@ -414,8 +418,10 @@ module.exports = {
                   enable_cheque_printing,
                   cheque_printing_configuration,
                   od_limit,
-                  transaction_type
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  transaction_type,
+                  cross_using,
+                  company_bank
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           args: [
             data.ledger_id,
             data.bank_details.account_holder_name || null,
@@ -431,6 +437,8 @@ module.exports = {
             data.bank_details.cheque_printing_configuration || null,
             data.bank_details.od_limit || 0,
             data.bank_details.transaction_type || null,
+            data.bank_details.cross_using || null,
+            data.bank_details.company_bank || null,
           ],
         });
       }
