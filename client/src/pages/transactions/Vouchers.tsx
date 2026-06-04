@@ -13,8 +13,15 @@ import PartyDetailsPopup from "./components/popups/PartyDetailsPopup";
 import DatePickerPopup from "./components/popups/DatePickerPopup";
 import CreditNoteDetailsPopup from "./components/popups/CreditNoteDetailsPopup";
 import DebitNoteDetailsPopup from "./components/popups/DebitNoteDetailsPopup";
-import VoucherDoubleEntryTable from "./components/VoucherDoubleEntryTable";
 import LedgerListPanel from "./components/LedgerListPanel";
+import PaymentVoucher from "./vouchers/PaymentVoucher";
+import ReceiptVoucher from "./vouchers/ReceiptVoucher";
+import ContraVoucher from "./vouchers/ContraVoucher";
+import JournalVoucher from "./vouchers/JournalVoucher";
+import SalesVoucher from "./vouchers/SalesVoucher";
+import PurchaseVoucher from "./vouchers/PurchaseVoucher";
+import CreditNoteVoucher from "./vouchers/CreditNoteVoucher";
+import DebitNoteVoucher from "./vouchers/DebitNoteVoucher";
 
 function RightSidebar({
   voucherType,
@@ -185,8 +192,6 @@ function RightSidebar({
   );
 }
 
-// ─── Main component ─────────────────────────────────────────────────────
-
 export default function Vouchers() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
@@ -199,17 +204,12 @@ export default function Vouchers() {
   const [showCreditNoteDetails, setShowCreditNoteDetails] = useState(false);
   const [showDebitNoteDetails, setShowDebitNoteDetails] = useState(false);
 
-  // Prevent auto-opening receipt/details on mount when form is restored from persistence
   const hasAutoOpenedReceipt = useRef(false);
   const hasAutoOpenedDispatch = useRef(false);
   const hasAutoOpenedCreditNote = useRef(false);
   const hasAutoOpenedDebitNote = useRef(false);
 
-  // Stable ref so async callbacks (bill-wise save → accept) always call the
-  // latest version of handleAccept without stale closure issues.
   const acceptRef = useRef<() => void>(() => {});
-
-  // ─── canAccept ──────────────────────────────────────────────────────
 
   const canAccept = useMemo(() => {
     if (form.isSubmitting) return false;
@@ -311,8 +311,6 @@ export default function Vouchers() {
     form.salesPurchaseLedger,
     form.stockEntries,
   ]);
-
-  // ─── Monitor party ledger changes to open dispatch/receipt details ────────
 
   useEffect(() => {
     if (form.voucherType === "Sales" && form.partyLedger && !hasAutoOpenedDispatch.current) {
@@ -967,7 +965,6 @@ export default function Vouchers() {
       return form.allLedgers.filter((l) => !form.checkIsCashOrBank(l));
     }
 
-    // Receipt / Payment Particulars + Journal + additional: any ledger
     return form.allLedgers;
   }, [
     form.activeField,
@@ -1004,7 +1001,6 @@ export default function Vouchers() {
     [form.activeField, form.setStockSearchTerm, form.setLedgerSearchTerm]
   );
 
-  // ─── Keyboard shortcuts ──────────────────────────────────────────────
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -1079,173 +1075,7 @@ export default function Vouchers() {
     navigate,
   ]);
 
-  // ─── FieldRow (named ledger + balance display) ──────────────────────
 
-  function FieldRow({
-    label,
-    fieldType,
-    ledger,
-    balance,
-  }: {
-    label: string;
-    fieldType: "account" | "party" | "salesPurchase";
-    ledger: any;
-    balance: string;
-  }) {
-    const isActive = form.activeField?.type === fieldType;
-    const st = isActive ? form.ledgerSearchTerm : "";
-
-    return (
-      <>
-        <div className="flex items-center px-3 py-0 min-h-[22px]">
-          <span className="w-40 text-sm text-black shrink-0">{label}</span>
-          <span className="text-sm text-black mr-2 shrink-0">:</span>
-          <input
-            type="text"
-            className="w-64 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-            value={isActive ? st : (ledger?.name ?? "")}
-            onFocus={() => form.handleFieldFocus({ type: fieldType })}
-            onChange={(e) => {
-              form.setLedgerSearchTerm(e.target.value);
-              form.handleFieldFocus({ type: fieldType });
-            }}
-            autoComplete="off"
-          />
-        </div>
-        <div className="flex items-center px-3 py-0 min-h-[18px]">
-          <span className="w-40 text-xs text-gray-500 shrink-0 italic">Current balance</span>
-          <span className="text-xs text-gray-500 mr-2 shrink-0">:</span>
-          <span className="text-xs text-gray-500 italic">{balance || ""}</span>
-        </div>
-      </>
-    );
-  }
-
-  // ─── Balanced / diff indicator ───────────────────────────────────────
-
-  function BalanceIndicator() {
-    if (form.voucherType === "Receipt") {
-      if (form.receiptEntryMode === "single") {
-        return form.particularsTotal > 0 ? (
-          <span className="text-gray-500">✓ Balanced</span>
-        ) : null;
-      }
-      if (form.debitTotal <= 0) return null;
-
-      const hasNegative = form.receiptDoubleRows.some(
-        (r) =>
-          r.ledger &&
-          r.ledgerBalance &&
-          parseFloat(r.ledgerBalance) < 0
-      );
-
-      if (Math.abs(form.debitTotal - form.creditTotal) > 0.01) {
-        return (
-          <span className="text-red-700">
-            ⚠ Diff:{" "}
-            {Math.abs(form.debitTotal - form.creditTotal).toLocaleString("en-IN", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </span>
-        );
-      }
-
-      if (hasNegative) {
-        return <span className="text-red-600">⚠ Negative balance on selected ledgers</span>;
-      }
-
-      return <span className="text-gray-500">✓ Balanced</span>;
-    }
-
-    if (form.voucherType === "Payment") {
-      if (form.paymentEntryMode === "single") {
-        return form.particularsTotal > 0 ? (
-          <span className="text-gray-500">✓ Balanced</span>
-        ) : null;
-      }
-      if (form.debitTotal <= 0) return null;
-
-      const hasNegative = form.paymentDoubleRows.some(
-        (r) =>
-          r.ledger &&
-          r.ledgerBalance &&
-          parseFloat(r.ledgerBalance) < 0
-      );
-
-      if (Math.abs(form.debitTotal - form.creditTotal) > 0.01) {
-        return (
-          <span className="text-red-700">
-            ⚠ Diff:{" "}
-            {Math.abs(form.debitTotal - form.creditTotal).toLocaleString("en-IN", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </span>
-        );
-      }
-
-      if (hasNegative) {
-        return <span className="text-red-600">⚠ Negative balance on selected ledgers</span>;
-      }
-
-      return <span className="text-gray-500">✓ Balanced</span>;
-    }
-    if (form.voucherType === "Contra") {
-      if (form.contraEntryMode === "single") {
-        return form.particularsTotal > 0 ? (
-          <span className="text-gray-500">✓ Balanced</span>
-        ) : null;
-      }
-      if (form.debitTotal <= 0) return null;
-
-      const hasNegative = form.contraDoubleRows.some(
-        (r) =>
-          r.ledger &&
-          r.ledgerBalance &&
-          parseFloat(r.ledgerBalance) < 0
-      );
-
-      if (Math.abs(form.debitTotal - form.creditTotal) > 0.01) {
-        return (
-          <span className="text-red-700">
-            ⚠ Diff:{" "}
-            {Math.abs(form.debitTotal - form.creditTotal).toLocaleString("en-IN", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </span>
-        );
-      }
-
-      if (hasNegative) {
-        return <span className="text-red-600">⚠ Negative balance on selected ledgers</span>;
-      }
-
-      return <span className="text-gray-500">✓ Balanced</span>;
-    }
-    if (form.voucherType === "Journal") {
-      if (form.journalEntryMode === "single") {
-        return form.particularsTotal > 0 ? (
-          <span className="text-gray-500">✓ Balanced</span>
-        ) : null;
-      }
-      if (form.debitTotal <= 0) return null;
-      if (Math.abs(form.debitTotal - form.creditTotal) > 0.01) {
-        return (
-          <span className="text-red-700">
-            ⚠ Diff:{" "}
-            {Math.abs(form.debitTotal - form.creditTotal).toLocaleString("en-IN", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </span>
-        );
-      }
-      return <span className="text-gray-500">✓ Balanced</span>;
-    }
-    return null;
-  }
 
   // ─── Render ─────────────────────────────────────────────────────────
 
@@ -1311,478 +1141,53 @@ export default function Vouchers() {
       <div className="flex-1 flex min-h-0 overflow-hidden">
         <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden border-r border-black">
 
-          {/* ════════════════════════════════════════════════════════════
-              Layout 1 — Payment · Receipt (single-entry) · Contra (single-entry)
-              Account (cash/bank) + Particulars table
-          ═════════════════════════════════════════════════════════════ */}
-          {((form.voucherType === "Payment" && form.paymentEntryMode === "single") ||
-            (form.voucherType === "Receipt" && form.receiptEntryMode === "single") ||
-            (form.voucherType === "Contra" && form.contraEntryMode === "single") ||
-            (form.voucherType === "Journal" && form.journalEntryMode === "single")) && (
-            <>
-              {/* Account field */}
-              <div className="border-b border-gray-300 shrink-0 py-1">
-                <FieldRow
-                  label="Account"
-                  fieldType="account"
-                  ledger={form.accountLedger}
-                  balance={form.accountBalance}
-                />
-              </div>
-
-              {/* Particulars table header */}
-              <div className="flex border-b border-black shrink-0 px-3 py-0.5 bg-white">
-                <div className="flex-1 text-sm font-semibold text-black">Particulars</div>
-                <div className="w-40 text-right text-sm font-semibold text-black">Amount</div>
-              </div>
-
-              {/* Particulars rows */}
-              <div className="flex-1 overflow-y-auto min-h-0">
-                {form.particulars.map((row, idx) => {
-                  const isActive =
-                    form.activeField?.type === "particular" &&
-                    form.activeField.rowId === row.id;
-                  return (
-                    <div
-                      key={row.id}
-                      className="flex items-center border-b border-gray-100 min-h-[22px] group"
-                    >
-                      <div className="flex-1 flex items-center px-3 gap-1">
-                        <input
-                          data-particular-ledger={idx + 1}
-                          type="text"
-                          className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                          value={isActive ? form.ledgerSearchTerm : (row.ledger?.name ?? "")}
-                          placeholder={idx === 0 ? "Select Ledger…" : ""}
-                          onFocus={() =>
-                            form.handleFieldFocus({ type: "particular", rowId: row.id })
-                          }
-                          onChange={(e) => {
-                            form.setLedgerSearchTerm(e.target.value);
-                            if (!row.ledger)
-                              form.handleFieldFocus({ type: "particular", rowId: row.id });
-                          }}
-                          autoComplete="off"
-                        />
-                        {row.ledgerBalance ? (
-                          <span className="text-xs text-gray-500 italic shrink-0">
-                            ({row.ledgerBalance})
-                          </span>
-                        ) : null}
-                        {form.particulars.length > 1 && (
-                          <button
-                            tabIndex={-1}
-                            onClick={() => form.handleRemoveParticularRow(row.id)}
-                            className="text-xs text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 shrink-0 ml-1"
-                          >
-                            &times;
-                          </button>
-                        )}
-                      </div>
-                      <div className="w-40 pr-3">
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                          value={row.amountRaw}
-                          placeholder=""
-                          onChange={(e) =>
-                            form.handleUpdateParticularRow(row.id, { amountRaw: e.target.value })
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key !== "Enter") return;
-                            e.preventDefault();
-                            handleAmountConfirm(row, idx);
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* Filler rows */}
-                {Array.from({ length: Math.max(0, 10 - form.particulars.length) }).map((_, i) => (
-                  <div key={`ep-${i}`} className="flex border-b border-gray-50 min-h-[22px]">
-                    <div className="flex-1 px-3" />
-                    <div className="w-40 pr-3" />
-                  </div>
-                ))}
-              </div>
-
-              {/* Footer — balanced indicator + total */}
-              <div className="flex border-t border-black shrink-0 px-3 py-0.5 bg-white">
-                <div className="flex-1 text-xs text-gray-600">
-                  <BalanceIndicator />
-                </div>
-                <div className="w-40 text-right text-sm font-semibold text-black pr-0">
-                  {form.particularsTotal > 0
-                    ? form.particularsTotal.toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })
-                    : ""}
-                </div>
-              </div>
-            </>
+          {form.voucherType === "Payment" && (
+            <PaymentVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
           )}
-
-          {/* ════════════════════════════════════════════════════════════
-              Layout 1c — Receipt (double-entry)
-              Dr = Cash/Bank only · Cr = non-Cash/Bank only
-          ═════════════════════════════════════════════════════════════ */}
-          {form.voucherType === "Receipt" && form.receiptEntryMode === "double" && (
-            <VoucherDoubleEntryTable
-              rows={form.receiptDoubleRows}
-              onUpdateRow={form.handleUpdateReceiptDoubleRow}
-              onAddRow={form.handleAddReceiptDoubleRow}
-              onRemoveRow={form.handleRemoveReceiptDoubleRow}
-              onFieldFocus={form.handleFieldFocus}
-              onSearchChange={form.setLedgerSearchTerm}
-              searchTerm={form.ledgerSearchTerm}
-              activeRowId={form.activeField?.type === "particular" ? form.activeField.rowId : null}
-              onAmountConfirm={handleAmountConfirm}
+          {form.voucherType === "Receipt" && (
+            <ReceiptVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
+          )}
+          {form.voucherType === "Contra" && (
+            <ContraVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
+          )}
+          {form.voucherType === "Journal" && (
+            <JournalVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
+          )}
+          {form.voucherType === "Sales" && (
+            <SalesVoucher
+              form={form}
+              handleAmountConfirm={handleAmountConfirm}
+              focusStockQty={focusStockQty}
+              focusStockRate={focusStockRate}
+              proceedToNextStockRow={proceedToNextStockRow}
             />
           )}
-
-          {/* ════════════════════════════════════════════════════════════
-              Layout 1d — Payment (double-entry)
-              Dr = non-Cash/Bank only · Cr = Cash/Bank only
-          ═════════════════════════════════════════════════════════════ */}
-          {form.voucherType === "Payment" && form.paymentEntryMode === "double" && (
-            <VoucherDoubleEntryTable
-              rows={form.paymentDoubleRows}
-              onUpdateRow={form.handleUpdatePaymentDoubleRow}
-              onAddRow={form.handleAddPaymentDoubleRow}
-              onRemoveRow={form.handleRemovePaymentDoubleRow}
-              onFieldFocus={form.handleFieldFocus}
-              onSearchChange={form.setLedgerSearchTerm}
-              searchTerm={form.ledgerSearchTerm}
-              activeRowId={form.activeField?.type === "particular" ? form.activeField.rowId : null}
-              onAmountConfirm={handleAmountConfirm}
+          {form.voucherType === "Purchase" && (
+            <PurchaseVoucher
+              form={form}
+              handleAmountConfirm={handleAmountConfirm}
+              focusStockQty={focusStockQty}
+              focusStockRate={focusStockRate}
+              proceedToNextStockRow={proceedToNextStockRow}
             />
           )}
-
-          {/* ════════════════════════════════════════════════════════════
-              Layout 1b — Contra (double-entry)
-              No Account field; Particulars + Debit + Credit columns
-          ═════════════════════════════════════════════════════════════ */}
-          {form.voucherType === "Contra" && form.contraEntryMode === "double" && (
-            <VoucherDoubleEntryTable
-              rows={form.contraDoubleRows}
-              onUpdateRow={form.handleUpdateContraDoubleRow}
-              onAddRow={form.handleAddContraDoubleRow}
-              onRemoveRow={form.handleRemoveContraDoubleRow}
-              onFieldFocus={form.handleFieldFocus}
-              onSearchChange={form.setLedgerSearchTerm}
-              searchTerm={form.ledgerSearchTerm}
-              activeRowId={form.activeField?.type === "particular" ? form.activeField.rowId : null}
-              onAmountConfirm={handleAmountConfirm}
+          {form.voucherType === "Credit Note" && (
+            <CreditNoteVoucher
+              form={form}
+              handleAmountConfirm={handleAmountConfirm}
+              focusStockQty={focusStockQty}
+              focusStockRate={focusStockRate}
+              proceedToNextStockRow={proceedToNextStockRow}
             />
           )}
-
-          {/* ════════════════════════════════════════════════════════════
-              Layout 2 — Journal (double-entry)
-              Same layout as Contra/Receipt double-entry with Dr/Cr selector
-          ═════════════════════════════════════════════════════════════ */}
-          {form.voucherType === "Journal" && form.journalEntryMode === "double" && (
-            <VoucherDoubleEntryTable
-              rows={form.journalRows}
-              onUpdateRow={form.handleUpdateJournalRow}
-              onAddRow={form.handleAddJournalRow}
-              onRemoveRow={form.handleRemoveJournalRow}
-              onFieldFocus={form.handleFieldFocus}
-              onSearchChange={form.setLedgerSearchTerm}
-              searchTerm={form.ledgerSearchTerm}
-              activeRowId={form.activeField?.type === "particular" ? form.activeField.rowId : null}
-              onAmountConfirm={handleAmountConfirm}
+          {form.voucherType === "Debit Note" && (
+            <DebitNoteVoucher
+              form={form}
+              handleAmountConfirm={handleAmountConfirm}
+              focusStockQty={focusStockQty}
+              focusStockRate={focusStockRate}
+              proceedToNextStockRow={proceedToNextStockRow}
             />
-          )}
-
-          {/* ════════════════════════════════════════════════════════════
-              Layout 3 — Sales · Purchase · Credit Note · Debit Note
-              Party + Sales/Purchase ledger + stock items + additional entries
-          ═════════════════════════════════════════════════════════════ */}
-          {["Sales", "Purchase", "Credit Note", "Debit Note"].includes(form.voucherType) && (
-            <>
-              {/* Purchase: supplier invoice fields */}
-              {form.voucherType === "Purchase" && (
-                <div className="flex items-center border-b border-gray-300 shrink-0 px-3 py-1 gap-6 bg-white">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-black shrink-0">Supplier Invoice No.</span>
-                    <span className="text-sm text-black shrink-0">:</span>
-                    <input
-                      type="text"
-                      className="text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black w-36"
-                      value={form.supplierInvoiceNo}
-                      onChange={(e) => form.setSupplierInvoiceNo(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-black shrink-0">Date</span>
-                    <span className="text-sm text-black shrink-0">:</span>
-                    <input
-                      type="date"
-                      className="text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
-                      value={form.supplierInvoiceDate}
-                      onChange={(e) => form.setSupplierInvoiceDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Party */}
-              <div className="border-b border-gray-300 shrink-0 py-1">
-                <FieldRow
-                  label="Party A/c name"
-                  fieldType="party"
-                  ledger={form.partyLedger}
-                  balance={form.partyBalance}
-                />
-              </div>
-
-              {/* Sales/Purchase/Credit Note/Debit Note ledger */}
-              <div className="border-b border-gray-300 shrink-0 py-1">
-                <FieldRow
-                  label={
-                    form.voucherType === "Credit Note" || form.voucherType === "Debit Note"
-                      ? "Ledger account"
-                      : `${form.voucherType} ledger`
-                  }
-                  fieldType="salesPurchase"
-                  ledger={form.salesPurchaseLedger}
-                  balance={form.salesPurchaseBalance}
-                />
-              </div>
-
-              {/* Separator line like Tally */}
-              <div className="border-b border-black shrink-0" />
-
-              {/* Stock items table header */}
-              <div className="flex border-b border-black shrink-0 px-3 py-0.5 bg-white">
-                <div className="flex-1 text-sm font-semibold text-black">Name of Item</div>
-                <div className="w-24 text-right text-sm font-semibold text-black">Quantity</div>
-                <div className="w-32 text-right text-sm font-semibold text-black">Rate per</div>
-                <div className="w-32 text-right text-sm font-semibold text-black">Amount</div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto min-h-0">
-                {/* Stock item rows */}
-                {form.stockEntries.map((row, idx) => {
-                  const isActive =
-                    form.activeField?.type === "stockItem" &&
-                    form.activeField.rowId === row.id;
-                  return (
-                    <div
-                      key={row.id}
-                      className="flex items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
-                    >
-                      <div className="flex-1 flex items-center gap-1">
-                        <input
-                          data-stock-item={idx + 1}
-                          type="text"
-                          className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                          value={isActive ? form.stockSearchTerm : (row.stockItem?.name ?? "")}
-                          placeholder={idx === 0 ? "Select Item…" : ""}
-                          onFocus={() =>
-                            form.handleFieldFocus({ type: "stockItem", rowId: row.id })
-                          }
-                          onChange={(e) => {
-                            form.setStockSearchTerm(e.target.value);
-                            if (!row.stockItem)
-                              form.handleFieldFocus({ type: "stockItem", rowId: row.id });
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key !== "Enter" || !row.stockItem) return;
-                            e.preventDefault();
-                            focusStockQty(idx);
-                          }}
-                          autoComplete="off"
-                        />
-                        {form.stockEntries.length > 1 && (
-                          <button
-                            tabIndex={-1}
-                            onClick={() => form.handleRemoveStockRow(row.id)}
-                            className="text-xs text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 shrink-0"
-                          >
-                            &times;
-                          </button>
-                        )}
-                      </div>
-
-                      <div className="w-24 text-right pr-1">
-                        <input
-                          data-stock-qty={idx + 1}
-                          type="text"
-                          inputMode="decimal"
-                          className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                          value={row.quantityRaw}
-                          placeholder=""
-                          onChange={(e) =>
-                            form.handleUpdateStockRow(row.id, { quantityRaw: e.target.value })
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key !== "Enter") return;
-                            e.preventDefault();
-                            focusStockRate(idx);
-                          }}
-                        />
-                      </div>
-
-                      <div className="w-32 text-right pr-1 flex items-center gap-1">
-                        <input
-                          data-stock-rate={idx + 1}
-                          type="text"
-                          inputMode="decimal"
-                          className="flex-1 text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                          value={row.rateRaw}
-                          placeholder=""
-                          onChange={(e) =>
-                            form.handleUpdateStockRow(row.id, { rateRaw: e.target.value })
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key !== "Enter") return;
-                            e.preventDefault();
-                            proceedToNextStockRow(idx);
-                          }}
-                        />
-                        <span className="text-xs text-gray-500">{row.unit?.symbol ?? ""}</span>
-                      </div>
-
-                      <div className="w-32 text-right text-sm font-semibold text-black select-none">
-                        {row.amountRaw
-                          ? Number(row.amountRaw).toLocaleString("en-IN", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            })
-                          : ""}
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* Filler rows */}
-                {Array.from({ length: Math.max(0, 5 - form.stockEntries.length) }).map((_, i) => (
-                  <div
-                    key={`sf-${i}`}
-                    className="flex border-b border-gray-50 min-h-[22px] px-3"
-                  />
-                ))}
-
-                {/* Stock subtotal */}
-                {form.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0) > 0 && (
-                  <div className="flex border-t border-gray-300 border-b border-gray-300 px-3 py-0.5 bg-white">
-                    <div className="flex-1 text-xs text-gray-700">Subtotal</div>
-                    <div className="w-24 text-right pr-1" />
-                    <div className="w-32 text-right pr-1" />
-                    <div className="w-32 text-right text-sm font-semibold text-black">
-                      {form.stockEntries
-                        .reduce((s, r) => s + (Number(r.amountRaw) || 0), 0)
-                        .toLocaleString("en-IN", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Additional ledger rows (taxes, freight, discounts) — Sales/Purchase only */}
-                {["Sales", "Purchase"].includes(form.voucherType) && form.additionalEntries.map((row, idx) => {
-                  const isAddActive =
-                    form.activeField?.type === "additional" &&
-                    form.activeField.rowId === row.id;
-                  return (
-                    <div
-                      key={row.id}
-                      className="flex items-center border-b border-gray-100 min-h-[22px] group px-3 py-0"
-                    >
-                      <div className="w-10 text-center">
-                        <select
-                          className="text-xs bg-transparent outline-none font-semibold text-black"
-                          value={row.type}
-                          onChange={(e) =>
-                            form.handleUpdateAdditionalRow(row.id, {
-                              type: e.target.value as "Dr" | "Cr",
-                            })
-                          }
-                        >
-                          <option value="Dr">Dr</option>
-                          <option value="Cr">Cr</option>
-                        </select>
-                      </div>
-
-                      <div className="flex-1 flex items-center gap-1 pl-2">
-                        <input
-                          data-additional-ledger={idx + 1}
-                          type="text"
-                          className="flex-1 text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black"
-                          value={isAddActive ? form.ledgerSearchTerm : (row.ledger?.name ?? "")}
-                          placeholder="Tax / Ledger…"
-                          onFocus={() =>
-                            form.handleFieldFocus({ type: "additional", rowId: row.id })
-                          }
-                          onChange={(e) => {
-                            form.setLedgerSearchTerm(e.target.value);
-                            if (!row.ledger)
-                              form.handleFieldFocus({ type: "additional", rowId: row.id });
-                          }}
-                          autoComplete="off"
-                        />
-                        <button
-                          tabIndex={-1}
-                          onClick={() => form.handleRemoveAdditionalRow(row.id)}
-                          className="text-xs text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 shrink-0"
-                        >
-                          &times;
-                        </button>
-                      </div>
-
-                      <div className="w-32 text-right">
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          className="w-full text-right text-sm bg-transparent outline-none px-1 border border-transparent focus:border-black font-semibold"
-                          value={row.amountRaw}
-                          placeholder=""
-                          onChange={(e) =>
-                            form.handleUpdateAdditionalRow(row.id, { amountRaw: e.target.value })
-                          }
-                          onKeyDown={(e) => {
-                            if (e.key !== "Enter") return;
-                            e.preventDefault();
-                            handleAmountConfirm(row, idx);
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {["Sales", "Purchase"].includes(form.voucherType) && (
-                <div className="px-3 py-1 border-b border-gray-100">
-                  <button
-                    type="button"
-                    onClick={form.handleAddAdditionalRow}
-                    className="text-xs text-gray-500 hover:text-black border border-gray-300 px-2 py-0.5"
-                  >
-                    + Add Tax / Ledger Row
-                  </button>
-                </div>
-                )}
-              </div>
-
-              {/* Grand total footer */}
-              <div className="flex border-t border-black shrink-0 px-3 py-0.5 bg-white">
-                <div className="flex-1 text-sm font-semibold text-black" />
-                <div className="w-32 text-right text-sm font-semibold text-black">
-                  {form.totalAmount > 0
-                    ? form.totalAmount.toLocaleString("en-IN", {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      })
-                    : ""}
-                </div>
-              </div>
-            </>
           )}
 
           {/* ── Narration + grand total ── */}

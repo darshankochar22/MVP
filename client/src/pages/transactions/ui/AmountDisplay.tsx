@@ -1,7 +1,3 @@
-/**
- * AmountDisplay — formats a number as an INR amount string consistently.
- * Use for all monetary values across the app.
- */
 
 interface Props {
   amount: number;

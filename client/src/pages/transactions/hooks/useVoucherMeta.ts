@@ -1,0 +1,160 @@
+// hooks/useVoucherMeta.ts
+// ─── Voucher metadata: type, number, date, status, narration, allocation state ──
+
+import { useState, useCallback, useMemo } from "react";
+import type { ActiveAllocation } from "../types";
+
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+
+const MONTH_NAMES = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+];
+
+export const formatDateDisplay = (dateStr: string | undefined): string => {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return `${d.getDate()}-${MONTH_NAMES[d.getMonth()]}-${String(d.getFullYear()).slice(-2)}`;
+};
+
+export const todayStr = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate()
+  ).padStart(2, "0")}`;
+};
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
+interface UseVoucherMetaOptions {
+  initialVoucherType?: string;
+  initialNarration?: string;
+  initialReferenceNumber?: string;
+  initialPlaceOfSupply?: string;
+  initialPartyBillReferences?: any[];
+  initialBankDetails?: any;
+}
+
+export function useVoucherMeta({
+  initialVoucherType = "Receipt",
+  initialNarration = "",
+  initialReferenceNumber = "",
+  initialPlaceOfSupply = "Select",
+  initialPartyBillReferences = [],
+  initialBankDetails = null,
+}: UseVoucherMetaOptions = {}) {
+  // ── Voucher type ──────────────────────────────────────────────────────────────
+  const [voucherType, setVoucherType] = useState<string>(initialVoucherType);
+  const [voucherNumber, setVoucherNumber] = useState<string>("1");
+  const [voucherNumberLoading, setVoucherNumberLoading] = useState(true);
+
+  // ── Date / status ─────────────────────────────────────────────────────────────
+  const [date, setDate] = useState<string>(todayStr());
+  const [status, setStatus] = useState<"Regular" | "Post-Dated">("Regular");
+
+  // ── Narration / invoice fields ────────────────────────────────────────────────
+  const [narration, setNarration] = useState<string>(initialNarration);
+  const [supplierInvoiceNo, setSupplierInvoiceNo] = useState<string>("");
+  const [supplierInvoiceDate, setSupplierInvoiceDate] = useState<string>("");
+  const [referenceNumber, setReferenceNumber] = useState<string>(initialReferenceNumber);
+  const [referenceDate, setReferenceDate] = useState<string>(todayStr());
+  const [placeOfSupply, setPlaceOfSupply] = useState<string>(initialPlaceOfSupply);
+
+  // ── Submission state ──────────────────────────────────────────────────────────
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // ── Advanced allocation state ─────────────────────────────────────────────────
+  const [activeAllocation, setActiveAllocation] = useState<ActiveAllocation>(null);
+  const [partyBillReferences, setPartyBillReferences] = useState<any[]>(initialPartyBillReferences);
+  const [bankDetails, setBankDetails] = useState<any | null>(initialBankDetails);
+  const [cashDenominations, setCashDenominations] = useState<any | null>(null);
+  const [receiptDetails, setReceiptDetails] = useState<any | null>(null);
+  const [partyDetails, setPartyDetails] = useState<any | null>(null);
+  const [dispatchDetails, setDispatchDetails] = useState<any | null>(null);
+  const [creditNoteDetails, setCreditNoteDetails] = useState<any | null>(null);
+  const [debitNoteDetails, setDebitNoteDetails] = useState<any | null>(null);
+
+  // ── Derived display ───────────────────────────────────────────────────────────
+  const dateDisplay = useMemo(() => formatDateDisplay(date), [date]);
+
+  // ── Exposed reset helper (called by full resetForm) ───────────────────────────
+  const resetMeta = useCallback(() => {
+    setNarration("");
+    setError(null);
+    setSuccess(null);
+    setReferenceNumber("");
+    setSupplierInvoiceNo("");
+    setSupplierInvoiceDate("");
+    setStatus("Regular");
+    setDate(todayStr());
+    setActiveAllocation(null);
+    setPartyBillReferences([]);
+    setBankDetails(null);
+    setCashDenominations(null);
+    setReceiptDetails(null);
+    setPartyDetails(null);
+    setDispatchDetails(null);
+    setCreditNoteDetails(null);
+    setDebitNoteDetails(null);
+  }, []);
+
+  return {
+    // voucher type
+    voucherType,
+    setVoucherType,
+    voucherNumber,
+    setVoucherNumber,
+    voucherNumberLoading,
+    setVoucherNumberLoading,
+    // date / status
+    date,
+    setDate,
+    dateDisplay,
+    status,
+    setStatus,
+    // narration / invoice
+    narration,
+    setNarration,
+    supplierInvoiceNo,
+    setSupplierInvoiceNo,
+    supplierInvoiceDate,
+    setSupplierInvoiceDate,
+    referenceNumber,
+    setReferenceNumber,
+    referenceDate,
+    setReferenceDate,
+    placeOfSupply,
+    setPlaceOfSupply,
+    // submission
+    isSubmitting,
+    setIsSubmitting,
+    error,
+    setError,
+    success,
+    setSuccess,
+    // allocations
+    activeAllocation,
+    setActiveAllocation,
+    partyBillReferences,
+    setPartyBillReferences,
+    bankDetails,
+    setBankDetails,
+    cashDenominations,
+    setCashDenominations,
+    receiptDetails,
+    setReceiptDetails,
+    partyDetails,
+    setPartyDetails,
+    dispatchDetails,
+    setDispatchDetails,
+    creditNoteDetails,
+    setCreditNoteDetails,
+    debitNoteDetails,
+    setDebitNoteDetails,
+    // reset
+    resetMeta,
+  };
+}
