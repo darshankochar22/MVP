@@ -117,12 +117,12 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     });
   }, [persistKey, form, bankForm, statutoryForm, provideBank, selectedLedgerId, mode]);
 
-  // Derived state: selected group
+
   const selectedGroup = useMemo(() => {
     return flatGroups.find((g) => g.group_id === form.group_id) || null;
   }, [form.group_id, flatGroups]);
 
-  // Compute selected group lineage flags in real time
+
   const groupLineage = useMemo(() => {
     const lineage = {
       isBank: false,
@@ -147,7 +147,7 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         lineage.isBank = true;
         lineage.isOD = true;
       }
-      if (name === "duties & taxes") lineage.isTax = true;
+      if (name === "duties & taxes" || name === "current assets") lineage.isTax = true;
       if (name === "sundry debtors" || name === "sundry creditors") lineage.isDebtorCreditor = true;
       if (
         [
@@ -255,7 +255,7 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     } finally {
       setLoading(false);
     }
-  }, [companyId, mode, form.group_id]);
+  }, [companyId, mode]);
 
   useEffect(() => {
     loadInitial();

@@ -7,7 +7,6 @@ import {
   RightActionPanel,
   SearchInput,
   DataTable,
-  SideSelectionPanel,
 } from "@/components/ui";
 import type { StockGroupType, UnitType, StockItemType } from "@/types/api";
 import BomListModal from "./components/BomListModal";
@@ -100,6 +99,88 @@ function SelectionPanel({
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// LIST OF UNITS / GROUPS side panel
+// ─────────────────────────────────────────────────────────────────────────────
+function ListSidePanel({
+  title,
+  items,
+  selected,
+  onSelect,
+  onClose,
+  primaryLabel = "Not Applicable",
+  showCreate = false,
+  onCreateNew,
+}: {
+  title: string;
+  items: { id: string; label: string }[];
+  selected: string;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+  primaryLabel?: string;
+  showCreate?: boolean;
+  onCreateNew?: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const filtered = items.filter(i =>
+    i.label.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="w-52 border-l border-zinc-300 flex flex-col bg-white shrink-0">
+      <div className="bg-zinc-850 text-white text-xs px-3 py-1.5 font-medium">{title}</div>
+      <input
+        ref={inputRef}
+        className="px-3 py-1.5 text-xs outline-none border-b border-zinc-200 placeholder-zinc-400 font-mono bg-zinc-50"
+        placeholder="Search..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === "Escape") onClose();
+          if (e.key === "Enter" && filtered.length > 0) { onSelect(filtered[0].id); onClose(); }
+        }}
+      />
+      <div className="flex-1 overflow-y-auto">
+        <div
+          className={`flex items-center px-3 py-1 text-xs cursor-pointer border-b border-zinc-100 ${
+            !selected ? "bg-zinc-800 text-white font-medium" : "hover:bg-zinc-100"
+          }`}
+          onClick={() => { onSelect(""); onClose(); }}
+        >
+          <span className="mr-1">♦</span>
+          <span>{primaryLabel}</span>
+        </div>
+        {showCreate && (
+          <div
+            className="flex items-center px-3 py-1 text-xs cursor-pointer border-b border-zinc-100 hover:bg-zinc-100 text-zinc-950 font-bold"
+            onClick={() => { onCreateNew?.(); onClose(); }}
+          >
+            <span className="mr-1">✦</span>
+            <span>Create New</span>
+          </div>
+        )}
+        {filtered.map(item => (
+          <div
+            key={item.id}
+            className={`px-3 py-1 text-xs cursor-pointer border-b border-zinc-100 ${
+              selected === item.id ? "bg-zinc-800 text-white font-medium" : "hover:bg-zinc-100 text-zinc-800"
+            }`}
+            onClick={() => { onSelect(item.id); onClose(); }}
+          >
+            {item.label}
+          </div>
+        ))}
+      </div>
+      <div className="border-t border-zinc-200 px-3 py-1.5">
+        <button onClick={onClose} className="text-xs text-zinc-500 hover:text-zinc-800">Esc: Close</button>
+      </div>
+    </div>
+  );
+}
+
 // ── FormData ─────────────────────────────────────────────────────────────────
 interface FormData {
   name: string;
@@ -111,9 +192,20 @@ interface FormData {
   bom_name: string;
   opening_quantity: string;
   opening_rate: string;
+  // GST statutory fields
+  gst_applicable: string;
+  hsn_sac_details: string;
+  hsn_sac: string;
+  hsn_sac_description: string;
+  hsn_classification_id: string;
+  gst_rate_details: string;
+  rate_classification_id: string;
+  taxability_type: string;
+  gst_rate: string;
+  type_of_supply: string;
 }
 
-type PanelType = "group" | "unit" | null;
+type PanelType = "group" | "unit" | "gst_applicable" | "hsn_sac_details" | "gst_rate_details" | "rate_classification" | "taxability_type" | "type_of_supply" | null;
 
 // ── Main alter component ─────────────────────────────────────────────────────
 export default function StockItemAlter() {
@@ -123,6 +215,7 @@ export default function StockItemAlter() {
   const [stockItems,  setStockItems]  = useState<StockItemType[]>([]);
   const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
   const [units,       setUnits]       = useState<UnitType[]>([]);
+  const [gstClassifications, setGstClassifications] = useState<any[]>([]);
   const [selectedItem,setSelectedItem]= useState<StockItemType | null>(null);
   const [form,        setForm]        = useState<FormData | null>(null);
   const [loading,     setLoading]     = useState(false);
@@ -142,6 +235,7 @@ export default function StockItemAlter() {
     window.api.stockItem .getAll(company_id).then(r => { if (r.success) setStockItems(r.stockItems ?? []); });
     window.api.stockGroup.getAll(company_id).then(r => { if (r.success) setStockGroups(r.stockGroups ?? []); });
     window.api.unit      .getAll(company_id).then(r => { if (r.success) setUnits(r.units ?? []); });
+    window.api.gstClassification.getAll(company_id).then(r => { if (r.success) setGstClassifications(r.gstClassifications ?? []); });
   }, [selectedCompany]);
 
   // ── Refresh units on mount so newly-created units appear ──────────────────
@@ -154,7 +248,7 @@ export default function StockItemAlter() {
   }, []);
 
   // ── Populate form when item is selected ─────────────────────────────────
-  const handleSelectItem = (item: StockItemType) => {
+  const handleSelectItem = (item: any) => {
     setSelectedItem(item);
     setForm({
       name:  item.name  ?? "",
@@ -166,6 +260,16 @@ export default function StockItemAlter() {
       bom_name: item.bom_name ?? "",
       opening_quantity: String(item.opening_quantity ?? 0),
       opening_rate:     String(item.opening_rate     ?? 0),
+      gst_applicable: item.gst_applicable ?? "Not Applicable",
+      hsn_sac_details: item.source_of_details === "Specified Here" ? "specify_here" : "as_per_company",
+      hsn_sac: item.hsn_sac ?? "",
+      hsn_sac_description: item.hsn_sac_description ?? "",
+      hsn_classification_id: item.hsn_classification_id ? String(item.hsn_classification_id) : "",
+      gst_rate_details: item.gst_rate_details ?? (item.source_of_gst_rate === "GST Classification" ? "use_classification" : item.source_of_gst_rate === "Specified Here" ? "specify_here" : "as_per_company"),
+      rate_classification_id: item.rate_classification_id ? String(item.rate_classification_id) : "",
+      taxability_type: item.taxability_type ?? "",
+      gst_rate: String(item.gst_rate ?? 0),
+      type_of_supply: item.type_of_supply ?? "Goods",
     });
     setBoms([]);
     setShowBomList(false);
@@ -237,6 +341,58 @@ export default function StockItemAlter() {
     if (!form || !selectedItem) return;
     if (!selectedCompany?.company_id) { setError("No company selected."); return; }
     setLoading(true); setError(null);
+
+    let gst_applicable = form.gst_applicable;
+    let hsn_sac: string | null = null;
+    let hsn_sac_description: string | null = null;
+    let source_of_details = "As per Company/Stock Group";
+    
+    let gst_rate_details = form.gst_rate_details;
+    let source_of_gst_rate = "As per Company/Stock Group";
+    let taxability_type: string | null = null;
+    let gst_rate = 0;
+    let cgst_rate = 0;
+    let sgst_rate = 0;
+    let igst_rate = 0;
+    let rate_classification_id: number | null = null;
+    let type_of_supply = form.type_of_supply;
+
+    if (gst_applicable === "Applicable") {
+      if (form.hsn_sac_details === "specify_here") {
+        hsn_sac = form.hsn_sac.trim() || null;
+        hsn_sac_description = form.hsn_sac_description.trim() || null;
+        source_of_details = "Specified Here";
+      }
+
+      if (form.gst_rate_details === "use_classification") {
+        source_of_gst_rate = "GST Classification";
+        const selectedCls = gstClassifications.find(c => String(c.gc_id) === form.rate_classification_id);
+        if (selectedCls) {
+          rate_classification_id = Number(form.rate_classification_id) || null;
+          taxability_type = selectedCls.taxability || null;
+          igst_rate = selectedCls.igst_rate ?? 0;
+          cgst_rate = selectedCls.cgst_rate ?? 0;
+          sgst_rate = selectedCls.sgst_rate ?? 0;
+          gst_rate = igst_rate;
+          
+          if (form.hsn_sac_details !== "specify_here") {
+            hsn_sac = selectedCls.hsn_sac_code || null;
+            hsn_sac_description = selectedCls.description || null;
+            source_of_details = "GST Classification";
+          }
+        }
+      } else if (form.gst_rate_details === "specify_here") {
+        source_of_gst_rate = "Specified Here";
+        taxability_type = form.taxability_type || null;
+        if (form.taxability_type === "Taxable") {
+          igst_rate = Number(form.gst_rate) || 0;
+          cgst_rate = igst_rate / 2;
+          sgst_rate = igst_rate / 2;
+          gst_rate = igst_rate;
+        }
+      }
+    }
+
     try {
       const result = await window.api.stockItem.update({
         item_id:    selectedItem.item_id,
@@ -250,6 +406,20 @@ export default function StockItemAlter() {
         bom_name: form.has_bom ? (bomsToSave[0]?.bomName || form.bom_name).trim() || null : null,
         opening_quantity: Number(form.opening_quantity) || 0,
         opening_rate:     Number(form.opening_rate)     || 0,
+        gst_applicable,
+        gst_rate,
+        cgst_rate,
+        sgst_rate,
+        igst_rate,
+        type_of_supply,
+        hsn_sac,
+        source_of_details,
+        hsn_sac_description,
+        hsn_code: hsn_sac,
+        gst_rate_details,
+        source_of_gst_rate,
+        taxability_type,
+        rate_classification_id,
         reorder_level: 0, reorder_quantity: 0,
         track_batches: 0, track_expiry: 0,
       });
@@ -282,7 +452,7 @@ export default function StockItemAlter() {
     }
 
     executeSave(boms);
-  }, [form, selectedItem, selectedCompany, boms]);
+  }, [form, selectedItem, selectedCompany, boms, gstClassifications]);
 
   // ── Delete ───────────────────────────────────────────────────────────────
   const handleDelete = useCallback(async () => {
@@ -424,24 +594,156 @@ export default function StockItemAlter() {
               </FormRow>
             </div>
 
-            {/* ══ RIGHT: Statutory Details ════════════════════════════════════ */}
-            <div className="w-[320px] shrink-0 px-4 pt-4 pb-2 flex flex-col gap-0.5 overflow-y-auto border-l border-zinc-100">
-              <div className="text-[10px] uppercase tracking-widest text-zinc-400 font-semibold mb-2">
-                Statutory Details
-              </div>
+            {/* ── RIGHT PANEL: Statutory Details ── */}
+            <div className="shrink-0 px-4 pt-4 pb-2 overflow-y-auto flex flex-col gap-1.5 border-l border-zinc-100 font-mono" style={{ width: 340 }}>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-zinc-500 font-semibold mb-2 font-sans border-b border-zinc-200 pb-1">Statutory Details</div>
 
               {/* Rate of Duty */}
-              <div className="flex items-center min-h-[24px]">
-                <span className="w-40 text-xs text-zinc-600 shrink-0">Rate of Duty (eg 5)</span>
-                <span className="text-zinc-400 mr-1 text-xs shrink-0">:</span>
+              <div className="flex items-center min-h-[22px]">
+                <span className="w-44 shrink-0 text-xs text-zinc-700">Rate of Duty (eg 5)</span>
+                <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
                 <input
-                  className="w-20 bg-transparent text-xs outline-none px-1 py-0.5 border border-transparent focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors tabular-nums"
+                  className="w-16 bg-transparent text-xs outline-none border-b border-zinc-300 focus:border-zinc-600 text-right tabular-nums"
                   type="number" min="0" max="100" step="0.01"
                   value={form.rate_of_duty}
                   onChange={setField("rate_of_duty")}
                   placeholder="0"
                 />
               </div>
+
+              {/* GST Applicable */}
+              <div
+                className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-100 py-0.5 rounded transition-colors"
+                onClick={() => setShowPanel("gst_applicable")}
+              >
+                <span className="w-44 shrink-0 text-xs text-zinc-700">GST Applicable</span>
+                <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
+                <span className="text-xs text-zinc-950 font-bold">♦ {form.gst_applicable}</span>
+              </div>
+
+              {form.gst_applicable === "Applicable" && (
+                <>
+                  {/* HSN/SAC Details */}
+                  <div
+                    className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-100 py-0.5 rounded transition-colors"
+                    onClick={() => setShowPanel("hsn_sac_details")}
+                  >
+                    <span className="w-44 shrink-0 text-xs text-zinc-700">HSN/SAC Details</span>
+                    <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
+                    <span className="text-xs text-zinc-950 font-bold">
+                      ♦ {form.hsn_sac_details === "specify_here" ? "Specify Details Here" : "As per Company/Group"}
+                    </span>
+                  </div>
+
+                  {/* Manual HSN/SAC Entry */}
+                  {form.hsn_sac_details === "specify_here" && (
+                    <div className="pl-3 border-l-2 border-zinc-300 flex flex-col gap-1.5 my-1">
+                      <div className="flex items-center min-h-[22px]">
+                        <span className="w-40 shrink-0 text-xs text-zinc-500">HSN/SAC</span>
+                        <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
+                        <input
+                          className="flex-1 bg-transparent text-xs outline-none border-b border-zinc-300 focus:border-zinc-600 font-mono"
+                          value={form.hsn_sac}
+                          onChange={e => setForm(f => f ? { ...f, hsn_sac: e.target.value } : null)}
+                          placeholder="Code"
+                        />
+                      </div>
+                      <div className="flex items-center min-h-[22px]">
+                        <span className="w-40 shrink-0 text-xs text-zinc-500">Description</span>
+                        <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
+                        <input
+                          className="flex-1 bg-transparent text-xs outline-none border-b border-zinc-300 focus:border-zinc-600 font-mono"
+                          value={form.hsn_sac_description}
+                          onChange={e => setForm(f => f ? { ...f, hsn_sac_description: e.target.value } : null)}
+                          placeholder="Description"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* GST Rate Details */}
+                  <div
+                    className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-100 py-0.5 rounded transition-colors"
+                    onClick={() => setShowPanel("gst_rate_details")}
+                  >
+                    <span className="w-44 shrink-0 text-xs text-zinc-700">GST Rate Details</span>
+                    <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
+                    <span className="text-xs text-zinc-950 font-bold">
+                      ♦ {
+                        form.gst_rate_details === "specify_here" ? "Specify Details Here" :
+                        form.gst_rate_details === "use_classification" ? "Use GST Classification" :
+                        "As per Company/Group"
+                      }
+                    </span>
+                  </div>
+
+                  {/* Use Classification */}
+                  {form.gst_rate_details === "use_classification" && (
+                    <>
+                      <div
+                        className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-100 py-0.5 rounded transition-colors pl-3 border-l-2 border-zinc-300"
+                        onClick={() => setShowPanel("rate_classification")}
+                      >
+                        <span className="w-37 shrink-0 text-xs text-zinc-500">Classification</span>
+                        <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
+                        <span className="text-xs text-zinc-950 font-bold truncate">
+                          ♦ {gstClassifications.find(c => String(c.gc_id) === form.rate_classification_id)?.name || "Select..."}
+                        </span>
+                      </div>
+                      {(() => {
+                        const cls = gstClassifications.find(c => String(c.gc_id) === form.rate_classification_id);
+                        if (!cls) return null;
+                        return (
+                          <div className="bg-zinc-50 p-2 border border-zinc-200 ml-3 rounded text-[10px] text-zinc-600 font-mono flex flex-col gap-0.5">
+                            <div>Taxability: <span className="font-bold text-zinc-950">{cls.taxability}</span></div>
+                            <div>IGST Rate: <span className="font-bold text-zinc-950">{Number(cls.igst_rate).toFixed(2)}%</span></div>
+                            <div>CGST/SGST: <span className="font-bold text-zinc-950">{Number(cls.cgst_rate).toFixed(2)}%</span> each</div>
+                            {cls.hsn_sac_code && <div>HSN/SAC: <span className="font-bold text-zinc-950">{cls.hsn_sac_code}</span></div>}
+                          </div>
+                        );
+                      })()}
+                    </>
+                  )}
+
+                  {/* Manual GST Rate Entry */}
+                  {form.gst_rate_details === "specify_here" && (
+                    <div className="pl-3 border-l-2 border-zinc-300 flex flex-col gap-1.5 my-1">
+                      <div
+                        className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-100 py-0.5 rounded transition-colors"
+                        onClick={() => setShowPanel("taxability_type")}
+                      >
+                        <span className="w-37 shrink-0 text-xs text-zinc-500">Taxability</span>
+                        <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
+                        <span className="text-xs text-zinc-950 font-bold">♦ {form.taxability_type || "Select..."}</span>
+                      </div>
+
+                      {form.taxability_type === "Taxable" && (
+                        <div className="flex items-center min-h-[22px]">
+                          <span className="w-37 shrink-0 text-xs text-zinc-500">GST Rate (%)</span>
+                          <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
+                          <input
+                            className="w-16 bg-transparent text-xs outline-none border-b border-zinc-300 focus:border-zinc-600 text-right tabular-nums"
+                            type="number" min="0" max="100" step="0.01"
+                            value={form.gst_rate}
+                            onChange={e => setForm(f => f ? { ...f, gst_rate: e.target.value } : null)}
+                            placeholder="0"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Type of Supply */}
+                  <div
+                    className="flex items-center min-h-[22px] cursor-pointer hover:bg-zinc-100 py-0.5 rounded transition-colors"
+                    onClick={() => setShowPanel("type_of_supply")}
+                  >
+                    <span className="w-44 shrink-0 text-xs text-zinc-700">Type of Supply</span>
+                    <span className="text-zinc-400 mr-2 text-xs shrink-0">:</span>
+                    <span className="text-xs text-zinc-950 font-bold">♦ {form.type_of_supply}</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -504,32 +806,120 @@ export default function StockItemAlter() {
 
         {/* ── Side selection panels ── */}
         {showPanel === "group" && (
-          <SideSelectionPanel
+          <ListSidePanel
             title="List of Groups"
             items={stockGroups
               .filter(g => g.name.toLowerCase() !== "primary")
-              .map(g => ({ id: g.sg_id, label: g.name }))}
+              .map(g => ({ id: String(g.sg_id), label: g.name }))}
             selected={form.group_id}
-            onSelect={val => setForm(f => f ? { ...f, group_id: val } : f)}
+            onSelect={val => { setForm(f => f ? { ...f, group_id: val } : null); setShowPanel(null); }}
             onClose={() => setShowPanel(null)}
-            showPrimary
+            primaryLabel="Primary"
           />
         )}
         {showPanel === "unit" && (
-          <SideSelectionPanel
+          <ListSidePanel
             title="List of Units"
-            items={[
-              { id: "create", label: "Create New Unit" },
-              ...units.map(u => ({ id: String(u.unit_id), label: `${u.symbol} (${u.name})` })),
-            ]}
+            items={units.map(u => ({ id: String(u.unit_id), label: `${u.symbol} (${u.name})` }))}
             selected={form.unit_id}
+            onSelect={val => { setForm(f => f ? { ...f, unit_id: val } : null); setShowPanel(null); }}
+            onClose={() => setShowPanel(null)}
+            primaryLabel="Not Applicable"
+            showCreate
+            onCreateNew={() => navigate("/master/create/unit")}
+          />
+        )}
+        {showPanel === "gst_applicable" && (
+          <ListSidePanel
+            title="GST Applicable"
+            items={[
+              { id: "Applicable", label: "Applicable" },
+              { id: "Not Applicable", label: "Not Applicable" },
+            ]}
+            selected={form.gst_applicable}
+            onSelect={val => { setForm(f => f ? { ...f, gst_applicable: val || "Not Applicable" } : null); setShowPanel(null); }}
+            onClose={() => setShowPanel(null)}
+            primaryLabel="Not Applicable"
+          />
+        )}
+        {showPanel === "hsn_sac_details" && (
+          <ListSidePanel
+            title="HSN/SAC Details"
+            items={[
+              { id: "as_per_company", label: "As per Company/Group" },
+              { id: "specify_here", label: "Specify Details Here" },
+            ]}
+            selected={form.hsn_sac_details}
+            onSelect={val => { setForm(f => f ? { ...f, hsn_sac_details: val || "as_per_company" } : null); setShowPanel(null); }}
+            onClose={() => setShowPanel(null)}
+            primaryLabel="As per Company/Group"
+          />
+        )}
+        {showPanel === "gst_rate_details" && (
+          <ListSidePanel
+            title="GST Rate Details"
+            items={[
+              { id: "as_per_company", label: "As per Company/Group" },
+              { id: "specify_here", label: "Specify Details Here" },
+              { id: "use_classification", label: "Use GST Classification" },
+            ]}
+            selected={form.gst_rate_details}
+            onSelect={val => { setForm(f => f ? { ...f, gst_rate_details: val || "as_per_company" } : null); setShowPanel(null); }}
+            onClose={() => setShowPanel(null)}
+            primaryLabel="As per Company/Group"
+          />
+        )}
+        {showPanel === "rate_classification" && (
+          <ListSidePanel
+            title="GST Classifications"
+            items={gstClassifications.map(c => ({ id: String(c.gc_id), label: c.name }))}
+            selected={form.rate_classification_id}
             onSelect={val => {
-              if (val === "create") navigate("/master/create/unit");
-              else { setForm(f => f ? { ...f, unit_id: val } : f); setShowPanel(null); }
+              const selectedCls = gstClassifications.find(c => String(c.gc_id) === val);
+              setForm(f => {
+                if (!f) return null;
+                return {
+                  ...f,
+                  rate_classification_id: val,
+                  taxability_type: selectedCls ? selectedCls.taxability : f.taxability_type,
+                  gst_rate: selectedCls ? String(selectedCls.igst_rate ?? 0) : f.gst_rate,
+                  hsn_sac: (selectedCls && selectedCls.hsn_sac_code) ? selectedCls.hsn_sac_code : f.hsn_sac,
+                };
+              });
+              setShowPanel(null);
             }}
             onClose={() => setShowPanel(null)}
-            showPrimary
-            primaryLabel="Not Applicable"
+            showCreate
+            onCreateNew={() => navigate("/master/create/gst-classification")}
+          />
+        )}
+        {showPanel === "taxability_type" && (
+          <ListSidePanel
+            title="Taxability Type"
+            items={[
+              { id: "Taxable", label: "Taxable" },
+              { id: "Exempt", label: "Exempt" },
+              { id: "Nil Rated", label: "Nil Rated" },
+              { id: "Non-GST", label: "Non-GST" },
+            ]}
+            selected={form.taxability_type}
+            onSelect={val => { setForm(f => f ? { ...f, taxability_type: val || "Taxable" } : null); setShowPanel(null); }}
+            onClose={() => setShowPanel(null)}
+            primaryLabel="Taxable"
+          />
+        )}
+        {showPanel === "type_of_supply" && (
+          <ListSidePanel
+            title="Type of Supply"
+            items={[
+              { id: "Goods", label: "Goods" },
+              { id: "Services", label: "Services" },
+              { id: "Capital Goods", label: "Capital Goods" },
+            ]}
+            selected={form.type_of_supply}
+            onSelect={val => { setForm(f => f ? { ...f, type_of_supply: val || "Goods" } : null); setShowPanel(null); }}
+            onClose={() => setShowPanel(null)}
+            primaryLabel="Goods"
           />
         )}
 
