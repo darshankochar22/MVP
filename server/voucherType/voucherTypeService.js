@@ -69,8 +69,8 @@ module.exports = {
           company_id, name, short_name, category, default_voucher_class,
           affects_inventory, affects_accounting, affects_gst,
           numbering_method, numbering_prefix, numbering_suffix,
-          starts_with, is_predefined, is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)`,
+          starts_with, is_predefined, is_active, parent_vt_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?)`,
         [
           data.company_id,
           data.name.trim(),
@@ -84,6 +84,7 @@ module.exports = {
           data.numbering_prefix || '',
           data.numbering_suffix || '',
           data.starts_with || 1,
+          data.parent_vt_id || null,
         ]
       );
 
@@ -127,9 +128,11 @@ module.exports = {
       const result = await db.execute(
         `SELECT vt.*, vtc.use_effective_dates, vtc.allow_zero_value_transactions,
                 vtc.make_voucher_optional, vtc.allow_narration, vtc.allow_narration_per_ledger,
-                vtc.print_after_save, vtc.whatsapp_after_save, vtc.use_for_pos_invoicing
+                vtc.print_after_save, vtc.whatsapp_after_save, vtc.use_for_pos_invoicing,
+                COALESCE(parent.name, vt.name) AS parent_name
          FROM voucher_types vt
          LEFT JOIN voucher_type_configs vtc ON vt.vt_id = vtc.voucher_type_id
+         LEFT JOIN voucher_types parent ON vt.parent_vt_id = parent.vt_id
          WHERE vt.company_id = ? AND vt.is_active = 1
          ORDER BY vt.is_predefined DESC, vt.name ASC`,
         [company_id]

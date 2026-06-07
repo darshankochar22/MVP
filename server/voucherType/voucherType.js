@@ -9,10 +9,15 @@ const init = async (db) => {
       numbering_method TEXT DEFAULT 'Automatic',
       is_predefined    INTEGER DEFAULT 0,
       is_active        INTEGER DEFAULT 1,
+      parent_vt_id     INTEGER REFERENCES voucher_types(vt_id) ON DELETE SET NULL,
       created_at       TEXT DEFAULT (datetime('now')),
       updated_at       TEXT DEFAULT (datetime('now'))
     )
   `);
+
+  try {
+    await db.execute(`ALTER TABLE voucher_types ADD COLUMN parent_vt_id INTEGER REFERENCES voucher_types(vt_id) ON DELETE SET NULL`);
+  } catch (_) {}
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS voucher_type_configs (

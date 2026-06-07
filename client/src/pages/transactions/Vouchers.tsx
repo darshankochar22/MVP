@@ -38,6 +38,9 @@ import PayrollVoucher from "./vouchers/PayrollVoucher";
 function RightSidebar({
   voucherType,
   onTypeChange,
+  voucherTypeChildren,
+  subDropdownType,
+  onSubDropdownToggle,
   status,
   onStatusChange,
   entryMode,
@@ -51,6 +54,9 @@ function RightSidebar({
 }: {
   voucherType: string;
   onTypeChange: (t: string) => void;
+  voucherTypeChildren: Record<string, string[]>;
+  subDropdownType: string | null;
+  onSubDropdownToggle: (type: string) => void;
   status: string;
   onStatusChange: () => void;
   entryMode: "single" | "double";
@@ -92,8 +98,21 @@ function RightSidebar({
     "Stock Journal",
   ];
   const isOtherActive = otherVoucherTypes.includes(voucherType);
+
+  const sidebarRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!subDropdownType) return;
+    const handler = (e: MouseEvent) => {
+      if (sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
+        onSubDropdownToggle(subDropdownType);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [subDropdownType, onSubDropdownToggle]);
+
   return (
-    <div className="w-36 border-l border-black flex flex-col shrink-0 bg-white">
+    <div ref={sidebarRef} className="w-36 border-l border-black flex flex-col shrink-0 bg-white">
       <div className="border-b border-black px-2 py-1">
         <button
           onClick={onDateClick}
@@ -103,23 +122,64 @@ function RightSidebar({
         </button>
       </div>
 
-      {types.map(({ key, label }) => (
-        <div key={key} className="border-b border-gray-200">
-          <button
-            onClick={() => onTypeChange(label)}
-            className={`w-full text-left px-2 py-1 text-xs ${
-              voucherType === label
-                ? "bg-black text-white font-semibold"
-                : "text-black hover:bg-gray-100"
-            }`}
-          >
-            <span className={voucherType === label ? "text-gray-300" : "text-gray-500"}>
-              {key}
-            </span>
-            : {label}
-          </button>
-        </div>
-      ))}
+      {types.map(({ key, label }) => {
+        const children = voucherTypeChildren[label];
+        const hasChildren = children && children.length > 0;
+        return (
+          <div key={key} className="border-b border-gray-200 relative">
+            <button
+              onClick={() => {
+                if (hasChildren) {
+                  onSubDropdownToggle(label);
+                } else {
+                  if (subDropdownType) onSubDropdownToggle(subDropdownType);
+                  onTypeChange(label);
+                }
+              }}
+              className={`w-full text-left px-2 py-1 text-xs ${
+                voucherType === label || children?.includes(voucherType)
+                  ? "bg-black text-white font-semibold"
+                  : "text-black hover:bg-gray-100"
+              }`}
+            >
+              <span className={voucherType === label || children?.includes(voucherType) ? "text-gray-300" : "text-gray-500"}>
+                {key}
+              </span>
+              : {label}
+              {hasChildren && (
+                <span className="ml-1 text-[9px] opacity-60">{subDropdownType === label ? "\u25B2" : "\u25BC"}</span>
+              )}
+            </button>
+            {hasChildren && subDropdownType === label && (
+              <div className="absolute left-0 right-0 top-full z-30 bg-white border border-zinc-300 shadow-lg rounded-b">
+                <button
+                  onClick={() => { onTypeChange(label); onSubDropdownToggle(label); }}
+                  className={`w-full text-left px-2 py-1 text-xs ${
+                    voucherType === label
+                      ? "bg-black text-white font-semibold"
+                      : "text-black hover:bg-gray-100"
+                  }`}
+                >
+                  {label}
+                </button>
+                {children.map((child) => (
+                  <button
+                    key={child}
+                    onClick={() => { onTypeChange(child); onSubDropdownToggle(label); }}
+                    className={`w-full text-left pl-4 pr-2 py-1 text-xs ${
+                      voucherType === child
+                        ? "bg-black text-white font-semibold"
+                        : "text-black hover:bg-gray-100"
+                    }`}
+                  >
+                    {child}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       <div className="border-b border-gray-200">
         <button
@@ -198,6 +258,8 @@ export default function Vouchers() {
   const [showCreditNoteDetails, setShowCreditNoteDetails] = useState(false);
   const [showDebitNoteDetails, setShowDebitNoteDetails] = useState(false);
   const [showOtherVouchers, setShowOtherVouchers] = useState(false);
+  const [subDropdownType, setSubDropdownType] = useState<string | null>(null);
+  const [voucherTypeChildren, setVoucherTypeChildren] = useState<Record<string, string[]>>({});
 
   const hasAutoOpenedReceipt = useRef(false);
   const hasAutoOpenedDispatch = useRef(false);
@@ -1059,14 +1121,50 @@ export default function Vouchers() {
 
 
   useEffect(() => {
+    if (!selectedCompany) return;
+    window.api.voucherType.getAll(selectedCompany.company_id).then((res) => {
+      if (res.success && res.voucherTypes) {
+        const nameToId: Record<string, number> = {};
+        for (const vt of res.voucherTypes) {
+          if (vt.vt_id) nameToId[vt.name] = vt.vt_id;
+        }
+        const map: Record<string, string[]> = {};
+        for (const vt of res.voucherTypes) {
+          if (vt.parent_vt_id && vt.vt_id) {
+            const parent = res.voucherTypes.find((p) => p.vt_id === vt.parent_vt_id);
+            if (parent) {
+              if (!map[parent.name]) map[parent.name] = [];
+              if (!map[parent.name].includes(vt.name)) map[parent.name].push(vt.name);
+            }
+          }
+        }
+        setVoucherTypeChildren(map);
+      }
+    }).catch(() => {});
+  }, [selectedCompany]);
+
+  const handleTypeKey = useCallback(
+    (type: string) => {
+      const children = voucherTypeChildren[type];
+      if (children && children.length > 0) {
+        setSubDropdownType((prev) => (prev === type ? null : type));
+      } else {
+        setSubDropdownType(null);
+        form.setVoucherType(type);
+      }
+    },
+    [voucherTypeChildren, form.setVoucherType]
+  );
+
+  useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === "F2") { e.preventDefault(); setShowDatePicker(true); }
-      if (e.key === "F4") { e.preventDefault(); form.setVoucherType("Contra"); }
-      if (e.key === "F5") { e.preventDefault(); form.setVoucherType("Payment"); }
-      if (e.key === "F6") { e.preventDefault(); form.setVoucherType("Receipt"); }
-      if (e.key === "F7") { e.preventDefault(); form.setVoucherType("Journal"); }
-      if (e.key === "F8") { e.preventDefault(); form.setVoucherType("Sales"); }
-      if (e.key === "F9") { e.preventDefault(); form.setVoucherType("Purchase"); }
+      if (e.key === "F4") { e.preventDefault(); handleTypeKey("Contra"); }
+      if (e.key === "F5") { e.preventDefault(); handleTypeKey("Payment"); }
+      if (e.key === "F6") { e.preventDefault(); handleTypeKey("Receipt"); }
+      if (e.key === "F7") { e.preventDefault(); handleTypeKey("Journal"); }
+      if (e.key === "F8") { e.preventDefault(); handleTypeKey("Sales"); }
+      if (e.key === "F9") { e.preventDefault(); handleTypeKey("Purchase"); }
       if (e.key === "F10") {
         e.preventDefault();
         setShowOtherVouchers(true);
@@ -1103,15 +1201,19 @@ export default function Vouchers() {
         !showOtherVouchers
       ) {
         e.preventDefault();
-        navigate("/");
+        if (subDropdownType) {
+          setSubDropdownType(null);
+        } else {
+          navigate("/");
+        }
       }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [
+    handleTypeKey,
     form.setPaymentEntryMode,
     form.setJournalEntryMode,
-    form.setVoucherType,
     form.setContraEntryMode,
     form.setReceiptEntryMode,
     form.voucherType,
@@ -1125,6 +1227,7 @@ export default function Vouchers() {
     showCreditNoteDetails,
     showDebitNoteDetails,
     showOtherVouchers,
+    subDropdownType,
     navigate,
   ]);
 
@@ -1385,6 +1488,9 @@ export default function Vouchers() {
         <RightSidebar
           voucherType={form.voucherType}
           onTypeChange={form.setVoucherType}
+          voucherTypeChildren={voucherTypeChildren}
+          subDropdownType={subDropdownType}
+          onSubDropdownToggle={(type) => setSubDropdownType((prev) => (prev === type ? null : type))}
           status={form.status}
           onStatusChange={() =>
             form.setStatus((p: string) => (p === "Regular" ? "Post-Dated" : "Regular"))
@@ -1478,6 +1584,7 @@ export default function Vouchers() {
             form.setVoucherType(type);
             setShowOtherVouchers(false);
           }}
+          voucherTypeChildren={voucherTypeChildren}
         />
       )}
 

@@ -34,12 +34,14 @@ interface Props {
   voucherType: string;
   onClose: () => void;
   onSelect: (type: string) => void;
+  voucherTypeChildren: Record<string, string[]>;
 }
 
 export default function OtherVouchersPopup({
   voucherType,
   onClose,
   onSelect,
+  voucherTypeChildren,
 }: Props) {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -51,6 +53,41 @@ export default function OtherVouchersPopup({
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
+
+  const renderTypeItems = (items: { key: string; label: string }[]) => {
+    return items.map((t) => {
+      const children = voucherTypeChildren[t.key];
+      const hasChildren = children && children.length > 0;
+      return (
+        <div key={t.key}>
+          <button
+            onClick={() => onSelect(t.key)}
+            className={`w-full text-left px-3 py-2 text-sm rounded transition-colors ${
+              voucherType === t.key
+                ? "bg-zinc-100 font-semibold text-black"
+                : "text-black hover:bg-zinc-50"
+            }`}
+          >
+            {t.label}
+          </button>
+          {hasChildren &&
+            children.map((child) => (
+              <button
+                key={child}
+                onClick={() => onSelect(child)}
+                className={`w-full text-left pl-6 pr-3 py-1.5 text-sm rounded transition-colors ${
+                  voucherType === child
+                    ? "bg-zinc-100 font-semibold text-black"
+                    : "text-zinc-600 hover:bg-zinc-50"
+                }`}
+              >
+                {child}
+              </button>
+            ))}
+        </div>
+      );
+    });
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 backdrop-blur-sm">
@@ -71,36 +108,12 @@ export default function OtherVouchersPopup({
           <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
             Primary Vouchers
           </div>
-          {PRIMARY_VOUCHER_TYPES.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => onSelect(t.key)}
-              className={`w-full text-left px-3 py-2 text-sm rounded transition-colors ${
-                voucherType === t.key
-                  ? "bg-zinc-100 font-semibold text-black"
-                  : "text-black hover:bg-zinc-50"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          {renderTypeItems(PRIMARY_VOUCHER_TYPES)}
 
           <div className="px-3 py-1 mt-2 text-[10px] font-bold uppercase tracking-wider text-zinc-500 border-t border-zinc-200 pt-3">
             Other Vouchers
           </div>
-          {OTHER_VOUCHER_TYPES.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => onSelect(t.key)}
-              className={`w-full text-left px-3 py-2 text-sm rounded transition-colors ${
-                voucherType === t.key
-                  ? "bg-zinc-100 font-semibold text-black"
-                  : "text-black hover:bg-zinc-50"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
+          {renderTypeItems(OTHER_VOUCHER_TYPES)}
         </div>
 
         <div className="border-t border-zinc-200 px-3 py-2 bg-zinc-50 flex justify-between items-center select-none">

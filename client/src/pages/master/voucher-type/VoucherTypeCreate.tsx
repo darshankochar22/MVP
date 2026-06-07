@@ -1,4 +1,3 @@
-"use client";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
@@ -25,6 +24,7 @@ interface FormData {
   category: string;
   is_active: "Yes" | "No";
   numbering_method: "Automatic" | "Manual" | "None";
+  parent_vt_id: string;
   use_effective_dates: "Yes" | "No";
   allow_zero_value_transactions: "Yes" | "No";
   make_voucher_optional: "Yes" | "No";
@@ -39,6 +39,7 @@ const INITIAL: FormData = {
   category: "Receipt",
   is_active: "Yes",
   numbering_method: "Automatic",
+  parent_vt_id: "",
   use_effective_dates: "No",
   allow_zero_value_transactions: "No",
   make_voucher_optional: "No",
@@ -156,6 +157,16 @@ export default function VoucherTypeCreate() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [parentVoucherTypes, setParentVoucherTypes] = useState<{ vt_id: number; name: string }[]>([]);
+
+  useEffect(() => {
+    if (!companyId) return;
+    window.api.voucherType.getAll(companyId).then((res) => {
+      if (res.success && res.voucherTypes) {
+        setParentVoucherTypes(res.voucherTypes.map(vt => ({ vt_id: vt.vt_id!, name: vt.name })));
+      }
+    }).catch(() => {});
+  }, [companyId]);
 
   useEffect(() => {
     if (!persistKey) return;
@@ -192,6 +203,7 @@ export default function VoucherTypeCreate() {
         category:                      form.category,
         numbering_method:              form.numbering_method,
         is_active:                     toInt(form.is_active),
+        parent_vt_id:                  form.parent_vt_id ? Number(form.parent_vt_id) : null,
         use_effective_dates:           toInt(form.use_effective_dates),
         allow_zero_value_transactions: toInt(form.allow_zero_value_transactions),
         make_voucher_optional:         toInt(form.make_voucher_optional),
@@ -271,6 +283,14 @@ export default function VoucherTypeCreate() {
                 </FormRow>
                 <FormRow label="Abbreviation" labelWidth="w-48" className="flex items-center min-h-[26px]">
                   <input className={inputCls} value={form.short_name} onChange={setField("short_name")} maxLength={6} />
+                </FormRow>
+                <FormRow label="Parent Voucher Type" labelWidth="w-48" className="flex items-center min-h-[26px]">
+                  <select className={selectCls} value={form.parent_vt_id} onChange={setField("parent_vt_id")}>
+                    <option value="">-- None --</option>
+                    {parentVoucherTypes.map((p) => (
+                      <option key={p.vt_id} value={String(p.vt_id)}>{p.name}</option>
+                    ))}
+                  </select>
                 </FormRow>
                 <FormRow label="Activate this Voucher Type" labelWidth="w-48" className="flex items-center min-h-[26px]">
                   <YesNoSelect value={form.is_active} onChange={setToggle("is_active")} />

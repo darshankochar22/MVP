@@ -18,6 +18,8 @@ export interface VoucherTypeType {
   numbering_method?: string;
   is_predefined?: number;
   is_active?: number;
+  parent_vt_id?: number | null;
+  parent_name?: string;
   created_at?: string;
   updated_at?: string;
   config?: VoucherTypeConfig;
@@ -30,6 +32,7 @@ export type VoucherTypeCreatePayload = {
   category?: string;
   numbering_method?: string;
   is_active?: number;
+  parent_vt_id?: number | null;
 } & VoucherTypeConfig;
 
 export type VoucherTypeUpdatePayload = {
