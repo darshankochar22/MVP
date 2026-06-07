@@ -98,53 +98,106 @@ export default function GSTClassificationFormFields({
           </select>
         </FormRow>
 
-        {/* Tax Table */}
-        <div className="mt-2">
-          <div className="grid grid-cols-3 text-[10px] uppercase font-bold text-zinc-400 px-1.5 pb-1 border-b border-zinc-100">
-            <span>Tax Type</span>
-            <span>Valuation Type</span>
-            <span>Rate</span>
-          </div>
+        <FormRow
+          label="Rate Type"
+          labelWidth="w-64"
+          className="flex items-center min-h-[26px]">
+          <select
+            disabled={isPredefined}
+            className={selectCls + dis()}
+            value={form.rate_type || "Fixed Rate"}
+            onChange={setField("rate_type" as keyof FormData)}>
+            <option>Fixed Rate</option>
+            <option>Slab Based</option>
+          </select>
+        </FormRow>
 
-          {(
-            [
-              { label: "Integrated Tax", rateKey: "igst_rate", valKey: "igst_valuation_type" },
-              { label: "Central Tax",    rateKey: "cgst_rate", valKey: "cgst_valuation_type" },
-              { label: "State Tax",      rateKey: "sgst_rate", valKey: "sgst_valuation_type" },
-              { label: "Cess",           rateKey: "cess_rate", valKey: "cess_valuation_type" },
-            ] as const
-          ).map(({ label, rateKey, valKey }) => (
-            <div key={label} className="grid grid-cols-3 items-center min-h-[26px] border-b border-zinc-50 hover:bg-zinc-50/50">
-              <span className="text-xs text-zinc-600 px-1.5">{label}</span>
-              <select
-                disabled={isPredefined}
-                className={smallSelectCls + dis()}
-                value={form[valKey]}
-                onChange={setField(valKey)}
-              >
-                <option>Based on Value</option>
-                <option>Based on Quantity</option>
-              </select>
-              <div className="flex items-center gap-1 px-1.5">
-                <input
-                  type="number"
-                  min="0" max="100" step="0.01"
-                  disabled={isPredefined}
-                  className={`w-16 bg-transparent text-sm outline-none py-0.5 px-1.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded ${dis()}`}
-                  value={form[rateKey]}
-                  onChange={setField(rateKey)}
-                />
-                <span className="text-xs text-zinc-400">%</span>
-              </div>
-            </div>
-          ))}
+{/* Tax Table */}
+{(form.rate_type ?? "Fixed Rate") === "Fixed Rate" && (
+  <div className="mt-2">
+    <div className="grid grid-cols-3 text-[10px] uppercase font-bold text-zinc-400 px-1.5 pb-1 border-b border-zinc-100">
+      <span>Tax Type</span>
+      <span>Valuation Type</span>
+      <span>Rate</span>
+    </div>
 
-          {!isPredefined && (
-            <div className="text-[10px] text-zinc-400 italic px-1.5 pt-1 font-sans">
-              Editing Integrated Tax rate auto-fills Central & State Tax as half each.
-            </div>
-          )}
+    {(
+      [
+        {
+          label: "Integrated Tax",
+          rateKey: "igst_rate",
+          valKey: "igst_valuation_type",
+        },
+        {
+          label: "Central Tax",
+          rateKey: "cgst_rate",
+          valKey: "cgst_valuation_type",
+        },
+        {
+          label: "State Tax",
+          rateKey: "sgst_rate",
+          valKey: "sgst_valuation_type",
+        },
+        {
+          label: "Cess",
+          rateKey: "cess_rate",
+          valKey: "cess_valuation_type",
+        },
+      ] as const
+    ).map(({ label, rateKey, valKey }) => (
+      <div
+        key={label}
+        className="grid grid-cols-3 items-center min-h-[26px] border-b border-zinc-50 hover:bg-zinc-50/50"
+      >
+        <span className="text-xs text-zinc-600 px-1.5">
+          {label}
+        </span>
+
+        <select
+          disabled={isPredefined}
+          className={smallSelectCls + dis()}
+          value={form[valKey]}
+          onChange={setField(valKey)}
+        >
+          <option>Based on Value</option>
+          <option>Based on Quantity</option>
+        </select>
+
+        <div className="flex items-center gap-1 px-1.5">
+          <input
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            disabled={isPredefined}
+            className={`w-16 bg-transparent text-sm outline-none py-0.5 px-1.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded ${dis()}`}
+            value={form[rateKey]}
+            onChange={setField(rateKey)}
+          />
+          <span className="text-xs text-zinc-400">%</span>
         </div>
+      </div>
+    ))}
+
+    {!isPredefined && (
+      <div className="text-[10px] text-zinc-400 italic px-1.5 pt-1 font-sans">
+        Editing Integrated Tax rate auto-fills Central & State Tax as half each.
+      </div>
+    )}
+  </div>
+)}
+
+{form.rate_type === "Slab Based" && (
+  <div className="mt-3 border border-zinc-200 rounded p-3">
+    <div className="text-xs font-medium mb-2">
+      Slab Based Rates
+    </div>
+
+    <div className="text-xs text-zinc-500">
+      Slab configuration will be added here.
+    </div>
+  </div>
+)}
       </div>
     </div>
   );

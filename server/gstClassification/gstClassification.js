@@ -11,6 +11,7 @@ const init = async (db) => {
       taxability              TEXT DEFAULT 'Unknown',
       is_reverse_charge       INTEGER DEFAULT 0,
       is_ineligible_for_itc   INTEGER DEFAULT 0,
+      rate_type               TEXT DEFAULT 'Fixed Rate',
       igst_rate               REAL DEFAULT 0,
       igst_valuation_type     TEXT DEFAULT 'Based on Value',
       cgst_rate               REAL DEFAULT 0,
@@ -27,5 +28,14 @@ const init = async (db) => {
       updated_at              TEXT DEFAULT (datetime('now'))
     )
   `);
+
+  const pragmaResult = await db.execute(`PRAGMA table_info('gst_classifications')`);
+  const columns = Array.isArray(pragmaResult.rows)
+    ? pragmaResult.rows.map((row) => row.name)
+    : [];
+
+  if (!columns.includes('rate_type')) {
+    await db.execute(`ALTER TABLE gst_classifications ADD COLUMN rate_type TEXT DEFAULT 'Fixed Rate'`);
+  }
 };
 module.exports = { init };
