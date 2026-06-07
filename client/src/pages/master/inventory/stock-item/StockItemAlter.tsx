@@ -2,23 +2,21 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import {
-  FormRow,
   PageTitleBar,
   RightActionPanel,
   SearchInput,
   DataTable,
-  SideSelectionPanel,
 } from "@/components/ui";
 import type { StockGroupType, UnitType, StockItemType } from "@/types/api";
 import BomListModal from "./components/BomListModal";
 import BomComponentsModal, { type BomEntry } from "./components/BomComponentsModal";
+import ListSidePanel from "./components/ListSidePanel";
+import GSTStatutoryDetails from "./components/GSTStatutoryDetails";
+import type { FormData, PanelType } from "./types";
 
 const inputCls =
   "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent " +
   "focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
-const selectCls =
-  "bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent " +
-  "cursor-pointer focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
 
 // ── Selection panel ──────────────────────────────────────────────────────────
 function SelectionPanel({
@@ -100,21 +98,6 @@ function SelectionPanel({
   );
 }
 
-// ── FormData ─────────────────────────────────────────────────────────────────
-interface FormData {
-  name: string;
-  alias: string;
-  group_id: string;
-  unit_id: string;
-  rate_of_duty: string;
-  has_bom: boolean;
-  bom_name: string;
-  opening_quantity: string;
-  opening_rate: string;
-}
-
-type PanelType = "group" | "unit" | null;
-
 // ── Main alter component ─────────────────────────────────────────────────────
 export default function StockItemAlter() {
   const navigate = useNavigate();
@@ -123,6 +106,7 @@ export default function StockItemAlter() {
   const [stockItems,  setStockItems]  = useState<StockItemType[]>([]);
   const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
   const [units,       setUnits]       = useState<UnitType[]>([]);
+  const [gstClassifications, setGstClassifications] = useState<any[]>([]);
   const [selectedItem,setSelectedItem]= useState<StockItemType | null>(null);
   const [form,        setForm]        = useState<FormData | null>(null);
   const [loading,     setLoading]     = useState(false);
@@ -135,26 +119,18 @@ export default function StockItemAlter() {
   const [showBomComponents, setShowBomComponents] = useState(false);
   const [currentBomName,    setCurrentBomName]    = useState("");
 
-  // ── Load lists ──────────────────────────────────────────────────────────
+  // Load lists
   useEffect(() => {
     const company_id = selectedCompany?.company_id;
     if (!company_id) return;
     window.api.stockItem .getAll(company_id).then(r => { if (r.success) setStockItems(r.stockItems ?? []); });
     window.api.stockGroup.getAll(company_id).then(r => { if (r.success) setStockGroups(r.stockGroups ?? []); });
     window.api.unit      .getAll(company_id).then(r => { if (r.success) setUnits(r.units ?? []); });
+    window.api.gstClassification.getAll(company_id).then(r => { if (r.success) setGstClassifications(r.gstClassifications ?? []); });
   }, [selectedCompany]);
 
-  // ── Refresh units on mount so newly-created units appear ──────────────────
-  useEffect(() => {
-    const company_id = selectedCompany?.company_id;
-    if (!company_id) return;
-    window.api.unit.getAll(company_id).then(r => {
-      if (r.success) setUnits(r.units ?? []);
-    });
-  }, []);
-
-  // ── Populate form when item is selected ─────────────────────────────────
-  const handleSelectItem = (item: StockItemType) => {
+  // Populate form when item is selected
+  const handleSelectItem = (item: any) => {
     setSelectedItem(item);
     setForm({
       name:  item.name  ?? "",
@@ -166,6 +142,16 @@ export default function StockItemAlter() {
       bom_name: item.bom_name ?? "",
       opening_quantity: String(item.opening_quantity ?? 0),
       opening_rate:     String(item.opening_rate     ?? 0),
+      gst_applicable: item.gst_applicable ?? "Not Applicable",
+      hsn_sac_details: item.hsn_sac_details ?? (item.source_of_details === "Specified Here" ? "specify_here" : item.source_of_details === "GST Classification" ? "use_classification" : item.source_of_details === "Specify in Voucher" ? "specify_in_voucher" : "as_per_company"),
+      hsn_sac: item.hsn_sac ?? "",
+      hsn_sac_description: item.hsn_sac_description ?? "",
+      hsn_classification_id: item.hsn_classification_id ? String(item.hsn_classification_id) : "",
+      gst_rate_details: item.gst_rate_details ?? (item.source_of_gst_rate === "GST Classification" ? "use_classification" : item.source_of_gst_rate === "Specified Here" ? "specify_here" : item.source_of_gst_rate === "Specify in Voucher" ? "specify_in_voucher" : "as_per_company"),
+      rate_classification_id: item.rate_classification_id ? String(item.rate_classification_id) : "",
+      taxability_type: item.taxability_type ?? "",
+      gst_rate: String(item.gst_rate ?? 0),
+      type_of_supply: item.type_of_supply ?? "Goods",
     });
     setBoms([]);
     setShowBomList(false);
@@ -174,24 +160,25 @@ export default function StockItemAlter() {
     setSuccess(null);
   };
 
-  // ── Field helpers ────────────────────────────────────────────────────────
-  const setField = (key: keyof FormData) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
-      setForm(f => f ? { ...f, [key]: e.target.value } : f);
+  const setVal = useCallback((key: keyof FormData, value: any) => {
+    setForm(f => f ? ({ ...f, [key]: value }) : null);
+  }, []);
 
-  // ── BOM handlers ─────────────────────────────────────────────────────────
+  // BOM handlers
   const savePendingRef = useRef(false);
 
   const handleBomToggle = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const yes = e.target.value === "Yes";
-    setForm(f => f ? { ...f, has_bom: yes, bom_name: yes ? f.bom_name : "" } : f);
+    setForm(f => f ? { ...f, has_bom: yes, bom_name: yes ? f.bom_name : "" } : null);
     if (!yes) setBoms([]);
   };
+
   const handleBomSelect = (name: string) => {
     setCurrentBomName(name);
     setShowBomList(false);
     setShowBomComponents(true);
   };
+
   const handleBomAccept = (entry: BomEntry) => {
     setBoms(prev => {
       const updated = [...prev, entry];
@@ -201,19 +188,21 @@ export default function StockItemAlter() {
       }
       return updated;
     });
-    setForm(f => f ? { ...f, bom_name: f.bom_name || entry.bomName } : f);
+    setForm(f => f ? { ...f, bom_name: f.bom_name || entry.bomName } : null);
     setShowBomComponents(false);
   };
+
   const handleBomListClose = () => {
     setShowBomList(false);
     savePendingRef.current = false;
   };
+
   const handleBomComponentsClose = () => {
     setShowBomComponents(false);
     savePendingRef.current = false;
   };
 
-  // ── Derived labels ───────────────────────────────────────────────────────
+  // Derived labels
   const selectedGroupLabel = form?.group_id
     ? stockGroups.find(g => String(g.sg_id) === form.group_id)?.name ?? "Primary"
     : "Primary";
@@ -222,21 +211,83 @@ export default function StockItemAlter() {
     ? units.find(u => String(u.unit_id) === form.unit_id)?.symbol ?? "Not Applicable"
     : "Not Applicable";
 
-  const openingValue =
-    (parseFloat(form?.opening_quantity ?? "0") || 0) *
-    (parseFloat(form?.opening_rate     ?? "0") || 0);
+  const openingQty = parseFloat(form?.opening_quantity ?? "0") || 0;
+  const openingRate = parseFloat(form?.opening_rate ?? "0") || 0;
+  const openingValue = openingQty * openingRate;
 
-  // ── Back ─────────────────────────────────────────────────────────────────
+  // Back
   const handleBack = useCallback(() => {
     setSelectedItem(null);
     setForm(null);
   }, []);
 
-  // ── Save ─────────────────────────────────────────────────────────────────
+  // Save
   const executeSave = async (bomsToSave: BomEntry[] = boms) => {
     if (!form || !selectedItem) return;
     if (!selectedCompany?.company_id) { setError("No company selected."); return; }
     setLoading(true); setError(null);
+
+    let gst_applicable = form.gst_applicable;
+    let hsn_sac: string | null = null;
+    let hsn_sac_description: string | null = null;
+    let source_of_details = "As per Company/Stock Group";
+    let hsn_classification_id: number | null = null;
+
+    let gst_rate_details = form.gst_rate_details;
+    let source_of_gst_rate = "As per Company/Stock Group";
+    let taxability_type: string | null = null;
+    let gst_rate = 0;
+    let cgst_rate = 0;
+    let sgst_rate = 0;
+    let igst_rate = 0;
+    let rate_classification_id: number | null = null;
+    let type_of_supply = form.type_of_supply;
+
+    if (gst_applicable === "Applicable") {
+      if (form.hsn_sac_details === "specify_here") {
+        hsn_sac = form.hsn_sac.trim() || null;
+        hsn_sac_description = form.hsn_sac_description.trim() || null;
+        source_of_details = "Specified Here";
+      } else if (form.hsn_sac_details === "use_classification") {
+        source_of_details = "GST Classification";
+        hsn_classification_id = Number(form.hsn_classification_id) || null;
+        const selectedCls = gstClassifications.find(c => String(c.gc_id) === form.hsn_classification_id);
+        if (selectedCls) {
+          hsn_sac = selectedCls.hsn_sac_code || null;
+          hsn_sac_description = selectedCls.description || null;
+        }
+      } else if (form.hsn_sac_details === "specify_in_voucher") {
+        source_of_details = "Specify in Voucher";
+      }
+
+      if (form.gst_rate_details === "use_classification") {
+        source_of_gst_rate = "GST Classification";
+        const selectedCls = gstClassifications.find(c => String(c.gc_id) === form.rate_classification_id);
+        if (selectedCls) {
+          rate_classification_id = Number(form.rate_classification_id) || null;
+          taxability_type = selectedCls.taxability || null;
+          igst_rate = selectedCls.igst_rate ?? 0;
+          cgst_rate = selectedCls.cgst_rate ?? 0;
+          sgst_rate = selectedCls.sgst_rate ?? 0;
+          gst_rate = igst_rate;
+        }
+      } else if (form.gst_rate_details === "specify_here") {
+        source_of_gst_rate = "Specified Here";
+        taxability_type = form.taxability_type || null;
+        if (form.taxability_type === "Taxable") {
+          igst_rate = Number(form.gst_rate) || 0;
+          cgst_rate = igst_rate / 2;
+          sgst_rate = igst_rate / 2;
+          gst_rate = igst_rate;
+        }
+      } else if (form.gst_rate_details === "specify_in_voucher") {
+        source_of_gst_rate = "Specify in Voucher";
+      }
+    } else {
+      gst_rate_details = "as_per_company";
+      type_of_supply = "Goods";
+    }
+
     try {
       const result = await window.api.stockItem.update({
         item_id:    selectedItem.item_id,
@@ -250,6 +301,21 @@ export default function StockItemAlter() {
         bom_name: form.has_bom ? (bomsToSave[0]?.bomName || form.bom_name).trim() || null : null,
         opening_quantity: Number(form.opening_quantity) || 0,
         opening_rate:     Number(form.opening_rate)     || 0,
+        gst_applicable,
+        gst_rate,
+        cgst_rate,
+        sgst_rate,
+        igst_rate,
+        type_of_supply,
+        hsn_sac,
+        source_of_details,
+        hsn_sac_description,
+        hsn_code: hsn_sac,
+        gst_rate_details,
+        source_of_gst_rate,
+        taxability_type,
+        rate_classification_id,
+        hsn_classification_id,
         reorder_level: 0, reorder_quantity: 0,
         track_batches: 0, track_expiry: 0,
       });
@@ -269,7 +335,7 @@ export default function StockItemAlter() {
     }
   };
 
-  // ── Submit ───────────────────────────────────────────────────────────────
+  // Submit
   const handleSubmit = useCallback(() => {
     if (!form || !selectedItem) return;
     if (!form.name.trim()) { setError("Name is required."); return; }
@@ -282,9 +348,9 @@ export default function StockItemAlter() {
     }
 
     executeSave(boms);
-  }, [form, selectedItem, selectedCompany, boms]);
+  }, [form, selectedItem, selectedCompany, boms, gstClassifications]);
 
-  // ── Delete ───────────────────────────────────────────────────────────────
+  // Delete
   const handleDelete = useCallback(async () => {
     if (!selectedItem) return;
     if (!window.confirm(`Delete stock item "${selectedItem.name}"? This cannot be undone.`)) return;
@@ -305,7 +371,7 @@ export default function StockItemAlter() {
     }
   }, [selectedItem, selectedCompany, handleBack]);
 
-  // ── Keyboard shortcuts ───────────────────────────────────────────────────
+  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -325,7 +391,7 @@ export default function StockItemAlter() {
     return () => window.removeEventListener("keydown", handler);
   }, [handleSubmit, handleDelete, handleBack, navigate, showPanel, selectedItem, showBomList, showBomComponents]);
 
-  // ── Selection screen ─────────────────────────────────────────────────────
+  // Selection screen
   if (!selectedItem || !form) {
     return (
       <SelectionPanel
@@ -345,7 +411,7 @@ export default function StockItemAlter() {
     { key: "Esc",   label: "Back",         onClick: handleBack   },
   ];
 
-  // ── Edit screen ──────────────────────────────────────────────────────────
+  // Edit screen
   return (
     <div className="flex flex-col h-full bg-white select-none overflow-hidden">
       <PageTitleBar
@@ -353,7 +419,7 @@ export default function StockItemAlter() {
         subtitle={selectedCompany?.name}
       />
 
-      {/* ── Alerts ── */}
+      {/* Alerts */}
       {error && (
         <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
           <span>• {error}</span>
@@ -367,199 +433,323 @@ export default function StockItemAlter() {
         </div>
       )}
 
-      {/* ── Body ── */}
+      {/* Body */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
 
-          {/* ── Two-column form area ── */}
+          {/* Top Section: Name and Alias */}
+          <div className="px-6 py-4 border-b border-zinc-200 flex flex-col gap-1 shrink-0">
+            {/* Name */}
+            <div className="flex items-center min-h-[26px]">
+              <span className="w-24 shrink-0 text-sm text-zinc-700 font-sans">Name</span>
+              <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+              <div className="flex-1">
+                <input autoFocus className={inputCls} value={form.name} onChange={e => setVal("name", e.target.value)} placeholder="Enter item name" />
+              </div>
+            </div>
+
+            {/* alias */}
+            <div className="flex items-center min-h-[26px]">
+              <span className="w-24 shrink-0 text-sm text-zinc-400 font-sans">(alias)</span>
+              <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+              <div className="flex-1">
+                <input className={inputCls} value={form.alias} onChange={e => setVal("alias", e.target.value)} placeholder="Optional alias" style={{ color: "#aaa" }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Two-column form area */}
           <div className="flex flex-1 min-h-0 overflow-hidden">
 
-            {/* ══ LEFT: General ══════════════════════════════════════════════ */}
-            <div className="flex-1 min-w-0 border-r border-zinc-200 px-4 pt-4 pb-2 flex flex-col gap-0.5 overflow-y-auto">
-              <div className="text-[10px] uppercase tracking-widest text-zinc-400 font-semibold mb-1">General</div>
-
-              <FormRow label="Name" required labelWidth="w-48" className="flex items-center min-h-[26px]">
-                <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} />
-              </FormRow>
-
-              <FormRow label="(alias)" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={form.alias} onChange={setField("alias")} />
-              </FormRow>
-
+            {/* LEFT PANEL */}
+            <div className="flex-1 min-w-0 border-r border-zinc-200 px-6 pt-4 pb-2 flex flex-col gap-0 overflow-y-auto">
               {/* Under */}
               <div
-                className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50 rounded"
+                className="flex items-center min-h-[26px] cursor-pointer group"
                 onClick={() => setShowPanel(p => p === "group" ? null : "group")}
               >
-                <span className="w-48 text-sm text-zinc-500 shrink-0">Under</span>
-                <span className="text-zinc-400 mr-2 shrink-0">:</span>
-                <span className="text-sm text-zinc-900 px-1">♦ {selectedGroupLabel}</span>
+                <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Under</span>
+                <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                <div className="flex-1">
+                  <span className="text-sm text-zinc-900 group-hover:underline">{selectedGroupLabel}</span>
+                </div>
               </div>
 
               {/* Units */}
               <div
-                className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50 rounded"
+                className="flex items-center min-h-[26px] cursor-pointer group"
                 onClick={() => setShowPanel(p => p === "unit" ? null : "unit")}
               >
-                <span className="w-48 text-sm text-zinc-500 shrink-0">Units</span>
-                <span className="text-zinc-400 mr-2 shrink-0">:</span>
-                <span className="text-sm text-zinc-900 px-1">♦ {selectedUnitLabel}</span>
-              </div>
-
-              <div className="h-3" />
-
-              {/* Additional */}
-              <div className="text-[10px] uppercase tracking-widest text-zinc-400 font-semibold mb-1">Additional Details</div>
-
-              <FormRow label="Set components (BOM)" labelWidth="w-48" className="flex items-center min-h-[26px]">
-                <div className="flex items-center gap-2">
-                  <select className={selectCls} value={form.has_bom ? "Yes" : "No"} onChange={handleBomToggle}>
-                    <option value="No">No</option>
-                    <option value="Yes">Yes</option>
-                  </select>
-                  {form.has_bom && boms.length > 0 && (
-                    <span className="text-xs text-zinc-400">({boms.length} BOM{boms.length > 1 ? "s" : ""})</span>
-                  )}
+                <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Units</span>
+                <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                <div className="flex-1">
+                  <span className="text-sm text-zinc-900 group-hover:underline">{selectedUnitLabel}</span>
                 </div>
-              </FormRow>
-            </div>
-
-            {/* ══ RIGHT: Statutory Details ════════════════════════════════════ */}
-            <div className="w-[320px] shrink-0 px-4 pt-4 pb-2 flex flex-col gap-0.5 overflow-y-auto border-l border-zinc-100">
-              <div className="text-[10px] uppercase tracking-widest text-zinc-400 font-semibold mb-2">
-                Statutory Details
               </div>
 
-              {/* Rate of Duty */}
-              <div className="flex items-center min-h-[24px]">
-                <span className="w-40 text-xs text-zinc-600 shrink-0">Rate of Duty (eg 5)</span>
-                <span className="text-zinc-400 mr-1 text-xs shrink-0">:</span>
-                <input
-                  className="w-20 bg-transparent text-xs outline-none px-1 py-0.5 border border-transparent focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors tabular-nums"
-                  type="number" min="0" max="100" step="0.01"
-                  value={form.rate_of_duty}
-                  onChange={setField("rate_of_duty")}
-                  placeholder="0"
-                />
-              </div>
+              {/* Set components (BOM) */}
+              {form.unit_id && (
+                <div className="flex items-center min-h-[26px] mt-1">
+                  <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Set components (BOM)</span>
+                  <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                  <div className="flex-1 flex items-center gap-1.5">
+                    <select
+                      className="bg-transparent text-sm outline-none border-b border-zinc-300 focus:border-zinc-600 cursor-pointer font-mono"
+                      value={form.has_bom ? "Yes" : "No"}
+                      onChange={handleBomToggle}
+                    >
+                      <option value="No">No</option>
+                      <option value="Yes">Yes</option>
+                    </select>
+                    {form.has_bom && boms.length > 0 && (
+                      <span className="text-xs text-zinc-400 font-sans">({boms.length} BOM{boms.length > 1 ? "s" : ""})</span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
+
+            {/* RIGHT PANEL: Statutory Details */}
+            <GSTStatutoryDetails
+              form={form}
+              setVal={setVal}
+              setActivePanel={setShowPanel}
+              gstClassifications={gstClassifications}
+            />
           </div>
 
-          {/* ── Opening Balance footer ─────────────────────────────────── */}
+          {/* Opening Balance footer */}
           <div className="shrink-0 border-t border-zinc-200">
             {/* Column headers */}
-            <div className="flex items-center px-4 pt-1.5 pb-0.5 border-b border-zinc-100">
-              <span className="w-48 shrink-0" />
-              <span className="w-5 shrink-0" />
-              <span className="w-32 text-right text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">Quantity</span>
-              <span className="w-28 text-right text-[10px] uppercase tracking-widest text-zinc-400 font-semibold ml-4">Rate</span>
-              <span className="w-16 text-center text-[10px] uppercase tracking-widest text-zinc-400 font-semibold ml-2">per</span>
-              <span className="flex-1 text-right text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">Value</span>
+            <div className="flex items-center px-6 pt-1.5 pb-0.5 border-b border-zinc-100 font-sans">
+              <span className="w-32 shrink-0" />
+              <span className="w-4 shrink-0" />
+              <div className="flex-1 flex items-center justify-end">
+                <span className="w-32 text-right text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">Quantity</span>
+                <span className="w-28 text-right text-[10px] uppercase tracking-widest text-zinc-400 font-semibold ml-4">Rate</span>
+                <span className="w-16 text-center text-[10px] uppercase tracking-widest text-zinc-400 font-semibold ml-2">per</span>
+                <span className="w-36 text-right text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">Value</span>
+              </div>
             </div>
 
             {/* Opening balance row */}
-            <div className="flex items-center px-4 py-2">
-              <span className="w-48 text-sm text-zinc-700 shrink-0">Opening Balance</span>
-              <span className="w-5 text-zinc-400 shrink-0">:</span>
+            <div className="flex items-center px-6 py-2">
+              <span className="w-32 text-sm text-zinc-700 shrink-0 font-sans">Opening Balance</span>
+              <span className="w-4 text-zinc-400 shrink-0 text-center">:</span>
 
-              {/* Quantity */}
-              <div className="w-32 flex items-center gap-1 border-b border-zinc-300 focus-within:border-zinc-600">
-                <input
-                  className="w-20 bg-transparent text-sm outline-none py-0.5 text-right tabular-nums"
-                  type="number" min="0" step="0.01"
-                  value={form.opening_quantity}
-                  onChange={setField("opening_quantity")}
-                  placeholder="0"
-                />
-                <span className="text-sm text-zinc-600 shrink-0">
+              <div className="flex-1 flex items-center justify-end">
+                {/* Quantity */}
+                <div className="w-32 flex items-center gap-1 border-b border-zinc-300 focus-within:border-zinc-600">
+                  <input
+                    className="w-20 bg-transparent text-sm outline-none py-0.5 text-right tabular-nums font-mono"
+                    type="number" min="0" step="0.01"
+                    value={form.opening_quantity}
+                    onChange={e => setVal("opening_quantity", e.target.value)}
+                    placeholder="0"
+                  />
+                  <span className="text-sm text-zinc-600 shrink-0 font-sans">
+                    {form.unit_id ? selectedUnitLabel : ""}
+                  </span>
+                </div>
+
+                {/* Rate */}
+                <div className="w-28 ml-4 border-b border-zinc-300 focus-within:border-zinc-600">
+                  <input
+                    className="w-full bg-transparent text-sm outline-none py-0.5 text-right tabular-nums pr-1 font-mono"
+                    type="number" min="0" step="0.01"
+                    value={form.opening_rate}
+                    onChange={e => setVal("opening_rate", e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+
+                {/* per */}
+                <span className="w-16 text-center text-sm text-zinc-600 ml-2 shrink-0 font-sans">
                   {form.unit_id ? selectedUnitLabel : ""}
                 </span>
+
+                {/* Value */}
+                <span className="w-36 text-right text-sm font-mono text-zinc-800 tabular-nums">
+                  {openingValue > 0
+                    ? openingValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })
+                    : ""}
+                </span>
               </div>
-
-              {/* Rate */}
-              <div className="w-28 ml-4 border-b border-zinc-300 focus-within:border-zinc-600">
-                <input
-                  className="w-full bg-transparent text-sm outline-none py-0.5 text-right tabular-nums pr-1"
-                  type="number" min="0" step="0.01"
-                  value={form.opening_rate}
-                  onChange={setField("opening_rate")}
-                  placeholder="0.00"
-                />
-              </div>
-
-              {/* per */}
-              <span className="w-16 text-center text-sm text-zinc-600 ml-2 shrink-0">
-                {form.unit_id ? selectedUnitLabel : ""}
-              </span>
-
-              {/* Value */}
-              <span className="flex-1 text-right text-sm font-mono text-zinc-800 tabular-nums">
-                {openingValue > 0
-                  ? openingValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })
-                  : ""}
-              </span>
             </div>
           </div>
         </div>
 
-        {/* ── Side selection panels ── */}
+        {/* Side selection panels */}
         {showPanel === "group" && (
-          <SideSelectionPanel
+          <ListSidePanel
             title="List of Groups"
             items={stockGroups
               .filter(g => g.name.toLowerCase() !== "primary")
-              .map(g => ({ id: g.sg_id, label: g.name }))}
+              .map(g => ({ id: String(g.sg_id), label: g.name }))}
             selected={form.group_id}
-            onSelect={val => setForm(f => f ? { ...f, group_id: val } : f)}
+            onSelect={val => { setVal("group_id", val); setShowPanel(null); }}
             onClose={() => setShowPanel(null)}
             showPrimary
+            primaryLabel="Primary"
           />
         )}
         {showPanel === "unit" && (
-          <SideSelectionPanel
+          <ListSidePanel
             title="List of Units"
-            items={[
-              { id: "create", label: "Create New Unit" },
-              ...units.map(u => ({ id: String(u.unit_id), label: `${u.symbol} (${u.name})` })),
-            ]}
+            items={units.map(u => ({ id: String(u.unit_id), label: `${u.symbol} (${u.name})` }))}
             selected={form.unit_id}
-            onSelect={val => {
-              if (val === "create") navigate("/master/create/unit");
-              else { setForm(f => f ? { ...f, unit_id: val } : f); setShowPanel(null); }
-            }}
+            onSelect={val => { setVal("unit_id", val); setShowPanel(null); }}
             onClose={() => setShowPanel(null)}
             showPrimary
             primaryLabel="Not Applicable"
+            showCreate
+            onCreateNew={() => navigate("/master/create/unit")}
+          />
+        )}
+        {showPanel === "gst_applicable" && (
+          <ListSidePanel
+            title="GST Applicability"
+            items={[
+              { id: "Applicable", label: "Applicable" },
+              { id: "Not Applicable", label: "Not Applicable" },
+            ]}
+            selected={form.gst_applicable}
+            onSelect={val => {
+              setForm(f => {
+                if (!f) return null;
+                return {
+                  ...f,
+                  gst_applicable: val || "Not Applicable",
+                  // Reset child state if not applicable
+                  ...(val !== "Applicable" ? {
+                    hsn_sac_details: "as_per_company",
+                    hsn_sac: "",
+                    hsn_sac_description: "",
+                    hsn_classification_id: "",
+                    gst_rate_details: "as_per_company",
+                    rate_classification_id: "",
+                    taxability_type: "",
+                    gst_rate: "0",
+                    type_of_supply: "Goods",
+                  } : {})
+                };
+              });
+              setShowPanel(null);
+            }}
+            onClose={() => setShowPanel(null)}
+          />
+        )}
+        {showPanel === "hsn_sac_details" && (
+          <ListSidePanel
+            title="HSN/SAC Details"
+            items={[
+              { id: "as_per_company", label: "As per Company/Stock Group" },
+              { id: "specify_here", label: "Specify Details Here" },
+              { id: "use_classification", label: "Use GST Classification" },
+              { id: "specify_in_voucher", label: "Specify in Voucher" },
+            ]}
+            selected={form.hsn_sac_details}
+            onSelect={val => { setVal("hsn_sac_details", val || "as_per_company"); setShowPanel(null); }}
+            onClose={() => setShowPanel(null)}
+          />
+        )}
+        {showPanel === "hsn_classification" && (
+          <ListSidePanel
+            title="GST Classifications"
+            items={gstClassifications.map(c => ({ id: String(c.gc_id), label: c.name }))}
+            selected={form.hsn_classification_id}
+            onSelect={val => {
+              setVal("hsn_classification_id", val);
+              setShowPanel(null);
+            }}
+            onClose={() => setShowPanel(null)}
+            showCreate
+            onCreateNew={() => navigate("/master/create/gst-classification")}
+          />
+        )}
+        {showPanel === "gst_rate_details" && (
+          <ListSidePanel
+            title="GST Rate Details"
+            items={[
+              { id: "as_per_company", label: "As per Company/Stock Group" },
+              { id: "specify_here", label: "Specific Details Here" },
+              { id: "use_classification", label: "Use GST Classification" },
+              { id: "specify_in_voucher", label: "Specify in Voucher" },
+            ]}
+            selected={form.gst_rate_details}
+            onSelect={val => { setVal("gst_rate_details", val || "as_per_company"); setShowPanel(null); }}
+            onClose={() => setShowPanel(null)}
+          />
+        )}
+        {showPanel === "rate_classification" && (
+          <ListSidePanel
+            title="GST Classifications"
+            items={gstClassifications.map(c => ({ id: String(c.gc_id), label: c.name }))}
+            selected={form.rate_classification_id}
+            onSelect={val => {
+              setVal("rate_classification_id", val);
+              setShowPanel(null);
+            }}
+            onClose={() => setShowPanel(null)}
+            showCreate
+            onCreateNew={() => navigate("/master/create/gst-classification")}
+          />
+        )}
+        {showPanel === "taxability_type" && (
+          <ListSidePanel
+            title="Taxability Type"
+            items={[
+              { id: "Taxable", label: "Taxable" },
+              { id: "Exempt", label: "Exempt" },
+              { id: "Nil Rated", label: "Nil Rated" },
+              { id: "Non-GST", label: "Non-GST" },
+            ]}
+            selected={form.taxability_type}
+            onSelect={val => { setVal("taxability_type", val || "Taxable"); setShowPanel(null); }}
+            onClose={() => setShowPanel(null)}
+          />
+        )}
+        {showPanel === "type_of_supply" && (
+          <ListSidePanel
+            title="Type of Supply"
+            items={[
+              { id: "Goods", label: "Goods" },
+              { id: "Services", label: "Services" },
+              { id: "Capital Goods", label: "Capital Goods" },
+            ]}
+            selected={form.type_of_supply}
+            onSelect={val => { setVal("type_of_supply", val || "Goods"); setShowPanel(null); }}
+            onClose={() => setShowPanel(null)}
           />
         )}
 
         <RightActionPanel actions={alterActions} />
       </div>
 
-      {/* ── Footer bar ── */}
+      {/* Footer bar */}
       <div className="border-t border-zinc-200 px-4 py-2.5 flex justify-between items-center shrink-0">
         <button
           onClick={handleDelete}
           disabled={loading}
-          className="text-xs px-4 py-1.5 rounded border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 disabled:opacity-50 transition-colors font-medium"
+          className="text-xs px-4 py-1.5 rounded border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 disabled:opacity-50 transition-colors font-medium font-sans"
         >
           Delete
         </button>
         <div className="flex gap-3">
-          <button onClick={handleBack} className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 transition-colors">
+          <button onClick={handleBack} className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 transition-colors font-sans">
             Back
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
+            className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium font-sans"
           >
             {loading ? "Saving…" : "Accept"}
           </button>
         </div>
       </div>
 
-      {/* ── BOM modals ── */}
+      {/* BOM modals */}
       {showBomList && (
         <BomListModal
           stockItemName={form.name}

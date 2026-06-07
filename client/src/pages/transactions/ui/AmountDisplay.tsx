@@ -1,7 +1,6 @@
 
 interface Props {
   amount: number;
-  /** Show the ₹ symbol (default true) */
   showSymbol?: boolean;
   className?: string;
 }

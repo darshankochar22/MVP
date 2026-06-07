@@ -297,11 +297,30 @@ export default function StockGroupCOA() {
                             Statutory Details
                           </div>
                           <DetailRow label="GST Applicable" value={item.gst_applicable || "Not Applicable"} />
-                          {item.gst_rate !== null && Number(item.gst_rate) > 0 && (
-                            <DetailRow label="GST Rate" value={`${Number(item.gst_rate).toFixed(2)} %`} />
-                          )}
-                          {(item.hsn_code || item.sac_code) && (
-                            <DetailRow label="HSN/SAC Code" value={item.hsn_code || item.sac_code} span />
+                          {item.gst_applicable === "Applicable" && (
+                            <>
+                              <DetailRow label="Source of HSN Details" value={item.source_of_details || "As per Company/Stock Group"} />
+                              {(item.hsn_sac || item.hsn_code) && (
+                                <DetailRow label="HSN/SAC Code" value={item.hsn_sac || item.hsn_code} />
+                              )}
+                              {item.hsn_sac_description && (
+                                <DetailRow label="HSN Description" value={item.hsn_sac_description} />
+                              )}
+                              <DetailRow label="Source of GST Rate" value={item.source_of_gst_rate || "As per Company/Stock Group"} />
+                              {item.taxability_type && (
+                                <DetailRow label="Taxability" value={item.taxability_type} />
+                              )}
+                              {item.gst_rate !== null && Number(item.gst_rate) > 0 && (
+                                <DetailRow label="GST Rate" value={`${Number(item.gst_rate).toFixed(2)} %`} />
+                              )}
+                              {item.cgst_rate !== null && Number(item.cgst_rate) > 0 && (
+                                <DetailRow label="CGST Rate" value={`${Number(item.cgst_rate).toFixed(2)} %`} />
+                              )}
+                              {item.sgst_rate !== null && Number(item.sgst_rate) > 0 && (
+                                <DetailRow label="SGST Rate" value={`${Number(item.sgst_rate).toFixed(2)} %`} />
+                              )}
+                              <DetailRow label="Type of Supply" value={item.type_of_supply || "Goods"} />
+                            </>
                           )}
                         </div>
                       </div>

@@ -1,18 +1,10 @@
-/**
- * LedgerField — the label:value input row used to pick a ledger.
- * Combines the text input, balance display, and field-focus wiring.
- * Reused in the Account row, Party A/c, and Sales/Purchase Ledger rows.
- */
 
 interface Props {
-  /** Current display value (ledger name or search term) */
-  value: string;
-  /** Optional balance string shown in muted text next to the input */
+  value:string;
   balance?: string;
   placeholder?: string;
   onFocus: () => void;
   onChange: (value: string) => void;
-  /** Tailwind class applied to the wrapping div */
   className?: string;
 }
 
