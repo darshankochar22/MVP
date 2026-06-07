@@ -12,6 +12,7 @@ export interface FormData {
   taxability: "Unknown" | "Taxable" | "Exempt" | "Nil Rated";
   is_reverse_charge: "No" | "Yes";
   is_ineligible_for_itc: "No" | "Yes";
+  rate_type: "Fixed Rate" | "Slab Based";
   igst_rate: string;
   igst_valuation_type: "Based on Value" | "Based on Quantity";
   cgst_rate: string;
@@ -31,6 +32,7 @@ export const INITIAL_FORM: FormData = {
   taxability: "Unknown",
   is_reverse_charge: "No",
   is_ineligible_for_itc: "No",
+  rate_type: "Fixed Rate",
   igst_rate: "0",
   igst_valuation_type: "Based on Value",
   cgst_rate: "0",
@@ -120,6 +122,7 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
       taxability: (c.taxability as any) ?? "Unknown",
       is_reverse_charge: c.is_reverse_charge === 1 ? "Yes" : "No",
       is_ineligible_for_itc: c.is_ineligible_for_itc === 1 ? "Yes" : "No",
+      rate_type: "Fixed Rate",
       igst_rate: String(c.igst_rate ?? 0),
       igst_valuation_type: (c.igst_valuation_type as any) ?? "Based on Value",
       cgst_rate: String(c.cgst_rate ?? 0),
@@ -187,6 +190,7 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
         taxability: form.taxability,
         is_reverse_charge: form.is_reverse_charge === "Yes" ? 1 : 0,
         is_ineligible_for_itc: form.is_ineligible_for_itc === "Yes" ? 1 : 0,
+        rate_type: form.rate_type,
         igst_rate: Number(form.igst_rate) || 0,
         igst_valuation_type: form.igst_valuation_type,
         cgst_rate: Number(form.cgst_rate) || 0,

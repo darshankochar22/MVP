@@ -18,6 +18,7 @@ const seedDefaultGSTClassifications = async (company_id) => {
         company_id, name, description, hsn_sac_code,
         is_non_gst_goods, nature_of_transaction, taxability,
         is_reverse_charge, is_ineligible_for_itc,
+        rate_type,
         igst_rate, igst_valuation_type,
         cgst_rate, cgst_valuation_type,
         sgst_rate, sgst_valuation_type,
@@ -45,18 +46,20 @@ module.exports = {
         [data.company_id, data.name]
       );
       if (exists.rows.length > 0) return { success: false, error: 'GST Classification already exists' };
+      console.log("GST CREATE EXECUTING");
 
       const result = await db.execute(
         `INSERT INTO gst_classifications (
           company_id, name, description, hsn_sac_code,
           is_non_gst_goods, nature_of_transaction, taxability,
           is_reverse_charge, is_ineligible_for_itc,
+          rate_type,
           igst_rate, igst_valuation_type,
           cgst_rate, cgst_valuation_type,
           sgst_rate, sgst_valuation_type,
           cess_rate, cess_valuation_type,
           is_predefined, is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)`,
         [
           data.company_id,
           data.name,
@@ -67,6 +70,7 @@ module.exports = {
           data.taxability || 'Unknown',
           data.is_reverse_charge ?? 0,
           data.is_ineligible_for_itc ?? 0,
+          data.rate_type || 'Fixed Rate',
           data.igst_rate ?? 0,
           data.igst_valuation_type || 'Based on Value',
           data.cgst_rate ?? 0,
@@ -125,16 +129,26 @@ module.exports = {
       const c = existing.rows[0];
       await db.execute(
         `UPDATE gst_classifications SET
-          name = ?, description = ?, hsn_sac_code = ?,
-          is_non_gst_goods = ?, nature_of_transaction = ?, taxability = ?,
-          is_reverse_charge = ?, is_ineligible_for_itc = ?,
-          igst_rate = ?, igst_valuation_type = ?,
-          cgst_rate = ?, cgst_valuation_type = ?,
-          sgst_rate = ?, sgst_valuation_type = ?,
-          cess_rate = ?, cess_valuation_type = ?,
+          name = ?,
+          description = ?,
+          hsn_sac_code = ?,
+          is_non_gst_goods = ?,
+          nature_of_transaction = ?,
+          taxability = ?,
+          is_reverse_charge = ?,
+          is_ineligible_for_itc = ?,
+          rate_type = ?,
+          igst_rate = ?,
+          igst_valuation_type = ?,
+          cgst_rate = ?,
+          cgst_valuation_type = ?,
+          sgst_rate = ?,
+          sgst_valuation_type = ?,
+          cess_rate = ?,
+          cess_valuation_type = ?,
           updated_at = datetime('now')
         WHERE gc_id = ?`,
-        [
+                [
           data.name              ?? c.name,
           data.description       ?? c.description,
           data.hsn_sac_code      ?? c.hsn_sac_code,
@@ -143,6 +157,7 @@ module.exports = {
           data.taxability        ?? c.taxability,
           data.is_reverse_charge ?? c.is_reverse_charge,
           data.is_ineligible_for_itc ?? c.is_ineligible_for_itc,
+          data.rate_type ?? c.rate_type,
           data.igst_rate         ?? c.igst_rate,
           data.igst_valuation_type ?? c.igst_valuation_type,
           data.cgst_rate         ?? c.cgst_rate,
