@@ -10,4 +10,6 @@ export { default as FormRow } from './FormRow';
 export { default as SideSelectionPanel } from './SideSelectionPanel';
 export { default as RightActionPanel } from './RightActionPanel';
 export type { RightPanelAction } from './RightActionPanel';
+export { default as MasterSelectionPanel } from './MasterSelectionPanel';
+export { default as MasterFormFooter } from './MasterFormFooter';
 

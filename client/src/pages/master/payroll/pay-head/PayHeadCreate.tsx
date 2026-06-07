@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import { FormRow, PageTitleBar } from "@/components/ui";
+import { FormRow, PageTitleBar, RightActionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
 import PayHeadCalculationPanel from "@/components/payroll/PayHeadCalculationPanel";
 import type { PayHeadFormulaLineType, PayHeadSlabLineType } from "@/types/entities/Payroll";
 import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
+import { useMasterShortcuts } from "@/hooks/useMasterShortcuts";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
-const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
+const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-24";
 
 const PAY_HEAD_TYPES = [
   "Earnings for Employees",
@@ -153,39 +154,31 @@ export default function PayHeadCreate() {
     } finally {
       setLoading(false);
     }
-  }, [name, alias, pay_head_type, income_type, under_group, affects_net_salary, payslip_display_name, use_for_gratuity, set_alter_income_tax, calculation_type, calculation_period, percentage_or_amount, rounding_method, rounding_limit, slabs, formulaLines, companyId]);
+  }, [name, alias, pay_head_type, income_type, under_group, affects_net_salary, payslip_display_name, use_for_gratuity, set_alter_income_tax, calculation_type, calculation_period, percentage_or_amount, rounding_method, rounding_limit, slabs, formulaLines, companyId, persistKey]);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); navigate("/master/create"); }
-      if (e.altKey && e.key.toLowerCase() === "a") { e.preventDefault(); handleSubmit(); }
-      if (e.ctrlKey && e.key.toLowerCase() === "a") { e.preventDefault(); handleSubmit(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, navigate]);
+  useMasterShortcuts({
+    onAccept: handleSubmit,
+    onQuit: () => navigate("/master/create"),
+    onCreate: () => navigate("/master/alter/pay-head"),
+  });
+
+  const payHeadActions = [
+    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
+    { key: "Alt+C", label: "Alter Mode", onClick: () => navigate("/master/alter/pay-head") },
+    { key: "Esc", label: "Quit", onClick: () => navigate("/master/create") },
+  ];
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none">
       <PageTitleBar title="Pay Head Creation" subtitle={selectedCompany?.name} />
 
-      {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>* {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold">&times;</button>
-        </div>
-      )}
-      {success && (
-        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
-          <span>* {success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold">&times;</button>
-        </div>
-      )}
+      {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
+      {success && <AlertBanner type="success" message={success} onDismiss={() => setSuccess(null)} />}
 
       <div className="flex-1 flex min-h-0 overflow-x-auto">
         {/* Left: Basic info */}
         <div className="flex-1 flex flex-col min-w-0 shrink-0 bg-white">
-          <div className="p-3 space-y-1">
+          <div className="p-3 space-y-1.5">
             <FormRow label="Name" required labelWidth="w-44" className="flex items-center min-h-[26px]">
               <input autoFocus className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Basic Salary" />
             </FormRow>
@@ -194,7 +187,7 @@ export default function PayHeadCreate() {
             </FormRow>
           </div>
 
-          <div className="p-3 border-t border-zinc-100 space-y-1">
+          <div className="p-3 border-t border-zinc-100 space-y-1.5">
             <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Pay Head Information</div>
             <FormRow label="Pay Head Type" labelWidth="w-44" className="flex items-center min-h-[26px]">
               <select className={selectCls} value={pay_head_type} onChange={e => setPayHeadType(e.target.value)}>
@@ -239,7 +232,7 @@ export default function PayHeadCreate() {
             </FormRow>
           </div>
 
-          <div className="p-3 border-t border-zinc-100 space-y-1">
+          <div className="p-3 border-t border-zinc-100 space-y-1.5">
             <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Calculation Type</div>
             <FormRow label="Calculation Type" labelWidth="w-44" className="flex items-center min-h-[26px]">
               <select className={selectCls} value={calculation_type} onChange={e => setCalculationType(e.target.value)}>
@@ -273,14 +266,15 @@ export default function PayHeadCreate() {
           </div>
         </div>
 
+        <RightActionPanel actions={payHeadActions} />
       </div>
 
-      <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50">
-        <button onClick={() => navigate("/master/create")} className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium">&larr; Back to Masters</button>
-        <button onClick={handleSubmit} disabled={loading} className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium">
-          {loading ? "Saving..." : "Create"}
-        </button>
-      </div>
+      <MasterFormFooter
+        onCancel={() => navigate("/master/create")}
+        onSubmit={handleSubmit}
+        submitLabel="Create"
+        loading={loading}
+      />
     </div>
   );
 }

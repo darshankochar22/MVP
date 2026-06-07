@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
+import { FormRow, PageTitleBar, RightActionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
+import { useMasterShortcuts } from "@/hooks/useMasterShortcuts";
 import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
@@ -86,28 +87,11 @@ export default function EmployeeCategoryCreate() {
     }
   }, [form, companyId]);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        navigate("/master/create");
-      }
-      if (e.altKey && e.key.toLowerCase() === "a") {
-        e.preventDefault();
-        handleSubmit();
-      }
-      if (e.ctrlKey && e.key.toLowerCase() === "a") {
-        e.preventDefault();
-        handleSubmit();
-      }
-      if (e.altKey && e.key.toLowerCase() === "c") {
-        e.preventDefault();
-        navigate("/master/alter/employee-category");
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, navigate]);
+  useMasterShortcuts({
+    onAccept: handleSubmit,
+    onQuit: () => navigate("/master/create"),
+    onCreate: () => navigate("/master/alter/employee-category"),
+  });
 
   const categoryActions = [
     { key: "Alt+A", label: "Accept", onClick: handleSubmit },
@@ -119,18 +103,8 @@ export default function EmployeeCategoryCreate() {
     <div className="flex-1 flex flex-col h-full bg-white select-none">
       <PageTitleBar title="Employee Category Creation" subtitle={selectedCompany?.name} />
 
-      {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>• {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
-        </div>
-      )}
-      {success && (
-        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
-          <span>• {success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
-        </div>
-      )}
+      {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
+      {success && <AlertBanner type="success" message={success} onDismiss={() => setSuccess(null)} />}
 
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 flex flex-col min-w-0 bg-white">
@@ -160,18 +134,12 @@ export default function EmployeeCategoryCreate() {
         <RightActionPanel actions={categoryActions} />
       </div>
 
-      <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50">
-        <button onClick={() => navigate("/master/create")} className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium">
-          &larr; Back to Masters
-        </button>
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium font-sans"
-        >
-          {loading ? "Saving..." : "Create"}
-        </button>
-      </div>
+      <MasterFormFooter
+        onCancel={() => navigate("/master/create")}
+        onSubmit={handleSubmit}
+        submitLabel="Create"
+        loading={loading}
+      />
     </div>
   );
 }

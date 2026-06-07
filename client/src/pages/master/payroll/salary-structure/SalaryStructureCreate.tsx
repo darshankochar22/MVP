@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import { FormRow, PageTitleBar } from "@/components/ui";
+import { FormRow, PageTitleBar, RightActionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
+import { useMasterShortcuts } from "@/hooks/useMasterShortcuts";
 import type { EmployeeType } from "@/types/entities/Employee";
 import type { PayHeadType } from "@/types/entities/Payroll";
 import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
-const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
+const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-56";
 
 interface SalaryEntry {
   pay_head_id: number;
@@ -61,12 +62,22 @@ export default function SalaryStructureCreate() {
     saveFormState(persistKey, { employeeId, effectiveFrom, entries });
   }, [persistKey, employeeId, effectiveFrom, entries]);
 
-  const handleSubmit = useCallback(async () => {
-    if (!employeeId) { setError("Please select an employee."); return; }
-    if (!effectiveFrom) { setError("Effective date is required."); return; }
-    if (!companyId) { setError("No company selected."); return; }
+  const validate = (): string | null => {
+    if (!employeeId) return "Please select an employee.";
+    if (!effectiveFrom) return "Effective date is required.";
+    if (!companyId) return "No company selected.";
+    return null;
+  };
 
-    setLoading(true); setError(null);
+  const handleSubmit = useCallback(async () => {
+    const err = validate();
+    if (err) {
+      setError(err);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
     try {
       const bulk = entries
         .filter(e => e.amount > 0)
@@ -99,38 +110,30 @@ export default function SalaryStructureCreate() {
     } finally {
       setLoading(false);
     }
-  }, [employeeId, effectiveFrom, entries, companyId]);
+  }, [employeeId, effectiveFrom, entries, companyId, persistKey]);
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") { e.preventDefault(); navigate("/master/create"); }
-      if (e.altKey && e.key.toLowerCase() === "a") { e.preventDefault(); handleSubmit(); }
-      if (e.ctrlKey && e.key.toLowerCase() === "a") { e.preventDefault(); handleSubmit(); }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, navigate]);
+  useMasterShortcuts({
+    onAccept: handleSubmit,
+    onQuit: () => navigate("/master/create"),
+    onCreate: () => navigate("/master/alter/salary-structure"),
+  });
+
+  const salaryActions = [
+    { key: "Alt+A", label: "Accept", onClick: handleSubmit },
+    { key: "Alt+C", label: "Alter Mode", onClick: () => navigate("/master/alter/salary-structure") },
+    { key: "Esc", label: "Quit", onClick: () => navigate("/master/create") },
+  ];
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none">
       <PageTitleBar title="Salary Structure Creation" subtitle={selectedCompany?.name} />
 
-      {error && (
-        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center">
-          <span>* {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold">&times;</button>
-        </div>
-      )}
-      {success && (
-        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center">
-          <span>* {success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold">&times;</button>
-        </div>
-      )}
+      {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
+      {success && <AlertBanner type="success" message={success} onDismiss={() => setSuccess(null)} />}
 
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 flex flex-col min-w-0 bg-white border-r border-zinc-100">
-          <div className="p-3 space-y-1 max-w-2xl">
+          <div className="p-3 space-y-1.5 max-w-2xl">
             <FormRow label="Employee" required labelWidth="w-56" className="flex items-center min-h-[26px]">
               <select autoFocus className={selectCls} value={employeeId} onChange={e => setEmployeeId(e.target.value)}>
                 <option value="">Select Employee</option>
@@ -147,8 +150,8 @@ export default function SalaryStructureCreate() {
           <div className="border-t border-zinc-200 flex-1 overflow-y-auto">
             <div className="px-3 py-2 bg-zinc-50 border-b border-zinc-200 text-[10px] font-bold text-zinc-400 uppercase tracking-wider grid grid-cols-12 gap-1">
               <span className="col-span-5">Pay Head</span>
-              <span className="col-span-3">Amount</span>
-              <span className="col-span-4">Mode</span>
+              <span className="col-span-3 text-right">Amount</span>
+              <span className="col-span-4 text-center">Mode</span>
             </div>
             {entries.map((entry, i) => (
               <div key={entry.pay_head_id} className="grid grid-cols-12 gap-1 px-2 py-1 border-b border-zinc-100 items-center hover:bg-zinc-50/50">
@@ -161,7 +164,7 @@ export default function SalaryStructureCreate() {
                   onChange={ev => setEntries(es => es.map((en, idx) => idx === i ? { ...en, amount: Number(ev.target.value) } : en))}
                 />
                 <select
-                  className={`${selectCls} col-span-4 text-xs`}
+                  className={`${selectCls} col-span-4 text-xs max-w-[150px] mx-auto`}
                   value={entry.calculation_mode}
                   onChange={ev => setEntries(es => es.map((en, idx) => idx === i ? { ...en, calculation_mode: ev.target.value } : en))}
                 >
@@ -175,14 +178,16 @@ export default function SalaryStructureCreate() {
             ))}
           </div>
         </div>
+
+        <RightActionPanel actions={salaryActions} />
       </div>
 
-      <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50">
-        <button onClick={() => navigate("/master/create")} className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium">&larr; Back to Masters</button>
-        <button onClick={handleSubmit} disabled={loading} className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium">
-          {loading ? "Saving..." : "Create"}
-        </button>
-      </div>
+      <MasterFormFooter
+        onCancel={() => navigate("/master/create")}
+        onSubmit={handleSubmit}
+        submitLabel="Create"
+        loading={loading}
+      />
     </div>
   );
 }

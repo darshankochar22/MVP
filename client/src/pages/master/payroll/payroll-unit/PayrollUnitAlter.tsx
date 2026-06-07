@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import { FormRow, PageTitleBar, SearchInput, DataTable } from "@/components/ui";
+import { FormRow, PageTitleBar, MasterSelectionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
+import { useMasterShortcuts } from "@/hooks/useMasterShortcuts";
 import type { PayrollUnitType } from "@/types/entities/Payroll";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
@@ -66,23 +67,55 @@ export default function PayrollUnitAlter() {
     finally { setLoading(false); }
   }, [selectedUnit, loadUnits]);
 
-  const selectableUnits = units.filter(u => !u.is_predefined);
+  useMasterShortcuts({
+    onAccept: handleSubmit,
+    onDelete: selectedUnit && !selectedUnit.is_predefined ? handleDelete : undefined,
+    onQuit: () => {
+      if (selectedUnit) setSelectedUnit(null);
+      else navigate("/master/alter");
+    },
+  });
 
   if (!selectedUnit) {
-  const _selActions: any = []; void _selActions;
+    const columns = [
+      {
+        key: "symbol",
+        label: "Symbol",
+        span: "col-span-4",
+        render: (r: PayrollUnitType) => <span className="font-bold text-zinc-950 uppercase">{r.symbol}</span>,
+      },
+      {
+        key: "formal_name",
+        label: "Formal Name",
+        span: "col-span-5",
+        render: (r: PayrollUnitType) => <span className="text-zinc-600">{r.formal_name || "—"}</span>,
+      },
+      {
+        key: "unit_type",
+        label: "Type",
+        span: "col-span-3",
+        render: (r: PayrollUnitType) => <span className="text-zinc-400 uppercase text-[10px]">{r.unit_type || "Simple"}</span>,
+      },
+    ];
+
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none">
-        <PageTitleBar title="Alter Payroll Unit" subtitle="Select Unit to Alter" />
-        <div className="flex-1 flex min-h-0">
-          <div className="flex-1 flex flex-col min-w-0">
-            <SearchInput value="" onChange={() => {}} placeholder="Filter units..." />
-            <div className="flex-1 overflow-y-auto">
-              <DataTable columns={[{ key: "symbol", label: "Symbol", span: "col-span-4", render: (r: PayrollUnitType) => <span className="font-bold uppercase">{r.symbol}</span> }, { key: "formal_name", label: "Formal Name", span: "col-span-5", render: (r: PayrollUnitType) => <span className="text-zinc-600">{r.formal_name || "-"}</span> }, { key: "unit_type", label: "Type", span: "col-span-3", render: (r: PayrollUnitType) => <span className="text-zinc-400 uppercase text-[10px]">{r.unit_type || "Simple"}</span> }]} rows={selectableUnits} rowKey={(r) => String(r.payroll_unit_id)} onRowClick={handleSelectUnit} />
-            </div>
-          </div>
-        </div>
-        <div className="border-t p-3 bg-zinc-50"><button onClick={() => navigate("/master/alter")} className="text-xs text-zinc-500">&larr; Back</button></div>
-      </div>
+      <MasterSelectionPanel
+        title="Alter Payroll Unit"
+        subtitle="Select Unit to Alter"
+        searchPlaceholder="Search units by symbol or name…"
+        items={units}
+        filterFn={(u, search) =>
+          u.symbol.toLowerCase().includes(search.toLowerCase()) ||
+          (u.formal_name && u.formal_name.toLowerCase().includes(search.toLowerCase()))
+        }
+        columns={columns}
+        onSelect={handleSelectUnit}
+        onCancel={() => navigate("/master/alter")}
+        onCreate={() => navigate("/master/create/payroll-unit")}
+        createLabel="Create Unit"
+        rowKey={(r) => String(r.payroll_unit_id)}
+        emptyMessage="No payroll units found."
+      />
     );
   }
 
@@ -91,8 +124,8 @@ export default function PayrollUnitAlter() {
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none">
       <PageTitleBar title="Alter Payroll Unit" subtitle={selectedCompany?.name} />
-      {error && (<div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between"><span>* {error}</span><button onClick={() => setError(null)} className="text-red-500 font-bold">&times;</button></div>)}
-      {success && (<div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between"><span>* {success}</span><button onClick={() => setSuccess(null)} className="text-green-500 font-bold">&times;</button></div>)}
+      {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
+      {success && <AlertBanner type="success" message={success} onDismiss={() => setSuccess(null)} />}
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 flex flex-col min-w-0 bg-white border-r">
           <div className="p-3 space-y-1 max-w-2xl">
@@ -112,13 +145,14 @@ export default function PayrollUnitAlter() {
           <div className="flex-1" />
         </div>
       </div>
-      <div className="border-t p-3 flex justify-between bg-zinc-50">
-        <div className="flex gap-2">
-          <button onClick={() => setSelectedUnit(null)} className="text-xs text-zinc-500">&larr; Back</button>
-          {!selectedUnit?.is_predefined && <button onClick={handleDelete} disabled={loading} className="text-xs text-red-500 font-medium">Delete</button>}
-        </div>
-        <button onClick={handleSubmit} disabled={loading} className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50">{loading ? "Saving..." : "Accept"}</button>
-      </div>
+      <MasterFormFooter
+        onCancel={() => setSelectedUnit(null)}
+        onSubmit={handleSubmit}
+        onDelete={!selectedUnit.is_predefined ? handleDelete : undefined}
+        submitLabel="Accept"
+        cancelLabel="Back"
+        loading={loading}
+      />
     </div>
   );
 }

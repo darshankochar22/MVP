@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import { FormRow, PageTitleBar, SearchInput, DataTable } from "@/components/ui";
+import { FormRow, PageTitleBar, MasterSelectionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
+import { useMasterShortcuts } from "@/hooks/useMasterShortcuts";
 import type { EmployeeGroupType } from "@/types/entities/Employee";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
@@ -74,6 +75,18 @@ export default function EmployeeGroupAlter() {
     finally { setLoading(false); }
   }, [selectedGroup, loadGroups]);
 
+  useMasterShortcuts({
+    onAccept: handleSubmit,
+    onDelete: selectedGroup && !selectedGroup.is_predefined ? handleDelete : undefined,
+    onQuit: () => {
+      if (selectedGroup) {
+        setSelectedGroup(null);
+      } else {
+        navigate("/master/alter");
+      }
+    },
+  });
+
   const buildTree = (parentId: number | null): (EmployeeGroupType & { children?: EmployeeGroupType[] })[] => {
     return groups
       .filter(g => g.parent_group_id === parentId && g.employee_group_id !== selectedGroup?.employee_group_id)
@@ -92,24 +105,37 @@ export default function EmployeeGroupAlter() {
     ));
   };
 
-  const selectableGroups = groups.filter(g => !g.is_predefined);
-
   if (!selectedGroup) {
-    const selectionActions: any = [];
-    void selectionActions;
+    const columns = [
+      {
+        key: "name",
+        label: "Group Name",
+        span: "col-span-8",
+        render: (r: EmployeeGroupType) => <span className="font-bold text-zinc-950 uppercase">{r.name}</span>,
+      },
+      {
+        key: "alias",
+        label: "Alias",
+        span: "col-span-4",
+        render: (r: EmployeeGroupType) => <span className="text-zinc-500">{r.alias || "—"}</span>,
+      },
+    ];
+
     return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none">
-        <PageTitleBar title="Alter Employee Group" subtitle="Select Group to Alter" />
-        <div className="flex-1 flex min-h-0">
-          <div className="flex-1 flex flex-col min-w-0">
-            <SearchInput value="" onChange={() => {}} placeholder="Filter groups..." />
-            <div className="flex-1 overflow-y-auto">
-              <DataTable columns={[{ key: "name", label: "Group Name", span: "col-span-8", render: (r: EmployeeGroupType) => <span className="font-medium">{r.name}</span> }, { key: "alias", label: "Alias", span: "col-span-4", render: (r: EmployeeGroupType) => <span className="text-zinc-500">{r.alias || "-"}</span> }]} rows={selectableGroups} rowKey={(r) => String(r.employee_group_id)} onRowClick={handleSelectGroup} />
-            </div>
-          </div>
-        </div>
-        <div className="border-t border-zinc-200 p-3 flex justify-between bg-zinc-50"><button onClick={() => navigate("/master/alter")} className="text-xs text-zinc-500">&larr; Back</button></div>
-      </div>
+      <MasterSelectionPanel
+        title="Alter Employee Group"
+        subtitle="Select Group to Alter"
+        searchPlaceholder="Search groups by name…"
+        items={groups}
+        filterFn={(g, search) => g.name.toLowerCase().includes(search.toLowerCase())}
+        columns={columns}
+        onSelect={handleSelectGroup}
+        onCancel={() => navigate("/master/alter")}
+        onCreate={() => navigate("/master/create/employee-group")}
+        createLabel="Create Group"
+        rowKey={(r) => String(r.employee_group_id)}
+        emptyMessage="No employee groups found."
+      />
     );
   }
 
@@ -118,8 +144,8 @@ export default function EmployeeGroupAlter() {
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none">
       <PageTitleBar title="Alter Employee Group" subtitle={selectedCompany?.name} />
-      {error && (<div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center"><span>* {error}</span><button onClick={() => setError(null)} className="text-red-500 font-bold">&times;</button></div>)}
-      {success && (<div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center"><span>* {success}</span><button onClick={() => setSuccess(null)} className="text-green-500 font-bold">&times;</button></div>)}
+      {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
+      {success && <AlertBanner type="success" message={success} onDismiss={() => setSuccess(null)} />}
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 flex flex-col min-w-0 bg-white border-r border-zinc-100">
           <div className="p-3 space-y-1 max-w-2xl">
@@ -142,13 +168,14 @@ export default function EmployeeGroupAlter() {
           </div>
         )}
       </div>
-      <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50">
-        <div className="flex gap-2">
-          <button onClick={() => setSelectedGroup(null)} className="text-xs text-zinc-500 hover:text-zinc-800">&larr; Back</button>
-          {!selectedGroup.is_predefined && <button onClick={handleDelete} disabled={loading} className="text-xs text-red-500 hover:text-red-700 font-medium">Delete</button>}
-        </div>
-        <button onClick={handleSubmit} disabled={loading} className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50">{loading ? "Saving..." : "Accept"}</button>
-      </div>
+      <MasterFormFooter
+        onCancel={() => setSelectedGroup(null)}
+        onSubmit={handleSubmit}
+        onDelete={!selectedGroup.is_predefined ? handleDelete : undefined}
+        submitLabel="Accept"
+        cancelLabel="Back"
+        loading={loading}
+      />
     </div>
   );
 }
