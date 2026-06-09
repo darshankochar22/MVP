@@ -56,10 +56,13 @@ export default function GSTClassificationFormFields({
         <FormRow label="HSN / SAC" labelWidth="w-64" className="flex items-center min-h-[26px]">
           <input
             disabled={hsnDisabled}
+            inputMode="numeric"
+            pattern="[0-9]*"
             className={`${inputCls} ${dis()}`}
             placeholder="Enter HSN or SAC code"
             value={form.hsn_sac_code}
             onChange={setField("hsn_sac_code")}
+            maxLength={8}
           />
         </FormRow>
 
