@@ -39,13 +39,17 @@ const seedDefaultGSTClassifications = async (company_id) => {
         sgst_rate, sgst_valuation_type,
         cess_rate, cess_valuation_type,
         is_predefined, is_active
-      ) VALUES (?, ?, null, null, ?, ?, ?, 0, 0, ?, 'Based on Value', ?, 'Based on Value', ?, 'Based on Value', ?, 'Based on Value', 1, 1)`,
+      ) VALUES (?, ?, null, null, ?, ?, ?, 0, 0, 'Fixed Rate', ?, 'Based on Value', ?, 'Based on Value', ?, 'Based on Value', ?, 'Based on Value', 1, 1)`,
       [
-        company_id, g.name,
+        company_id,
+        g.name,
         g.is_non_gst_goods ?? 0,
         g.nature_of_transaction,
         g.taxability,
-        g.igst_rate, g.cgst_rate, g.sgst_rate, g.cess_rate,
+        g.igst_rate,
+        g.cgst_rate,
+        g.sgst_rate,
+        g.cess_rate,
       ]
     );
   }

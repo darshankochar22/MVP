@@ -155,7 +155,16 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
             : "Not Defined",
         is_non_gst_goods: classification.is_non_gst_goods === 1 ? "Yes" : "No",
         slabRows: classification.rate_type === "Slab Based"
-          ? (classification.slab_rows && classification.slab_rows.length > 0 ? classification.slab_rows : [DEFAULT_GST_SLAB])
+          ? (classification.slab_rows && classification.slab_rows.length > 0
+              ? classification.slab_rows.map((row) => ({
+                  greater_than: row.greater_than ?? "0",
+                  up_to: row.up_to ?? "",
+                  taxability: (row.taxability === "Taxable" || row.taxability === "Exempt" || row.taxability === "Nil Rated")
+                    ? row.taxability
+                    : "Taxable",
+                  gst_rate: row.gst_rate ?? "0",
+                }))
+              : [DEFAULT_GST_SLAB])
           : [DEFAULT_GST_SLAB],
         nature_of_transaction: classification.nature_of_transaction ?? "Not Applicable",
         taxability: (classification.taxability as any) ?? "Unknown",
