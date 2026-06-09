@@ -60,6 +60,7 @@ export function useVoucherForm(
     fetchLedgerBalance: ledgers.fetchLedgerBalance,
     voucherType: effectiveVoucherType,
     allUnits: ledgers.allUnits,
+    stockBalances: ledgers.stockBalances,
   });
 
   // ── Track whether the first render has passed so auto-save doesn't overwrite ─
@@ -245,6 +246,9 @@ export function useVoucherForm(
       );
       if (filledItems.length === 0) return "At least one Stock Item with quantity and rate is required.";
       if (rows.totalAmount <= 0) return "Total amount must be greater than zero.";
+      if (rows.negativeStockWarnings?.length > 0) {
+        return `Negative Stock: ${rows.negativeStockWarnings[0]}`;
+      }
     }
 
     if (effectiveVoucherType === "Manufacturing Journal") {
@@ -256,6 +260,9 @@ export function useVoucherForm(
       );
       if (filledSource.length === 0 && filledDest.length === 0) {
         return "At least one Stock Item is required (either Source or Destination).";
+      }
+      if (rows.negativeStockWarnings?.length > 0) {
+        return `Negative Stock: ${rows.negativeStockWarnings[0]}`;
       }
     }
 
@@ -275,6 +282,9 @@ export function useVoucherForm(
       );
       if (filledSource.length === 0 && filledDest.length === 0) {
         return "At least one Stock Item is required (either Source or Destination).";
+      }
+      if (rows.negativeStockWarnings?.length > 0) {
+        return `Negative Stock: ${rows.negativeStockWarnings[0]}`;
       }
     }
 
@@ -613,6 +623,7 @@ export function useVoucherForm(
     // ── Master data
     allLedgers: ledgers.allLedgers,
     allStockItems: ledgers.allStockItems,
+    stockBalances: ledgers.stockBalances,
     allGodowns: ledgers.allGodowns,
     allUnits: ledgers.allUnits,
     allEmployees: ledgers.allEmployees,
@@ -718,6 +729,7 @@ export function useVoucherForm(
     checkIsCash: ledgers.checkIsCash,
     checkIsBank: ledgers.checkIsBank,
     checkLedgerGroup: ledgers.checkLedgerGroup,
+    negativeStockWarnings: rows.negativeStockWarnings,
     companyId,
     fyId,
   };

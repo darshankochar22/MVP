@@ -1,5 +1,5 @@
 // hooks/useInventoryRows.ts
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { LedgerType } from "../../../types/api";
 import type { ParticularRow, StockEntryRow } from "../types";
 import { makeParticularRow, makeStockRow } from "../utils/rowFactories";
@@ -9,6 +9,7 @@ interface UseInventoryRowsOptions {
   initialAdditionalEntries?: ParticularRow[];
   fetchLedgerBalance: (ledgerId: number) => Promise<string>;
   voucherType: string;
+  stockBalances: Record<number, number>;
 }
 
 export function useInventoryRows({
@@ -16,6 +17,7 @@ export function useInventoryRows({
   initialAdditionalEntries = [],
   fetchLedgerBalance,
   voucherType,
+  stockBalances,
 }: UseInventoryRowsOptions) {
   // ── Party + Sales/Purchase ─────────────────────────────────────────────────
   const [partyLedger, setPartyLedger] = useState<LedgerType | null>(null);
@@ -90,6 +92,43 @@ export function useInventoryRows({
   const [destinationStockEntries, setDestinationStockEntries] = useState<StockEntryRow[]>(
     () => [makeStockRow()]
   );
+
+  // ── Negative stock warnings ───────────────────────────────────────────────
+  const stockOutTypes = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out', 'Debit Note'];
+
+  const negativeStockWarnings = useMemo(() => {
+    if (!stockOutTypes.includes(voucherType) && voucherType !== 'Stock Journal' && voucherType !== 'Manufacturing Journal') {
+      return [];
+    }
+    const warnings: string[] = [];
+    const cumulativeOut: Record<number, number> = {};
+
+    const checkRow = (r: StockEntryRow) => {
+      if (!r.stockItem) return;
+      const id = r.stockItem.item_id;
+      if (!id) return;
+      const qty = Number(r.quantityRaw) || 0;
+      if (qty <= 0) return;
+      cumulativeOut[id] = (cumulativeOut[id] || 0) + qty;
+    };
+
+    stockEntries.forEach(checkRow);
+    if (voucherType === 'Stock Journal' || voucherType === 'Manufacturing Journal') {
+      sourceStockEntries.forEach(checkRow);
+    }
+
+    for (const [itemId, outQty] of Object.entries(cumulativeOut)) {
+      const balance = stockBalances[Number(itemId)] ?? 0;
+      if (outQty > balance) {
+        const item = stockEntries.find((r) => r.stockItem?.item_id === Number(itemId))?.stockItem
+          ?? sourceStockEntries.find((r) => r.stockItem?.item_id === Number(itemId))?.stockItem;
+        const name = item?.name ?? `Item #${itemId}`;
+        warnings.push(`${name}: Available ${balance.toFixed(2)}, entering ${outQty.toFixed(2)}`);
+      }
+    }
+
+    return warnings;
+  }, [voucherType, stockEntries, sourceStockEntries, stockBalances]);
 
   const handleAddSourceStockRow = useCallback(() => {
     setSourceStockEntries((prev) => [...prev, makeStockRow()]);
@@ -185,5 +224,6 @@ export function useInventoryRows({
     handleUpdateAdditionalRow,
     handleRemoveAdditionalRow,
     resetInventoryRows,
+    negativeStockWarnings,
   };
 }

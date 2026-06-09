@@ -28,5 +28,6 @@ export interface InventoryAPI {
     delete: ( id: number) => Promise<{ success: boolean; error?: string }>;
     getByGroup: ( args: { company_id: number; group_id: number }) => Promise<{ success: boolean; stockItems?: StockItemType[]; error?: string }>;
     getByCategory: ( args: { company_id: number; category_id: number } ) => Promise<{ success: boolean; stockItems?: StockItemType[]; error?: string }>;
+    getStockBalances: ( company_id: number ) => Promise<{ success: boolean; balances?: Record<number, number>; error?: string }>;
   };
 }

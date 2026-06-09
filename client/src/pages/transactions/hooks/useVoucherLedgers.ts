@@ -13,6 +13,7 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
   const [allLedgers, setAllLedgers] = useState<LedgerType[]>([]);
   const [allGroups, setAllGroups] = useState<GroupType[]>([]);
   const [allStockItems, setAllStockItems] = useState<StockItemType[]>([]);
+  const [stockBalances, setStockBalances] = useState<Record<number, number>>({});
   const [allGodowns, setAllGodowns] = useState<GodownType[]>([]);
   const [allUnits, setAllUnits] = useState<UnitType[]>([]);
   const [allEmployees, setAllEmployees] = useState<any[]>([]);
@@ -44,6 +45,12 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
       if (empRes.success) setAllEmployees((empRes as any).employees ?? []);
       if (attRes.success) setAllAttendanceTypes((attRes as any).attendanceTypes ?? []);
       if (phRes.success) setAllPayHeads((phRes as any).payHeads ?? []);
+
+      // Fetch stock balances
+      try {
+        const balRes = await window.api.stockItem.getStockBalances(companyId);
+        if (balRes.success && balRes.balances) setStockBalances(balRes.balances);
+      } catch { /* ignore */ }
     } catch {
       // silently ignore — user can retry
     } finally {
@@ -158,6 +165,7 @@ export function useVoucherLedgers({ companyId, fyId }: UseVoucherLedgersOptions)
     allLedgers,
     allGroups,
     allStockItems,
+    stockBalances,
     allGodowns,
     allUnits,
     allEmployees,

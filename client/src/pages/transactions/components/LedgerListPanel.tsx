@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react";
+import type { UnitType } from "../../../types/api";
 
 interface LedgerListPanelProps {
   title: string;
@@ -10,6 +11,8 @@ interface LedgerListPanelProps {
   onCreateNew: () => void;
   createLabel: string;
   height?: string;
+  stockBalances?: Record<number, number>;
+  allUnits?: UnitType[];
 }
 
 export default function LedgerListPanel({
@@ -22,6 +25,8 @@ export default function LedgerListPanel({
   onCreateNew,
   createLabel,
   height = "h-full",
+  stockBalances,
+  allUnits,
 }: LedgerListPanelProps) {
   const [hi, setHi] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
@@ -90,7 +95,7 @@ export default function LedgerListPanel({
           <div
             key={item.ledger_id ?? item.item_id ?? item.godown_id ?? item.employee_id ?? item.attendance_type_id ?? item.pay_head_id ?? idx}
             data-hi={idx === hi ? "true" : undefined}
-            className={`px-2 py-0.5 text-xs cursor-pointer select-none ${
+            className={`px-2 py-0.5 text-xs cursor-pointer select-none flex justify-between items-center ${
               idx === hi
                 ? "bg-[#f0c040] text-black font-semibold"
                 : "text-black hover:bg-gray-50"
@@ -98,7 +103,13 @@ export default function LedgerListPanel({
             onClick={() => onSelect(item)}
             onMouseEnter={() => setHi(idx)}
           >
-            {item.name}
+            <span>{item.name}</span>
+            {stockBalances && item.item_id != null && (
+              <span className="text-[10px] text-gray-500 tabular-nums">
+                {Number(stockBalances[item.item_id] ?? 0).toFixed(2)}{" "}
+                {allUnits?.find((u) => u.unit_id === item.unit_id)?.symbol ?? ""}
+              </span>
+            )}
           </div>
         ))}
         {filtered.length === 0 && (

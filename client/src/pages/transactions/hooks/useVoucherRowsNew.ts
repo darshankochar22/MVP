@@ -25,6 +25,7 @@ interface UseVoucherRowsOptions {
   fetchLedgerBalance: (ledgerId: number) => Promise<string>;
   voucherType: string;
   allUnits: UnitType[];
+  stockBalances: Record<number, number>;
 }
 
 export function useVoucherRows({
@@ -42,6 +43,7 @@ export function useVoucherRows({
   fetchLedgerBalance,
   voucherType,
   allUnits,
+  stockBalances,
 }: UseVoucherRowsOptions) {
   // ── Sub-hooks ──────────────────────────────────────────────────────────────
   const acct = useAccountingRows({
@@ -63,6 +65,7 @@ export function useVoucherRows({
     initialAdditionalEntries,
     fetchLedgerBalance,
     voucherType,
+    stockBalances,
   });
 
   // ── Active field / search ──────────────────────────────────────────────────
@@ -407,6 +410,8 @@ export function useVoucherRows({
     debitTotal,
     creditTotal,
     totalAmount,
+    // ── warnings
+    negativeStockWarnings: inv.negativeStockWarnings,
     // ── reset
     resetRows,
   };

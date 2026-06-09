@@ -22,4 +22,7 @@ module.exports = {
   getByCategory: async (event, { company_id, category_id }) => {
     return await stockItemService.getByCategory(company_id, category_id);
   },
+  getStockBalances: async (event, company_id) => {
+    return await stockItemService.getStockBalances(company_id);
+  },
 };

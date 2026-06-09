@@ -102,6 +102,7 @@ ipcMain.handle('stockItem:update', stockItemController.update);
 ipcMain.handle('stockItem:delete', stockItemController.delete);
 ipcMain.handle('stockItem:getByGroup', stockItemController.getByGroup);
 ipcMain.handle('stockItem:getByCategory', stockItemController.getByCategory);
+ipcMain.handle('stockItem:getStockBalances', stockItemController.getStockBalances);
 
 ipcMain.handle('godown:create', godownController.create);
 ipcMain.handle('godown:getAll', godownController.getAll);

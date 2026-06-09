@@ -1267,6 +1267,13 @@ export default function Vouchers() {
           }
         />
       )}
+      {form.negativeStockWarnings?.length > 0 && (
+        <AlertBanner
+          type="error"
+          message={`Negative Stock: ${form.negativeStockWarnings.join("; ")}`}
+          onDismiss={() => {}}
+        />
+      )}
 
       {/* ── Title bar ── */}
       <div className="flex items-center justify-between px-3 py-1 border-b border-black bg-white shrink-0">
@@ -1489,6 +1496,8 @@ export default function Vouchers() {
             createLabel={
               form.activeField?.type === "stockItem" ? "Create Stock Item" : "Create"
             }
+            stockBalances={form.activeField?.type === "stockItem" ? form.stockBalances : undefined}
+            allUnits={form.activeField?.type === "stockItem" ? form.allUnits : undefined}
           />
         )}
 

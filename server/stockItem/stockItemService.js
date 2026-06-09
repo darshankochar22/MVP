@@ -298,4 +298,58 @@ module.exports = {
       return { success: false, error: err.message };
     }
   },
+
+  // ── GET STOCK BALANCES ─────────────────────────────────────────────────────
+  getStockBalances: async (company_id) => {
+    try {
+      // Voucher types that increase stock quantity
+      const stockInTypes = [
+        'Purchase', 'Receipt Note', 'Rejection In', 'Material In', 'Credit Note',
+      ];
+
+      // Voucher types that decrease stock quantity
+      const stockOutTypes = [
+        'Sales', 'Delivery Note', 'Rejection Out', 'Material Out', 'Debit Note',
+      ];
+
+      const result = await db.execute({
+        sql: `
+          SELECT
+            si.item_id,
+            si.opening_quantity,
+            COALESCE(SUM(
+              CASE
+                WHEN v.voucher_type IN (${stockInTypes.map(() => '?').join(',')})
+                  THEN vse.quantity
+                WHEN v.voucher_type IN (${stockOutTypes.map(() => '?').join(',')})
+                  THEN -vse.quantity
+                WHEN v.voucher_type IN ('Stock Journal', 'Manufacturing Journal') AND vse.is_source = 0
+                  THEN vse.quantity
+                WHEN v.voucher_type IN ('Stock Journal', 'Manufacturing Journal') AND vse.is_source = 1
+                  THEN -vse.quantity
+                ELSE 0
+              END
+            ), 0) AS movement_qty
+          FROM stock_items si
+          LEFT JOIN voucher_stock_entries vse ON vse.stock_item_id = si.item_id
+          LEFT JOIN vouchers v ON v.voucher_id = vse.voucher_id AND v.is_cancelled = 0
+          WHERE si.company_id = ? AND si.is_active = 1
+          GROUP BY si.item_id
+          ORDER BY si.name ASC
+        `,
+        args: [...stockInTypes, ...stockOutTypes, company_id],
+      });
+
+      const balances = {};
+      for (const row of result.rows) {
+        const opening = Number(row.opening_quantity) || 0;
+        const movement = Number(row.movement_qty) || 0;
+        balances[row.item_id] = opening + movement;
+      }
+
+      return { success: true, balances };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
 };
