@@ -18,6 +18,13 @@ export interface GSTClassificationType {
   sgst_valuation_type?: string;
   cess_rate?: number;
   cess_valuation_type?: string;         
+  gst_rate_details?: string;
+  slab_rows?: Array<{
+    greater_than?: string;
+    up_to?: string;
+    taxability?: string;
+    gst_rate?: string;
+  }>;
   valuation_type?: string;            
   gst_rate?: number;                    
   is_predefined?: number;

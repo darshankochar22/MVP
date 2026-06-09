@@ -131,37 +131,52 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
     }
   }, [loadClassifications, mode]);
 
-  const handleSelectClass = (c: GSTClassificationType) => {
-    setSelectedClass(c);
-    setForm({
-      name: c.name ?? "",
-      description: c.description ?? "",
-      hsn_sac_details: c.hsn_sac_code ? "Specify Details Here" : "Not Defined",
-      hsn_sac_code: c.hsn_sac_code ?? "",
-      gst_rate_details: c.rate_type === "Slab Based"
-        ? "Specify Slab-Based Rates"
-        : ((c.igst_rate ?? 0) > 0 || (c.taxability && c.taxability !== "Unknown"))
-          ? "Specify Details Here"
-          : "Not Defined",
-      is_non_gst_goods: c.is_non_gst_goods === 1 ? "Yes" : "No",
-      slabRows: c.rate_type === "Slab Based" ? [DEFAULT_GST_SLAB] : [DEFAULT_GST_SLAB],
-      nature_of_transaction: c.nature_of_transaction ?? "Not Applicable",
-      taxability: (c.taxability as any) ?? "Unknown",
-      is_reverse_charge: c.is_reverse_charge === 1 ? "Yes" : "No",
-      is_ineligible_for_itc: c.is_ineligible_for_itc === 1 ? "Yes" : "No",
-      rate_type: c.rate_type === "Slab Based" ? "Slab Based" : "Fixed Rate",
-      igst_rate: String(c.igst_rate ?? 0),
-      igst_valuation_type: (c.igst_valuation_type as any) ?? "Based on Value",
-      cgst_rate: String(c.cgst_rate ?? 0),
-      cgst_valuation_type: (c.cgst_valuation_type as any) ?? "Based on Value",
-      sgst_rate: String(c.sgst_rate ?? 0),
-      sgst_valuation_type: (c.sgst_valuation_type as any) ?? "Based on Value",
-      cess_rate: String(c.cess_rate ?? 0),
-      cess_valuation_type: (c.cess_valuation_type as any) ?? "Based on Value",
-    });
+  const handleSelectClass = useCallback(async (c: GSTClassificationType) => {
+    if (!c.gc_id) return;
+    setLoading(true);
     setError(null);
-    setSuccess(null);
-  };
+    try {
+      const result = await window.api.gstClassification.getById(c.gc_id);
+      if (!result.success) {
+        setError(result.error || "Unable to load selected GST classification.");
+        return;
+      }
+      const classification = result.classification;
+      setSelectedClass(classification);
+      setForm({
+        name: classification.name ?? "",
+        description: classification.description ?? "",
+        hsn_sac_details: classification.hsn_sac_code ? "Specify Details Here" : "Not Defined",
+        hsn_sac_code: classification.hsn_sac_code ?? "",
+        gst_rate_details: classification.rate_type === "Slab Based"
+          ? "Specify Slab-Based Rates"
+          : ((classification.igst_rate ?? 0) > 0 || (classification.taxability && classification.taxability !== "Unknown"))
+            ? "Specify Details Here"
+            : "Not Defined",
+        is_non_gst_goods: classification.is_non_gst_goods === 1 ? "Yes" : "No",
+        slabRows: classification.rate_type === "Slab Based"
+          ? (classification.slab_rows && classification.slab_rows.length > 0 ? classification.slab_rows : [DEFAULT_GST_SLAB])
+          : [DEFAULT_GST_SLAB],
+        nature_of_transaction: classification.nature_of_transaction ?? "Not Applicable",
+        taxability: (classification.taxability as any) ?? "Unknown",
+        is_reverse_charge: classification.is_reverse_charge === 1 ? "Yes" : "No",
+        is_ineligible_for_itc: classification.is_ineligible_for_itc === 1 ? "Yes" : "No",
+        rate_type: classification.rate_type === "Slab Based" ? "Slab Based" : "Fixed Rate",
+        igst_rate: String(classification.igst_rate ?? 0),
+        igst_valuation_type: (classification.igst_valuation_type as any) ?? "Based on Value",
+        cgst_rate: String(classification.cgst_rate ?? 0),
+        cgst_valuation_type: (classification.cgst_valuation_type as any) ?? "Based on Value",
+        sgst_rate: String(classification.sgst_rate ?? 0),
+        sgst_valuation_type: (classification.sgst_valuation_type as any) ?? "Based on Value",
+        cess_rate: String(classification.cess_rate ?? 0),
+        cess_valuation_type: (classification.cess_valuation_type as any) ?? "Based on Value",
+      });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Unable to load selected GST classification.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const handleIGSTChange = (val: string) => {
     const num = Number(val) || 0;
@@ -187,7 +202,10 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
   const setField = (key: keyof FormData) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
-    const val = e.target.value;
+    let val = e.target.value;
+    if (key === "hsn_sac_code") {
+      val = val.replace(/\D/g, "").slice(0, 8);
+    }
     if (key === "igst_rate") {
       handleIGSTChange(val);
     } else if (key === "gst_rate_details") {
@@ -222,6 +240,13 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
         if (slab.up_to && (isNaN(upToValue) || upToValue < 0)) return `Slab ${idx + 1}: Up To must be a valid non-negative number.`;
         if (slab.up_to && upToValue !== null && upToValue < gtValue) return `Slab ${idx + 1}: Up To must be greater than or equal to Greater Than.`;
         if (isNaN(slabRate) || slabRate < 0 || slabRate > 100) return `Slab ${idx + 1}: GST Rate must be between 0 and 100.`;
+      }
+    }
+
+    if (form.hsn_sac_details === "Specify Details Here") {
+      const code = form.hsn_sac_code.trim();
+      if (!/^\d{0,8}$/.test(code) || code.length > 8) {
+        return "HSN/SAC should be maximum 8 digits long.";
       }
     }
 

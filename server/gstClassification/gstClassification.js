@@ -21,6 +21,7 @@ const init = async (db) => {
       cess_rate               REAL DEFAULT 0,
       cess_valuation_type     TEXT DEFAULT 'Based on Value',
       gst_rate                REAL DEFAULT 0,
+      gst_rate_details        TEXT,
       valuation_type          TEXT DEFAULT 'Based on Value',
       is_predefined           INTEGER DEFAULT 0,
       is_active               INTEGER DEFAULT 1,
@@ -42,6 +43,7 @@ const init = async (db) => {
     cgst_valuation_type: "TEXT DEFAULT 'Based on Value'",
     sgst_valuation_type: "TEXT DEFAULT 'Based on Value'",
     cess_valuation_type: "TEXT DEFAULT 'Based on Value'",
+    gst_rate_details: "TEXT",
     valuation_type: "TEXT DEFAULT 'Based on Value'",
   };
 

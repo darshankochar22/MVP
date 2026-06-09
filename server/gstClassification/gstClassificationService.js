@@ -1,5 +1,20 @@
 const { db } = require('../db/index');
 
+const parseSlabRows = (classification) => {
+  if (!classification) return classification;
+  const result = { ...classification };
+  if (typeof result.gst_rate_details === 'string' && result.gst_rate_details.trim()) {
+    try {
+      result.slab_rows = JSON.parse(result.gst_rate_details);
+    } catch (err) {
+      result.slab_rows = undefined;
+    }
+  } else {
+    result.slab_rows = undefined;
+  }
+  return result;
+};
+
 const seedDefaultGSTClassifications = async (company_id) => {
   const defaults = [
     { name: 'GST 0%',    igst_rate: 0,  cgst_rate: 0,   sgst_rate: 0,   cess_rate: 0, taxability: 'Taxable',  nature_of_transaction: 'Not Applicable' },
@@ -58,8 +73,9 @@ module.exports = {
           cgst_rate, cgst_valuation_type,
           sgst_rate, sgst_valuation_type,
           cess_rate, cess_valuation_type,
+          gst_rate_details,
           is_predefined, is_active
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           data.company_id,
           data.name,
@@ -79,6 +95,11 @@ module.exports = {
           data.sgst_valuation_type || 'Based on Value',
           data.cess_rate ?? 0,
           data.cess_valuation_type || 'Based on Value',
+          data.rate_type === 'Slab Based' && Array.isArray(data.slab_rows)
+            ? JSON.stringify(data.slab_rows)
+            : null,
+          0,
+          1,
         ]
       );
 
@@ -86,7 +107,7 @@ module.exports = {
         `SELECT * FROM gst_classifications WHERE gc_id = ?`,
         [result.lastInsertRowid]
       );
-      return { success: true, classification: classification.rows[0] };
+      return { success: true, classification: parseSlabRows(classification.rows[0]) };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -98,7 +119,10 @@ module.exports = {
         `SELECT * FROM gst_classifications WHERE company_id = ? AND is_active = 1`,
         [company_id]
       );
-      return { success: true, gstClassifications: result.rows };
+      return {
+        success: true,
+        gstClassifications: result.rows.map(parseSlabRows),
+      };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -111,7 +135,7 @@ module.exports = {
         [id]
       );
       if (result.rows.length === 0) return { success: false, error: 'GST Classification not found' };
-      return { success: true, classification: result.rows[0] };
+      return { success: true, classification: parseSlabRows(result.rows[0]) };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -146,6 +170,7 @@ module.exports = {
           sgst_valuation_type = ?,
           cess_rate = ?,
           cess_valuation_type = ?,
+          gst_rate_details = ?,
           updated_at = datetime('now')
         WHERE gc_id = ?`,
                 [
@@ -166,6 +191,9 @@ module.exports = {
           data.sgst_valuation_type ?? c.sgst_valuation_type,
           data.cess_rate         ?? c.cess_rate,
           data.cess_valuation_type ?? c.cess_valuation_type,
+          data.rate_type === 'Slab Based' && Array.isArray(data.slab_rows)
+            ? JSON.stringify(data.slab_rows)
+            : c.gst_rate_details || null,
           data.gc_id,
         ]
       );
@@ -174,7 +202,7 @@ module.exports = {
         `SELECT * FROM gst_classifications WHERE gc_id = ?`,
         [data.gc_id]
       );
-      return { success: true, classification: updated.rows[0] };
+      return { success: true, classification: parseSlabRows(updated.rows[0]) };
     } catch (err) {
       return { success: false, error: err.message };
     }
