@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import type { StockGroupType, UnitType } from "@/types/api";
+import type { StockGroupType, UnitType, GodownType } from "@/types/api";
 import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import BomListModal from "./components/BomListModal";
 import BomComponentsModal, { type BomEntry } from "./components/BomComponentsModal";
 import ListSidePanel from "./components/ListSidePanel";
 import GSTStatutoryDetails from "./components/GSTStatutoryDetails";
+import OpeningBalanceAllocationModal from "./components/OpeningBalanceAllocationModal";
 import type { FormData, PanelType } from "./types";
 import {
   INITIAL_FORM_STATE,
@@ -31,11 +32,13 @@ export default function StockItemCreate() {
   );
   const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
   const [units, setUnits] = useState<UnitType[]>([]);
+  const [godowns, setGodowns] = useState<GodownType[]>([]);
   const [gstClassifications, setGstClassifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<PanelType>(null);
+  const [showAllocationModal, setShowAllocationModal] = useState(false);
 
   const updateFormFields = useCallback((updater: (prev: FormData) => Partial<FormData>) => {
     setForm(f => ({ ...f, ...updater(f) }));
@@ -66,6 +69,9 @@ export default function StockItemCreate() {
     });
     window.api.unit.getAll(cid).then(r => {
       if (r.success) setUnits(r.units ?? []);
+    });
+    window.api.godown.getAll(cid).then(r => {
+      if (r.success) setGodowns(r.godowns ?? []);
     });
     window.api.gstClassification.getAll(cid).then(r => {
       if (r.success) setGstClassifications(r.gstClassifications ?? []);
@@ -131,8 +137,9 @@ export default function StockItemCreate() {
         hsn_classification_id: gst.hsn_classification_id,
         reorder_level: 0,
         reorder_quantity: 0,
-        track_batches: 0,
-        track_expiry: 0,
+        track_batches: form.track_batches ? 1 : 0,
+        track_expiry: form.track_expiry ? 1 : 0,
+        allocations: form.allocations,
       });
       if (result.success) {
         setSuccess(`"${form.name}" created.`);
@@ -161,8 +168,14 @@ export default function StockItemCreate() {
       return;
     }
 
+    if (openingQty > 0 && form.allocations.length === 0 && (form.track_batches || godowns.length > 0)) {
+      setError("Please allocate the opening balance quantity to godowns/batches.");
+      setShowAllocationModal(true);
+      return;
+    }
+
     executeSave(boms);
-  }, [form, companyId, boms, gstClassifications]);
+  }, [form, companyId, boms, gstClassifications, openingQty, godowns]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -280,6 +293,47 @@ export default function StockItemCreate() {
                   </div>
                 </div>
               )}
+
+              {/* Maintain in batches */}
+              <div className="flex items-center min-h-[26px] mt-1">
+                <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Maintain in batches</span>
+                <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                <div className="flex-1">
+                  <select
+                    className="bg-transparent text-sm outline-none border-b border-zinc-300 focus:border-zinc-600 cursor-pointer font-mono"
+                    value={form.track_batches ? "Yes" : "No"}
+                    onChange={e => {
+                      const yes = e.target.value === "Yes";
+                      setForm(f => ({
+                        ...f,
+                        track_batches: yes,
+                        ...(!yes ? { track_expiry: false, allocations: [] } : {})
+                      }));
+                    }}
+                  >
+                    <option value="No">No</option>
+                    <option value="Yes">Yes</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Use expiry dates */}
+              {form.track_batches && (
+                <div className="flex items-center min-h-[26px] mt-1">
+                  <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans pl-4">Use expiry dates</span>
+                  <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
+                  <div className="flex-1">
+                    <select
+                      className="bg-transparent text-sm outline-none border-b border-zinc-300 focus:border-zinc-600 cursor-pointer font-mono"
+                      value={form.track_expiry ? "Yes" : "No"}
+                      onChange={e => setVal("track_expiry", e.target.value === "Yes")}
+                    >
+                      <option value="No">No</option>
+                      <option value="Yes">Yes</option>
+                    </select>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* RIGHT PANEL: Statutory Details */}
@@ -322,6 +376,16 @@ export default function StockItemCreate() {
                     <span className="text-xs text-zinc-500 shrink-0 font-sans">{selectedUnitLabel}</span>
                   )}
                 </div>
+                {/* Allocation button */}
+                {openingQty > 0 && (form.track_batches || godowns.length > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllocationModal(true)}
+                    className="ml-2 text-xs px-2 py-0.5 rounded border border-zinc-300 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-sans font-medium shrink-0 transition-colors"
+                  >
+                    {form.allocations.length > 0 ? `Allocated (${form.allocations.length})` : "Allocate"}
+                  </button>
+                )}
                 {/* Rate */}
                 <div className="w-24 ml-4 border-b border-zinc-400 focus-within:border-zinc-700">
                   <input
@@ -496,6 +560,22 @@ export default function StockItemCreate() {
           stockItemName={form.name}
           onClose={handleBomComponentsClose}
           onAccept={(entry) => handleBomAccept(entry, executeSave)}
+        />
+      )}
+      {showAllocationModal && (
+        <OpeningBalanceAllocationModal
+          itemName={form.name}
+          totalQuantity={openingQty}
+          defaultRate={openingRate}
+          trackBatches={form.track_batches}
+          trackExpiry={form.track_expiry}
+          godowns={godowns}
+          initialAllocations={form.allocations}
+          onAccept={(allocs) => {
+            setForm(f => ({ ...f, allocations: allocs }));
+            setShowAllocationModal(false);
+          }}
+          onClose={() => setShowAllocationModal(false)}
         />
       )}
     </div>
