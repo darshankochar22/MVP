@@ -7,7 +7,7 @@ const getMenu = async (company_id = 1) => {
 
     const menu = [];
 
-    const accountingItems = ["Group", "Ledger", "Currency", "Voucher Type"];
+    const accountingItems = ["Group", "Ledger","Cost Centre", "Currency", "Voucher Type"];
     if (features.enable_cost_centres) {
       accountingItems.push("Cost Centre");
     }

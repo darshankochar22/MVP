@@ -1,5 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import App from './App.tsx';
+import CostCentreCreate from "./pages/master/cost-centre/cost-centreCreate.tsx";
+import CostCentreAlter from "./pages/master/cost-centre/cost-centreAlter.tsx";
+import CostCentreCOA from "./pages/master/cost-centre/cost-centreCOA.tsx";
 import GenericDataView from './pages/GenericDataView.tsx';
 import Company from "./pages/company/Company.tsx";
 import CompanyCreate from "./pages/company/CompanyCreate.tsx";
@@ -85,6 +88,10 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/alter", element: <Alter />},
   { path: "/master/financial-years", element: <FinancialYears />},
   { path: "/master/coa", element: <COA />},
+
+  { path: "/master/create/cost-centre", element: <CostCentreCreate/>},
+  { path: "/master/alter/cost-centre", element: <CostCentreAlter/>},
+  { path: "/master/coa/cost-centre", element: <CostCentreCOA/>},
 
   { path: "/master/create/ledger", element: <LedgerCreate />},
   { path: "/master/alter/ledger", element: <LedgerAlter />},
