@@ -39,6 +39,7 @@ export default function Create() {
       "GST Registration": "/master/create/gst-registration",
       "GST Classification": "/master/create/gst-classification",
       "TCS Nature of Goods": "/master/create/tcs-nature-of-goods",
+      "Tax Units": "/master/create/tax-units",
       "Company GST Details": "/master/create/company-gst-details",
       "PAN / CIN Details": "/master/create/pan-cin-details",
       "Employee Category": "/master/create/employee-category",

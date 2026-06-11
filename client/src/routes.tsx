@@ -74,6 +74,9 @@ import AttendanceTypeAlter from "./pages/master/payroll/attendance-type/Attendan
 import PayHeadAlter from "./pages/master/payroll/pay-head/PayHeadAlter.tsx";
 import SalaryStructureAlter from "./pages/master/payroll/salary-structure/SalaryStructureAlter.tsx";
 import EmployeeCategoryAlter from "./pages/master/payroll/employee-category/EmployeeCategoryAlter.tsx";
+import TaxCreate from "./pages/master/statutory/Tax-units/taxCreate.tsx"; 
+import TaxCOA from "./pages/master/statutory/Tax-units/taxCOA.tsx"; 
+import TaxAlter from "./pages/master/statutory/Tax-units/taxAlter.tsx"; 
 
 export interface RouteConfig {
   path: string;
@@ -116,7 +119,14 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/create/tcs-nature-of-goods", element: <TCSNatureOfGoodsCreate /> },
   { path: "/master/alter/tcs-nature-of-goods", element: <TCSNatureOfGoodsAlter /> },
   { path: "/master/coa/tcs-nature-of-goods", element: <TCSNatureOfGoodsCOA /> },
+
   { path: "/master/statutory/gstr1", element: <GSTR1View /> },
+  
+  { path:"/master/create/Tax-units",element: <TaxCreate/>},
+  { path:"/master/alter/Tax-units",element: <TaxAlter/>},
+  { path:"/master/coa/Tax-units",element: <TaxCOA/>},
+
+  
 
   { path: "/master/create/group", element: <GroupCreate />},
   { path: "/master/alter/group", element: <GroupAlter />},
