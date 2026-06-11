@@ -256,4 +256,8 @@ contextBridge.exposeInMainWorld('api', {
         delete:        (id)              => invoke('attendance:delete', id),
         getNextNumber: (company_id)      => invoke('attendance:getNextNumber', { company_id }),
     },
+    companyGstDetails: {
+        get:  (company_id) => invoke('companyGstDetails:get', company_id),
+        save: (data)       => invoke('companyGstDetails:save', data),
+    },
 });

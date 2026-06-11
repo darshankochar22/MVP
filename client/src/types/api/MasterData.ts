@@ -2,8 +2,14 @@ import type { CurrencyType } from '../entities/Currency';
 import type { VoucherTypeType } from '../entities/VoucherType';
 import type { GSTRegistrationType } from '../entities/GSTRegistration';
 import type { GSTClassificationType } from '../entities/GSTClassification';
+import type { CompanyGSTDetails } from '../entities/CompanyGSTDetails';
 
 export interface MasterDataAPI {
+  companyGstDetails: {
+    get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: CompanyGSTDetails | null; error?: string }>;
+    save: (data: CompanyGSTDetails & { company_id: number }) => Promise<{ success: boolean; record?: any; error?: string }>;
+  };
+
   currency: {
     create: (data: Partial<CurrencyType>) => Promise<{ success: boolean; currency: CurrencyType; error?: string }>;
     getAll: (company_id: number) => Promise<{ success: boolean; currencies: CurrencyType[]; error?: string }>;
