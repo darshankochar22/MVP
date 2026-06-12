@@ -42,6 +42,7 @@ const eInvoiceController = require('./eInvoice/eInvoiceController');
 const whatsappController = require('./whatsapp/whatsappController');
 const physicalStockController = require('./physicalStock/physicalStockController');
 const attendanceController = require('./attendance/attendanceController');
+const companyGstDetailsController = require('./companyGstDetails/companyGstDetailsController');
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);
@@ -314,3 +315,6 @@ ipcMain.handle('whatsapp:sendStatement',       whatsappController.sendStatement)
 ipcMain.handle('whatsapp:sendText',            whatsappController.sendText);
 ipcMain.handle('whatsapp:getLogs',             whatsappController.getLogs);
 ipcMain.handle('whatsapp:verifyWebhook',       whatsappController.verifyWebhook);
+
+ipcMain.handle('companyGstDetails:get', companyGstDetailsController.get);
+ipcMain.handle('companyGstDetails:save', companyGstDetailsController.save);

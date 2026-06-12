@@ -28,8 +28,6 @@ const EXCISE_APPLICABLE_OPTIONS = [
   { id: "Undefined", label: "Undefined" },
 ];
 
-
-
 const YES_NO_OPTIONS = [
   { id: "Yes", label: "Yes" },
   { id: "No", label: "No" },

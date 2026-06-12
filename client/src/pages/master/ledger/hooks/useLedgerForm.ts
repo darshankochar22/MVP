@@ -16,6 +16,8 @@ export interface StatutoryDetails {
   type_of_duty_tax?: string;
   percentage_of_calculation?: number;
   statutory_details?: string;
+  additional_gst_details: number;
+  service_tax_details: number;
 }
 
 export const EMPTY_STATUTORY: StatutoryDetails = {
@@ -29,6 +31,8 @@ export const EMPTY_STATUTORY: StatutoryDetails = {
   type_of_duty_tax: "",
   percentage_of_calculation: 0,
   statutory_details: "",
+  additional_gst_details: 0,
+  service_tax_details: 0,
 };
 
 export const INITIAL_FORM: Partial<LedgerType> = {
@@ -48,12 +52,18 @@ export const INITIAL_FORM: Partial<LedgerType> = {
   gstin: "",
   pan: "",
   registration_type: "Unregistered",
+  additional_gst_details: 0,
+  service_tax_details: 0,
   default_credit_period: 0,
   check_credit_days: 0,
   allow_cost_centres: 0,
   invoice_rounding: 0,
   rounding_method: "",
   rounding_limit: 0,
+  include_assessable_value: "Not Applicable",
+  method_of_calculation: "Based on Value",
+  other_statutory_details: 0,
+  
 };
 
 interface UseLedgerFormOptions {
@@ -147,6 +157,7 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         lineage.isBank = true;
         lineage.isOD = true;
       }
+
       if (name === "duties & taxes" || name === "current assets") lineage.isTax = true;
       if (name === "sundry debtors" || name === "sundry creditors") lineage.isDebtorCreditor = true;
       if (
@@ -410,6 +421,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         invoice_rounding: form.invoice_rounding || 0,
         rounding_method: form.rounding_method || undefined,
         rounding_limit: form.rounding_limit || 0,
+        additional_gst_details: form.additional_gst_details ?? 0,
+        service_tax_details: form.service_tax_details ?? 0,
       };
 
       if (mode === "alter") {

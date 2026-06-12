@@ -22,6 +22,8 @@ export interface LedgerType {
   gstin?: string;
   pan?: string;
   registration_type?: string;
+  additional_gst_details?: number;
+  service_tax_details?: number;
   default_credit_period?: number;
   check_credit_days?: number;
   allow_cost_centres?: number;
@@ -32,7 +34,9 @@ export interface LedgerType {
   is_predefined?: number;
   created_at?: string;
   updated_at?: string;
-
+  include_assessable_value?: string;
+  method_of_calculation?: string;
+  other_statutory_details?: number;
   bank_details?: {
   account_holder_name?: string;
   account_number?: string;
