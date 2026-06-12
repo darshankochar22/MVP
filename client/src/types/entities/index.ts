@@ -20,3 +20,4 @@ export type { EmployeeCategoryType, EmployeeGroupType, EmployeeType } from './Em
 export type { PayrollUnitType, PayHeadType, SalaryStructureType, AttendanceTypeType } from './Payroll';
 export type { FeatureGroupType, FeatureItemType } from './Feature';
 export type { TallyFeaturesType } from './TallyFeatures';
+export type { CompanyGSTDetails } from './CompanyGSTDetails';
