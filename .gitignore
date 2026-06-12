@@ -49,3 +49,6 @@ coverage/
 *.orig
 *.rej
 *.patch
+
+package.json
+package-lock.json
