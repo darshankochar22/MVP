@@ -39,6 +39,8 @@ export default function Alter() {
       "GST Registration": "/master/alter/gst-registration",
       "GST Classification": "/master/alter/gst-classification",
       "Company GST Details": "modal",
+      "TCS Nature of Goods": "/master/alter/tcs-nature-of-goods",
+      "Tax Units": "/master/alter/tax-units",
       "Employee Category": "/master/alter/employee-category",
       "Employee Group": "/master/alter/employee-group",
       "Employee": "/master/alter/employee",
