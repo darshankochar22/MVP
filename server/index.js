@@ -43,6 +43,13 @@ const whatsappController = require('./whatsapp/whatsappController');
 const physicalStockController = require('./physicalStock/physicalStockController');
 const attendanceController = require('./attendance/attendanceController');
 const companyGstDetailsController = require('./companyGstDetails/companyGstDetailsController');
+const taxUnitController=require('./taxUnits/taxUnitController');
+
+ipcMain.handle('taxUnits:create',taxUnitController.create);
+ipcMain.handle('taxUnits:getAll',taxUnitController.getAll);
+ipcMain.handle('taxUnits:getById',taxUnitController.getById);
+ipcMain.handle('taxUnits:update',taxUnitController.update);
+ipcMain.handle('taxUnits:delete',taxUnitController.delete);
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);

@@ -13,6 +13,7 @@ import type { FeatureManagementAPI } from './FeatureManagement';
 import type { VoucherTypeAPI } from './VoucherType';
 import type { PhysicalStockAPI } from './PhysicalStock';
 import type { AttendanceAPI } from './Attendance';
+import type { TaxUnitAPI } from './taxUnits';
 
 export type {
   CompanyType,
@@ -44,6 +45,7 @@ export type {
   FeatureGroupType,
   FeatureItemType,
   TallyFeaturesType,
+  TaxUnitType,
 } from '../entities';
 
 export type WindowAPI = 
@@ -62,6 +64,7 @@ export type WindowAPI =
   & FeatureManagementAPI
   & PhysicalStockAPI
   & AttendanceAPI
+  & TaxUnitAPI
   & { app: { getDataPath: () => Promise<string> } };
 
 declare global {

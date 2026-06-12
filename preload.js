@@ -14,6 +14,13 @@ contextBridge.exposeInMainWorld('api', {
         delete:         (id)   => invoke('company:delete', id),
         verifyPassword: (data) => invoke('company:verifyPassword', data),
     },
+    taxUnits:{
+        create:         (data)=> invoke('taxUnits:create',data),
+        getAll:         (company_id)=> invoke('taxUnits:getAll',company_id),
+        getById:         (id) => invoke('taxUnits:getById',id),
+        update:           (data) => invoke('taxUnits:update', data),
+        delete:           (id) => invoke('taxUnits:delete',id),
+    },
     fy: {
         create:    (data)                  => invoke('fy:create', data),
         getAll:    (company_id)            => invoke('fy:getAll', company_id),
