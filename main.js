@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const isDev = !app.isPacakaged;
+const isDev = !app.isPackaged;
 
 ipcMain.handle("app:getDataPath", () => app.getPath("userData"));
 
@@ -25,20 +25,57 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
+
     try {
-        const { initDB, db } = require('./server/db/index');
+        const {
+            processPendingRestore
+        } = require(
+            "./server/backup/restoreManager"
+        );
+
+        await processPendingRestore();
+
+        const {
+            initDB,
+            db
+        } = require(
+            "./server/db/index"
+        );
+
         await initDB();
-        console.log('db type:', typeof db);
-        console.log('db.execute type:', typeof db?.execute);
-        require('./server/index.js');
+
+        const {
+            runAutoBackup
+        } = require(
+            "./server/backup/autoBackup"
+        );
+
+        await runAutoBackup();
+        require(
+            "./server/index.js"
+        );
+
         createWindow();
+
     } catch (err) {
-        console.error('DB init failed:', err);
+
+        console.error(
+            "DB init failed:",
+            err
+        );
+
         createWindow();
     }
 
-    app.on('activate', () => {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    app.on("activate", () => {
+
+        if (
+            BrowserWindow
+            .getAllWindows()
+            .length === 0
+        ) {
+            createWindow();
+        }
     });
 });
 

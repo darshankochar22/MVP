@@ -1,4 +1,6 @@
 import type { CompanyAPI } from './Company';
+import type { CompanyGSTDetailsAPI } from './CompanyGSTDetails';//priyambad
+import type { PANCINDetailsAPI } from './PANCINDetails'//priyambad
 import type { FinancialYearAPI } from './FinancialYear';
 import type { GroupAPI } from './Group';
 import type { LedgerAPI } from './Ledger';
@@ -61,6 +63,8 @@ export type WindowAPI =
   & FeatureManagementAPI
   & PhysicalStockAPI
   & AttendanceAPI
+  & CompanyGSTDetailsAPI //priyambad
+  & PANCINDetailsAPI //priyambad
   & { app: { getDataPath: () => Promise<string> } };
 
 declare global {

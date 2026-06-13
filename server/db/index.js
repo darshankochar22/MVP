@@ -1,15 +1,27 @@
 const { createClient } = require("@libsql/client");
 const path = require("path");
 const { app } = require("electron");
-
 const dbPath = `file:${path.join(app.getPath("userData"), "startup.db")}`;
 const db = createClient({ url: dbPath });
+const closeDB = async () => {
+    try {
+        if (db && typeof db.close === "function") {
+            await db.close();
+        }
+    } catch (err) {
+        console.error("DB close failed:", err);
+    }
+};
+const { init: initCompanyGSTDetails } = require('../companyGSTDetails/companyGSTDetails');//priyambad
+const { init: initPANCINDetails } = require('../panCINDetails/panCINDetails');//priyambad
 
 const initDB = async () => {
   await db.execute('PRAGMA journal_mode = WAL;');
   await db.execute('PRAGMA foreign_keys = ON;');
 
   await require('../company/company').init(db);
+  await initCompanyGSTDetails(db);//priyambad
+  await initPANCINDetails(db);//priyambad
   await require('../financialYear/financialYear').init(db);
   await require('../group/group').init(db);
   await require('../ledger/ledger').init(db);
@@ -49,6 +61,9 @@ const initDB = async () => {
   await require('../voucherEntryActions/voucherEntryActions').init(db);
   await require('../eInvoice/eInvoice').init(db);
   await require('../whatsapp/whatsapp').init(db);
+  await require('../backup/backupHistory').init(db);//priyambad
+  await require('../backup/backup').init(db); //priyambad
+  
 };
 
-module.exports = { db, initDB };
+module.exports = { db, initDB,closeDB, };

@@ -4,6 +4,8 @@ import GenericDataView from './pages/GenericDataView.tsx';
 import Company from "./pages/company/Company.tsx";
 import CompanyCreate from "./pages/company/CompanyCreate.tsx";
 import CompanyAlter from "./pages/company/AlterCompany.tsx";
+import CompanyGSTDetails from "./pages/company/CompanyGSTDetails.tsx";//priyambad
+import PANCINDetails from "./pages/company/PANCINDetails.tsx"; 
 import Create from "./pages/menu/Create.tsx";
 import Alter from "./pages/menu/Alter.tsx";
 import FinancialYears from "./pages/master/FinancialYears.tsx";
@@ -93,6 +95,9 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/create/currency", element: <CurrencyCreate /> },
   { path: "/master/alter/currency", element: <CurrencyAlter /> },
   { path: "/master/coa/currency", element: <CurrencyCOA /> },
+
+  { path: "/master/create/company-gst-details", element: <CompanyGSTDetails /> },// priyambad
+  { path: "/master/create/pan-cin-details", element: <PANCINDetails /> },//priyambad
 
   { path: "/master/create/voucher-type", element: <VoucherTypeCreate /> },
   { path: "/master/alter/voucher-type", element: <VoucherTypeAlter /> },

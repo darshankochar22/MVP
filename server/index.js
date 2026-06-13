@@ -1,6 +1,9 @@
 const { ipcMain } = require('electron');
 
 const companyController = require('./company/companyController');
+const companyGSTDetailsController = require('./companyGSTDetails/companyGSTDetailsController');//by priyambad
+const backupController = require('./backup/backupController');//priyambad
+const panCINDetailsController = require('./panCINDetails/panCINDetailsController');
 const financialYearController = require("./financialYear/financialYearController"); 
 const groupController = require('./group/groupController');
 const ledgerController = require('./ledger/ledgerController');
@@ -147,6 +150,12 @@ ipcMain.handle('currency:getById', currencyController.getById);
 ipcMain.handle('currency:update', currencyController.update);
 ipcMain.handle('currency:delete', currencyController.delete);
 ipcMain.handle('currency:setDefault', currencyController.setDefault);
+
+ipcMain.handle('companyGSTDetails:getByCompany', companyGSTDetailsController.getByCompany);//By priyambad
+ipcMain.handle('companyGSTDetails:upsert', companyGSTDetailsController.upsert);//by priyambad
+
+ipcMain.handle('panCINDetails:getByCompany', panCINDetailsController.getByCompany);
+ipcMain.handle('panCINDetails:upsert',       panCINDetailsController.upsert);
 
 ipcMain.handle('voucherType:create', voucherTypeController.create);
 ipcMain.handle('voucherType:getAll', voucherTypeController.getAll);
@@ -314,3 +323,10 @@ ipcMain.handle('whatsapp:sendStatement',       whatsappController.sendStatement)
 ipcMain.handle('whatsapp:sendText',            whatsappController.sendText);
 ipcMain.handle('whatsapp:getLogs',             whatsappController.getLogs);
 ipcMain.handle('whatsapp:verifyWebhook',       whatsappController.verifyWebhook);
+
+ipcMain.handle('backup:create',                backupController.createBackup);//priyambad
+ipcMain.handle('backup:getAll',                backupController.getBackups);//priyambad
+ipcMain.handle("backup:restore",               backupController.restoreBackup);//priyambad
+ipcMain.handle("backup:getHistory",            backupController.getBackupHistory);//priyambad
+ipcMain.handle("backup:getSettings",           backupController.getSettings);//priyambad
+ipcMain.handle("backup:updateSettings",        backupController.updateSettings);//priyambad

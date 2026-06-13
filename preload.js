@@ -14,6 +14,14 @@ contextBridge.exposeInMainWorld('api', {
         delete:         (id)   => invoke('company:delete', id),
         verifyPassword: (data) => invoke('company:verifyPassword', data),
     },
+    companyGSTDetails: {//priyambad
+        getByCompany: (company_id) => invoke('companyGSTDetails:getByCompany', company_id),
+        upsert:       (data)       => invoke('companyGSTDetails:upsert', data),
+    },
+    panCINDetails: {//priyambad
+        getByCompany: (company_id) => invoke('panCINDetails:getByCompany', company_id),
+        upsert:       (data)       => invoke('panCINDetails:upsert', data),
+    },
     fy: {
         create:    (data)                  => invoke('fy:create', data),
         getAll:    (company_id)            => invoke('fy:getAll', company_id),
@@ -262,5 +270,13 @@ contextBridge.exposeInMainWorld('api', {
         getById:       (id)              => invoke('attendance:getById', id),
         delete:        (id)              => invoke('attendance:delete', id),
         getNextNumber: (company_id)      => invoke('attendance:getNextNumber', { company_id }),
+    },
+    backup: {
+        create: ()                       =>invoke('backup:create'),
+        getAll: ()                       =>invoke('backup:getAll'),
+        restore: (filePath)              =>invoke("backup:restore", filePath),
+        getHistory: ()                   =>invoke("backup:getHistory"),
+        getSettings: ()                  =>invoke("backup:getSettings"),
+        updateSettings: (data)           =>invoke("backup:updateSettings", data),
     },
 });
