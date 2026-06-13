@@ -56,6 +56,8 @@ const initDB = async () => {
   await require('../trialBalanceReport/trialBalanceReport').init(db);
   await require('../salaryStructure/salaryStructure').init(db);
   await require('../taxUnits/taxUnit').init(db);
+  await require('../priceLevels/priceLevel').init(db);
+  await require('../priceList/priceList').init(db);
   await require('../voucherEntryActions/voucherEntryActions').init(db);
   await require('../eInvoice/eInvoice').init(db);
   await require('../whatsapp/whatsapp').init(db);
