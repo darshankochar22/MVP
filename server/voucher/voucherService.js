@@ -834,7 +834,7 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
         args: [id],
       });
       const payrollEntries = await db.execute({
-        sql: `SELECT pe.*, emp.name as employee_name, emp.employee_number, ph.name as pay_head_name
+        sql: `SELECT pe.*, emp.name as employee_name, emp.employee_code AS employee_number, ph.name as pay_head_name
               FROM voucher_payroll_entries pe
               LEFT JOIN employees emp ON emp.employee_id = pe.employee_id
               LEFT JOIN pay_heads ph ON ph.pay_head_id = pe.pay_head_id

@@ -18,7 +18,7 @@ const init = async (db) => {
     CREATE TABLE IF NOT EXISTS physical_stock_entry_lines (
       line_id                  INTEGER PRIMARY KEY AUTOINCREMENT,
       physical_stock_entry_id  INTEGER NOT NULL REFERENCES physical_stock_entries(physical_stock_entry_id) ON DELETE CASCADE,
-      stock_item_id            INTEGER REFERENCES stock_items(stock_item_id),
+      stock_item_id            INTEGER REFERENCES stock_items(item_id),
       godown_id                INTEGER REFERENCES godowns(godown_id),
       batch_no                 TEXT,
       lot_no                   TEXT,
