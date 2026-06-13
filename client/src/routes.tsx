@@ -1,6 +1,15 @@
 import { useNavigate } from "react-router-dom";
 import App from './App.tsx';
 import CostCentreCreate from "./pages/master/cost-centre/cost-centreCreate.tsx";
+import TDSDetailsCreate from "./pages/master/statutory-details/TDSDetails/TDSDetailsCreate.tsx";
+import TDSDetailsAlter from "./pages/master/statutory-details/TDSDetails/TDSDetailsAlter.tsx";
+import TDSDetailsCOA from "./pages/master/statutory-details/TDSDetails/TDSDetailsCOA.tsx";
+import TCSDetailsCreate from "./pages/master/statutory-details/TCSDetails/TCSDetailsCreate.tsx";
+import TCSDetailsAlter from "./pages/master/statutory-details/TCSDetails/TCSDetailsAlter.tsx";
+import TCSDetailsCOA from "./pages/master/statutory-details/TCSDetails/TCSDetailsCOA.tsx";
+import VATRDCreate from "./pages/master/statutory-details/VATRegistrationDetails/VATRDCreate.tsx";
+import VATRDAlter from "./pages/master/statutory-details/VATRegistrationDetails/VATRDAlter.tsx";
+import VATRDCOA from "./pages/master/statutory-details/VATRegistrationDetails/VATRDCOA.tsx";
 import CostCentreAlter from "./pages/master/cost-centre/cost-centreAlter.tsx";
 import CostCentreCOA from "./pages/master/cost-centre/cost-centreCOA.tsx";
 import GenericDataView from './pages/GenericDataView.tsx';
@@ -94,6 +103,18 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/alter", element: <Alter />},
   { path: "/master/financial-years", element: <FinancialYears />},
   { path: "/master/coa", element: <COA />},
+
+  {path: "/master/create/tds-details", element: <TDSDetailsCreate/>},
+  {path: "/master/alter/tds-details", element: <TDSDetailsAlter/>},
+  {path: "/master/alter/tds-details", element: <TDSDetailsCOA/>},
+
+  {path: "/master/create/tcs-details", element: <TCSDetailsCreate/>},
+  {path: "/master/alter/tcs-details", element: <TCSDetailsAlter/>},
+  {path: "/master/coa/tcs-details", element: <TCSDetailsCOA/>},
+
+  {path: "/master/create/vatregistrationdetails", element: <VATRDCreate/>},
+  {path: "/master/alter/vatregistrationdetails",element: <VATRDAlter/>},
+  {path: "/master/coa/vatregistrationdetails", element: <VATRDCOA/>},
 
   { path: "/master/create/cost-centre", element: <CostCentreCreate/>},
   { path: "/master/alter/cost-centre", element: <CostCentreAlter/>},
