@@ -8,9 +8,19 @@ export const DEFAULT_TCS_DETAILS: CompanyTCSDetails = {
   collectorBranch: "",
   setAlterPersonResponsible: false,
   personResponsibleName: "",
+  personResponsibleSonDaughterOf: "",
   personResponsibleDesignation: "",
   personResponsiblePan: "",
+  personResponsibleFlatNo: "",
+  personResponsiblePremises: "",
+  personResponsibleRoad: "",
+  personResponsibleArea: "",
+  personResponsibleCity: "",
+  personResponsibleState: "",
+  personResponsiblePincode: "",
   personResponsiblePhone: "",
+  personResponsibleStdCode: "",
+  personResponsibleTelephone: "",
   personResponsibleEmail: "",
   ignoreItExemption: false,
 };
@@ -107,6 +117,17 @@ export function useTCSDetails({ companyId, onSaveSuccess }: UseTCSDetailsProps) 
             isValid: false,
             fieldId: "personResponsiblePan",
             message: "Person responsible PAN must be 10 characters.",
+          };
+        }
+      }
+
+      if (form.personResponsiblePincode && form.personResponsiblePincode.trim().length > 0) {
+        const pinTrimmed = form.personResponsiblePincode.trim();
+        if (!/^\d{6}$/.test(pinTrimmed)) {
+          return {
+            isValid: false,
+            fieldId: "personResponsiblePincode",
+            message: "Pincode must be exactly 6 digits.",
           };
         }
       }

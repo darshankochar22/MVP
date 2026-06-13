@@ -30,10 +30,8 @@ export default function TCSDetailsCreate() {
 
   const [showPersonModal, setShowPersonModal] = useState(false);
 
-  // Focus tracking for Enter/Tab key traversal
   const formRef = useRef<HTMLDivElement>(null);
 
-  // Handle keyboard navigation between form elements
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -62,7 +60,11 @@ export default function TCSDetailsCreate() {
   }, [handleKeyDown]);
 
   const handleFormKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !(e.target instanceof HTMLButtonElement) && !(e.target instanceof HTMLTextAreaElement)) {
+    if (
+      e.key === "Enter" &&
+      !(e.target instanceof HTMLButtonElement) &&
+      !(e.target instanceof HTMLTextAreaElement)
+    ) {
       e.preventDefault();
       const formEl = formRef.current;
       if (!formEl) return;
@@ -115,8 +117,11 @@ export default function TCSDetailsCreate() {
       <div className="flex-1 flex min-h-0 relative">
         {/* Central Card Form */}
         <div className="flex-1 overflow-y-auto p-4 bg-zinc-50 font-mono text-zinc-800 text-[11px]">
-          <div ref={formRef} onKeyDown={handleFormKeyDown} className="max-w-2xl mx-auto bg-white border border-zinc-200 rounded shadow-sm p-6 space-y-4">
-            
+          <div
+            ref={formRef}
+            onKeyDown={handleFormKeyDown}
+            className="max-w-2xl mx-auto bg-white border border-zinc-200 rounded shadow-sm p-6 space-y-4"
+          >
             {/* Header */}
             <div className="text-center font-bold text-xs border-b border-zinc-200 pb-3 mb-4 tracking-wide text-zinc-900 uppercase">
               Company TCS Collector Details
@@ -170,9 +175,7 @@ export default function TCSDetailsCreate() {
                   onChange={(e) => {
                     const val = e.target.value === "Yes";
                     setField("setAlterPersonResponsible", val);
-                    if (val) {
-                      setShowPersonModal(true);
-                    }
+                    if (val) setShowPersonModal(true);
                   }}
                 >
                   <option value="No">No</option>
@@ -183,7 +186,7 @@ export default function TCSDetailsCreate() {
 
             {/* Rate & Exemption Details Divider */}
             <div className="text-center font-bold text-xs py-2 my-2 text-zinc-900 border-t border-zinc-100 tracking-wide uppercase">
-              Rate & Exemption Details
+              Rate &amp; Exemption Details
             </div>
 
             <div className="space-y-1">
@@ -203,21 +206,25 @@ export default function TCSDetailsCreate() {
 
         <RightActionPanel actions={actions} />
 
-        {/* Person Responsible Details Overlay Modal */}
+        {/* Person Responsible Details Modal */}
         {showPersonModal && (
           <div className="fixed inset-0 bg-zinc-900/40 z-[9999] flex items-center justify-center backdrop-blur-[1px]">
             <form
               onSubmit={handlePersonModalSubmit}
-              className="bg-white border border-zinc-400 w-[550px] shadow-2xl overflow-hidden flex flex-col font-mono text-[11px] text-zinc-950 animate-fade-in"
+              className="bg-white border border-zinc-400 w-[580px] shadow-2xl overflow-hidden flex flex-col font-mono text-[11px] text-zinc-950 animate-fade-in"
             >
+              {/* Modal Header */}
               <div className="text-center font-bold text-xs pt-4 pb-2 border-b border-zinc-200 tracking-wide text-zinc-900">
                 <span className="underline decoration-1 decoration-zinc-800 underline-offset-4">
                   Person Responsible Details
                 </span>
               </div>
 
-              <div className="p-4 space-y-3">
-                <FormRow label="Name" labelWidth="w-40">
+              {/* Modal Fields */}
+              <div className="p-4 space-y-1 overflow-y-auto max-h-[70vh]">
+
+                {/* Identity */}
+                <FormRow label="Name" labelWidth="w-56">
                   <input
                     autoFocus
                     className={inputCls}
@@ -227,7 +234,15 @@ export default function TCSDetailsCreate() {
                   />
                 </FormRow>
 
-                <FormRow label="Designation" labelWidth="w-40">
+                <FormRow label="Son/daughter of" labelWidth="w-56">
+                  <input
+                    className={inputCls}
+                    value={form.personResponsibleSonDaughterOf ?? ""}
+                    onChange={(e) => setField("personResponsibleSonDaughterOf", e.target.value)}
+                  />
+                </FormRow>
+
+                <FormRow label="Designation" labelWidth="w-56">
                   <input
                     className={inputCls}
                     value={form.personResponsibleDesignation}
@@ -235,7 +250,7 @@ export default function TCSDetailsCreate() {
                   />
                 </FormRow>
 
-                <FormRow label="PAN" labelWidth="w-40">
+                <FormRow label="PAN" labelWidth="w-56">
                   <input
                     className={inputCls}
                     value={form.personResponsiblePan}
@@ -245,7 +260,70 @@ export default function TCSDetailsCreate() {
                   />
                 </FormRow>
 
-                <FormRow label="Mobile / Phone" labelWidth="w-40">
+                {/* Address */}
+                <div className="pt-2" />
+
+                <FormRow label="Flat no." labelWidth="w-56">
+                  <input
+                    className={inputCls}
+                    value={form.personResponsibleFlatNo ?? ""}
+                    onChange={(e) => setField("personResponsibleFlatNo", e.target.value)}
+                  />
+                </FormRow>
+
+                <FormRow label="Name of the premises/building" labelWidth="w-56">
+                  <input
+                    className={inputCls}
+                    value={form.personResponsiblePremises ?? ""}
+                    onChange={(e) => setField("personResponsiblePremises", e.target.value)}
+                  />
+                </FormRow>
+
+                <FormRow label="Road/Street/Lane" labelWidth="w-56">
+                  <input
+                    className={inputCls}
+                    value={form.personResponsibleRoad ?? ""}
+                    onChange={(e) => setField("personResponsibleRoad", e.target.value)}
+                  />
+                </FormRow>
+
+                <FormRow label="Area/Location" labelWidth="w-56">
+                  <input
+                    className={inputCls}
+                    value={form.personResponsibleArea ?? ""}
+                    onChange={(e) => setField("personResponsibleArea", e.target.value)}
+                  />
+                </FormRow>
+
+                <FormRow label="Town/City/District" labelWidth="w-56">
+                  <input
+                    className={inputCls}
+                    value={form.personResponsibleCity ?? ""}
+                    onChange={(e) => setField("personResponsibleCity", e.target.value)}
+                  />
+                </FormRow>
+
+                <FormRow label="State" labelWidth="w-56">
+                  <input
+                    className={inputCls}
+                    value={form.personResponsibleState ?? ""}
+                    onChange={(e) => setField("personResponsibleState", e.target.value)}
+                  />
+                </FormRow>
+
+                <FormRow label="Pincode" labelWidth="w-56">
+                  <input
+                    className={inputCls}
+                    value={form.personResponsiblePincode ?? ""}
+                    onChange={(e) => setField("personResponsiblePincode", e.target.value)}
+                    maxLength={6}
+                  />
+                </FormRow>
+
+                {/* Contact */}
+                <div className="pt-2" />
+
+                <FormRow label="Mobile no." labelWidth="w-56">
                   <input
                     className={inputCls}
                     value={form.personResponsiblePhone}
@@ -253,7 +331,23 @@ export default function TCSDetailsCreate() {
                   />
                 </FormRow>
 
-                <FormRow label="Email" labelWidth="w-40">
+                <FormRow label="STD code" labelWidth="w-56">
+                  <input
+                    className={inputCls}
+                    value={form.personResponsibleStdCode ?? ""}
+                    onChange={(e) => setField("personResponsibleStdCode", e.target.value)}
+                  />
+                </FormRow>
+
+                <FormRow label="Telephone" labelWidth="w-56">
+                  <input
+                    className={inputCls}
+                    value={form.personResponsibleTelephone ?? ""}
+                    onChange={(e) => setField("personResponsibleTelephone", e.target.value)}
+                  />
+                </FormRow>
+
+                <FormRow label="E-mail ID" labelWidth="w-56">
                   <input
                     type="email"
                     className={inputCls}
@@ -263,6 +357,12 @@ export default function TCSDetailsCreate() {
                 </FormRow>
               </div>
 
+              {/* Note */}
+              <div className="px-4 py-2 text-[10px] text-zinc-500 italic border-t border-zinc-100">
+                (Note: All the above details will be used in Challan, Forms &amp; Returns)
+              </div>
+
+              {/* Modal Footer */}
               <div className="px-4 py-3 border-t border-zinc-200 flex justify-end gap-3 bg-zinc-50 shrink-0 font-sans">
                 <button
                   type="button"

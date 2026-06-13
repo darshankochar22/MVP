@@ -65,6 +65,13 @@ export default function TCSDetailsCOA() {
     return () => window.removeEventListener("keydown", handler);
   }, [navigate]);
 
+  const Row = ({ label, value }: { label: string; value?: string }) => (
+    <div className="flex justify-between gap-4">
+      <span className="text-zinc-400 shrink-0">{label}:</span>
+      <span className="font-bold text-zinc-900 text-right break-all">{value || "—"}</span>
+    </div>
+  );
+
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950">
       {/* Title Bar */}
@@ -109,41 +116,30 @@ export default function TCSDetailsCOA() {
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-8 max-w-4xl text-[11px] font-mono">
-              {/* Column 1: TAN & Collector Details */}
+
+              {/* Column 1: TAN & Collector + Rate Details */}
               <div className="space-y-4">
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 border-b border-zinc-200 pb-1 mb-2">
-                    Registration & Collector Details
+                    Registration &amp; Collector Details
                   </h3>
                   <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-zinc-400">TAN Registration Number:</span>
-                      <span className="font-bold text-zinc-900">{tcsDetails.tanRegNumber || "—"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-400">Account Number (TAN):</span>
-                      <span className="font-bold text-zinc-900">{tcsDetails.tan || "—"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-400">Collector Type:</span>
-                      <span className="font-bold text-zinc-900">{tcsDetails.collectorType || "—"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-400">Branch / Division:</span>
-                      <span className="font-bold text-zinc-900">{tcsDetails.collectorBranch || "—"}</span>
-                    </div>
+                    <Row label="TAN Registration Number" value={tcsDetails.tanRegNumber} />
+                    <Row label="Account Number (TAN)" value={tcsDetails.tan} />
+                    <Row label="Collector Type" value={tcsDetails.collectorType} />
+                    <Row label="Branch / Division" value={tcsDetails.collectorBranch} />
                   </div>
                 </div>
 
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider text-zinc-500 border-b border-zinc-200 pb-1 mb-2">
-                    Rate & Exemption details
+                    Rate &amp; Exemption Details
                   </h3>
                   <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-zinc-400">Ignore IT Exemption Limit:</span>
-                      <span className="font-bold text-zinc-900">{tcsDetails.ignoreItExemption ? "Yes" : "No"}</span>
-                    </div>
+                    <Row
+                      label="Ignore IT Exemption Limit"
+                      value={tcsDetails.ignoreItExemption ? "Yes" : "No"}
+                    />
                   </div>
                 </div>
               </div>
@@ -155,26 +151,29 @@ export default function TCSDetailsCOA() {
                 </h3>
                 {tcsDetails.setAlterPersonResponsible ? (
                   <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-zinc-400">Name:</span>
-                      <span className="font-bold text-zinc-900">{tcsDetails.personResponsibleName || "—"}</span>
+                    <Row label="Name" value={tcsDetails.personResponsibleName} />
+                    <Row label="Son/Daughter of" value={tcsDetails.personResponsibleSonDaughterOf} />
+                    <Row label="Designation" value={tcsDetails.personResponsibleDesignation} />
+                    <Row label="PAN" value={tcsDetails.personResponsiblePan} />
+
+                    <div className="pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                      Address
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-400">Designation:</span>
-                      <span className="font-bold text-zinc-900">{tcsDetails.personResponsibleDesignation || "—"}</span>
+                    <Row label="Flat No." value={tcsDetails.personResponsibleFlatNo} />
+                    <Row label="Premises / Building" value={tcsDetails.personResponsiblePremises} />
+                    <Row label="Road / Street / Lane" value={tcsDetails.personResponsibleRoad} />
+                    <Row label="Area / Location" value={tcsDetails.personResponsibleArea} />
+                    <Row label="Town / City / District" value={tcsDetails.personResponsibleCity} />
+                    <Row label="State" value={tcsDetails.personResponsibleState} />
+                    <Row label="Pincode" value={tcsDetails.personResponsiblePincode} />
+
+                    <div className="pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                      Contact
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-400">PAN:</span>
-                      <span className="font-bold text-zinc-900">{tcsDetails.personResponsiblePan || "—"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-400">Mobile / Phone:</span>
-                      <span className="font-bold text-zinc-900">{tcsDetails.personResponsiblePhone || "—"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-zinc-400">Email:</span>
-                      <span className="font-bold text-zinc-900 text-right break-all">{tcsDetails.personResponsibleEmail || "—"}</span>
-                    </div>
+                    <Row label="Mobile No." value={tcsDetails.personResponsiblePhone} />
+                    <Row label="STD Code" value={tcsDetails.personResponsibleStdCode} />
+                    <Row label="Telephone" value={tcsDetails.personResponsibleTelephone} />
+                    <Row label="E-mail ID" value={tcsDetails.personResponsibleEmail} />
                   </div>
                 ) : (
                   <p className="text-zinc-400 italic">Not Altered / Configured</p>

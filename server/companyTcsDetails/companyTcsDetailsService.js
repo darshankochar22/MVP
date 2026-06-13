@@ -11,22 +11,32 @@ const get = async (company_id) => {
       return { success: true, exists: false, data: null };
     }
 
-    const record = result.rows[0];
+    const r = result.rows[0];
     return {
       success: true,
       exists: true,
       data: {
-        tanRegNumber: record.tan_reg_number || '',
-        tan: record.tan || '',
-        collectorType: record.collector_type || 'Company',
-        collectorBranch: record.collector_branch || '',
-        setAlterPersonResponsible: record.set_alter_person_responsible === 1,
-        personResponsibleName: record.person_responsible_name || '',
-        personResponsibleDesignation: record.person_responsible_designation || '',
-        personResponsiblePan: record.person_responsible_pan || '',
-        personResponsiblePhone: record.person_responsible_phone || '',
-        personResponsibleEmail: record.person_responsible_email || '',
-        ignoreItExemption: record.ignore_it_exemption === 1,
+        tanRegNumber:                  r.tan_reg_number || '',
+        tan:                           r.tan || '',
+        collectorType:                 r.collector_type || 'Company',
+        collectorBranch:               r.collector_branch || '',
+        setAlterPersonResponsible:     r.set_alter_person_responsible === 1,
+        personResponsibleName:         r.person_responsible_name || '',
+        personResponsibleSonDaughterOf: r.person_responsible_son_daughter_of || '',
+        personResponsibleDesignation:  r.person_responsible_designation || '',
+        personResponsiblePan:          r.person_responsible_pan || '',
+        personResponsibleFlatNo:       r.person_responsible_flat_no || '',
+        personResponsiblePremises:     r.person_responsible_premises || '',
+        personResponsibleRoad:         r.person_responsible_road || '',
+        personResponsibleArea:         r.person_responsible_area || '',
+        personResponsibleCity:         r.person_responsible_city || '',
+        personResponsibleState:        r.person_responsible_state || '',
+        personResponsiblePincode:      r.person_responsible_pincode || '',
+        personResponsiblePhone:        r.person_responsible_phone || '',
+        personResponsibleStdCode:      r.person_responsible_std_code || '',
+        personResponsibleTelephone:    r.person_responsible_telephone || '',
+        personResponsibleEmail:        r.person_responsible_email || '',
+        ignoreItExemption:             r.ignore_it_exemption === 1,
       },
     };
   } catch (err) {
@@ -42,46 +52,64 @@ const save = async (data) => {
       return { success: false, error: 'Company ID is required' };
     }
 
-    // Check if record exists
     const existing = await db.execute({
       sql: `SELECT company_id FROM company_tcs_details WHERE company_id = ? LIMIT 1`,
       args: [company_id],
     });
 
+    const args = [
+      data.tanRegNumber || null,
+      data.tan || null,
+      data.collectorType || 'Company',
+      data.collectorBranch || null,
+      data.setAlterPersonResponsible ? 1 : 0,
+      data.personResponsibleName || null,
+      data.personResponsibleSonDaughterOf || null,
+      data.personResponsibleDesignation || null,
+      data.personResponsiblePan || null,
+      data.personResponsibleFlatNo || null,
+      data.personResponsiblePremises || null,
+      data.personResponsibleRoad || null,
+      data.personResponsibleArea || null,
+      data.personResponsibleCity || null,
+      data.personResponsibleState || null,
+      data.personResponsiblePincode || null,
+      data.personResponsiblePhone || null,
+      data.personResponsibleStdCode || null,
+      data.personResponsibleTelephone || null,
+      data.personResponsibleEmail || null,
+      data.ignoreItExemption ? 1 : 0,
+    ];
+
     if (existing.rows && existing.rows.length > 0) {
-      // UPDATE
       await db.execute({
         sql: `UPDATE company_tcs_details SET
-                tan_reg_number = ?,
-                tan = ?,
-                collector_type = ?,
-                collector_branch = ?,
-                set_alter_person_responsible = ?,
-                person_responsible_name = ?,
-                person_responsible_designation = ?,
-                person_responsible_pan = ?,
-                person_responsible_phone = ?,
-                person_responsible_email = ?,
-                ignore_it_exemption = ?,
-                updated_at = datetime('now')
+                tan_reg_number                    = ?,
+                tan                               = ?,
+                collector_type                    = ?,
+                collector_branch                  = ?,
+                set_alter_person_responsible      = ?,
+                person_responsible_name           = ?,
+                person_responsible_son_daughter_of = ?,
+                person_responsible_designation    = ?,
+                person_responsible_pan            = ?,
+                person_responsible_flat_no        = ?,
+                person_responsible_premises       = ?,
+                person_responsible_road           = ?,
+                person_responsible_area           = ?,
+                person_responsible_city           = ?,
+                person_responsible_state          = ?,
+                person_responsible_pincode        = ?,
+                person_responsible_phone          = ?,
+                person_responsible_std_code       = ?,
+                person_responsible_telephone      = ?,
+                person_responsible_email          = ?,
+                ignore_it_exemption               = ?,
+                updated_at                        = datetime('now')
               WHERE company_id = ?`,
-        args: [
-          data.tanRegNumber || null,
-          data.tan || null,
-          data.collectorType || 'Company',
-          data.collectorBranch || null,
-          data.setAlterPersonResponsible ? 1 : 0,
-          data.personResponsibleName || null,
-          data.personResponsibleDesignation || null,
-          data.personResponsiblePan || null,
-          data.personResponsiblePhone || null,
-          data.personResponsibleEmail || null,
-          data.ignoreItExemption ? 1 : 0,
-          company_id,
-        ],
+        args: [...args, company_id],
       });
     } else {
-      // INSERT
       await db.execute({
         sql: `INSERT INTO company_tcs_details (
                 company_id,
@@ -91,26 +119,23 @@ const save = async (data) => {
                 collector_branch,
                 set_alter_person_responsible,
                 person_responsible_name,
+                person_responsible_son_daughter_of,
                 person_responsible_designation,
                 person_responsible_pan,
+                person_responsible_flat_no,
+                person_responsible_premises,
+                person_responsible_road,
+                person_responsible_area,
+                person_responsible_city,
+                person_responsible_state,
+                person_responsible_pincode,
                 person_responsible_phone,
+                person_responsible_std_code,
+                person_responsible_telephone,
                 person_responsible_email,
                 ignore_it_exemption
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [
-          company_id,
-          data.tanRegNumber || null,
-          data.tan || null,
-          data.collectorType || 'Company',
-          data.collectorBranch || null,
-          data.setAlterPersonResponsible ? 1 : 0,
-          data.personResponsibleName || null,
-          data.personResponsibleDesignation || null,
-          data.personResponsiblePan || null,
-          data.personResponsiblePhone || null,
-          data.personResponsibleEmail || null,
-          data.ignoreItExemption ? 1 : 0,
-        ],
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [company_id, ...args],
       });
     }
 
@@ -121,7 +146,4 @@ const save = async (data) => {
   }
 };
 
-module.exports = {
-  get,
-  save,
-};
+module.exports = { get, save };
