@@ -82,6 +82,9 @@ import EmployeeCreate from "./pages/master/payroll/employee/EmployeeCreate.tsx";
 import PayrollUnitCreate from "./pages/master/payroll/payroll-unit/PayrollUnitCreate.tsx";
 import AttendanceTypeCreate from "./pages/master/payroll/attendance-type/AttendanceTypeCreate.tsx";
 import PayHeadCreate from "./pages/master/payroll/pay-head/PayHeadCreate.tsx";
+import PayrollvtCreate from "./pages/master/payroll/payrollvouchertype/payrollvtCreate.tsx";
+import PayrollvtAlter from "./pages/master/payroll/payrollvouchertype/payrollvtAlter.tsx";
+import PayrollvtCOA from "./pages/master/payroll/payrollvouchertype/payrollvtCOA.tsx";
 import SalaryStructureCreate from "./pages/master/payroll/salary-structure/SalaryStructureCreate.tsx";
 import EmployeeCategoryCreate from "./pages/master/payroll/employee-category/EmployeeCategoryCreate.tsx";
 import EmployeeGroupCOA from "./pages/master/payroll/employee-group/EmployeeGroupCOA.tsx";
@@ -143,6 +146,10 @@ export const APP_ROUTES: RouteConfig[] = [
   {path: "/master/create/price-lists-sc", element: <PricelistsgCreate/>},
   {path: "/master/alter/price-lists-sc", element: <PricelistsgAlter/>},
   {path: "/master/coa/price-lists-sc", element: <PricelistsgCOA/>},
+
+  {path: "/master/create/payroll-voucher-type", element: <PayrollvtCreate/>},
+  {path: "/master/alter/payroll-voucher-type", element: <PayrollvtAlter/>},
+  {path: "/master/coa/payroll-voucher-type", element: <PayrollvtCOA/>},
 
   { path: "/master/create/cost-centre", element: <CostCentreCreate/>},
   { path: "/master/alter/cost-centre", element: <CostCentreAlter/>},

@@ -49,9 +49,10 @@ export default function COA() {
       "Employee Category": "/master/coa/employee-category",
       "Employee Group": "/master/coa/employee-group",
       Employee: "/master/coa/employee",
-      "Attendance Type": "/master/coa/attendance-type",
-      "Pay Head": "/master/coa/pay-head",
-      "Payroll Unit": "/master/coa/payroll-unit",
+      "Attendance / Production type": "/master/coa/attendance-type",
+      "Payroll Voucher Type": "/master/coa/payroll-voucher-type",
+      "Pay Heads": "/master/coa/pay-head",
+      "Units(work)": "/master/coa/payroll-unit",
       "Salary Structure": "/master/coa/salary-structure",
     };
     return map[item] ?? null;

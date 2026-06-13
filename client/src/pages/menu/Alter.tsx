@@ -52,9 +52,10 @@ export default function Alter() {
       "Employee Category": "/master/alter/employee-category",
       "Employee Group": "/master/alter/employee-group",
       "Employee": "/master/alter/employee",
-      "Attendance Type": "/master/alter/attendance-type",
-      "Pay Head": "/master/alter/pay-head",
-      "Payroll Unit": "/master/alter/payroll-unit",
+      "Attendance / Production type": "/master/alter/attendance-type",
+      "Payroll Voucher Type": "/master/alter/payroll-voucher-type",
+      "Pay Heads": "/master/alter/pay-head",
+      "Units(work)": "/master/alter/payroll-unit",
       "Salary Structure": "/master/alter/salary-structure",
     };
     return map[item] ?? null;
