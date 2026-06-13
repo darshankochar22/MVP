@@ -87,7 +87,7 @@ const getById = async (id) => {
     const voucher = entryResult.rows[0];
 
     const entriesResult = await db.execute({
-      sql: `SELECT e.*, emp.name as employee_name, emp.employee_number, t.name as attendance_type_name
+      sql: `SELECT e.*, emp.name as employee_name, emp.employee_code AS employee_number, t.name as attendance_type_name
             FROM attendance_voucher_entries e
             LEFT JOIN employees emp ON emp.employee_id = e.employee_id
             LEFT JOIN attendance_types t ON t.attendance_type_id = e.attendance_type_id
