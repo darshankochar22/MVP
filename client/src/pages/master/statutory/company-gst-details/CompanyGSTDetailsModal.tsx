@@ -12,6 +12,7 @@ import GSTDetailsAcceptPrompt from "./components/GSTDetailsAcceptPrompt";
 import GSTClassificationSecondaryModal from "./components/GSTClassificationSecondaryModal";
 import SlabBasedRateDetails, { type SlabRow } from "./components/SlabBasedRateDetails";
 import GSTEffectiveDatePrompt from "./components/GSTEffectiveDatePrompt";
+import StateWiseThresholdLimitModal from "./components/StateWiseThresholdLimitModal";
 import { TALLY_FIELDS_CONFIG } from "./config/dropdownConfig";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -42,6 +43,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
     success,
     setSuccess,
     saveDetails,
+    hasGSTRegistrations,
   } = useGSTDetails({ companyId, isOpen });
 
   // ── UI state ────────────────────────────────────────────────────────────────
@@ -55,6 +57,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
   const [secondaryOpen, setSecondaryOpen] = useState(false);
   const [showSlabOverlay, setShowSlabOverlay] = useState(false);
   const [showEffectiveDatePrompt, setShowEffectiveDatePrompt] = useState(false);
+  const [showStateWiseModal, setShowStateWiseModal] = useState(false);
   const [slabRows, setSlabRows] = useState<SlabRow[]>([]);
 
   const modalRef = useRef<HTMLDivElement>(null);
@@ -109,7 +112,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
 
     list.push(
       "interstateThresholdLimit",
-      "intrastateThresholdLimit",
+      hasGSTRegistrations ? "setStateWiseThresholdLimit" : "intrastateThresholdLimit",
       "thresholdLimitIncludes",
       "createHSNSummaryFor"
     );
@@ -118,11 +121,15 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       list.push("minimumHSNLength");
     }
 
-    list.push(
-      "showGSTAdvances",
-      "updateGSTStatus",
-      "gstReturnsConfigured"
-    );
+    list.push("showGSTAdvances");
+
+    if (form.showGSTAdvances) {
+      list.push("gstAdvancesApplicableFrom");
+    } else {
+      list.push("updateGSTStatus");
+    }
+
+    list.push("gstReturnsConfigured");
     return list;
   };
 
@@ -246,7 +253,14 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
         return;
       }
     } else if (TALLY_FIELDS_CONFIG[fieldId]?.type === "yesno") {
-      setField(fieldId as keyof CompanyGSTDetails, val === "Yes");
+      const isYes = val === "Yes";
+      setField(fieldId as keyof CompanyGSTDetails, isYes);
+      
+      if (fieldId === "setStateWiseThresholdLimit" && isYes) {
+        setListPanelOpen(false);
+        setTimeout(() => setShowStateWiseModal(true), 50);
+        return;
+      }
     } else if (fieldId === "minimumHSNLength") {
       setField("minimumHSNLength", Number(val) || 4);
       setListPanelOpen(false);
@@ -301,6 +315,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       setSecondaryOpen(false);
       setShowSlabOverlay(false);
       setShowEffectiveDatePrompt(false);
+      setShowStateWiseModal(false);
       setSlabRows([]);
       setError(null);
       setSuccess(null);
@@ -309,19 +324,19 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
   }, [isOpen]);
 
   // Sync list panel when active field or dependent form values change
-  // Paused while either secondary modal or slab overlay is open
+  // Paused while either secondary modal, slab overlay, or state-wise modal is open
   useEffect(() => {
-    if (isOpen && !secondaryOpen && !showSlabOverlay && !showEffectiveDatePrompt) {
+    if (isOpen && !secondaryOpen && !showSlabOverlay && !showEffectiveDatePrompt && !showStateWiseModal) {
       openDropdownPanel(activeField);
     }
-    if (showSlabOverlay || showEffectiveDatePrompt) {
+    if (showSlabOverlay || showEffectiveDatePrompt || showStateWiseModal) {
       setListPanelOpen(false);
     }
-  }, [activeField, form.hsnSacType, form.taxabilityType, gstRateDetails, classifications, secondaryOpen, showSlabOverlay, showEffectiveDatePrompt]);
+  }, [activeField, form.hsnSacType, form.taxabilityType, gstRateDetails, classifications, secondaryOpen, showSlabOverlay, showEffectiveDatePrompt, showStateWiseModal]);
 
   // Global keyboard handler — paused while sub-modals are open
   useEffect(() => {
-    if (!isOpen || secondaryOpen || showSlabOverlay || showEffectiveDatePrompt) return;
+    if (!isOpen || secondaryOpen || showSlabOverlay || showEffectiveDatePrompt || showStateWiseModal) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // ESC — close panels/prompts in reverse order
@@ -409,6 +424,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
     secondaryOpen,
     showSlabOverlay,
     showEffectiveDatePrompt,
+    showStateWiseModal,
     activeField,
     listPanelOpen,
     listOptions,
@@ -451,6 +467,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
             setField={setField}
             slabRows={slabRows}
             onOpenSlab={() => setShowSlabOverlay(true)}
+            hasGSTRegistrations={hasGSTRegistrations}
           />
 
           {/* Error banner */}
@@ -559,6 +576,19 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
           moveFocus(1);
         }}
         onClose={() => setShowEffectiveDatePrompt(false)}
+      />
+
+      {/* ── State-wise Threshold Limit overlay ───────────────────────────── */}
+      <StateWiseThresholdLimitModal
+        isOpen={showStateWiseModal}
+        initialLimits={form.stateWiseLimits || []}
+        onSave={(limits) => {
+          setField("stateWiseLimits", limits);
+        }}
+        onClose={() => {
+          setShowStateWiseModal(false);
+          moveFocus(1);
+        }}
       />
     </div>
   );

@@ -13,4 +13,7 @@ export interface CompanyGSTDetails {
   updateGSTStatus: boolean;
   gstReturnsConfigured: boolean;
   gstClassification?: string;
+  setStateWiseThresholdLimit?: boolean;
+  stateWiseLimits?: { stateName: string; limit: number }[];
+  gstAdvancesApplicableFrom?: string;
 }

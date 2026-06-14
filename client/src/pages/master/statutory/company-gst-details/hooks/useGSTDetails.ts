@@ -34,6 +34,8 @@ export const DEFAULT_GST_DETAILS: CompanyGSTDetails = {
   updateGSTStatus: false,
   gstReturnsConfigured: false,
   gstClassification: "",
+  setStateWiseThresholdLimit: false,
+  gstAdvancesApplicableFrom: "",
 };
 
 /** Strip any field values that no longer match valid option sets. */
@@ -63,6 +65,7 @@ function sanitizeForm(raw: Partial<CompanyGSTDetails>): CompanyGSTDetails {
     intrastateThresholdLimit: isNaN(Number(base.intrastateThresholdLimit))
       ? 50000
       : Number(base.intrastateThresholdLimit),
+    setStateWiseThresholdLimit: !!base.setStateWiseThresholdLimit,
   };
 }
 
@@ -85,6 +88,7 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [hasGSTRegistrations, setHasGSTRegistrations] = useState(false);
 
   const getLocalStorageKey = useCallback(() => {
     return companyId ? `company_gst_details_${companyId}` : "company_gst_details";
@@ -141,6 +145,15 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
           setGstRateDetails("Not Defined");
         }
       }
+      
+      // 3. Check for existing GST registrations
+      const regResult = await window.api.gstRegistration.getAll(companyId);
+      if (regResult.success && regResult.gstRegistrations && regResult.gstRegistrations.length > 0) {
+        setHasGSTRegistrations(true);
+      } else {
+        setHasGSTRegistrations(false);
+      }
+      
     } catch (err) {
       console.error("Failed to load GST details:", err);
       setError("Failed to load saved GST details.");
@@ -270,5 +283,6 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
     validate,
     saveDetails,
     loadDetails,
+    hasGSTRegistrations,
   };
 }
