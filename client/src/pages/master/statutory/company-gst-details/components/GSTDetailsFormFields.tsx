@@ -60,6 +60,7 @@ export interface GSTDetailsFormFieldsProps {
   setField: (key: keyof CompanyGSTDetails, value: unknown) => void;
   slabRows?: SlabRow[];
   onOpenSlab?: () => void;
+  hasGSTRegistrations?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -85,12 +86,14 @@ export default function GSTDetailsFormFields({
   setField,
   slabRows = [],
   onOpenSlab,
+  hasGSTRegistrations,
 }: GSTDetailsFormFieldsProps) {
   const hsnCodeRef = useRef<HTMLInputElement>(null);
   const descRef = useRef<HTMLInputElement>(null);
   const rateRef = useRef<HTMLInputElement>(null);
   const interLimitRef = useRef<HTMLInputElement>(null);
   const intraLimitRef = useRef<HTMLInputElement>(null);
+  const advanceDateRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (activeField === "hsnSacCode") hsnCodeRef.current?.focus();
@@ -98,6 +101,7 @@ export default function GSTDetailsFormFields({
     else if (activeField === "gstRate") rateRef.current?.focus();
     else if (activeField === "interstateThresholdLimit") interLimitRef.current?.focus();
     else if (activeField === "intrastateThresholdLimit") intraLimitRef.current?.focus();
+    else if (activeField === "gstAdvancesApplicableFrom") advanceDateRef.current?.focus();
   }, [activeField]);
 
 
@@ -275,19 +279,29 @@ export default function GSTDetailsFormFields({
               />
             </FieldRow>
 
-            {/* Intrastate Threshold Limit */}
-            <FieldRow label="Intrastate Threshold Limit" labelWidth="230px">
-              <input
-                ref={intraLimitRef}
-                type="text"
-                value={form.intrastateThresholdLimit.toLocaleString("en-IN")}
-                onChange={(e) =>
-                  setField("intrastateThresholdLimit", Number(e.target.value.replace(/,/g, "")) || 0)
-                }
-                onFocus={() => setActiveField("intrastateThresholdLimit")}
-                className={`${inputClass(activeField === "intrastateThresholdLimit")} w-32 text-right`}
-              />
-            </FieldRow>
+            {hasGSTRegistrations ? (
+              <FieldRow label="Set State-wise Threshold Limit" labelWidth="230px">
+                <div
+                  onClick={() => setActiveField("setStateWiseThresholdLimit")}
+                  className={`${dropdownClass(activeField === "setStateWiseThresholdLimit")} flex-1`}
+                >
+                  {form.setStateWiseThresholdLimit ? "Yes" : "No"}
+                </div>
+              </FieldRow>
+            ) : (
+              <FieldRow label="Intrastate Threshold Limit" labelWidth="230px">
+                <input
+                  ref={intraLimitRef}
+                  type="text"
+                  value={form.intrastateThresholdLimit.toLocaleString("en-IN")}
+                  onChange={(e) =>
+                    setField("intrastateThresholdLimit", Number(e.target.value.replace(/,/g, "")) || 0)
+                  }
+                  onFocus={() => setActiveField("intrastateThresholdLimit")}
+                  className={`${inputClass(activeField === "intrastateThresholdLimit")} w-32 text-right`}
+                />
+              </FieldRow>
+            )}
 
             {/* Threshold Limit Includes (dropdown) */}
             <FieldRow label="Threshold Limit includes" labelWidth="230px">
@@ -355,19 +369,37 @@ export default function GSTDetailsFormFields({
               </div>
             </FieldRow>
 
-            {/* Update GST Status (Yes/No dropdown) */}
-            <FieldRow
-              label="Update GST Status of Vouchers after Master Alteration"
-              labelWidth="230px"
-              subLabel="(Set this to No, to update from GST Reports)"
-            >
-              <div
-                onClick={() => setActiveField("updateGSTStatus")}
-                className={`${dropdownClass(activeField === "updateGSTStatus")} flex-1`}
-              >
-                {form.updateGSTStatus ? "Yes" : "No"}
+            {form.showGSTAdvances ? (
+              <div className="flex flex-col gap-1.5">
+                <FieldRow
+                  label="Applicable from"
+                  labelWidth="230px"
+                  subLabel="(Enter a Date after the period when you have reported your liabilities in Returns using Journal Vouchers)"
+                >
+                  <input
+                    ref={advanceDateRef}
+                    type="date"
+                    className={`${inputClass(activeField === "gstAdvancesApplicableFrom")} flex-1 uppercase`}
+                    value={form.gstAdvancesApplicableFrom || ""}
+                    onChange={(e) => setField("gstAdvancesApplicableFrom", e.target.value)}
+                    onFocus={() => setActiveField("gstAdvancesApplicableFrom")}
+                  />
+                </FieldRow>
               </div>
-            </FieldRow>
+            ) : (
+              <FieldRow
+                label="Update GST Status of Vouchers after Master Alteration"
+                labelWidth="230px"
+                subLabel="(Set this to No, to update from GST Reports)"
+              >
+                <div
+                  onClick={() => setActiveField("updateGSTStatus")}
+                  className={`${dropdownClass(activeField === "updateGSTStatus")} flex-1`}
+                >
+                  {form.updateGSTStatus ? "Yes" : "No"}
+                </div>
+              </FieldRow>
+            )}
 
             {/* Set/Alter GST Returns (Yes/No dropdown) */}
             <FieldRow

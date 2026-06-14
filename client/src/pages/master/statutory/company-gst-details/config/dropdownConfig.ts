@@ -46,6 +46,11 @@ export const TALLY_FIELDS_CONFIG: Record<string, TallyFieldConfig> = {
   intrastateThresholdLimit: {
     type: "input",
   },
+  setStateWiseThresholdLimit: {
+    type: "yesno",
+    title: "Set State-wise...",
+    options: ["No", "Yes"],
+  },
   thresholdLimitIncludes: {
     type: "dropdown",
     title: "List of values",
