@@ -1,11 +1,29 @@
 import { useState, useEffect, useCallback } from "react";
 import type { CompanyGSTDetails } from "@/types/entities/CompanyGSTDetails";
 
+// ── Valid option sets ─────────────────────────────────────────────────────────
+// Used to strip stale / legacy values loaded from localStorage or DB.
+
+const VALID_HSN_SAC_TYPES = new Set([
+  "Not Defined", "Specify Details Here", "Use GST Classification", "Specify in Voucher",
+]);
+const VALID_GST_RATE_DETAILS = new Set([
+  "Not Defined", "Specify Details Here", "Specify Slab-Based Rates", "Use GST Classification", "Specify in Voucher"
+]);
+const VALID_TAXABILITY_TYPES = new Set([
+  "Not Defined", "Taxable", "Exempt", "Nil Rated", "Non GST",
+]);
+const VALID_THRESHOLD_INCLUDES = new Set([
+  "Value of Invoice", "Value of Taxable & Exempt Goods", "Value of Taxable Goods",
+]);
+const VALID_HSN_SUMMARY_FOR = new Set(["None", "All Sections", "All Sections Except B2C"]);
+const VALID_MIN_HSN_LENGTHS = new Set([4, 6, 8]);
+
 export const DEFAULT_GST_DETAILS: CompanyGSTDetails = {
   hsnSacType: "Not Defined",
   hsnSacCode: "",
   description: "",
-  taxabilityType: "Taxable",
+  taxabilityType: "Not Defined",
   gstRate: 0,
   interstateThresholdLimit: 50000,
   intrastateThresholdLimit: 50000,
@@ -15,7 +33,45 @@ export const DEFAULT_GST_DETAILS: CompanyGSTDetails = {
   showGSTAdvances: false,
   updateGSTStatus: false,
   gstReturnsConfigured: false,
+  gstClassification: "",
 };
+
+/** Strip any field values that no longer match valid option sets. */
+function sanitizeForm(raw: Partial<CompanyGSTDetails>): CompanyGSTDetails {
+  const base = { ...DEFAULT_GST_DETAILS, ...raw };
+  return {
+    ...base,
+    hsnSacType: VALID_HSN_SAC_TYPES.has(base.hsnSacType ?? "")
+      ? base.hsnSacType!
+      : DEFAULT_GST_DETAILS.hsnSacType,
+    taxabilityType: VALID_TAXABILITY_TYPES.has(base.taxabilityType ?? "")
+      ? base.taxabilityType!
+      : DEFAULT_GST_DETAILS.taxabilityType,
+    thresholdLimitIncludes: VALID_THRESHOLD_INCLUDES.has(base.thresholdLimitIncludes ?? "")
+      ? base.thresholdLimitIncludes!
+      : DEFAULT_GST_DETAILS.thresholdLimitIncludes,
+    createHSNSummaryFor: VALID_HSN_SUMMARY_FOR.has(base.createHSNSummaryFor ?? "")
+      ? base.createHSNSummaryFor!
+      : DEFAULT_GST_DETAILS.createHSNSummaryFor,
+    minimumHSNLength: VALID_MIN_HSN_LENGTHS.has(Number(base.minimumHSNLength))
+      ? Number(base.minimumHSNLength)
+      : DEFAULT_GST_DETAILS.minimumHSNLength,
+    gstRate: isNaN(Number(base.gstRate)) ? 0 : Number(base.gstRate),
+    interstateThresholdLimit: isNaN(Number(base.interstateThresholdLimit))
+      ? 50000
+      : Number(base.interstateThresholdLimit),
+    intrastateThresholdLimit: isNaN(Number(base.intrastateThresholdLimit))
+      ? 50000
+      : Number(base.intrastateThresholdLimit),
+  };
+}
+
+/** Sanitize the gstRateDetails string — reject any old/stale values. */
+function sanitizeGstRateDetails(val: string | undefined): string {
+  if (!val || !VALID_GST_RATE_DETAILS.has(val)) return "Not Defined";
+  return val;
+}
+
 
 interface UseGSTDetailsProps {
   companyId?: number;
@@ -25,7 +81,7 @@ interface UseGSTDetailsProps {
 
 export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetailsProps) {
   const [form, setForm] = useState<CompanyGSTDetails>(DEFAULT_GST_DETAILS);
-  const [gstRateDetails, setGstRateDetails] = useState<"Not Defined" | "Specified Here">("Not Defined");
+  const [gstRateDetails, setGstRateDetails] = useState<string>("Not Defined");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -42,24 +98,44 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
     try {
       // 1. Try to load from SQLite backend
       const result = await window.api.companyGstDetails.get(companyId);
-      if (result.success && result.exists && result.data) {
-        setForm(result.data);
-        setGstRateDetails(
-          result.data.taxabilityType === "Not Defined" || !result.data.taxabilityType
-            ? "Not Defined"
-            : "Specified Here"
-        );
+      const localDataRaw = localStorage.getItem(getLocalStorageKey());
+      let localParsed: any = null;
+      if (localDataRaw) {
+        try {
+          localParsed = JSON.parse(localDataRaw);
+        } catch (e) {}
+      }
+
+      if (result.success && result.data) {
+        // Use backend data (whether exists or not - it includes defaults)
+        const dbData = result.data;
+        const raw: CompanyGSTDetails = {
+          ...dbData,
+          gstClassification: localParsed?.gstClassification || "",
+        };
+        setForm(sanitizeForm(raw));
+
+        // Resolve gstRateDetails — prefer localStorage hint if values still match DB
+        const localRateDetails = sanitizeGstRateDetails(localParsed?.gstRateDetails);
+        if (
+          localParsed &&
+          localParsed.taxabilityType === dbData.taxabilityType &&
+          localParsed.gstRate === dbData.gstRate &&
+          localRateDetails !== "Not Defined"
+        ) {
+          setGstRateDetails(localRateDetails);
+        } else {
+          setGstRateDetails(
+            dbData.taxabilityType === "Not Defined" || !dbData.taxabilityType
+              ? "Not Defined"
+              : "Specify Details Here"
+          );
+        }
       } else {
         // 2. Fallback to localStorage
-        const localDataRaw = localStorage.getItem(getLocalStorageKey());
-        if (localDataRaw) {
-          const parsed = JSON.parse(localDataRaw) as CompanyGSTDetails;
-          setForm(parsed);
-          setGstRateDetails(
-            parsed.taxabilityType === "Not Defined" || !parsed.taxabilityType
-              ? "Not Defined"
-              : "Specified Here"
-          );
+        if (localParsed) {
+          setForm(sanitizeForm(localParsed));
+          setGstRateDetails(sanitizeGstRateDetails(localParsed.gstRateDetails));
         } else {
           setForm(DEFAULT_GST_DETAILS);
           setGstRateDetails("Not Defined");
@@ -101,7 +177,7 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
       }
     }
 
-    if (gstRateDetails === "Specified Here" && form.taxabilityType === "Taxable") {
+    if (gstRateDetails === "Specify Details Here" && form.taxabilityType === "Taxable") {
       const rate = Number(form.gstRate);
       if (isNaN(rate) || rate < 0 || rate > 100) {
         return {
@@ -127,15 +203,6 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
         isValid: false,
         fieldId: "intrastateThresholdLimit",
         message: "Intrastate Threshold Limit must be a positive number.",
-      };
-    }
-
-    const hsnLen = Number(form.minimumHSNLength);
-    if (isNaN(hsnLen) || hsnLen < 2 || hsnLen > 8) {
-      return {
-        isValid: false,
-        fieldId: "minimumHSNLength",
-        message: "Minimum length of HSN/SAC must be between 2 and 8.",
       };
     }
 
@@ -170,8 +237,12 @@ export function useGSTDetails({ companyId, isOpen, onSaveSuccess }: UseGSTDetail
         throw new Error(dbResult.error || "Database save failed");
       }
 
-      // Also persist to localStorage as backup
-      localStorage.setItem(getLocalStorageKey(), JSON.stringify(finalForm));
+      // Also persist to localStorage as backup, including the UI state hint
+      const storageObj = {
+        ...finalForm,
+        gstRateDetails,
+      };
+      localStorage.setItem(getLocalStorageKey(), JSON.stringify(storageObj));
 
       setSuccess("Company GST details updated successfully.");
       onSaveSuccess?.();

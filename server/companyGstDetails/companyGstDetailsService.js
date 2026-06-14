@@ -8,7 +8,25 @@ const get = async (company_id) => {
     });
 
     if (!result.rows || result.rows.length === 0) {
-      return { success: true, exists: false, data: null };
+      return {
+        success: true,
+        exists: false,
+        data: {
+          hsnSacType: 'Not Defined',
+          hsnSacCode: '',
+          description: '',
+          taxabilityType: 'Not Defined',
+          gstRate: 0,
+          interstateThresholdLimit: 50000,
+          intrastateThresholdLimit: 50000,
+          thresholdLimitIncludes: 'Value of Invoice',
+          createHSNSummaryFor: 'All Sections',
+          minimumHSNLength: 4,
+          showGSTAdvances: false,
+          updateGSTStatus: false,
+          gstReturnsConfigured: false,
+        },
+      };
     }
 
     const record = result.rows[0];
