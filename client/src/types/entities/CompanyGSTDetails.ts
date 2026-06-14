@@ -12,4 +12,5 @@ export interface CompanyGSTDetails {
   showGSTAdvances: boolean;
   updateGSTStatus: boolean;
   gstReturnsConfigured: boolean;
+  gstClassification?: string;
 }

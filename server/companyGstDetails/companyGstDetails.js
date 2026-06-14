@@ -5,7 +5,7 @@ const init = async (db) => {
       hsn_sac_type                  TEXT DEFAULT 'Not Defined',
       hsn_sac_code                  TEXT,
       description                   TEXT,
-      taxability_type               TEXT DEFAULT 'Taxable',
+      taxability_type               TEXT DEFAULT 'Not Defined',
       gst_rate                      REAL DEFAULT 0,
       interstate_threshold_limit    REAL DEFAULT 50000,
       intrastate_threshold_limit    REAL DEFAULT 50000,
