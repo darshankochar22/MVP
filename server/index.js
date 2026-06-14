@@ -43,13 +43,27 @@ const whatsappController = require('./whatsapp/whatsappController');
 const physicalStockController = require('./physicalStock/physicalStockController');
 const attendanceController = require('./attendance/attendanceController');
 const companyGstDetailsController = require('./companyGstDetails/companyGstDetailsController');
-const taxUnitController=require('./taxUnits/taxUnitController');
+const companyTdsDetailsController = require('./companyTdsDetails/companyTdsDetailsController');
+const companyTcsDetailsController = require('./companyTcsDetails/companyTcsDetailsController');
+const taxUnitController      = require('./taxUnits/taxUnitController');
+const priceLevelController   = require('./priceLevels/priceLevelController');
+const priceListController    = require('./priceList/priceListController');
 
-ipcMain.handle('taxUnits:create',taxUnitController.create);
-ipcMain.handle('taxUnits:getAll',taxUnitController.getAll);
-ipcMain.handle('taxUnits:getById',taxUnitController.getById);
-ipcMain.handle('taxUnits:update',taxUnitController.update);
-ipcMain.handle('taxUnits:delete',taxUnitController.delete);
+ipcMain.handle('taxUnits:create',  taxUnitController.create);
+ipcMain.handle('taxUnits:getAll',  taxUnitController.getAll);
+ipcMain.handle('taxUnits:getById', taxUnitController.getById);
+ipcMain.handle('taxUnits:update',  taxUnitController.update);
+ipcMain.handle('taxUnits:delete',  taxUnitController.delete);
+
+ipcMain.handle('priceLevels:get',    priceLevelController.get);
+ipcMain.handle('priceLevels:save',   priceLevelController.save);
+ipcMain.handle('priceLevels:delete', priceLevelController.delete);
+
+ipcMain.handle('priceList:create',  priceListController.create);
+ipcMain.handle('priceList:getAll',  priceListController.getAll);
+ipcMain.handle('priceList:getById', priceListController.getById);
+ipcMain.handle('priceList:update',  priceListController.update);
+ipcMain.handle('priceList:delete',  priceListController.delete);
 
 ipcMain.handle('company:create', companyController.create);
 ipcMain.handle('company:getAll', companyController.getAll);
@@ -325,3 +339,9 @@ ipcMain.handle('whatsapp:verifyWebhook',       whatsappController.verifyWebhook)
 
 ipcMain.handle('companyGstDetails:get', companyGstDetailsController.get);
 ipcMain.handle('companyGstDetails:save', companyGstDetailsController.save);
+
+ipcMain.handle('companyTdsDetails:get', companyTdsDetailsController.get);
+ipcMain.handle('companyTdsDetails:save', companyTdsDetailsController.save);
+
+ipcMain.handle('companyTcsDetails:get', companyTcsDetailsController.get);
+ipcMain.handle('companyTcsDetails:save', companyTcsDetailsController.save);

@@ -39,6 +39,8 @@ const initDB = async () => {
   await require('../featureItem/featureItem').init(db);
   await require('../companyFeatureValues/companyFeatureValues').init(db);
   await require('../companyGstDetails/companyGstDetails').init(db);
+  await require('../companyTdsDetails/companyTdsDetails').init(db);
+  await require('../companyTcsDetails/companyTcsDetails').init(db);
   await require('../companyCreationSuccess/companyCreationSuccess').init(db);
   await require('../employeeCategory/employeeCategory').init(db);
   await require('../employeeGroup/employeeGroup').init(db);
@@ -54,6 +56,8 @@ const initDB = async () => {
   await require('../trialBalanceReport/trialBalanceReport').init(db);
   await require('../salaryStructure/salaryStructure').init(db);
   await require('../taxUnits/taxUnit').init(db);
+  await require('../priceLevels/priceLevel').init(db);
+  await require('../priceList/priceList').init(db);
   await require('../voucherEntryActions/voucherEntryActions').init(db);
   await require('../eInvoice/eInvoice').init(db);
   await require('../whatsapp/whatsapp').init(db);

@@ -1,6 +1,27 @@
 import { useNavigate } from "react-router-dom";
 import App from './App.tsx';
 import CostCentreCreate from "./pages/master/cost-centre/cost-centreCreate.tsx";
+import PricelevelsCreate from "./pages/master/inventory/price-levels/pricelevelsCreate.tsx";
+import PricelevelsAlter from "./pages/master/inventory/price-levels/pricelevelsAlter.tsx";
+import PricelevelsCOA from "./pages/master/inventory/price-levels/pricelevelsCOA.tsx";
+import PriceListSGCreate from "./pages/master/inventory/pricelist(stockgroup)/pricelist(sg)Create.tsx";
+import PriceListSGAlter from "./pages/master/inventory/pricelist(stockgroup)/pricelist(sg)Alter.tsx";
+import PriceListSGCOA from "./pages/master/inventory/pricelist(stockgroup)/pricelist(sg)COA.tsx";
+import PricelistscCreate from "./pages/master/inventory/pricelist(stockcategory)/pricelist(sc)Create.tsx";
+import PricelistscAlter from "./pages/master/inventory/pricelist(stockcategory)/pricelist(sc)Alter.tsx";
+import PricelistscCOA from "./pages/master/inventory/pricelist(stockcategory)/pricelist(sc)COA.tsx";
+import TDSDetailsCreate from "./pages/master/statutory-details/TDSDetails/TDSDetailsCreate.tsx";
+import TDSDetailsAlter from "./pages/master/statutory-details/TDSDetails/TDSDetailsAlter.tsx";
+import TDSDetailsCOA from "./pages/master/statutory-details/TDSDetails/TDSDetailsCOA.tsx";
+import TCSDetailsCreate from "./pages/master/statutory-details/TCSDetails/TCSDetailsCreate.tsx";
+import TCSDetailsAlter from "./pages/master/statutory-details/TCSDetails/TCSDetailsAlter.tsx";
+import TCSDetailsCOA from "./pages/master/statutory-details/TCSDetails/TCSDetailsCOA.tsx";
+import VATRDCreate from "./pages/master/statutory-details/VATRegistrationDetails/VATRDCreate.tsx";
+import VATRDAlter from "./pages/master/statutory-details/VATRegistrationDetails/VATRDAlter.tsx";
+import VATRDCOA from "./pages/master/statutory-details/VATRegistrationDetails/VATRDCOA.tsx";
+import ExciseRDCreate from "./pages/master/statutory-details/ExciseRegistrationDetails/ExciseRDCreate.tsx";
+import ExciseRDAlter from "./pages/master/statutory-details/ExciseRegistrationDetails/ExciseRDAlter.tsx";
+import ExciseRDCOA from "./pages/master/statutory-details/ExciseRegistrationDetails/ExciseRDCOA.tsx";
 import CostCentreAlter from "./pages/master/cost-centre/cost-centreAlter.tsx";
 import CostCentreCOA from "./pages/master/cost-centre/cost-centreCOA.tsx";
 import GenericDataView from './pages/GenericDataView.tsx';
@@ -61,6 +82,9 @@ import EmployeeCreate from "./pages/master/payroll/employee/EmployeeCreate.tsx";
 import PayrollUnitCreate from "./pages/master/payroll/payroll-unit/PayrollUnitCreate.tsx";
 import AttendanceTypeCreate from "./pages/master/payroll/attendance-type/AttendanceTypeCreate.tsx";
 import PayHeadCreate from "./pages/master/payroll/pay-head/PayHeadCreate.tsx";
+import PayrollvtCreate from "./pages/master/payroll/payrollvouchertype/payrollvtCreate.tsx";
+import PayrollvtAlter from "./pages/master/payroll/payrollvouchertype/payrollvtAlter.tsx";
+import PayrollvtCOA from "./pages/master/payroll/payrollvouchertype/payrollvtCOA.tsx";
 import SalaryStructureCreate from "./pages/master/payroll/salary-structure/SalaryStructureCreate.tsx";
 import EmployeeCategoryCreate from "./pages/master/payroll/employee-category/EmployeeCategoryCreate.tsx";
 import EmployeeGroupCOA from "./pages/master/payroll/employee-group/EmployeeGroupCOA.tsx";
@@ -94,6 +118,38 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/alter", element: <Alter />},
   { path: "/master/financial-years", element: <FinancialYears />},
   { path: "/master/coa", element: <COA />},
+
+  {path: "/master/create/tds-details", element: <TDSDetailsCreate/>},
+  {path: "/master/alter/tds-details", element: <TDSDetailsAlter/>},
+  {path: "/master/coa/tds-details", element: <TDSDetailsCOA/>},
+
+  {path: "/master/create/tcs-details", element: <TCSDetailsCreate/>},
+  {path: "/master/alter/tcs-details", element: <TCSDetailsAlter/>},
+  {path: "/master/coa/tcs-details", element: <TCSDetailsCOA/>},
+
+  {path: "/master/create/vat-registration-details", element: <VATRDCreate/>},
+  {path: "/master/alter/vat-registration-details",element: <VATRDAlter/>},
+  {path: "/master/coa/vat-registration-details", element: <VATRDCOA/>},
+
+  {path: "/master/create/excise-registration-details", element: <ExciseRDCreate/>},
+  {path: "/master/alter/excise-registration-details", element: <ExciseRDAlter/>},
+  {path: "/master/coa/excise-registration-details", element: <ExciseRDCOA/>},
+
+  {path: "/master/create/price-levels", element: <PricelevelsCreate/>},
+  {path: "/master/alter/price-levels", element: <PricelevelsAlter/>},
+  {path: "/master/coa/price-levels", element: <PricelevelsCOA/>},
+
+  {path: "/master/create/price-lists-sg", element: <PriceListSGCreate/>},
+  {path: "/master/alter/price-lists-sg", element: <PriceListSGAlter/>},
+  {path: "/master/coa/price-lists-sg", element: <PriceListSGCOA/>},
+
+  {path: "/master/create/price-lists-sc", element: <PricelistscCreate/>},
+  {path: "/master/alter/price-lists-sc", element: <PricelistscAlter/>},
+  {path: "/master/coa/price-lists-sc", element: <PricelistscCOA/>},
+
+  {path: "/master/create/payroll-voucher-type", element: <PayrollvtCreate/>},
+  {path: "/master/alter/payroll-voucher-type", element: <PayrollvtAlter/>},
+  {path: "/master/coa/payroll-voucher-type", element: <PayrollvtCOA/>},
 
   { path: "/master/create/cost-centre", element: <CostCentreCreate/>},
   { path: "/master/alter/cost-centre", element: <CostCentreAlter/>},
