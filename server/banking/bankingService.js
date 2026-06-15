@@ -5,21 +5,27 @@
 // per reconciled entry, the bank_date / bank_reference. An entry is "reconciled" iff a
 // reconciliations row references its entry_id.
 //
-// Drizzle ORM, mirroring the pattern in voucherService.js: db.all(sql`...`) for reads and
-// INSERT ... RETURNING, db.run(sql`...`) for plain writes; tables imported from ../db/schema.
+// Return shapes follow the renderer contract in client/src/types/api/Transactions.ts.
+// Drizzle ORM, mirroring voucherService.js: db.all(sql`...`) for reads / INSERT ... RETURNING,
+// db.run(sql`...`) for plain writes; tables imported from ../db/schema.
 
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
-const { reconciliations, voucherEntries, vouchers } = require('../db/schema');
+const { reconciliations, voucherEntries, vouchers, ledgers } = require('../db/schema');
 
 // Signed amount for a bank ledger: Dr increases the bank balance, Cr decreases it.
 const SIGNED_AMOUNT = sql`CASE WHEN e.type = 'Dr' THEN e.amount ELSE -e.amount END`;
+
+async function ledgerName(ledger_id) {
+  const rows = await db.all(sql`SELECT name FROM ${ledgers} WHERE ledger_id = ${ledger_id} LIMIT 1`);
+  return rows[0] ? rows[0].name : null;
+}
 
 module.exports = {
   // Bank entries for a ledger that have NOT been reconciled yet.
   getUnreconciled: async (company_id, fy_id, ledger_id) => {
     try {
-      const rows = await db.all(sql`
+      const transactions = await db.all(sql`
         SELECT e.entry_id, e.voucher_id, e.ledger_id, e.ledger_name, e.type, e.amount, e.narration,
                v.voucher_number, v.date, v.voucher_type, v.party_name
         FROM ${voucherEntries} e
@@ -31,10 +37,10 @@ module.exports = {
           AND e.entry_id NOT IN (SELECT entry_id FROM ${reconciliations})
         ORDER BY v.date ASC, e.entry_id ASC
       `);
-      return rows;
+      return { success: true, transactions };
     } catch (err) {
       console.error('Error in banking.getUnreconciled:', err);
-      throw err;
+      return { success: false, error: err.message, transactions: [] };
     }
   },
 
@@ -69,7 +75,8 @@ module.exports = {
     }
   },
 
-  // Remove a reconciliation. Accepts a reconciliation_id (number) or { reconciliation_id } / { entry_id }.
+  // Remove a reconciliation. Accepts an entry_id (number, per the renderer contract) or
+  // { entry_id } / { reconciliation_id }.
   unreconcile: async (idOrData) => {
     try {
       let reconciliationId = null;
@@ -78,10 +85,10 @@ module.exports = {
         reconciliationId = idOrData.reconciliation_id ?? null;
         entryId = idOrData.entry_id ?? null;
       } else {
-        reconciliationId = idOrData ?? null;
+        entryId = idOrData ?? null; // bare number is an entry_id
       }
       if (reconciliationId == null && entryId == null) {
-        return { success: false, error: 'reconciliation_id or entry_id is required' };
+        return { success: false, error: 'entry_id or reconciliation_id is required' };
       }
 
       const res = reconciliationId != null
@@ -96,7 +103,7 @@ module.exports = {
     }
   },
 
-  // All bank entries for a ledger (reconciled + unreconciled) with status, optionally date-bounded.
+  // All bank entries for a ledger (reconciled + unreconciled) with status + running balance.
   getStatement: async (company_id, fy_id, ledger_id, from_date, to_date) => {
     try {
       const conds = [
@@ -108,25 +115,46 @@ module.exports = {
       if (from_date) conds.push(sql`v.date >= ${from_date}`);
       if (to_date) conds.push(sql`v.date <= ${to_date}`);
 
-      const rows = await db.all(sql`
-        SELECT e.entry_id, e.voucher_id, e.ledger_id, e.ledger_name, e.type, e.amount, e.narration,
+      const raw = await db.all(sql`
+        SELECT e.entry_id, e.voucher_id, e.ledger_id, e.type, e.amount, e.narration,
                v.voucher_number, v.date, v.voucher_type, v.party_name,
-               r.reconciliation_id, r.bank_date, r.bank_reference, r.reconciled_date,
-               CASE WHEN r.reconciliation_id IS NOT NULL THEN 1 ELSE 0 END AS reconciled
+               r.reconciliation_id, r.bank_date, r.bank_reference, r.reconciled_date
         FROM ${voucherEntries} e
         JOIN ${vouchers} v ON v.voucher_id = e.voucher_id
         LEFT JOIN ${reconciliations} r ON r.entry_id = e.entry_id
         WHERE ${sql.join(conds, sql` AND `)}
         ORDER BY v.date ASC, e.entry_id ASC
       `);
-      return rows;
+
+      let balance = 0;
+      const rows = raw.map((r) => {
+        balance += r.type === 'Dr' ? r.amount : -r.amount;
+        return {
+          entry_id: r.entry_id,
+          voucher_id: r.voucher_id,
+          voucher_number: r.voucher_number,
+          date: r.date,
+          voucher_type: r.voucher_type,
+          party_name: r.party_name,
+          narration: r.narration,
+          type: r.type,
+          amount: r.amount,
+          is_reconciled: !!r.reconciliation_id,
+          reconciliation_id: r.reconciliation_id ?? null,
+          bank_date: r.bank_date ?? null,
+          bank_reference: r.bank_reference ?? null,
+          balance,
+        };
+      });
+
+      return { success: true, ledger_name: await ledgerName(ledger_id), rows };
     } catch (err) {
       console.error('Error in banking.getStatement:', err);
-      throw err;
+      return { success: false, error: err.message, rows: [] };
     }
   },
 
-  // BRS summary: counts and signed balances split by reconciled status.
+  // BRS summary: book balance plus reconciled / unreconciled split.
   getSummary: async (company_id, fy_id, ledger_id) => {
     try {
       const rows = await db.all(sql`
@@ -134,8 +162,8 @@ module.exports = {
           COUNT(*) AS total_count,
           COALESCE(SUM(CASE WHEN r.reconciliation_id IS NOT NULL THEN 1 ELSE 0 END), 0) AS reconciled_count,
           COALESCE(SUM(CASE WHEN r.reconciliation_id IS NULL THEN 1 ELSE 0 END), 0) AS unreconciled_count,
-          COALESCE(SUM(CASE WHEN r.reconciliation_id IS NOT NULL THEN (${SIGNED_AMOUNT}) ELSE 0 END), 0) AS reconciled_balance,
-          COALESCE(SUM(CASE WHEN r.reconciliation_id IS NULL THEN (${SIGNED_AMOUNT}) ELSE 0 END), 0) AS unreconciled_balance,
+          COALESCE(SUM(CASE WHEN r.reconciliation_id IS NOT NULL THEN (${SIGNED_AMOUNT}) ELSE 0 END), 0) AS reconciled_amount,
+          COALESCE(SUM(CASE WHEN r.reconciliation_id IS NULL THEN (${SIGNED_AMOUNT}) ELSE 0 END), 0) AS unreconciled_amount,
           COALESCE(SUM(${SIGNED_AMOUNT}), 0) AS book_balance
         FROM ${voucherEntries} e
         JOIN ${vouchers} v ON v.voucher_id = e.voucher_id
@@ -145,10 +173,20 @@ module.exports = {
           AND e.ledger_id = ${ledger_id}
           AND COALESCE(v.is_cancelled, 0) = 0
       `);
-      return rows[0];
+      const s = rows[0] || {};
+      return {
+        success: true,
+        ledger_name: await ledgerName(ledger_id),
+        book_balance: s.book_balance || 0,
+        reconciled_amount: s.reconciled_amount || 0,
+        unreconciled_amount: s.unreconciled_amount || 0,
+        total_reconciled_count: s.reconciled_count || 0,
+        total_unreconciled_count: s.unreconciled_count || 0,
+        total_count: s.total_count || 0,
+      };
     } catch (err) {
       console.error('Error in banking.getSummary:', err);
-      throw err;
+      return { success: false, error: err.message };
     }
   },
 };

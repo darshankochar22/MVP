@@ -8,6 +8,7 @@ describe("Banking / Reconciliation Service Tests", () => {
   let bankLedgerId; // using the seeded Cash ledger as the reconcilable bank ledger
   let plLedgerId;
   let entryId;
+  let voucherId;
   let reconciliationId;
 
   beforeAll(async () => {
@@ -45,28 +46,31 @@ describe("Banking / Reconciliation Service Tests", () => {
   });
 
   it("lists the bank entry as unreconciled", async () => {
-    const rows = await bankingService.getUnreconciled(companyId, fyId, bankLedgerId);
-    expect(Array.isArray(rows)).toBe(true);
-    expect(rows.length).toBe(1);
-    expect(rows[0].type).toBe("Dr");
-    expect(rows[0].amount).toBe(10000);
-    entryId = rows[0].entry_id;
+    const res = await bankingService.getUnreconciled(companyId, fyId, bankLedgerId);
+    expect(res.success).toBe(true);
+    expect(res.transactions.length).toBe(1);
+    expect(res.transactions[0].type).toBe("Dr");
+    expect(res.transactions[0].amount).toBe(10000);
+    entryId = res.transactions[0].entry_id;
+    voucherId = res.transactions[0].voucher_id;
     expect(entryId).toBeDefined();
   });
 
   it("summarises an all-unreconciled bank ledger", async () => {
     const s = await bankingService.getSummary(companyId, fyId, bankLedgerId);
+    expect(s.success).toBe(true);
     expect(s.total_count).toBe(1);
-    expect(s.unreconciled_count).toBe(1);
-    expect(s.reconciled_count).toBe(0);
+    expect(s.total_unreconciled_count).toBe(1);
+    expect(s.total_reconciled_count).toBe(0);
     expect(s.book_balance).toBe(10000);
-    expect(s.unreconciled_balance).toBe(10000);
+    expect(s.unreconciled_amount).toBe(10000);
+    expect(s.ledger_name).toBe("Cash");
   });
 
   it("reconciles the entry", async () => {
     const res = await bankingService.reconcile({
       entry_id: entryId,
-      voucher_id: (await bankingService.getStatement(companyId, fyId, bankLedgerId))[0].voucher_id,
+      voucher_id: voucherId,
       ledger_id: bankLedgerId,
       bank_date: "2026-04-17",
       bank_reference: "NEFT-001",
@@ -79,37 +83,40 @@ describe("Banking / Reconciliation Service Tests", () => {
   });
 
   it("removes the entry from the unreconciled list once reconciled", async () => {
-    const rows = await bankingService.getUnreconciled(companyId, fyId, bankLedgerId);
-    expect(rows.length).toBe(0);
+    const res = await bankingService.getUnreconciled(companyId, fyId, bankLedgerId);
+    expect(res.transactions.length).toBe(0);
   });
 
-  it("shows the entry as reconciled in the statement", async () => {
-    const rows = await bankingService.getStatement(companyId, fyId, bankLedgerId);
-    expect(rows.length).toBe(1);
-    expect(rows[0].reconciled).toBe(1);
-    expect(rows[0].bank_reference).toBe("NEFT-001");
+  it("shows the entry as reconciled in the statement with a running balance", async () => {
+    const res = await bankingService.getStatement(companyId, fyId, bankLedgerId);
+    expect(res.success).toBe(true);
+    expect(res.ledger_name).toBe("Cash");
+    expect(res.rows.length).toBe(1);
+    expect(res.rows[0].is_reconciled).toBe(true);
+    expect(res.rows[0].bank_reference).toBe("NEFT-001");
+    expect(res.rows[0].balance).toBe(10000);
   });
 
   it("reflects reconciliation in the summary", async () => {
     const s = await bankingService.getSummary(companyId, fyId, bankLedgerId);
-    expect(s.reconciled_count).toBe(1);
-    expect(s.unreconciled_count).toBe(0);
-    expect(s.reconciled_balance).toBe(10000);
+    expect(s.total_reconciled_count).toBe(1);
+    expect(s.total_unreconciled_count).toBe(0);
+    expect(s.reconciled_amount).toBe(10000);
   });
 
   it("honours the date range in the statement", async () => {
     const inRange = await bankingService.getStatement(companyId, fyId, bankLedgerId, "2026-04-01", "2026-04-30");
-    expect(inRange.length).toBe(1);
+    expect(inRange.rows.length).toBe(1);
     const outOfRange = await bankingService.getStatement(companyId, fyId, bankLedgerId, "2026-05-01", "2026-05-31");
-    expect(outOfRange.length).toBe(0);
+    expect(outOfRange.rows.length).toBe(0);
   });
 
-  it("unreconciles the entry", async () => {
-    const res = await bankingService.unreconcile(reconciliationId);
+  it("unreconciles the entry by entry_id", async () => {
+    const res = await bankingService.unreconcile(entryId);
     expect(res.success).toBe(true);
     expect(res.removed).toBe(1);
-    const rows = await bankingService.getUnreconciled(companyId, fyId, bankLedgerId);
-    expect(rows.length).toBe(1);
+    const back = await bankingService.getUnreconciled(companyId, fyId, bankLedgerId);
+    expect(back.transactions.length).toBe(1);
   });
 
   it("validates required fields on reconcile", async () => {
