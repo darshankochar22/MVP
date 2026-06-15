@@ -33,6 +33,9 @@ export const DEFAULT_GST_DETAILS: CompanyGSTDetails = {
   showGSTAdvances: false,
   updateGSTStatus: false,
   gstReturnsConfigured: false,
+  effectiveDate: "1-Apr-26",
+  downloadGSTRegistration: "",
+  downloadReturnType: "All Returns",
   gstClassification: "",
   setStateWiseThresholdLimit: false,
   gstAdvancesApplicableFrom: "",
@@ -41,6 +44,8 @@ export const DEFAULT_GST_DETAILS: CompanyGSTDetails = {
 /** Strip any field values that no longer match valid option sets. */
 function sanitizeForm(raw: Partial<CompanyGSTDetails>): CompanyGSTDetails {
   const base = { ...DEFAULT_GST_DETAILS, ...raw };
+  const isTrue = (val: any) => val === true || val === 1 || String(val) === "true" || String(val) === "1";
+
   return {
     ...base,
     hsnSacType: VALID_HSN_SAC_TYPES.has(base.hsnSacType ?? "")
@@ -65,7 +70,17 @@ function sanitizeForm(raw: Partial<CompanyGSTDetails>): CompanyGSTDetails {
     intrastateThresholdLimit: isNaN(Number(base.intrastateThresholdLimit))
       ? 50000
       : Number(base.intrastateThresholdLimit),
-    setStateWiseThresholdLimit: !!base.setStateWiseThresholdLimit,
+    setStateWiseThresholdLimit: isTrue(base.setStateWiseThresholdLimit),
+    showGSTAdvances: isTrue(base.showGSTAdvances),
+    updateGSTStatus: isTrue(base.updateGSTStatus),
+    gstReturnsConfigured: isTrue(base.gstReturnsConfigured),
+    stateWiseLimits: Array.isArray(base.stateWiseLimits) ? base.stateWiseLimits : [],
+    gstAdvancesApplicableFrom: base.gstAdvancesApplicableFrom && typeof base.gstAdvancesApplicableFrom === "string" && base.gstAdvancesApplicableFrom.includes("T")
+      ? base.gstAdvancesApplicableFrom.split("T")[0]
+      : base.gstAdvancesApplicableFrom || "",
+    effectiveDate: base.effectiveDate || "1-Apr-26",
+    downloadGSTRegistration: base.downloadGSTRegistration || "",
+    downloadReturnType: base.downloadReturnType || "All Returns",
   };
 }
 

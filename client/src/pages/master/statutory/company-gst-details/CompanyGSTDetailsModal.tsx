@@ -13,6 +13,7 @@ import GSTClassificationSecondaryModal from "./components/GSTClassificationSecon
 import SlabBasedRateDetails, { type SlabRow } from "./components/SlabBasedRateDetails";
 import GSTEffectiveDatePrompt from "./components/GSTEffectiveDatePrompt";
 import StateWiseThresholdLimitModal from "./components/StateWiseThresholdLimitModal";
+import DownloadSettingsModal from "./components/DownloadSettingsModal";
 import { TALLY_FIELDS_CONFIG } from "./config/dropdownConfig";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,12 +58,15 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
   const [secondaryOpen, setSecondaryOpen] = useState(false);
   const [showSlabOverlay, setShowSlabOverlay] = useState(false);
   const [showEffectiveDatePrompt, setShowEffectiveDatePrompt] = useState(false);
+  const [effectiveDateTriggerContext, setEffectiveDateTriggerContext] = useState<"field" | "save">("save");
   const [showStateWiseModal, setShowStateWiseModal] = useState(false);
+  const [showDownloadSettingsModal, setShowDownloadSettingsModal] = useState(false);
   const [slabRows, setSlabRows] = useState<SlabRow[]>([]);
+  const [registrations, setRegistrations] = useState<any[]>([]);
 
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // ── Load classifications ─────────────────────────────────────────────────────
+  // ── Load classifications & registrations ──────────────────────────────────────
 
   const fetchClassifications = () => {
     if (companyId) {
@@ -74,9 +78,20 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
     }
   };
 
+  const fetchRegistrations = () => {
+    if (companyId) {
+      window.api.gstRegistration.getAll(companyId).then((res) => {
+        if (res.success && res.gstRegistrations) {
+          setRegistrations(res.gstRegistrations);
+        }
+      });
+    }
+  };
+
   useEffect(() => {
     if (isOpen && companyId) {
       fetchClassifications();
+      fetchRegistrations();
     }
   }, [isOpen, companyId]);
 
@@ -178,16 +193,29 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
   };
 
   /** Move keyboard focus one step forward (+1) or backward (-1) */
-  const moveFocus = (direction: 1 | -1) => {
+  const moveFocus = (direction: 1 | -1, bypassPrompt = false) => {
     const fields = getFocusableFields();
     let index = fields.indexOf(activeField);
     if (index === -1) {
       setActiveField(fields[0]);
       return;
     }
+
+    if (direction === 1 && activeField === "description" && !bypassPrompt) {
+      setEffectiveDateTriggerContext("field");
+      setShowEffectiveDatePrompt(true);
+      return;
+    }
+
+    if (direction === 1 && activeField === "gstReturnsConfigured" && form.gstReturnsConfigured && !bypassPrompt) {
+      setShowDownloadSettingsModal(true);
+      return;
+    }
+
     index += direction;
     if (index >= fields.length) {
-      setShowAcceptPrompt(true);
+      setEffectiveDateTriggerContext("save");
+      setShowEffectiveDatePrompt(true);
     } else if (index < 0) {
       setActiveField(fields[0]);
     } else {
@@ -210,6 +238,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
         setField("hsnSacCode", "");
         setField("description", "");
       } else if (val === "Specify in Voucher") {
+        setEffectiveDateTriggerContext("field");
         setListPanelOpen(false);
         setTimeout(() => setShowEffectiveDatePrompt(true), 50);
         return;
@@ -232,6 +261,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
         setActiveField("gstClassification");
         return;
       } else if (val === "Specify in Voucher") {
+        setEffectiveDateTriggerContext("field");
         setListPanelOpen(false);
         setTimeout(() => setShowEffectiveDatePrompt(true), 50);
         return;
@@ -248,6 +278,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
     } else if (fieldId === "createHSNSummaryFor") {
       setField("createHSNSummaryFor", val);
       if (val === "None") {
+        setEffectiveDateTriggerContext("field");
         setListPanelOpen(false);
         setTimeout(() => setShowEffectiveDatePrompt(true), 50);
         return;
@@ -261,8 +292,15 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
         setTimeout(() => setShowStateWiseModal(true), 50);
         return;
       }
+      
+      if (fieldId === "gstReturnsConfigured" && isYes) {
+        setListPanelOpen(false);
+        setTimeout(() => setShowDownloadSettingsModal(true), 50);
+        return;
+      }
     } else if (fieldId === "minimumHSNLength") {
       setField("minimumHSNLength", Number(val) || 4);
+      setEffectiveDateTriggerContext("field");
       setListPanelOpen(false);
       setTimeout(() => setShowEffectiveDatePrompt(true), 50);
       return;
@@ -315,6 +353,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       setSecondaryOpen(false);
       setShowSlabOverlay(false);
       setShowEffectiveDatePrompt(false);
+      setShowDownloadSettingsModal(false);
       setShowStateWiseModal(false);
       setSlabRows([]);
       setError(null);
@@ -326,17 +365,17 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
   // Sync list panel when active field or dependent form values change
   // Paused while either secondary modal, slab overlay, or state-wise modal is open
   useEffect(() => {
-    if (isOpen && !secondaryOpen && !showSlabOverlay && !showEffectiveDatePrompt && !showStateWiseModal) {
+    if (isOpen && !secondaryOpen && !showSlabOverlay && !showEffectiveDatePrompt && !showStateWiseModal && !showDownloadSettingsModal) {
       openDropdownPanel(activeField);
     }
-    if (showSlabOverlay || showEffectiveDatePrompt || showStateWiseModal) {
+    if (showSlabOverlay || showEffectiveDatePrompt || showStateWiseModal || showDownloadSettingsModal) {
       setListPanelOpen(false);
     }
-  }, [activeField, form.hsnSacType, form.taxabilityType, gstRateDetails, classifications, secondaryOpen, showSlabOverlay, showEffectiveDatePrompt, showStateWiseModal]);
+  }, [activeField, form.hsnSacType, form.taxabilityType, gstRateDetails, classifications, secondaryOpen, showSlabOverlay, showEffectiveDatePrompt, showStateWiseModal, showDownloadSettingsModal]);
 
   // Global keyboard handler — paused while sub-modals are open
   useEffect(() => {
-    if (!isOpen || secondaryOpen || showSlabOverlay || showEffectiveDatePrompt || showStateWiseModal) return;
+    if (!isOpen || secondaryOpen || showSlabOverlay || showEffectiveDatePrompt || showStateWiseModal || showDownloadSettingsModal) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       // ESC — close panels/prompts in reverse order
@@ -352,10 +391,11 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
         return;
       }
 
-      // Ctrl+A / Alt+A — immediately show accept prompt
+      // Ctrl+A / Alt+A — immediately show effective date prompt
       if ((e.ctrlKey || e.altKey) && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        setShowAcceptPrompt(true);
+        setEffectiveDateTriggerContext("save");
+        setShowEffectiveDatePrompt(true);
         return;
       }
 
@@ -508,7 +548,10 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
                 Quit
               </button>
               <button
-                onClick={() => setShowAcceptPrompt(true)}
+                onClick={() => {
+                  setEffectiveDateTriggerContext("save");
+                  setShowEffectiveDatePrompt(true);
+                }}
                 disabled={loading}
                 className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
               >
@@ -569,11 +612,14 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
       {/* ── Effective Date Prompt overlay ─────────────────────────────────── */}
       <GSTEffectiveDatePrompt
         isOpen={showEffectiveDatePrompt}
-        onAccept={(_dateStr) => {
-          // For now, we don't persist the effective date in the DB as there is no column,
-          // but we accept it and advance focus.
+        onAccept={(dateStr) => {
           setShowEffectiveDatePrompt(false);
-          moveFocus(1);
+          if (effectiveDateTriggerContext === "field") {
+            moveFocus(1, true);
+          } else {
+            setField("effectiveDate", dateStr);
+            setShowAcceptPrompt(true);
+          }
         }}
         onClose={() => setShowEffectiveDatePrompt(false)}
       />
@@ -588,6 +634,22 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
         onClose={() => {
           setShowStateWiseModal(false);
           moveFocus(1);
+        }}
+      />
+
+      {/* ── Download Settings overlay ────────────────────────────────────── */}
+      <DownloadSettingsModal
+        isOpen={showDownloadSettingsModal}
+        registrations={registrations}
+        initialRegistration={form.downloadGSTRegistration || ""}
+        initialReturnType={form.downloadReturnType || "All Returns"}
+        onSave={(reg, returnType) => {
+          setField("downloadGSTRegistration", reg);
+          setField("downloadReturnType", returnType);
+          moveFocus(1, true);
+        }}
+        onClose={() => {
+          setShowDownloadSettingsModal(false);
         }}
       />
     </div>
