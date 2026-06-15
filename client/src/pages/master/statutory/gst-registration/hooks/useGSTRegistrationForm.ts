@@ -113,28 +113,37 @@ export function useGSTRegistrationForm({ mode }: UseGSTRegistrationFormOptions) 
   }, [loadRegistrations]);
 
   const handleSelectReg = (r: GSTRegistrationType) => {
+    const isYes = (val: any) => val === 1 || val === true || String(val).toLowerCase() === "yes" || String(val) === "1";
+    const formatDate = (val: any) => {
+      if (!val) return "";
+      if (typeof val === "string" && val.includes("T")) {
+        return val.split("T")[0];
+      }
+      return val;
+    };
+
     setSelectedReg(r);
     setForm({
       registration_type: (r.registration_type as any) ?? "Regular",
       registration_status: (r.registration_status as any) ?? "Active",
-      assessee_of_other_territory: r.assessee_of_other_territory === 1 ? "Yes" : "No",
+      assessee_of_other_territory: isYes(r.assessee_of_other_territory) ? "Yes" : "No",
       periodicity_of_gstr1: (r.periodicity_of_gstr1 as any) ?? "Monthly",
       gstin: r.gstin ?? "",
       gst_username: r.gst_username ?? "",
       mode_of_filing: (r.mode_of_filing as any) ?? "Not Applicable",
       e_invoice_details: r.e_invoice_details ?? "",
-      e_invoice_application: r.e_invoice_application === 1 ? "Yes" : "No",
-      e_way_bill_applicable: r.e_way_bill_applicable === 1 ? "Yes" : "No",
-      e_way_bill_applicable_from: r.e_way_bill_applicable_from ?? "",
-      applicable_for_intrastat: r.applicable_for_intrastat === 1 ? "Yes" : "No",
+      e_invoice_application: isYes(r.e_invoice_application) ? "Yes" : "No",
+      e_way_bill_applicable: isYes(r.e_way_bill_applicable) ? "Yes" : "No",
+      e_way_bill_applicable_from: formatDate(r.e_way_bill_applicable_from),
+      applicable_for_intrastat: isYes(r.applicable_for_intrastat) ? "Yes" : "No",
       legal_name: r.legal_name ?? "",
       trade_name: r.trade_name ?? "",
       state_id: r.state_id || INDIAN_STATES[0] || "",
-      registration_date: r.registration_date ?? "",
-      effective_from: r.effective_from ?? "",
+      registration_date: formatDate(r.registration_date),
+      effective_from: formatDate(r.effective_from),
       address_type: r.address_type ?? "Primary",
       goods_dispatched_from: r.goods_dispatched_from ?? "Primary",
-      e_invoice_applicable_from: r.e_invoice_applicable_from ?? "",
+      e_invoice_applicable_from: formatDate(r.e_invoice_applicable_from),
       e_invoice_bill_from_place: r.e_invoice_bill_from_place ?? "",
       composition_tax_rate: r.composition_tax_rate !== null && r.composition_tax_rate !== undefined ? String(r.composition_tax_rate) : "",
       composition_tax_calc_basis: (r.composition_tax_calc_basis as any) ?? "Taxable Value",
