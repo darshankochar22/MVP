@@ -369,7 +369,7 @@ export default function GSTDetailsFormFields({
               </div>
             </FieldRow>
 
-            {form.showGSTAdvances ? (
+            {form.showGSTAdvances && (
               <div className="flex flex-col gap-1.5">
                 <FieldRow
                   label="Applicable from"
@@ -386,20 +386,20 @@ export default function GSTDetailsFormFields({
                   />
                 </FieldRow>
               </div>
-            ) : (
-              <FieldRow
-                label="Update GST Status of Vouchers after Master Alteration"
-                labelWidth="230px"
-                subLabel="(Set this to No, to update from GST Reports)"
-              >
-                <div
-                  onClick={() => setActiveField("updateGSTStatus")}
-                  className={`${dropdownClass(activeField === "updateGSTStatus")} flex-1`}
-                >
-                  {form.updateGSTStatus ? "Yes" : "No"}
-                </div>
-              </FieldRow>
             )}
+
+            <FieldRow
+              label="Update GST Status of Vouchers after Master Alteration"
+              labelWidth="230px"
+              subLabel="(Set this to No, to update from GST Reports)"
+            >
+              <div
+                onClick={() => setActiveField("updateGSTStatus")}
+                className={`${dropdownClass(activeField === "updateGSTStatus")} flex-1`}
+              >
+                {form.updateGSTStatus ? "Yes" : "No"}
+              </div>
+            </FieldRow>
 
             {/* Set/Alter GST Returns (Yes/No dropdown) */}
             <FieldRow

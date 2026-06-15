@@ -125,9 +125,9 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
 
     if (form.showGSTAdvances) {
       list.push("gstAdvancesApplicableFrom");
-    } else {
-      list.push("updateGSTStatus");
     }
+
+    list.push("updateGSTStatus");
 
     list.push("gstReturnsConfigured");
     return list;
@@ -255,7 +255,7 @@ export default function CompanyGSTDetailsModal({ isOpen, onClose }: CompanyGSTDe
     } else if (TALLY_FIELDS_CONFIG[fieldId]?.type === "yesno") {
       const isYes = val === "Yes";
       setField(fieldId as keyof CompanyGSTDetails, isYes);
-      
+
       if (fieldId === "setStateWiseThresholdLimit" && isYes) {
         setListPanelOpen(false);
         setTimeout(() => setShowStateWiseModal(true), 50);
