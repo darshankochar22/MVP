@@ -43,17 +43,17 @@ export const PRIMARY_GROUP_STATUTORY_CONFIG: Record<string, PrimaryGroupStatutor
   "Investments": {
     showStatutorySections: true,
     featureToggles: [],
-    statutoryModalToggles: ["serviceTax", "tds"],
+    statutoryModalToggles: ["tds"],
   },
   "Loans(Liability)": {
     showStatutorySections: true,
     featureToggles: [],
-    statutoryModalToggles: ["serviceTax", "tds"],
+    statutoryModalToggles: ["tds"],
   },
   "Misc.Expenses(Asset)": {
     showStatutorySections: true,
     featureToggles: [],
-    statutoryModalToggles: ["serviceTax", "tds"],
+    statutoryModalToggles: ["tds"],
   },
   "Sales Accounts": {
     showStatutorySections: true,
