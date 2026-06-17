@@ -102,6 +102,16 @@ const PARENT_GROUP_OVERRIDES: Record<string, PrimaryGroupStatutoryConfig> = {
     featureToggles: ["tds"],
     statutoryModalToggles: [],
   },
+  "Loans & Advances (Asset)": {
+    showStatutorySections: true,
+    featureToggles: [],
+    statutoryModalToggles: ["serviceTax", "tds"],
+  },
+  "Provisions": {
+    showStatutorySections: true,
+    featureToggles: [],
+    statutoryModalToggles: ["serviceTax", "tds"],
+  },
 };
 
 export function getConfig(

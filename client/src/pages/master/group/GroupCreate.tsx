@@ -69,10 +69,8 @@ export default function GroupCreate() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
-  const [showTdsModal, setShowTdsModal] = useState(false);
-  const [showTcsModal, setShowTcsModal] = useState(false);
-  const [showStatutoryTdsCreate, setShowStatutoryTdsCreate] = useState(false);
-  const [showStatutoryTcsCreate, setShowStatutoryTcsCreate] = useState(false);
+  const [activeFeatureModal, setActiveFeatureModal] = useState<StatutoryToggle | null>(null);
+  const [activeFeatureCreateModal, setActiveFeatureCreateModal] = useState<StatutoryToggle | null>(null);
 
   const [form, setForm] = useState<Partial<GroupType>>(
     () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL_FORM
@@ -91,8 +89,7 @@ export default function GroupCreate() {
   // Escape key handler
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const anyModal = showGroupPanel || showTdsModal || showTcsModal ||
-        showStatutoryTdsCreate || showStatutoryTcsCreate;
+      const anyModal = showGroupPanel || activeFeatureModal !== null || activeFeatureCreateModal !== null;
       if (e.key === "Escape" && !anyModal) {
         e.preventDefault();
         navigate("/master/create");
@@ -100,7 +97,7 @@ export default function GroupCreate() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showGroupPanel, showTdsModal, showTcsModal, showStatutoryTdsCreate, showStatutoryTcsCreate, navigate]);
+  }, [showGroupPanel, activeFeatureModal, activeFeatureCreateModal, navigate]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -172,13 +169,10 @@ export default function GroupCreate() {
     setForm((f) => ({ ...f, [key]: f[key] ? 0 : 1 }));
   };
 
-  const handleFeatureToggle = (dbKey: keyof GroupType, subModal: StatutoryToggle) => {
+  const handleFeatureToggle = (dbKey: keyof GroupType, toggleKey: StatutoryToggle) => {
     setForm((f) => {
       const newVal = f[dbKey] ? 0 : 1;
-      if (newVal === 1) {
-        if (subModal === "tds") setTimeout(() => setShowTdsModal(true), 0);
-        if (subModal === "tcs") setTimeout(() => setShowTcsModal(true), 0);
-      }
+      if (newVal === 1) setTimeout(() => setActiveFeatureModal(toggleKey), 0);
       return { ...f, [dbKey]: newVal };
     });
   };
@@ -398,37 +392,85 @@ export default function GroupCreate() {
         </div>
       )}
 
-      <NatureOfPaymentDetailsModal
-        isOpen={showTdsModal}
-        onClose={() => setShowTdsModal(false)}
+      <FeatureSubModal
+        toggleKey={activeFeatureModal}
+        onClose={() => setActiveFeatureModal(null)}
         companyId={companyId}
-        onOpenCreateForm={() => setShowStatutoryTdsCreate(true)}
+        onOpenCreateForm={(key) => setActiveFeatureCreateModal(key)}
       />
-
-      <NatureOfGoodsDetailsModal
-        isOpen={showTcsModal}
-        onClose={() => setShowTcsModal(false)}
+      <FeatureCreateModal
+        toggleKey={activeFeatureCreateModal}
+        onClose={() => setActiveFeatureCreateModal(null)}
         companyId={companyId}
-        onOpenCreateForm={() => setShowStatutoryTcsCreate(true)}
-      />
-
-      <TDSNatureOfPaymentCreation
-        isOpen={showStatutoryTdsCreate}
-        onClose={() => setShowStatutoryTdsCreate(false)}
-        companyId={companyId}
-        onCreated={() => {
-          window.dispatchEvent(new CustomEvent("tds-nature-of-payment-created"));
-        }}
-      />
-
-      <TCSNatureOfGoodsCreation
-        isOpen={showStatutoryTcsCreate}
-        onClose={() => setShowStatutoryTcsCreate(false)}
-        companyId={companyId}
-        onCreated={() => {
-          window.dispatchEvent(new CustomEvent("tcs-nature-of-goods-created"));
-        }}
       />
     </div>
   );
+}
+
+/** Renders the appropriate sub-modal for a standalone feature toggle. */
+function FeatureSubModal({
+  toggleKey,
+  onClose,
+  companyId,
+  onOpenCreateForm,
+}: {
+  toggleKey: StatutoryToggle | null;
+  onClose: () => void;
+  companyId: number | undefined;
+  onOpenCreateForm: (key: StatutoryToggle) => void;
+}) {
+  if (toggleKey === "tds") {
+    return (
+      <NatureOfPaymentDetailsModal
+        isOpen
+        onClose={onClose}
+        companyId={companyId}
+        onOpenCreateForm={() => onOpenCreateForm("tds")}
+      />
+    );
+  }
+  if (toggleKey === "tcs") {
+    return (
+      <NatureOfGoodsDetailsModal
+        isOpen
+        onClose={onClose}
+        companyId={companyId}
+        onOpenCreateForm={() => onOpenCreateForm("tcs")}
+      />
+    );
+  }
+  return null;
+}
+
+/** Renders the creation-form modal for a standalone feature toggle. */
+function FeatureCreateModal({
+  toggleKey,
+  onClose,
+  companyId,
+}: {
+  toggleKey: StatutoryToggle | null;
+  onClose: () => void;
+  companyId: number | undefined;
+}) {
+  if (toggleKey === "tds") {
+    return (
+      <TDSNatureOfPaymentCreation
+        isOpen
+        onClose={onClose}
+        companyId={companyId}
+        onCreated={() => window.dispatchEvent(new CustomEvent("tds-nature-of-payment-created"))}
+      />
+    );
+  }
+  if (toggleKey === "tcs") {
+    return (
+      <TCSNatureOfGoodsCreation
+        isOpen
+        onClose={onClose}
+        companyId={companyId}
+        onCreated={() => window.dispatchEvent(new CustomEvent("tcs-nature-of-goods-created"))}
+      />
+    );
+  }
+  return null;
 }
