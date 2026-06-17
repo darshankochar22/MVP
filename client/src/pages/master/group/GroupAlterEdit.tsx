@@ -133,7 +133,7 @@ export default function GroupAlterEdit() {
     return null;
   }, [parentGroup, flatGroups]);
 
-  const statutoryConfig = useMemo(() => getConfig(primaryGroupName), [primaryGroupName]);
+  const statutoryConfig = useMemo(() => getConfig(primaryGroupName, parentGroup?.name), [primaryGroupName, parentGroup?.name]);
 
   const isPrimarySelected = !form.parent_group_id;
 
@@ -326,6 +326,7 @@ export default function GroupAlterEdit() {
               form={form}
               setForm={setForm}
               primaryGroupName={primaryGroupName}
+              parentGroupName={parentGroup?.name}
               companyId={companyId}
             />
           )}

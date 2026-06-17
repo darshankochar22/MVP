@@ -1,27 +1,21 @@
-const PREFIX = "formData_";
+/**
+ * Form state persistence helpers.
+ *
+ * Currently disabled — saveFormState and loadFormState are no-ops.
+ * Form toggles always reset to their initial defaults (No/0) on mount.
+ *
+ * To re-enable, uncomment the sessionStorage lines in each function.
+ */
 
-export function saveFormState(key: string, data: unknown): void {
-  try {
-    sessionStorage.setItem(PREFIX + key, JSON.stringify(data));
-  } catch {
-    // sessionStorage may be full or unavailable
-  }
+export function saveFormState(_key: string, _data: unknown): void {
+  // No-op: form state is not persisted across navigation
 }
 
-export function loadFormState<T>(key: string): T | null {
-  try {
-    const raw = sessionStorage.getItem(PREFIX + key);
-    if (!raw) return null;
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
+export function loadFormState<T>(_key: string): T | null {
+  // Always returns null — forms always start from INITIAL defaults
+  return null;
 }
 
-export function clearFormState(key: string): void {
-  try {
-    sessionStorage.removeItem(PREFIX + key);
-  } catch {
-    // ignore
-  }
+export function clearFormState(_key: string): void {
+  // No-op: nothing to clear since nothing is saved
 }

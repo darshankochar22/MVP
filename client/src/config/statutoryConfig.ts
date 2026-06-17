@@ -82,7 +82,35 @@ export const DEFAULT_CONFIG: PrimaryGroupStatutoryConfig = {
   statutoryModalToggles: [],
 };
 
-export function getConfig(primaryGroupName: string | null): PrimaryGroupStatutoryConfig {
+/**
+ * Config overrides keyed by the direct parent group name.
+ * Takes priority over the primary group config when the parent matches exactly.
+ */
+const PARENT_GROUP_OVERRIDES: Record<string, PrimaryGroupStatutoryConfig> = {
+  "Suspense A/c": {
+    showStatutorySections: false,
+    featureToggles: ["tds"],
+    statutoryModalToggles: [],
+  },
+  "Deposits (Asset)": {
+    showStatutorySections: false,
+    featureToggles: ["tds"],
+    statutoryModalToggles: [],
+  },
+  "Duties & Taxes": {
+    showStatutorySections: false,
+    featureToggles: ["tds"],
+    statutoryModalToggles: [],
+  },
+};
+
+export function getConfig(
+  primaryGroupName: string | null,
+  parentGroupName?: string | null,
+): PrimaryGroupStatutoryConfig {
+  if (parentGroupName && PARENT_GROUP_OVERRIDES[parentGroupName]) {
+    return PARENT_GROUP_OVERRIDES[parentGroupName];
+  }
   if (!primaryGroupName) return DEFAULT_CONFIG;
   return PRIMARY_GROUP_STATUTORY_CONFIG[primaryGroupName] ?? DEFAULT_CONFIG;
 }

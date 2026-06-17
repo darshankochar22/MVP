@@ -45,6 +45,7 @@ interface StatutorySectionProps {
   form: Partial<GroupType>;
   setForm: React.Dispatch<React.SetStateAction<Partial<GroupType>>>;
   primaryGroupName: string | null;
+  parentGroupName?: string | null;
   companyId: number | undefined;
 }
 
@@ -52,9 +53,10 @@ export default function StatutorySection({
   form,
   setForm,
   primaryGroupName,
+  parentGroupName,
   companyId,
 }: StatutorySectionProps) {
-  const config = useMemo(() => getConfig(primaryGroupName), [primaryGroupName]);
+  const config = useMemo(() => getConfig(primaryGroupName, parentGroupName), [primaryGroupName, parentGroupName]);
 
   const [showStatutoryModal, setShowStatutoryModal] = useState(false);
   const [activeSubModal, setActiveSubModal] = useState<StatutoryToggle | null>(null);
