@@ -47,6 +47,13 @@ const init = async (db) => {
       // column already exists — ignore
     }
   };
+  await addCol("set_alter_tds_details", "INTEGER DEFAULT 0");
+  await addCol("set_alter_tcs_details", "INTEGER DEFAULT 0");
+  await addCol("set_alter_other_statutory_details", "INTEGER DEFAULT 0");
+  await addCol("hsn_sac_source", "TEXT");
+  await addCol("hsn_sac_description", "TEXT");
+  await addCol("gst_rate_source", "TEXT");
+  await addCol("taxability_type", "TEXT");
   await addCol("set_alter_service_tax_details", "INTEGER DEFAULT 0");
   await addCol("set_alter_vat_details", "INTEGER DEFAULT 0");
   await addCol("set_alter_excise_details", "INTEGER DEFAULT 0");

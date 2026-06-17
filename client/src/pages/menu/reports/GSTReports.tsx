@@ -31,6 +31,18 @@ export default function GSTReports() {
     if (item === "GSTR-1") {
       return "/master/statutory/gstr1";
     }
+    if (item === "GSTR-3B") {
+      return "/master/statutory/gstr3b";
+    }
+    if (item === "Annual Computation") {
+      return "/master/statutory/annual-computation";
+    }
+    if (item === "GSTR-1 Reconciliation") {
+      return "/master/statutory/gstr1/reconciliation";
+    }
+    if (item === "GSTR-2A Reconciliation") {
+      return "/master/statutory/gstr2a/reconciliation";
+    }
     return null;
   };
 

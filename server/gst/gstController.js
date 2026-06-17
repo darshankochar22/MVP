@@ -3,6 +3,8 @@ const { sql, eq, and } = require('drizzle-orm');
 const { gstHsnRates } = require('../db/schema');
 const gstTaxEngine = require('./gstTaxEngine');
 const gstr1Service = require('./gstr1Service');
+const gstr3bService = require('./gstr3bService');
+const annualComputationService = require('./annualComputationService');
 
 module.exports = {
   computeTax: async (event, data) => {
@@ -20,6 +22,18 @@ module.exports = {
 
   getGSTR1: async (event, { company_id, fy_id, return_period }) => {
     return await gstr1Service.getGSTR1(company_id, fy_id, return_period);
+  },
+
+  generateGSTR3B: async (event, { company_id, fy_id, return_period }) => {
+    return await gstr3bService.generateGSTR3B(company_id, fy_id, return_period);
+  },
+
+  getGSTR3B: async (event, { company_id, fy_id, return_period }) => {
+    return await gstr3bService.getGSTR3B(company_id, fy_id, return_period);
+  },
+
+  getAnnualComputation: async (event, { company_id, fy_id }) => {
+    return await annualComputationService.generateAnnualComputation(company_id, fy_id);
   },
 
   getHSNRates: async (event, company_id) => {
