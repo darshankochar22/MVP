@@ -85,6 +85,7 @@ import TDSNatureOfPaymentAlter from "./pages/master/statutory/tds-nature-of-paym
 import TDSNatureOfPaymentCOA from "./pages/master/statutory/tds-nature-of-payment/TDSNatureOfPaymentCOA.tsx";
 import TrackGSTReturnActivities from "./pages/master/statutory/gst-return/TrackGSTReturnActivities.tsx";
 import GSTR1View from "./pages/master/statutory/gst-return/GSTR1View.tsx";
+import GSTR1Reconciliation from "./pages/master/statutory/gst-return/GSTR1-Reconcilation.tsx";
 import GSTR3BView from "./pages/master/statutory/gst-return/GSTR-3B.tsx";
 import AnnualComputation from "./pages/master/statutory/gst-return/AnnualComputation.tsx";
 import EmployeeGroupCreate from "./pages/master/payroll/employee-group/EmployeeGroupCreate.tsx";
@@ -114,6 +115,7 @@ import EmployeeCategoryAlter from "./pages/master/payroll/employee-category/Empl
 import TaxCreate from "./pages/master/statutory/Tax-units/taxCreate.tsx";
 import TaxCOA from "./pages/master/statutory/Tax-units/taxCOA.tsx";
 import TaxAlter from "./pages/master/statutory/Tax-units/taxAlter.tsx";
+import GSTR2AReconciliation from "./pages/master/statutory/gst-return/GSTR2A-Reconcilation.tsx";
 
 export interface RouteConfig {
   path: string;
@@ -202,14 +204,14 @@ export const APP_ROUTES: RouteConfig[] = [
 
   { path: "/master/statutory/gst/track-activities", element: <TrackGSTReturnActivities /> },
   { path: "/master/statutory/gstr1", element: <GSTR1View /> },
+  { path: "/master/statutory/gstr1/reconciliation", element: <GSTR1Reconciliation /> },
   { path: "/master/statutory/gstr3b", element: <GSTR3BView /> },
   { path: "/master/statutory/annual-computation", element: <AnnualComputation /> },
+  { path: "/master/statutory/gstr2a/reconciliation", element: <GSTR2AReconciliation />},
 
   { path: "/master/create/tax-units", element: <TaxCreate /> },
   { path: "/master/alter/tax-units", element: <TaxAlter /> },
   { path: "/master/coa/tax-units", element: <TaxCOA /> },
-
-
 
   { path: "/master/create/group", element: <GroupCreate /> },
   { path: "/master/alter/group", element: <GroupAlter /> },

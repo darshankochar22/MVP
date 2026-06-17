@@ -14,106 +14,51 @@ import {
 import { EmptyState } from "@/components/blocks/EmptyState";
 import { cn } from "@/lib/utils";
 
-function fmt(n: number) {
-  if (!n) return "-";
-  return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-function fmtAmt(n: number) {
-  return n ? n.toFixed(2) : "-";
-}
-
-interface TaxAmt {
+interface TaxAmount {
   txval: number;
-  iamt: number;
-  camt: number;
-  samt: number;
-  cess: number;
+  iamt:  number;
+  camt:  number;
+  samt:  number;
+  cess:  number;
 }
 
-const ZERO: TaxAmt = { txval: 0, iamt: 0, camt: 0, samt: 0, cess: 0 };
+const ZERO: TaxAmount = { txval: 0, iamt: 0, camt: 0, samt: 0, cess: 0 };
 
-interface SectionHeaderProps {
-  label: string;
-  bg?: string;
-  onClick: () => void;
+function fmt(n: number) {
+  return n ? n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
 }
 
-const SectionHeader = ({ label, bg = "bg-[#ffeb9c]", onClick }: SectionHeaderProps) => (
-  <TableRow
-    className={cn("cursor-pointer hover:brightness-95 select-none", bg)}
-    onClick={onClick}
-  >
-    <TableCell colSpan={6} className="font-bold text-xs text-black px-2 py-1">
-      {label}
-    </TableCell>
-  </TableRow>
-);
-
-interface DataRowProps {
-  label: string;
-  row: TaxAmt;
-  dim?: boolean;
-  bold?: boolean;
-  highlighted?: boolean;
+function taxTotal(t: TaxAmount) {
+  return t.iamt + t.camt + t.samt + t.cess;
 }
 
-const DataRow = ({
-  label,
-  row,
-  dim = false,
-  bold = false,
-  highlighted = false,
-}: DataRowProps) => (
-  <TableRow
-    className={cn(
-      "hover:bg-[#e6f2ff] text-xs",
-      dim && "text-zinc-400",
-      highlighted && "bg-[#fff8dc]"
-    )}
-  >
-    <TableCell className={cn("px-4 py-0.5 w-64", bold && "font-semibold")}>{label}</TableCell>
-    <TableCell className="text-right py-0.5 w-28">{fmt(row.txval)}</TableCell>
-    <TableCell className="text-right py-0.5 w-24">{fmt(row.iamt)}</TableCell>
-    <TableCell className="text-right py-0.5 w-24">{fmt(row.camt)}</TableCell>
-    <TableCell className="text-right py-0.5 w-24">{fmt(row.samt)}</TableCell>
-    <TableCell className="text-right py-0.5 w-24">{fmt(row.cess)}</TableCell>
-  </TableRow>
-);
-
-interface TaxRowProps {
-  label: string;
-  igst: number;
-  cgst: number;
-  sgst: number;
-  cess: number;
-  bold?: boolean;
-  highlighted?: boolean;
+function addAmt(a: TaxAmount, b: TaxAmount): TaxAmount {
+  return {
+    txval: a.txval + b.txval,
+    iamt:  a.iamt  + b.iamt,
+    camt:  a.camt  + b.camt,
+    samt:  a.samt  + b.samt,
+    cess:  a.cess  + b.cess,
+  };
 }
 
-const TaxRow = ({
-  label,
-  igst,
-  cgst,
-  sgst,
-  cess,
-  bold = false,
-  highlighted = false,
-}: TaxRowProps) => (
-  <TableRow
-    className={cn(
-      "hover:bg-[#e6f2ff] text-xs",
-      highlighted && "bg-[#fff8dc]"
-    )}
-  >
-    <TableCell className={cn("px-4 py-0.5 w-64", bold && "font-semibold")}>{label}</TableCell>
-    <TableCell className="text-right py-0.5 w-28">-</TableCell>
-    <TableCell className="text-right py-0.5 w-24">{fmtAmt(igst)}</TableCell>
-    <TableCell className="text-right py-0.5 w-24">{fmtAmt(cgst)}</TableCell>
-    <TableCell className="text-right py-0.5 w-24">{fmtAmt(sgst)}</TableCell>
-    <TableCell className="text-right py-0.5 w-24">{fmtAmt(cess)}</TableCell>
-  </TableRow>
-);
+// ── Row type system (matches GSTR-3B pattern) ─────────────────────────────────
+
+type RowDef =
+  | { type: "section";    label: string }
+  | { type: "subsection"; label: string }
+  | { type: "data";       label: string; data: TaxAmount; indent?: 1 | 2; bold?: boolean }
+  | { type: "total";      label: string; data: TaxAmount }
+  | { type: "divider" };
+
+// ── Shared column widths ──────────────────────────────────────────────────────
+
+const NUM_CELL = "w-28 px-2 py-0.5 text-right text-xs tabular-nums";
+const HEAD_CELL = "h-auto w-28 px-2 py-1 text-right align-bottom font-bold text-black text-xs";
+
+// ── Main Component ────────────────────────────────────────────────────────────
 
 export default function AnnualComputation() {
   const { selectedCompany, activeFY } = useCompany();
@@ -123,7 +68,7 @@ export default function AnnualComputation() {
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState<string | null>(null);
   const [data, setData]         = useState<any>(null);
-  const [activeSection, setActiveSection] = useState<number | null>(null);
+  const [selectedRow, setSelectedRow] = useState<number | null>(null);
 
   const loadData = async () => {
     if (!companyId || !fyId) return;
@@ -131,11 +76,8 @@ export default function AnnualComputation() {
       setLoading(true);
       setError(null);
       const result = await window.api.gst.getAnnualComputation({ company_id: companyId, fy_id: fyId });
-      if (result.success) {
-        setData(result.payload);
-      } else {
-        setError(result.error || "Failed to load data");
-      }
+      if (result.success) setData(result.payload);
+      else setError(result.error || "Failed to load data");
     } catch (e: any) {
       setError(e.message || "Unknown error");
     } finally {
@@ -143,44 +85,78 @@ export default function AnnualComputation() {
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, [companyId, fyId]);
+  useEffect(() => { loadData(); }, [companyId, fyId]);
 
-  // ── Outward supplies ──────────────────────────────────────────────────────
-  const outTaxable: TaxAmt  = data?.outward_supplies?.taxable  ?? ZERO;
-  const outZero: TaxAmt     = data?.outward_supplies?.zero      ?? ZERO;
-  const outNilExmp: TaxAmt  = data?.outward_supplies?.nil_exmp  ?? ZERO;
-  const outNonGst: TaxAmt   = data?.outward_supplies?.nongst    ?? ZERO;
-  const inRcm: TaxAmt       = data?.outward_supplies?.rcm       ?? ZERO;
+  // ── Derived values ────────────────────────────────────────────────────────
 
-  const outTotal: TaxAmt = {
-    txval: outTaxable.txval + outZero.txval + outNilExmp.txval + outNonGst.txval + inRcm.txval,
-    iamt:  outTaxable.iamt  + outZero.iamt  + inRcm.iamt,
-    camt:  outTaxable.camt  + inRcm.camt,
-    samt:  outTaxable.samt  + inRcm.samt,
-    cess:  outTaxable.cess  + outZero.cess  + inRcm.cess,
+  // Liability
+  const liab_taxable:   TaxAmount = data?.liability?.taxable_and_advances ?? ZERO;
+  const liab_notpay:    TaxAmount = data?.liability?.not_payable           ?? ZERO;
+  const liab_missing:   TaxAmount = data?.liability?.missing_invoice       ?? ZERO;
+  const liab_total:     TaxAmount = addAmt(addAmt(liab_taxable, liab_notpay), liab_missing);
+
+  // ITC
+  const itc_availed:    TaxAmount = data?.itc?.availed   ?? ZERO;
+  const itc_reversal:   TaxAmount = data?.itc?.reversal  ?? ZERO;
+  const itc_net: TaxAmount = {
+    txval: itc_availed.txval - itc_reversal.txval,
+    iamt:  itc_availed.iamt  - itc_reversal.iamt,
+    camt:  itc_availed.camt  - itc_reversal.camt,
+    samt:  itc_availed.samt  - itc_reversal.samt,
+    cess:  itc_availed.cess  - itc_reversal.cess,
   };
 
-  // ── ITC ───────────────────────────────────────────────────────────────────
-  const itcImpGoods: TaxAmt    = data?.itc?.import_goods    ?? ZERO;
-  const itcImpSvc: TaxAmt      = data?.itc?.import_services ?? ZERO;
-  const itcRcm: TaxAmt         = data?.itc?.rcm             ?? ZERO;
-  const itcOther: TaxAmt       = data?.itc?.other           ?? ZERO;
-  const itcReversed: TaxAmt    = data?.itc?.reversed        ?? ZERO;
-  const itcTotalAvailed: TaxAmt = data?.itc?.total_availed  ?? ZERO;
+  // Others
+  const interest:       TaxAmount = data?.interest_late_fee  ?? ZERO;
+  const hsn_summary:    TaxAmount = data?.hsn_summary        ?? ZERO;
+  const outward_summ:   TaxAmount = data?.summary_outward    ?? ZERO;
+  const inward_summ:    TaxAmount = data?.summary_inward     ?? ZERO;
 
-  // ── Tax ───────────────────────────────────────────────────────────────────
-  const taxPayable = data?.tax_payable ?? { igst: 0, cgst: 0, sgst: 0, cess: 0 };
-  const netTax     = data?.net_tax     ?? { igst: 0, cgst: 0, sgst: 0, cess: 0 };
+  // Voucher counts
+  const totalVouchers  = data?.voucher_count?.total       ?? 0;
+  const includedReturn = data?.voucher_count?.included    ?? 0;
+  const notRelevant    = data?.voucher_count?.not_relevant ?? 0;
+  const uncertain      = data?.voucher_count?.uncertain   ?? 0;
 
-  // ── Monthly summary ───────────────────────────────────────────────────────
-  const monthly: any[]   = data?.monthly_summary ?? [];
-  const annualTotal: any = data?.annual_total    ?? {};
+  const fyLabel =
+    data?.fy_label ??
+    (activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "");
 
-  const fyLabel = data?.fy_label ?? (activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "");
+  // ── Row definitions ───────────────────────────────────────────────────────
 
+  const rows: RowDef[] = [
+    // ── Liability ──
+    { type: "section",    label: "Liability" },
+    { type: "data",       label: "Outward and Inward Supplies on Which Tax is Payable (Including Advances)", data: liab_taxable,  indent: 1 },
+    { type: "data",       label: "Outward Supplies on Which Tax is Not Payable",                              data: liab_notpay,   indent: 1 },
+    { type: "data",       label: "Missing Invoice Reported in Current Period",                                 data: liab_missing,  indent: 1 },
+    { type: "total",      label: "Total Liability",                                                            data: liab_total },
 
+    { type: "divider" },
+
+    // ── ITC ──
+    { type: "section",    label: "Input Tax Credit" },
+    { type: "data",       label: "Input Tax Credit",                                                                                              data: itc_availed,  indent: 1 },
+    { type: "data",       label: "Reversal of Input Tax Credit, Adjusted and Ineligible Input Tax Credit Declared",                              data: itc_reversal, indent: 1 },
+    { type: "total",      label: "Total ITC After Reversal & Ineligible Input Tax Credit",                                                        data: itc_net },
+
+    { type: "divider" },
+
+    // ── Others ──
+    { type: "section",    label: "Other Details" },
+    { type: "data",       label: "Interest, Late Fee, Penalty and Others", data: interest,      indent: 1 },
+    { type: "data",       label: "HSN/SAC Summary",                        data: hsn_summary,   indent: 1 },
+
+    { type: "divider" },
+
+    // ── Summaries ──
+    { type: "section",    label: "Supply Summary" },
+    { type: "data",       label: "Summary of Outward Supplies",            data: outward_summ,  indent: 1 },
+    { type: "data",       label: "Summary of Inward Supplies",             data: inward_summ,   indent: 1 },
+  ];
+
+  // ── Grand totals for footer ───────────────────────────────────────────────
+  const grandTotal: TaxAmount = addAmt(liab_total, itc_net);
 
   return (
     <TallyReportLayout
@@ -188,170 +164,181 @@ export default function AnnualComputation() {
       companyName={selectedCompany?.name || "Company"}
       leftSubtitle={
         <>
-          <div>
-            GST Registration :{" "}
-            <span className="font-bold">{data?.gstin || "All Registrations"}</span>
+          <div className="flex gap-4">
+            <span className="w-32">GST Registration</span>
+            <span className="font-bold">: {data?.gstin || "All Registrations"}</span>
           </div>
-          <div>
-            Financial Year :{" "}
-            <span className="font-bold">{fyLabel}</span>
+          <div className="flex gap-4">
+            <span className="w-32">Financial Year</span>
+            <span className="font-bold">: {fyLabel}</span>
           </div>
         </>
       }
       rightSubtitle={
-        <div className="flex flex-col items-end gap-1">
-          <Button
-            size="xs"
-            variant="outline"
-            onClick={loadData}
-            disabled={loading}
-            className="text-[10px] h-5 px-2"
-          >
-            {loading ? "Loading…" : "Refresh"}
-          </Button>
-        </div>
+        <div>{fyLabel}</div>
+      }
+      footerControls={
+        <Button
+          onClick={loadData}
+          variant="ghost"
+          size="xs"
+          disabled={loading}
+          className="h-auto p-0 ml-4 font-bold text-black hover:underline hover:bg-transparent"
+        >
+          F5: Refresh
+        </Button>
       }
     >
-      <div className="w-full font-sans text-xs">
-        {error && (
-          <div className="text-red-600 text-xs px-4 py-2">{error}</div>
-        )}
+      <div className="w-full flex flex-col font-sans text-xs pb-4">
 
-        {loading ? (
-          <EmptyState message="Computing annual GST data…" />
-        ) : !data ? (
-          <EmptyState message="No GST data found for this financial year." />
-        ) : (
+        {loading && <EmptyState message="Computing annual GST data…" className="italic" />}
+        {error   && <div className="p-2 text-center text-red-600 font-bold">{error}</div>}
+
+        {!loading && data && (
           <>
-            {/* ── PART I: Outward Supplies ─────────────────────────────── */}
-            <Table className="w-full border border-zinc-200">
+            {/* ── Voucher Summary ───────────────────────────────────────── */}
+            <div className="flex flex-col border-b border-gray-300">
+              <div className="flex font-bold px-2 py-1 border-b border-gray-200">
+                <div className="flex-1">P a r t i c u l a r s</div>
+                <div className="w-32 text-right">Voucher Count</div>
+              </div>
+
+              <div className="flex px-2 py-0.5 font-bold bg-[#ffcc00]">
+                <div className="flex-1">Total Vouchers</div>
+                <div className="w-32 text-right">{totalVouchers || ""}</div>
+              </div>
+
+              <div className="flex px-4 py-0.5">
+                <div className="flex-1">Included in Return</div>
+                <div className="w-32 text-right">{includedReturn || ""}</div>
+              </div>
+
+              <div className="flex px-4 py-0.5 text-gray-500">
+                <div className="flex-1">Not Relevant for This Return</div>
+                <div className="w-32 text-right">{notRelevant || ""}</div>
+              </div>
+
+              {uncertain > 0 && (
+                <div className="flex px-4 py-0.5 pb-2 text-red-600 font-semibold">
+                  <div className="flex-1">Uncertain Transactions (Corrections needed)</div>
+                  <div className="w-32 text-right">{uncertain}</div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Main Table ────────────────────────────────────────────── */}
+            <Table className="text-xs table-fixed">
               <TableHeader>
-                <TableRow className="bg-[#dce6f1] text-xs">
-                  <TableHead className="px-2 py-1 w-64 text-black font-bold">Particulars</TableHead>
-                  <TableHead className="text-right py-1 w-28 text-black font-bold">Taxable Value (₹)</TableHead>
-                  <TableHead className="text-right py-1 w-24 text-black font-bold">IGST (₹)</TableHead>
-                  <TableHead className="text-right py-1 w-24 text-black font-bold">CGST (₹)</TableHead>
-                  <TableHead className="text-right py-1 w-24 text-black font-bold">SGST/UTGST (₹)</TableHead>
-                  <TableHead className="text-right py-1 w-24 text-black font-bold">Cess (₹)</TableHead>
+                <TableRow className="border-b border-gray-300 hover:bg-transparent">
+                  <TableHead className="h-auto px-2 py-1 align-bottom font-bold text-black">
+                    P a r t i c u l a r s
+                  </TableHead>
+                  <TableHead className={HEAD_CELL}>Taxable<br />Amount</TableHead>
+                  <TableHead className={HEAD_CELL}>IGST</TableHead>
+                  <TableHead className={HEAD_CELL}>CGST</TableHead>
+                  <TableHead className={HEAD_CELL}>SGST/<br />UTGST</TableHead>
+                  <TableHead className={HEAD_CELL}>Cess</TableHead>
+                  <TableHead className={HEAD_CELL}>Tax<br />Amount</TableHead>
                 </TableRow>
               </TableHeader>
 
               <TableBody>
-                {/* Section 1 */}
-                <SectionHeader label="1. Details of Outward Supplies" onClick={() => setActiveSection(activeSection === 1 ? null : 1)} />
-                {activeSection !== 1 ? null : (
-                  <>
-                    <DataRow label="(a) Taxable supplies"                  row={outTaxable}  />
-                    <DataRow label="(b) Zero-rated supplies (exports)"      row={outZero}     />
-                    <DataRow label="(c) Nil-rated / Exempt supplies"        row={outNilExmp}  />
-                    <DataRow label="(d) Non-GST supplies"                   row={outNonGst}   />
-                    <DataRow label="(e) Inward supplies under RCM"          row={inRcm}       />
-                  </>
-                )}
-                <DataRow label="Total Outward Supplies" row={outTotal} bold highlighted />
+                {rows.map((row, idx) => {
 
-                {/* Section 2 – ITC */}
-                <SectionHeader label="2. Eligible Input Tax Credit (ITC)" bg="bg-[#e2efda]" onClick={() => setActiveSection(activeSection === 2 ? null : 2)} />
-                {activeSection !== 2 ? null : (
-                  <>
-                    <DataRow label="(A)(1) Import of Goods"                 row={itcImpGoods}    />
-                    <DataRow label="(A)(2) Import of Services"              row={itcImpSvc}      />
-                    <DataRow label="(A)(3) Inward supplies under RCM"       row={itcRcm}         />
-                    <DataRow label="(A)(4) All other ITC"                   row={itcOther}       />
-                    <DataRow label="(B) ITC Reversed"                       row={itcReversed}    />
-                  </>
-                )}
-                <DataRow label="Net ITC Available" row={itcTotalAvailed} bold highlighted />
+                  // ── Divider ──
+                  if (row.type === "divider") {
+                    return (
+                      <TableRow key={idx} className="border-0 h-2 hover:bg-transparent">
+                        <TableCell colSpan={7} className="p-0 border-t border-gray-200" />
+                      </TableRow>
+                    );
+                  }
 
-                {/* Section 3 – Tax Payable */}
-                <SectionHeader label="3. Tax Payable / Net Tax Liability" bg="bg-[#fce4d6]" onClick={() => setActiveSection(activeSection === 3 ? null : 3)} />
-                <TaxRow
-                  label="Tax on outward supplies"
-                  igst={taxPayable.igst}
-                  cgst={taxPayable.cgst}
-                  sgst={taxPayable.sgst}
-                  cess={taxPayable.cess}
-                />
-                <TaxRow
-                  label="ITC Utilised"
-                  igst={-(itcTotalAvailed.iamt)}
-                  cgst={-(itcTotalAvailed.camt)}
-                  sgst={-(itcTotalAvailed.samt)}
-                  cess={-(itcTotalAvailed.cess)}
-                />
-                <TaxRow
-                  label="Net Tax Payable"
-                  igst={netTax.igst}
-                  cgst={netTax.cgst}
-                  sgst={netTax.sgst}
-                  cess={netTax.cess}
-                  bold
-                  highlighted
-                />
-              </TableBody>
-            </Table>
-
-            {/* ── PART II: Monthly Breakdown ───────────────────────────── */}
-            <div className="mt-4">
-              <div className="bg-[#dce6f1] px-2 py-1 text-xs font-bold text-black border border-zinc-200">
-                Monthly Summary – {fyLabel}
-              </div>
-              <Table className="w-full border border-zinc-200">
-                <TableHeader>
-                  <TableRow className="bg-[#f2f2f2] text-xs">
-                    <TableHead className="px-2 py-1 w-24 text-black font-bold">Month</TableHead>
-                    <TableHead className="text-right py-1 text-black font-bold">Taxable Value (₹)</TableHead>
-                    <TableHead className="text-right py-1 text-black font-bold">Tax on Outward (₹)</TableHead>
-                    <TableHead className="text-right py-1 text-black font-bold">ITC Availed (₹)</TableHead>
-                    <TableHead className="text-right py-1 text-black font-bold">Net Tax (₹)</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {monthly.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-4 text-zinc-400">
-                        No vouchers found for this financial year.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    monthly.map((row: any) => (
-                      <TableRow key={row.month} className="hover:bg-[#e6f2ff] text-xs">
-                        <TableCell className="px-2 py-0.5 font-medium">{row.month}</TableCell>
-                        <TableCell className="text-right py-0.5">{fmt(row.taxable_val)}</TableCell>
-                        <TableCell className="text-right py-0.5">{fmt(row.outward_tax)}</TableCell>
-                        <TableCell className="text-right py-0.5">{fmt(row.itc_availed)}</TableCell>
+                  // ── Section header ──
+                  if (row.type === "section") {
+                    return (
+                      <TableRow key={idx} className="border-0 hover:bg-transparent">
                         <TableCell
-                          className={cn(
-                            "text-right py-0.5 font-semibold",
-                            row.net_tax > 0 ? "text-red-600" : "text-green-600"
-                          )}
+                          colSpan={7}
+                          className="px-2 pt-2 pb-0.5 font-bold text-black underline"
                         >
-                          {fmt(row.net_tax)}
+                          {row.label}
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-                {monthly.length > 0 && (
-                  <TableFooter>
-                    <TableRow className="bg-[#fff8dc] text-xs font-bold">
-                      <TableCell className="px-2 py-1">Annual Total</TableCell>
-                      <TableCell className="text-right py-1">{fmt(annualTotal.taxable_val)}</TableCell>
-                      <TableCell className="text-right py-1">{fmt(annualTotal.outward_tax)}</TableCell>
-                      <TableCell className="text-right py-1">{fmt(annualTotal.itc_availed)}</TableCell>
-                      <TableCell
-                        className={cn(
-                          "text-right py-1",
-                          annualTotal.net_tax > 0 ? "text-red-600" : "text-green-600"
-                        )}
+                    );
+                  }
+
+                  // ── Subsection ──
+                  if (row.type === "subsection") {
+                    return (
+                      <TableRow key={idx} className="border-0 hover:bg-transparent">
+                        <TableCell colSpan={7} className="px-2 py-0.5 pl-6 text-black">
+                          {row.label}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+
+                  // ── Total row ──
+                  if (row.type === "total") {
+                    return (
+                      <TableRow
+                        key={idx}
+                        className="border-t border-b border-gray-300 bg-gray-100 hover:bg-gray-100 font-semibold"
                       >
-                        {fmt(annualTotal.net_tax)}
-                      </TableCell>
+                        <TableCell className="px-2 py-0.5 font-semibold">{row.label}</TableCell>
+                        <TableCell className={NUM_CELL}>{fmt(row.data.txval)}</TableCell>
+                        <TableCell className={NUM_CELL}>{fmt(row.data.iamt)}</TableCell>
+                        <TableCell className={NUM_CELL}>{fmt(row.data.camt)}</TableCell>
+                        <TableCell className={NUM_CELL}>{fmt(row.data.samt)}</TableCell>
+                        <TableCell className={NUM_CELL}>{fmt(row.data.cess)}</TableCell>
+                        <TableCell className={NUM_CELL}>{fmt(taxTotal(row.data))}</TableCell>
+                      </TableRow>
+                    );
+                  }
+
+                  // ── Data row ──
+                  const isSelected = selectedRow === idx;
+                  const hasData    = taxTotal(row.data) !== 0 || row.data.txval !== 0;
+                  const indentCls  = row.indent === 2 ? "pl-10" : "pl-6";
+
+                  return (
+                    <TableRow
+                      key={idx}
+                      onClick={() => setSelectedRow(idx)}
+                      className={cn(
+                        "border-0 cursor-pointer hover:bg-[#e6f2ff]",
+                        isSelected
+                          ? "bg-[#ffcc00] text-black font-bold hover:bg-[#ffcc00]"
+                          : hasData
+                            ? "text-black"
+                            : "text-gray-400"
+                      )}
+                    >
+                      <TableCell className={cn("px-2 py-0.5", indentCls)}>{row.label}</TableCell>
+                      <TableCell className={NUM_CELL}>{fmt(row.data.txval)}</TableCell>
+                      <TableCell className={NUM_CELL}>{fmt(row.data.iamt)}</TableCell>
+                      <TableCell className={NUM_CELL}>{fmt(row.data.camt)}</TableCell>
+                      <TableCell className={NUM_CELL}>{fmt(row.data.samt)}</TableCell>
+                      <TableCell className={NUM_CELL}>{fmt(row.data.cess)}</TableCell>
+                      <TableCell className={NUM_CELL}>{fmt(taxTotal(row.data))}</TableCell>
                     </TableRow>
-                  </TableFooter>
-                )}
-              </Table>
-            </div>
+                  );
+                })}
+              </TableBody>
+
+              <TableFooter className="bg-transparent">
+                <TableRow className="border-t border-gray-400 hover:bg-transparent font-bold">
+                  <TableCell className="px-2 py-1">Total</TableCell>
+                  <TableCell className={cn(NUM_CELL, "font-bold")}>{fmt(grandTotal.txval)}</TableCell>
+                  <TableCell className={cn(NUM_CELL, "font-bold")}>{fmt(grandTotal.iamt)}</TableCell>
+                  <TableCell className={cn(NUM_CELL, "font-bold")}>{fmt(grandTotal.camt)}</TableCell>
+                  <TableCell className={cn(NUM_CELL, "font-bold")}>{fmt(grandTotal.samt)}</TableCell>
+                  <TableCell className={cn(NUM_CELL, "font-bold")}>{fmt(grandTotal.cess)}</TableCell>
+                  <TableCell className={cn(NUM_CELL, "font-bold")}>{fmt(taxTotal(grandTotal))}</TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
           </>
         )}
       </div>
