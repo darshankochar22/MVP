@@ -17,6 +17,7 @@ interface LedgerTaxPanelProps {
     isTax: boolean;
   };
   config: LedgerConfigOptions;
+  handleActivateInterestChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
 }
 
 export default function LedgerTaxPanel({
@@ -28,6 +29,7 @@ export default function LedgerTaxPanel({
   setStatutoryForm,
   groupLineage,
   config,
+  handleActivateInterestChange,
 }: LedgerTaxPanelProps) {
 
   const showDutyTaxSection = config.dutyTaxDetails || groupLineage.isTax;
@@ -263,6 +265,25 @@ export default function LedgerTaxPanel({
               </select>
             </FormRow>
           )}
+
+          <div className="pt-2 mt-2 border-t border-zinc-100">
+            <FormRow
+              label="Activate interest calculation"
+              labelWidth="w-44"
+              className="flex items-start min-h-[26px]"
+            >
+              <div className="flex flex-col">
+                <select
+                  className={selectCls}
+                  value={form.activate_interest ? "Yes" : "No"}
+                  onChange={handleActivateInterestChange}
+                >
+                  <option value="No">No</option>
+                  <option value="Yes">Yes</option>
+                </select>
+              </div>
+            </FormRow>
+          </div>
         </div>
       )}
     </>

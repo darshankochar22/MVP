@@ -23,7 +23,6 @@ export const INTEREST_BALANCES = [
 interface InterestParametersModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAccept: () => void;
   ledgerName?: string;
   interestForm: InterestDetails;
   setInterestForm: React.Dispatch<React.SetStateAction<InterestDetails>>;
@@ -32,7 +31,6 @@ interface InterestParametersModalProps {
 export default function InterestParametersModal({
   isOpen,
   onClose,
-  onAccept,
   ledgerName,
   interestForm,
   setInterestForm,
@@ -46,14 +44,10 @@ export default function InterestParametersModal({
         e.preventDefault();
         onClose();
       }
-      if (e.altKey && (e.key === "a" || e.key === "A")) {
-        e.preventDefault();
-        onAccept();
-      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isOpen, onClose, onAccept]);
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     if (isOpen) {
@@ -163,21 +157,6 @@ export default function InterestParametersModal({
               ))}
             </select>
           </div>
-        </div>
-
-        <div className="px-4 py-3 border-t border-zinc-300 flex justify-end gap-2 bg-zinc-50">
-          <button
-            onClick={onAccept}
-            className="text-xs px-5 py-1.5 border border-zinc-300 bg-black text-white hover:bg-zinc-800 font-medium"
-          >
-            Accept (Alt+A)
-          </button>
-          <button
-            onClick={onClose}
-            className="text-xs px-5 py-1.5 border border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 font-medium"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>

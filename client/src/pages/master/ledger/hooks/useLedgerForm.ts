@@ -387,10 +387,6 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     setShowInterestPopup(false);
   };
 
-  const handleInterestAccept = () => {
-    setShowInterestPopup(false);
-  };
-
   const handleProvideBankChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value as "No" | "Yes";
     setProvideBank(val);
@@ -580,7 +576,6 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     setInterestField,
     handleActivateInterestChange,
     handleInterestClose,
-    handleInterestAccept,
     handleProvideBankChange,
     handleBankClose,
     handleBankAccept,
