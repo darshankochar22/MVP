@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import type { StockGroupType, UnitType, GodownType } from "@/types/api";
-import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import BomListModal from "./components/BomListModal";
 import BomComponentsModal, { type BomEntry } from "./components/BomComponentsModal";
 import ListSidePanel from "./components/ListSidePanel";
@@ -26,12 +25,8 @@ export default function StockItemCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
-  const persistKey = companyId ? `stockItemCreate_${companyId}` : null;
-  const hasRestored = useRef(false);
 
-  const [form, setForm] = useState<FormData>(
-    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL_FORM_STATE
-  );
+  const [form, setForm] = useState<FormData>(INITIAL_FORM_STATE);
   const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
   const [units, setUnits] = useState<UnitType[]>([]);
   const [godowns, setGodowns] = useState<GodownType[]>([]);
@@ -80,13 +75,6 @@ export default function StockItemCreate() {
       if (r.success) setGstClassifications(r.gstClassifications ?? []);
     });
   }, [selectedCompany]);
-
-  // Persist form state
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasRestored.current) { hasRestored.current = true; return; }
-    saveFormState(persistKey, { form });
-  }, [persistKey, form]);
 
   const setVal = useCallback((key: keyof FormData, value: any) => {
     setForm(f => ({ ...f, [key]: value }));
@@ -160,8 +148,6 @@ export default function StockItemCreate() {
         setSuccess(`"${form.name}" created.`);
         setForm(INITIAL_FORM_STATE);
         setBoms([]);
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(result.error || "Failed to create stock item.");

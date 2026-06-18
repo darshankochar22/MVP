@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
-import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import UnitDropdown from "./UnitDropdown";
 import type { UnitType } from "@/types/entities/Unit";
 
@@ -34,25 +33,12 @@ export default function UnitCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
-  const persistKey = companyId ? `unitCreate_${companyId}` : null;
-  const hasRestored = useRef(false);
-  const [form, setForm] = useState<FormData>(
-    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL
-  );
+  const [form, setForm] = useState<FormData>(INITIAL);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [simpleUnits, setSimpleUnits] = useState<UnitType[]>([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
-
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasRestored.current) {
-      hasRestored.current = true;
-      return;
-    }
-    saveFormState(persistKey, { form });
-  }, [persistKey, form]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -127,8 +113,6 @@ export default function UnitCreate() {
       if (result.success) {
         setSuccess(`Unit "${result.unit.symbol}" created successfully.`);
         setForm(INITIAL);
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(result.error || "Failed to create unit.");

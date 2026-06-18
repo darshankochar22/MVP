@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useCompany } from "@/context/CompanyContext";
-import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import type { TDSNatureOfPaymentType } from "@/types/entities/TDSNatureOfPayment";
 
 export interface FormData {
@@ -32,42 +31,15 @@ interface UseTDSNatureOfPaymentFormOptions {
 export function useTDSNatureOfPaymentForm({ mode }: UseTDSNatureOfPaymentFormOptions) {
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
-  const persistKey = companyId ? `tdsNatureOfPayment${mode === "create" ? "Create" : "Alter"}_${companyId}` : null;
-  const hasRestored = useRef(false);
 
   const [tdsList, setTdsList] = useState<TDSNatureOfPaymentType[]>([]);
-  const [selectedTds, setSelectedTds] = useState<TDSNatureOfPaymentType | null>(() => {
-    if (mode === "alter" && persistKey) {
-      return loadFormState<any>(persistKey)?.selectedTds ?? null;
-    }
-    return null;
-  });
+  const [selectedTds, setSelectedTds] = useState<TDSNatureOfPaymentType | null>(null);
 
-  const [form, setForm] = useState<FormData>(() => {
-    if (persistKey) {
-      const saved = loadFormState<any>(persistKey)?.form;
-      if (saved) return saved;
-    }
-    return INITIAL_FORM;
-  });
+  const [form, setForm] = useState<FormData>(INITIAL_FORM);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  // Auto-save form state to sessionStorage
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasRestored.current) {
-      hasRestored.current = true;
-      return;
-    }
-    if (mode === "alter" && !selectedTds) return;
-    saveFormState(persistKey, {
-      form,
-      ...(mode === "alter" ? { selectedTds } : {}),
-    });
-  }, [persistKey, form, selectedTds, mode]);
 
   const loadTdsList = useCallback(async () => {
     if (!companyId) return;
@@ -171,8 +143,6 @@ export function useTDSNatureOfPaymentForm({ mode }: UseTDSNatureOfPaymentFormOpt
 
       if (result.success) {
         setSuccess(`TDS Nature of Payment "${form.name}" ${mode === "create" ? "created" : "updated"} successfully.`);
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
 
         if (mode === "create") {
           setForm(INITIAL_FORM);
@@ -192,7 +162,7 @@ export function useTDSNatureOfPaymentForm({ mode }: UseTDSNatureOfPaymentFormOpt
     } finally {
       setLoading(false);
     }
-  }, [form, companyId, mode, selectedTds, persistKey, loadTdsList]);
+  }, [form, companyId, mode, selectedTds, loadTdsList]);
 
   const handleDelete = useCallback(async () => {
     if (mode !== "alter" || !selectedTds) return;
@@ -204,8 +174,6 @@ export function useTDSNatureOfPaymentForm({ mode }: UseTDSNatureOfPaymentFormOpt
       const result = await window.api.tdsNatureOfPayment.delete(selectedTds.tds_id!);
       if (result.success) {
         setSuccess("TDS Nature of Payment deleted successfully.");
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
         await loadTdsList();
         setTimeout(() => {
           setSuccess(null);
@@ -219,7 +187,7 @@ export function useTDSNatureOfPaymentForm({ mode }: UseTDSNatureOfPaymentFormOpt
     } finally {
       setLoading(false);
     }
-  }, [selectedTds, mode, persistKey, loadTdsList]);
+  }, [selectedTds, mode, loadTdsList]);
 
   const handleBack = () => {
     setSelectedTds(null);

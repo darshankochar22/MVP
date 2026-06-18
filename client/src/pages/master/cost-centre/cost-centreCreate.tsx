@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import CostCentreFlatList from "@/components/CostCentreFlatList";
 import type { CostCentreType } from "@/types/api";
 
@@ -29,8 +28,6 @@ export default function CostCentreCreate() {
   const { selectedCompany } = useCompany();
   const navigate = useNavigate();
   const companyId = selectedCompany?.company_id;
-  const persistKey = companyId ? `costCentreCreate_${companyId}` : null;
-  const hasRestored = useRef(false);
 
   const [costCentres, setCostCentres] = useState<CostCentreType[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,22 +36,10 @@ export default function CostCentreCreate() {
   const [showCCPanel, setShowCCPanel] = useState(false);
   const [showAcceptPrompt, setShowAcceptPrompt] = useState(false);
 
-  const [form, setForm] = useState<Partial<CostCentreType>>(
-    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL_FORM
-  );
+  const [form, setForm] = useState<Partial<CostCentreType>>(INITIAL_FORM);
 
   const nameInputRef = useRef<HTMLInputElement>(null);
   const aliasInputRef = useRef<HTMLInputElement>(null);
-
-  // Auto-save draft
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasRestored.current) {
-      hasRestored.current = true;
-      return;
-    }
-    saveFormState(persistKey, { form });
-  }, [persistKey, form]);
 
   // Escape key handler
   useEffect(() => {
@@ -162,8 +147,6 @@ export default function CostCentreCreate() {
 
       const res = await window.api.costCentre.create(payload);
       if (res.success) {
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
         setSuccess(`Cost Centre "${form.name}" created.`);
         setForm(INITIAL_FORM);
         fetchCostCentres();

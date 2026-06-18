@@ -37,6 +37,12 @@ export interface LedgerType {
   include_assessable_value?: string;
   method_of_calculation?: string;
   other_statutory_details?: number;
+  activate_interest?: number;
+  interest_include_added?: number;
+  interest_include_deducted?: number;
+  interest_rate?: number;
+  interest_style?: string;
+  interest_balances?: string;
   bank_details?: {
   account_holder_name?: string;
   account_number?: string;

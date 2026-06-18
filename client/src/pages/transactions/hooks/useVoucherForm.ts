@@ -6,7 +6,6 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useCompany } from "../../../context/CompanyContext";
-import { loadFormState, saveFormState, clearFormState } from "../../../utils/formPersistence";
 
 import { useVoucherMeta } from "./useVoucherMeta";
 import { useVoucherLedgers } from "./useVoucherLedgers";
@@ -23,20 +22,16 @@ export function useVoucherForm(
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
-  const persistKey = companyId ? `voucherForm_${companyId}` : null;
-
-  // ── Restore persisted state (once on mount) ────────────────────────────────
-  const saved = persistKey ? (loadFormState<any>(persistKey) ?? {}) : {};
 
   // ── Sub-hooks ──────────────────────────────────────────────────────────────
 
   const meta = useVoucherMeta({
-    initialVoucherType: saved.voucherType ?? "Receipt",
-    initialNarration: saved.narration ?? "",
-    initialReferenceNumber: saved.referenceNumber ?? "",
-    initialPlaceOfSupply: saved.placeOfSupply ?? "Select",
-    initialPartyBillReferences: saved.partyBillReferences ?? [],
-    initialBankDetails: saved.bankDetails ?? null,
+    initialVoucherType: "Receipt",
+    initialNarration: "",
+    initialReferenceNumber: "",
+    initialPlaceOfSupply: "Select",
+    initialPartyBillReferences: [],
+    initialBankDetails: null,
   });
 
   const ledgers = useVoucherLedgers({ companyId, fyId });
@@ -46,25 +41,16 @@ export function useVoucherForm(
     : meta.voucherType;
 
   const rows = useVoucherRowsInternal({
-    initialParticulars: saved.particulars?.length ? saved.particulars : undefined,
-    initialJournalRows: saved.journalRows?.length ? saved.journalRows : undefined,
-    initialContraDoubleRows: saved.contraDoubleRows?.length ? saved.contraDoubleRows : undefined,
-    initialReceiptDoubleRows: saved.receiptDoubleRows?.length ? saved.receiptDoubleRows : undefined,
-    initialPaymentDoubleRows: saved.paymentDoubleRows?.length ? saved.paymentDoubleRows : undefined,
-    initialStockEntries: saved.stockEntries?.length ? saved.stockEntries : undefined,
-    initialAdditionalEntries: saved.additionalEntries ?? [],
-    initialContraEntryMode: saved.contraEntryMode ?? "double",
-    initialReceiptEntryMode: saved.receiptEntryMode ?? "double",
-    initialJournalEntryMode: saved.journalEntryMode ?? "double",
-    initialPaymentEntryMode: saved.paymentEntryMode ?? "double",
+    initialAdditionalEntries: [],
+    initialContraEntryMode: "double",
+    initialReceiptEntryMode: "double",
+    initialJournalEntryMode: "double",
+    initialPaymentEntryMode: "double",
     fetchLedgerBalance: ledgers.fetchLedgerBalance,
     voucherType: effectiveVoucherType,
     allUnits: ledgers.allUnits,
     stockBalances: ledgers.stockBalances,
   });
-
-  // ── Track whether the first render has passed so auto-save doesn't overwrite ─
-  const hasRestored = useRef(false);
 
   // ── Load master data and next voucher number on mount ─────────────────────
 
@@ -106,48 +92,6 @@ export function useVoucherForm(
       rows.setSalesPurchaseBalance("");
     }
   }, [rows.salesPurchaseLedger, ledgers.fetchLedgerBalance]);
-
-  // ── Persistence snapshot ───────────────────────────────────────────────────
-
-  const getSnapshot = useCallback(
-    () => ({
-      voucherType: meta.voucherType,
-      narration: meta.narration,
-      accountLedger: rows.accountLedger,
-      particulars: rows.particulars,
-      journalRows: rows.journalRows,
-      journalEntryMode: rows.journalEntryMode,
-      contraEntryMode: rows.contraEntryMode,
-      contraDoubleRows: rows.contraDoubleRows,
-      receiptEntryMode: rows.receiptEntryMode,
-      receiptDoubleRows: rows.receiptDoubleRows,
-      paymentEntryMode: rows.paymentEntryMode,
-      paymentDoubleRows: rows.paymentDoubleRows,
-      partyLedger: rows.partyLedger,
-      salesPurchaseLedger: rows.salesPurchaseLedger,
-      stockEntries: rows.stockEntries,
-      additionalEntries: rows.additionalEntries,
-      referenceNumber: meta.referenceNumber,
-      placeOfSupply: meta.placeOfSupply,
-      partyBillReferences: meta.partyBillReferences,
-      bankDetails: meta.bankDetails,
-      supplierInvoiceNo: meta.supplierInvoiceNo,
-      supplierInvoiceDate: meta.supplierInvoiceDate,
-      receiptDetails: meta.receiptDetails,
-      partyDetails: meta.partyDetails,
-      dispatchDetails: meta.dispatchDetails,
-      creditNoteDetails: meta.creditNoteDetails,
-      debitNoteDetails: meta.debitNoteDetails,
-    }),
-    [meta, rows]
-  );
-
-  // Auto-save — skip the very first render (restoration just happened)
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasRestored.current) { hasRestored.current = true; return; }
-    saveFormState(persistKey, getSnapshot());
-  }, [persistKey, getSnapshot]);
 
   // ── Reset on voucher type change ───────────────────────────────────────────
 
@@ -569,12 +513,10 @@ export function useVoucherForm(
   // ── resetForm ──────────────────────────────────────────────────────────────
 
   const resetForm = useCallback(() => {
-    if (persistKey) clearFormState(persistKey);
-    hasRestored.current = false;
     meta.resetMeta();
     rows.resetRows(effectiveVoucherType);
     fetchNextNumber();
-  }, [persistKey, meta.resetMeta, rows.resetRows, effectiveVoucherType, fetchNextNumber]);
+  }, [meta.resetMeta, rows.resetRows, effectiveVoucherType, fetchNextNumber]);
 
   resetFormRef.current = resetForm;
 

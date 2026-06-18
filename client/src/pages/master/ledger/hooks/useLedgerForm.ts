@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useCompany } from "@/context/CompanyContext";
-import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import type { LedgerType, GroupType } from "@/types/api";
 import { EMPTY_BANK_DETAILS } from "../components/BankDetailsPopup";
 import type { BankDetails } from "../components/BankDetailsPopup";
@@ -22,6 +21,24 @@ export interface StatutoryDetails {
   appropriate_to?: string;
   method_of_calculation?: string;
 }
+
+export interface InterestDetails {
+  activate_interest: number;
+  interest_include_added: number;
+  interest_include_deducted: number;
+  interest_rate: number;
+  interest_style: string;
+  interest_balances: string;
+}
+
+export const EMPTY_INTEREST: InterestDetails = {
+  activate_interest: 0,
+  interest_include_added: 0,
+  interest_include_deducted: 0,
+  interest_rate: 0,
+  interest_style: "30-Day Month",
+  interest_balances: "All Balances",
+};
 
 export const EMPTY_STATUTORY: StatutoryDetails = {
   gst_applicability: "Not Applicable",
@@ -69,7 +86,12 @@ export const INITIAL_FORM: Partial<LedgerType> = {
   include_assessable_value: "Not Applicable",
   method_of_calculation: "Based on Value",
   other_statutory_details: 0,
-  
+  activate_interest: 0,
+  interest_include_added: 0,
+  interest_include_deducted: 0,
+  interest_rate: 0,
+  interest_style: "30-Day Month",
+  interest_balances: "All Balances",
 };
 
 interface UseLedgerFormOptions {
@@ -79,18 +101,11 @@ interface UseLedgerFormOptions {
 export function useLedgerForm({ mode }: UseLedgerFormOptions) {
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
-  const persistKey = companyId ? `ledger${mode === "create" ? "Create" : "Alter"}_${companyId}` : null;
-  const hasRestored = useRef(false);
 
   const [ledgers, setLedgers] = useState<LedgerType[]>([]);
   const [flatGroups, setFlatGroups] = useState<GroupType[]>([]);
   const [groupTree, setGroupTree] = useState<any[]>([]);
-  const [selectedLedgerId, setSelectedLedgerId] = useState<number | null>(() => {
-    if (mode === "alter" && persistKey) {
-      return loadFormState<any>(persistKey)?.selectedLedgerId ?? null;
-    }
-    return null;
-  });
+  const [selectedLedgerId, setSelectedLedgerId] = useState<number | null>(null);
   const [loadedGroupId, setLoadedGroupId] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -101,38 +116,16 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const [showLedgerPanel, setShowLedgerPanel] = useState(false);
   const [showBankPopup, setShowBankPopup] = useState(false);
+  const [showInterestPopup, setShowInterestPopup] = useState(false);
 
-  const [provideBank, setProvideBank] = useState<"No" | "Yes">(
-    () => loadFormState<any>(persistKey ?? "")?.provideBank ?? "No"
-  );
+  const [provideBank, setProvideBank] = useState<"No" | "Yes">("No");
 
-  const [form, setForm] = useState<Partial<LedgerType>>(
-    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL_FORM
-  );
-  const [bankForm, setBankForm] = useState<BankDetails>(
-    () => loadFormState<any>(persistKey ?? "")?.bankForm ?? EMPTY_BANK_DETAILS
-  );
-  const [statutoryForm, setStatutoryForm] = useState<StatutoryDetails>(
-    () => loadFormState<any>(persistKey ?? "")?.statutoryForm ?? EMPTY_STATUTORY
-  );
-
-  // Auto-save to sessionStorage
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasRestored.current) {
-      hasRestored.current = true;
-      return;
-    }
-    if (mode === "alter" && !selectedLedgerId) return;
-    saveFormState(persistKey, {
-      form,
-      bankForm,
-      statutoryForm,
-      provideBank,
-      ...(mode === "alter" ? { selectedLedgerId } : {}),
-    });
-  }, [persistKey, form, bankForm, statutoryForm, provideBank, selectedLedgerId, mode]);
-
+  const [form, setForm] = useState<Partial<LedgerType>>(INITIAL_FORM);
+  const [bankForm, setBankForm] = useState<BankDetails>(EMPTY_BANK_DETAILS);
+  const [statutoryForm, setStatutoryForm] = useState<StatutoryDetails>(EMPTY_STATUTORY);
+  const [interestForm, setInterestForm] = useState<InterestDetails>({
+    ...EMPTY_INTEREST,
+  });
 
   const selectedGroup = useMemo(() => {
     return flatGroups.find((g) => g.group_id === form.group_id) || null;
@@ -235,6 +228,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
       if (!groupLineage.isInventory) {
         setForm((f) => ({ ...f, invoice_rounding: 0, rounding_method: "", rounding_limit: 0 }));
       }
+      setForm((f) => ({ ...f, activate_interest: 0 }));
+      setInterestForm(EMPTY_INTEREST);
     } else {
       if (groupLineage.isBank) {
         setProvideBank("Yes");
@@ -296,6 +291,15 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
 
       const hasStatutory = !!l.statutory_details;
       setStatutoryForm(hasStatutory ? { ...EMPTY_STATUTORY, ...l.statutory_details } : EMPTY_STATUTORY);
+
+      setInterestForm({
+        activate_interest: l.activate_interest ? 1 : 0,
+        interest_include_added: l.interest_include_added ? 1 : 0,
+        interest_include_deducted: l.interest_include_deducted ? 1 : 0,
+        interest_rate: l.interest_rate ?? 0,
+        interest_style: l.interest_style || "30-Day Month",
+        interest_balances: l.interest_balances || "All Balances",
+      });
 
       setShowGroupPanel(false);
       setForm({
@@ -367,6 +371,26 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setStatutoryForm((f) => ({ ...f, [key]: e.target.value === "" ? undefined : Number(e.target.value) }));
 
+  const setInterestField = <K extends keyof InterestDetails>(key: K, value: InterestDetails[K]) =>
+    setInterestForm((f) => ({ ...f, [key]: value }));
+
+  const handleActivateInterestChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const val = e.target.value as "No" | "Yes";
+    setForm((f) => ({ ...f, activate_interest: val === "Yes" ? 1 : 0 }));
+    if (val === "Yes") setShowInterestPopup(true);
+    else {
+      setInterestForm({ ...EMPTY_INTEREST });
+    }
+  };
+
+  const handleInterestClose = () => {
+    setShowInterestPopup(false);
+  };
+
+  const handleInterestAccept = () => {
+    setShowInterestPopup(false);
+  };
+
   const handleProvideBankChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value as "No" | "Yes";
     setProvideBank(val);
@@ -429,6 +453,12 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         rounding_limit: form.rounding_limit || 0,
         additional_gst_details: form.additional_gst_details ?? 0,
         service_tax_details: form.service_tax_details ?? 0,
+        activate_interest: form.activate_interest ?? 0,
+        interest_include_added: interestForm.interest_include_added ?? 0,
+        interest_include_deducted: interestForm.interest_include_deducted ?? 0,
+        interest_rate: Number(interestForm.interest_rate) || 0,
+        interest_style: interestForm.interest_style || "30-Day Month",
+        interest_balances: interestForm.interest_balances || "All Balances",
       };
 
       if (mode === "alter") {
@@ -487,14 +517,13 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         : window.api.ledger.update(payload));
 
       if (res.success) {
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
         setSuccess(`Ledger "${form.name}" ${mode === "create" ? "created" : "updated"} successfully.`);
         if (mode === "create") {
           setForm(INITIAL_FORM);
           setProvideBank("No");
           setBankForm(EMPTY_BANK_DETAILS);
           setStatutoryForm(EMPTY_STATUTORY);
+          setInterestForm(EMPTY_INTEREST);
         } else {
           setLoadedGroupId(form.group_id || null);
           await loadInitial();
@@ -507,7 +536,7 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     } finally {
       setSaving(false);
     }
-  }, [companyId, form, provideBank, groupLineage, bankForm, statutoryForm, validate, mode, loadInitial, persistKey]);
+  }, [companyId, form, provideBank, groupLineage, bankForm, statutoryForm, interestForm, validate, mode, loadInitial]);
 
   return {
     form,
@@ -516,10 +545,14 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     setBankForm,
     statutoryForm,
     setStatutoryForm,
+    interestForm,
+    setInterestForm,
     provideBank,
     setProvideBank,
     showBankPopup,
     setShowBankPopup,
+    showInterestPopup,
+    setShowInterestPopup,
     showGroupPanel,
     setShowGroupPanel,
     showLedgerPanel,
@@ -544,6 +577,10 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     setBankNumber,
     setStatutoryField,
     setStatutoryNumber,
+    setInterestField,
+    handleActivateInterestChange,
+    handleInterestClose,
+    handleInterestAccept,
     handleProvideBankChange,
     handleBankClose,
     handleBankAccept,

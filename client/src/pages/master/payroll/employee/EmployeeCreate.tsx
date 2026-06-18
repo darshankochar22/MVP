@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
@@ -10,7 +10,6 @@ import type { GeneralInfoData } from "@/components/payroll/GeneralInfoSection";
 import type { BankDetailsData } from "@/components/payroll/BankDetailsSection";
 import type { StatutoryDetailsData } from "@/components/payroll/StatutoryDetailsSection";
 import type { EmployeeGroupType, EmployeeType } from "@/types/entities/Employee";
-import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-24";
@@ -27,14 +26,11 @@ export default function EmployeeCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
-  const persistKey = companyId ? `employeeCreate_${companyId}` : null;
-  const hasRestored = useRef(false);
-  const persisted = persistKey ? loadFormState<any>(persistKey ?? "") : null;
-  const [base, setBase] = useState<BaseForm>(persisted?.base ?? INITIAL_BASE);
-  const [general, setGeneral] = useState<GeneralInfoData>(persisted?.general ?? INITIAL_GENERAL);
-  const [bank, setBank] = useState<BankDetailsData>(persisted?.bank ?? INITIAL_BANK);
-  const [statutory, setStatutory] = useState<StatutoryDetailsData>(persisted?.statutory ?? INITIAL_STATUTORY);
-  const [provideBank, setProvideBank] = useState<"No" | "Yes">(persisted?.provideBank ?? "No");
+  const [base, setBase] = useState<BaseForm>(INITIAL_BASE);
+  const [general, setGeneral] = useState<GeneralInfoData>(INITIAL_GENERAL);
+  const [bank, setBank] = useState<BankDetailsData>(INITIAL_BANK);
+  const [statutory, setStatutory] = useState<StatutoryDetailsData>(INITIAL_STATUTORY);
+  const [provideBank, setProvideBank] = useState<"No" | "Yes">("No");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -55,15 +51,6 @@ export default function EmployeeCreate() {
       }
     });
   }, [companyId]);
-
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasRestored.current) {
-      hasRestored.current = true;
-      return;
-    }
-    saveFormState(persistKey, { base, general, bank, statutory, provideBank });
-  }, [persistKey, base, general, bank, statutory, provideBank]);
 
   const setBaseField = (key: keyof BaseForm) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -144,8 +131,6 @@ export default function EmployeeCreate() {
         setBank(INITIAL_BANK);
         setStatutory({ applicable_tax_regime: "New Tax Regime" });
         setProvideBank("No");
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(result.error || "Failed to create employee.");
@@ -155,7 +140,7 @@ export default function EmployeeCreate() {
     } finally {
       setLoading(false);
     }
-  }, [base, general, bank, statutory, provideBank, companyId, persistKey]);
+  }, [base, general, bank, statutory, provideBank, companyId]);
 
   useMasterShortcuts({
     onAccept: handleSubmit,

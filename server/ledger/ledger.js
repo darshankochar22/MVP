@@ -35,6 +35,12 @@ const init = async (db) => {
       include_assessable_value    TEXT DEFAULT 'Not Applicable',
       method_of_calculation       TEXT DEFAULT 'Based on Value',
       other_statutory_details     INTEGER DEFAULT 0,
+      activate_interest           INTEGER DEFAULT 0,
+      interest_include_added      INTEGER DEFAULT 0,
+      interest_include_deducted   INTEGER DEFAULT 0,
+      interest_rate               REAL DEFAULT 0,
+      interest_style              TEXT DEFAULT '30-Day Month',
+      interest_balances           TEXT DEFAULT 'All Balances',
       is_active                   INTEGER DEFAULT 1,
       is_predefined               INTEGER DEFAULT 0,
       created_at                  TEXT DEFAULT (datetime('now')),
@@ -153,6 +159,25 @@ const init = async (db) => {
 
   try {
     await db.execute(`ALTER TABLE ledger_statutory_details ADD COLUMN method_of_calculation TEXT DEFAULT 'Based on Quantity'`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN activate_interest INTEGER DEFAULT 0`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN interest_include_added INTEGER DEFAULT 0`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN interest_include_deducted INTEGER DEFAULT 0`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN interest_rate REAL DEFAULT 0`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN interest_style TEXT DEFAULT '30-Day Month'`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN interest_balances TEXT DEFAULT 'All Balances'`);
   } catch (err) {}
 };
 

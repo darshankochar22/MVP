@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useCompany } from "@/context/CompanyContext";
-import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import type { GSTClassificationType } from "@/types/entities/GSTClassification";
 
 export type GSTSlabLine = {
@@ -80,42 +79,15 @@ interface UseGSTClassificationFormOptions {
 export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptions) {
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
-  const persistKey = companyId ? `gstClassification${mode === "create" ? "Create" : "Alter"}_${companyId}` : null;
-  const hasRestored = useRef(false);
 
   const [classifications, setClassifications] = useState<GSTClassificationType[]>([]);
-  const [selectedClass, setSelectedClass] = useState<GSTClassificationType | null>(() => {
-    if (mode === "alter" && persistKey) {
-      return loadFormState<any>(persistKey)?.selectedClass ?? null;
-    }
-    return null;
-  });
+  const [selectedClass, setSelectedClass] = useState<GSTClassificationType | null>(null);
 
-  const [form, setForm] = useState<FormData>(() => {
-    if (persistKey) {
-      const saved = loadFormState<any>(persistKey)?.form;
-      if (saved) return saved;
-    }
-    return INITIAL_FORM;
-  });
+  const [form, setForm] = useState<FormData>(INITIAL_FORM);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  // Auto-save form state to sessionStorage
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasRestored.current) {
-      hasRestored.current = true;
-      return;
-    }
-    if (mode === "alter" && !selectedClass) return;
-    saveFormState(persistKey, {
-      form,
-      ...(mode === "alter" ? { selectedClass } : {}),
-    });
-  }, [persistKey, form, selectedClass, mode]);
 
   const loadClassifications = useCallback(async () => {
     if (!companyId) return;
@@ -350,8 +322,6 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
 
       if (result.success) {
         setSuccess(`GST Classification "${form.name}" ${mode === "create" ? "created" : "updated"} successfully.`);
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
 
         if (mode === "create") {
           setForm(INITIAL_FORM);
@@ -371,7 +341,7 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
     } finally {
       setLoading(false);
     }
-  }, [form, companyId, mode, selectedClass, persistKey, loadClassifications]);
+  }, [form, companyId, mode, selectedClass, loadClassifications]);
 
   const handleDelete = useCallback(async () => {
     if (mode !== "alter" || !selectedClass) return;
@@ -387,8 +357,6 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
       const result = await window.api.gstClassification.delete(selectedClass.gc_id!);
       if (result.success) {
         setSuccess("GST Classification deleted successfully.");
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
         await loadClassifications();
         setTimeout(() => {
           setSuccess(null);
@@ -402,7 +370,7 @@ export function useGSTClassificationForm({ mode }: UseGSTClassificationFormOptio
     } finally {
       setLoading(false);
     }
-  }, [selectedClass, mode, persistKey, loadClassifications]);
+  }, [selectedClass, mode, loadClassifications]);
 
   const handleBack = () => {
     setSelectedClass(null);

@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
 import PayHeadCalculationPanel from "@/components/payroll/PayHeadCalculationPanel";
 import type { PayHeadFormulaLineType, PayHeadSlabLineType } from "@/types/entities/Payroll";
-import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import { useMasterShortcuts } from "@/hooks/useMasterShortcuts";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
@@ -33,46 +32,28 @@ export default function PayHeadCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
-  const persistKey = companyId ? `payHeadCreate_${companyId}` : null;
-  const hasRestored = useRef(false);
-  const persisted = persistKey ? loadFormState<any>(persistKey ?? "") : null;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const [name, setName] = useState(persisted?.name ?? "");
-  const [alias, setAlias] = useState(persisted?.alias ?? "");
-  const [pay_head_type, setPayHeadType] = useState(persisted?.pay_head_type ?? "Earnings for Employees");
-  const [income_type, setIncomeType] = useState(persisted?.income_type ?? "Fixed");
-  const [under_group, setUnderGroup] = useState(persisted?.under_group ?? "Direct Expenses");
-  const [affects_net_salary, setAffectsNetSalary] = useState(persisted?.affects_net_salary ?? "Yes");
-  const [payslip_display_name, setPayslipDisplayName] = useState(persisted?.payslip_display_name ?? "");
-  const [use_for_gratuity, setUseForGratuity] = useState(persisted?.use_for_gratuity ?? "No");
-  const [set_alter_income_tax, setSetAlterIncomeTax] = useState(persisted?.set_alter_income_tax ?? "No");
-  const [calculation_type, setCalculationType] = useState(persisted?.calculation_type ?? "As User Defined Value");
-  const [calculation_period, setCalculationPeriod] = useState(persisted?.calculation_period ?? "Months");
-  const [percentage_or_amount, setPercentageOrAmount] = useState(persisted?.percentage_or_amount ?? 0);
-  const [rounding_method, setRoundingMethod] = useState(persisted?.rounding_method ?? "Not Applicable");
-  const [rounding_limit, setRoundingLimit] = useState(persisted?.rounding_limit ?? 0);
-  const [compute_method, setComputeMethod] = useState(persisted?.compute_method ?? "On Current Earnings Total");
+  const [name, setName] = useState("");
+  const [alias, setAlias] = useState("");
+  const [pay_head_type, setPayHeadType] = useState("Earnings for Employees");
+  const [income_type, setIncomeType] = useState("Fixed");
+  const [under_group, setUnderGroup] = useState("Direct Expenses");
+  const [affects_net_salary, setAffectsNetSalary] = useState("Yes");
+  const [payslip_display_name, setPayslipDisplayName] = useState("");
+  const [use_for_gratuity, setUseForGratuity] = useState("No");
+  const [set_alter_income_tax, setSetAlterIncomeTax] = useState("No");
+  const [calculation_type, setCalculationType] = useState("As User Defined Value");
+  const [calculation_period, setCalculationPeriod] = useState("Months");
+  const [percentage_or_amount, setPercentageOrAmount] = useState(0);
+  const [rounding_method, setRoundingMethod] = useState("Not Applicable");
+  const [rounding_limit, setRoundingLimit] = useState(0);
+  const [compute_method, setComputeMethod] = useState("On Current Earnings Total");
 
-  const [slabs, setSlabs] = useState<PayHeadSlabLineType[]>(persisted?.slabs ?? []);
-  const [formulaLines, setFormulaLines] = useState<PayHeadFormulaLineType[]>(persisted?.formulaLines ?? []);
-
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasRestored.current) {
-      hasRestored.current = true;
-      return;
-    }
-    saveFormState(persistKey, {
-      name, alias, pay_head_type, income_type, under_group,
-      affects_net_salary, payslip_display_name, use_for_gratuity,
-      set_alter_income_tax, calculation_type, calculation_period,
-      percentage_or_amount, rounding_method, rounding_limit, compute_method,
-      slabs, formulaLines,
-    });
-  }, [persistKey, name, alias, pay_head_type, income_type, under_group, affects_net_salary, payslip_display_name, use_for_gratuity, set_alter_income_tax, calculation_type, calculation_period, percentage_or_amount, rounding_method, rounding_limit, compute_method, slabs, formulaLines]);
+  const [slabs, setSlabs] = useState<PayHeadSlabLineType[]>([]);
+  const [formulaLines, setFormulaLines] = useState<PayHeadFormulaLineType[]>([]);
 
   const trueVal = (v: string) => v === "Yes" ? 1 : 0;
 
@@ -143,8 +124,6 @@ export default function PayHeadCreate() {
         setSuccess(`Pay Head "${name}" created.`);
         setName(""); setAlias(""); setPayslipDisplayName("");
         setSlabs([]); setFormulaLines([]);
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(result.error || "Failed to create pay head.");
@@ -154,7 +133,7 @@ export default function PayHeadCreate() {
     } finally {
       setLoading(false);
     }
-  }, [name, alias, pay_head_type, income_type, under_group, affects_net_salary, payslip_display_name, use_for_gratuity, set_alter_income_tax, calculation_type, calculation_period, percentage_or_amount, rounding_method, rounding_limit, slabs, formulaLines, companyId, persistKey]);
+  }, [name, alias, pay_head_type, income_type, under_group, affects_net_salary, payslip_display_name, use_for_gratuity, set_alter_income_tax, calculation_type, calculation_period, percentage_or_amount, rounding_method, rounding_limit, slabs, formulaLines, companyId]);
 
   useMasterShortcuts({
     onAccept: handleSubmit,

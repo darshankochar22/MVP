@@ -1,10 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
 import type { StockCategoryType } from "@/types/api";
-import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
-
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent";
 
 function CategoryListPanel({
@@ -67,11 +65,8 @@ const INITIAL: FormData = { name: "", alias: "", parent_category_id: "" };
 export default function StockCategoryCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
-  const companyId = selectedCompany?.company_id;
-  const persistKey = companyId ? `stockCategoryCreate_${companyId}` : null;
-  const hasRestored = useRef(false);
   const [form, setForm] = useState<FormData>(
-    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL
+    INITIAL
   );
   const [categories, setCategories] = useState<StockCategoryType[]>([]);
   const [loading, setLoading] = useState(false);
@@ -86,15 +81,6 @@ export default function StockCategoryCreate() {
       if (r.success) setCategories(r.stockCategories ?? []);
     });
   }, [selectedCompany]);
-
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasRestored.current) {
-      hasRestored.current = true;
-      return;
-    }
-    saveFormState(persistKey, { form });
-  }, [persistKey, form]);
 
   const setField = (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -116,8 +102,6 @@ export default function StockCategoryCreate() {
         if (updated.success) setCategories(updated.stockCategories ?? []);
         setSuccess(`Stock Category "${form.name}" created.`);
         setForm(INITIAL);
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(result.error || "Failed to create stock category.");

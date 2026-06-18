@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
-import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import type { VoucherTypeCreatePayload } from "@/types/entities/VoucherType";
 
 const inputCls =
@@ -149,12 +148,8 @@ export default function VoucherTypeCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
-  const persistKey = companyId ? `voucherTypeCreate_${companyId}` : null;
-  const hasRestored = useRef(false);
 
-  const [form, setForm] = useState<FormData>(
-    () => loadFormState<{ form: FormData }>(persistKey ?? "")?.form ?? INITIAL
-  );
+  const [form, setForm] = useState<FormData>(INITIAL);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -168,12 +163,6 @@ export default function VoucherTypeCreate() {
       }
     }).catch(() => {});
   }, [companyId]);
-
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasRestored.current) { hasRestored.current = true; return; }
-    saveFormState(persistKey, { form });
-  }, [persistKey, form]);
 
   const inheritFromParent = useCallback(async (parentId: number) => {
     const [parentRes, configRes] = await Promise.all([
@@ -252,8 +241,6 @@ export default function VoucherTypeCreate() {
       if (result.success) {
         setSuccess(`Voucher Type "${form.name}" created successfully.`);
         setForm(INITIAL);
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError(result.error || "Failed to create voucher type.");

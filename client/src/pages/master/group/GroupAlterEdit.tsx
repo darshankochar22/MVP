@@ -1,9 +1,8 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import GroupFlatList from "@/components/GroupFlatList";
 import type { GroupType } from "@/types/api";
-import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import { TOGGLE_META, getConfig, type StatutoryToggle } from "@/config/statutoryConfig";
 import NatureOfPaymentDetailsModal from "./NatureOfPaymentDetailsModal";
 import NatureOfGoodsDetailsModal from "./NatureOfGoodsDetailsModal";
@@ -70,14 +69,8 @@ export default function GroupAlterEdit() {
   const [activeFeatureCreateModal, setActiveFeatureCreateModal] = useState<StatutoryToggle | null>(null);
 
   const companyId = selectedCompany?.company_id;
-  const persistKey = companyId && id ? `groupAlterEdit_${companyId}_${id}` : null;
-  const persisted = persistKey ? loadFormState<any>(persistKey ?? "") : null;
-  const wasRestored = !!(persisted?.form);
-  const hasSavedOnce = useRef(wasRestored);
 
-  const [form, setForm] = useState<Partial<GroupType>>(
-    () => persisted?.form ?? INITIAL_GROUP
-  );
+  const [form, setForm] = useState<Partial<GroupType>>(INITIAL_GROUP);
 
   useEffect(() => {
     if (!companyId || !id) return;
@@ -92,9 +85,7 @@ export default function GroupAlterEdit() {
         if (cancelled) return;
         if (groupRes.success && groupRes.group) {
           setOriginalGroup(groupRes.group);
-          if (!wasRestored) {
-            setForm({ ...groupRes.group });
-          }
+          setForm({ ...groupRes.group });
         } else {
           setError(groupRes.error || "Group not found.");
         }
@@ -107,15 +98,6 @@ export default function GroupAlterEdit() {
     })();
     return () => { cancelled = true; };
   }, [companyId, id]);
-
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasSavedOnce.current) {
-      hasSavedOnce.current = true;
-      return;
-    }
-    saveFormState(persistKey, { form });
-  }, [persistKey, form]);
 
   const parentGroup = form.parent_group_id
     ? flatGroups.find((g) => g.group_id === form.parent_group_id)
@@ -214,8 +196,6 @@ export default function GroupAlterEdit() {
       const res = await window.api.group.update(payload);
       if (res.success) {
         setSuccess(`Group "${form.name}" updated.`);
-        if (persistKey) clearFormState(persistKey);
-        hasSavedOnce.current = false;
         setTimeout(() => navigate("/master/alter/group"), 1000);
       } else {
         setError(res.error || "Failed to update group.");

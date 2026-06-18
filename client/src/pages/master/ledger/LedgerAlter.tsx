@@ -12,6 +12,8 @@ import LedgerRoundingPanel from "./components/LedgerRoundingPanel";
 import LedgerBillwisePanel from "./components/LedgerBillwisePanel";
 import LedgerBankingPanel from "./components/LedgerBankingPanel";
 import LedgerBankDetailsForm from "./components/LedgerBankDetailsForm";
+import LedgerInterestPanel from "./components/LedgerInterestPanel";
+import InterestParametersModal from "./components/InterestParametersModal";
 import LedgerListPanel from "./components/LedgerListPanel";
 import { getLedgerConfig } from "./config/LedgerConfig";
 
@@ -29,9 +31,13 @@ export default function LedgerAlter() {
     setBankForm,
     statutoryForm,
     setStatutoryForm,
+    interestForm,
+    setInterestForm,
     provideBank,
     showBankPopup,
     setShowBankPopup,
+    showInterestPopup,
+    setShowInterestPopup,
     showGroupPanel,
     setShowGroupPanel,
     showLedgerPanel,
@@ -54,6 +60,9 @@ export default function LedgerAlter() {
     setBankNumber,
     setStatutoryField,
     setStatutoryNumber,
+    handleActivateInterestChange,
+    handleInterestClose,
+    handleInterestAccept,
     handleProvideBankChange,
     handleBankClose,
     handleBankAccept,
@@ -121,6 +130,17 @@ export default function LedgerAlter() {
           onClose={handleBankClose}
           onAccept={handleBankAccept}
           isOD={groupLineage.isOD}
+        />
+      )}
+
+      {showInterestPopup && currentConfig.interestCalculation && (
+        <InterestParametersModal
+          isOpen={showInterestPopup}
+          ledgerName={form.name || ""}
+          interestForm={interestForm}
+          setInterestForm={setInterestForm}
+          onClose={handleInterestClose}
+          onAccept={handleInterestAccept}
         />
       )}
 
@@ -254,7 +274,15 @@ export default function LedgerAlter() {
                 config={currentConfig}
               />
 
-  
+              <LedgerInterestPanel
+                activateInterest={form.activate_interest}
+                handleActivateInterestChange={handleActivateInterestChange}
+                interestForm={interestForm}
+                onEditInterest={() => setShowInterestPopup(true)}
+                showConfig={currentConfig.interestCalculation}
+              />
+
+
               <LedgerBillwisePanel
                 form={form}
                 setForm={setForm}

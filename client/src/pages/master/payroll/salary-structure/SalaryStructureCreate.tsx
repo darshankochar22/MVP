@@ -1,12 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
 import { useMasterShortcuts } from "@/hooks/useMasterShortcuts";
 import type { EmployeeType } from "@/types/entities/Employee";
 import type { PayHeadType } from "@/types/entities/Payroll";
-import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
-
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-56";
 
@@ -21,18 +19,15 @@ export default function SalaryStructureCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
-  const persistKey = companyId ? `salaryStructureCreate_${companyId}` : null;
-  const hasRestored = useRef(false);
-  const persisted = persistKey ? loadFormState<any>(persistKey ?? "") : null;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const [employees, setEmployees] = useState<EmployeeType[]>([]);
   const [_payHeads, setPayHeads] = useState<PayHeadType[]>([]);
-  const [employeeId, setEmployeeId] = useState(persisted?.employeeId ?? "");
-  const [effectiveFrom, setEffectiveFrom] = useState(persisted?.effectiveFrom ?? "");
-  const [entries, setEntries] = useState<SalaryEntry[]>(persisted?.entries ?? []);
+  const [employeeId, setEmployeeId] = useState("");
+  const [effectiveFrom, setEffectiveFrom] = useState("");
+  const [entries, setEntries] = useState<SalaryEntry[]>([]);
 
   useEffect(() => {
     if (!companyId) return;
@@ -52,15 +47,6 @@ export default function SalaryStructureCreate() {
       }
     });
   }, [companyId]);
-
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasRestored.current) {
-      hasRestored.current = true;
-      return;
-    }
-    saveFormState(persistKey, { employeeId, effectiveFrom, entries });
-  }, [persistKey, employeeId, effectiveFrom, entries]);
 
   const validate = (): string | null => {
     if (!employeeId) return "Please select an employee.";
@@ -99,8 +85,6 @@ export default function SalaryStructureCreate() {
       const result = await window.api.salaryStructure.createBulk(companyId!, Number(employeeId), effectiveFrom, bulk);
       if (result.success) {
         setSuccess(`Salary Structure created for employee.`);
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
         setTimeout(() => setSuccess(null), 3000);
       } else {
         setError("Failed to create salary structure.");
@@ -110,7 +94,7 @@ export default function SalaryStructureCreate() {
     } finally {
       setLoading(false);
     }
-  }, [employeeId, effectiveFrom, entries, companyId, persistKey]);
+  }, [employeeId, effectiveFrom, entries, companyId]);
 
   useMasterShortcuts({
     onAccept: handleSubmit,

@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useCompany } from "@/context/CompanyContext";
-import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import type { TCSNatureOfGoodsType } from "@/types/entities/TCSNatureOfGoods";
 
 export interface FormData {
@@ -38,42 +37,15 @@ interface UseTCSNatureOfGoodsFormOptions {
 export function useTCSNatureOfGoodsForm({ mode }: UseTCSNatureOfGoodsFormOptions) {
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
-  const persistKey = companyId ? `tcsNatureOfGoods${mode === "create" ? "Create" : "Alter"}_${companyId}` : null;
-  const hasRestored = useRef(false);
 
   const [tcsList, setTcsList] = useState<TCSNatureOfGoodsType[]>([]);
-  const [selectedTcs, setSelectedTcs] = useState<TCSNatureOfGoodsType | null>(() => {
-    if (mode === "alter" && persistKey) {
-      return loadFormState<any>(persistKey)?.selectedTcs ?? null;
-    }
-    return null;
-  });
+  const [selectedTcs, setSelectedTcs] = useState<TCSNatureOfGoodsType | null>(null);
 
-  const [form, setForm] = useState<FormData>(() => {
-    if (persistKey) {
-      const saved = loadFormState<any>(persistKey)?.form;
-      if (saved) return saved;
-    }
-    return INITIAL_FORM;
-  });
+  const [form, setForm] = useState<FormData>(INITIAL_FORM);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  // Auto-save form state to sessionStorage
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasRestored.current) {
-      hasRestored.current = true;
-      return;
-    }
-    if (mode === "alter" && !selectedTcs) return;
-    saveFormState(persistKey, {
-      form,
-      ...(mode === "alter" ? { selectedTcs } : {}),
-    });
-  }, [persistKey, form, selectedTcs, mode]);
 
   const loadTcsList = useCallback(async () => {
     if (!companyId) return;
@@ -185,8 +157,6 @@ export function useTCSNatureOfGoodsForm({ mode }: UseTCSNatureOfGoodsFormOptions
 
       if (result.success) {
         setSuccess(`TCS Nature of Goods "${form.name}" ${mode === "create" ? "created" : "updated"} successfully.`);
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
 
         if (mode === "create") {
           setForm(INITIAL_FORM);
@@ -206,7 +176,7 @@ export function useTCSNatureOfGoodsForm({ mode }: UseTCSNatureOfGoodsFormOptions
     } finally {
       setLoading(false);
     }
-  }, [form, companyId, mode, selectedTcs, persistKey, loadTcsList]);
+  }, [form, companyId, mode, selectedTcs, loadTcsList]);
 
   const handleDelete = useCallback(async () => {
     if (mode !== "alter" || !selectedTcs) return;
@@ -218,8 +188,6 @@ export function useTCSNatureOfGoodsForm({ mode }: UseTCSNatureOfGoodsFormOptions
       const result = await window.api.tcsNatureOfGoods.delete(selectedTcs.tcs_id!);
       if (result.success) {
         setSuccess("TCS Nature of Goods deleted successfully.");
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
         await loadTcsList();
         setTimeout(() => {
           setSuccess(null);
@@ -233,7 +201,7 @@ export function useTCSNatureOfGoodsForm({ mode }: UseTCSNatureOfGoodsFormOptions
     } finally {
       setLoading(false);
     }
-  }, [selectedTcs, mode, persistKey, loadTcsList]);
+  }, [selectedTcs, mode, loadTcsList]);
 
   const handleBack = () => {
     setSelectedTcs(null);

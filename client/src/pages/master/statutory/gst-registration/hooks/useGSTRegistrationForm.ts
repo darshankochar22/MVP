@@ -1,6 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useCompany } from "@/context/CompanyContext";
-import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import { INDIAN_STATES } from "@/constants/states";
 import type { GSTRegistrationType } from "@/types/entities/GSTRegistration";
 
@@ -63,42 +62,15 @@ interface UseGSTRegistrationFormOptions {
 export function useGSTRegistrationForm({ mode }: UseGSTRegistrationFormOptions) {
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
-  const persistKey = companyId ? `gstRegistration${mode === "create" ? "Create" : "Alter"}_${companyId}` : null;
-  const hasRestored = useRef(false);
 
   const [registrations, setRegistrations] = useState<GSTRegistrationType[]>([]);
-  const [selectedReg, setSelectedReg] = useState<GSTRegistrationType | null>(() => {
-    if (mode === "alter" && persistKey) {
-      return loadFormState<any>(persistKey)?.selectedReg ?? null;
-    }
-    return null;
-  });
+  const [selectedReg, setSelectedReg] = useState<GSTRegistrationType | null>(null);
 
-  const [form, setForm] = useState<FormData>(() => {
-    if (persistKey) {
-      const saved = loadFormState<any>(persistKey)?.form;
-      if (saved) return saved;
-    }
-    return INITIAL_FORM;
-  });
+  const [form, setForm] = useState<FormData>(INITIAL_FORM);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  // Auto-save form state to sessionStorage
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasRestored.current) {
-      hasRestored.current = true;
-      return;
-    }
-    if (mode === "alter" && !selectedReg) return;
-    saveFormState(persistKey, {
-      form,
-      ...(mode === "alter" ? { selectedReg } : {}),
-    });
-  }, [persistKey, form, selectedReg, mode]);
 
   const loadRegistrations = useCallback(async () => {
     if (!companyId) return;
@@ -232,8 +204,6 @@ export function useGSTRegistrationForm({ mode }: UseGSTRegistrationFormOptions) 
 
       if (result.success) {
         setSuccess(`GST Registration for "${form.gstin.toUpperCase()}" ${mode === "create" ? "created" : "updated"} successfully.`);
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
 
         if (mode === "create") {
           setForm({ ...INITIAL_FORM, state_id: form.state_id });
@@ -255,7 +225,7 @@ export function useGSTRegistrationForm({ mode }: UseGSTRegistrationFormOptions) 
     } finally {
       setLoading(false);
     }
-  }, [form, companyId, mode, selectedReg, persistKey, loadRegistrations]);
+  }, [form, companyId, mode, selectedReg, loadRegistrations]);
 
   const handleDelete = useCallback(async () => {
     if (mode !== "alter" || !selectedReg) return;
@@ -267,8 +237,6 @@ export function useGSTRegistrationForm({ mode }: UseGSTRegistrationFormOptions) 
       const result = await window.api.gstRegistration.delete(selectedReg.gst_id!);
       if (result.success) {
         setSuccess("GST Registration deleted successfully.");
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
         await loadRegistrations();
         setTimeout(() => {
           setSuccess(null);
@@ -282,7 +250,7 @@ export function useGSTRegistrationForm({ mode }: UseGSTRegistrationFormOptions) 
     } finally {
       setLoading(false);
     }
-  }, [selectedReg, mode, persistKey, loadRegistrations]);
+  }, [selectedReg, mode, loadRegistrations]);
 
   const handleBack = () => {
     setSelectedReg(null);

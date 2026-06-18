@@ -86,6 +86,12 @@ const seedDefaultLedgers = async (company_id, groups_arg) => {
       includeAssessableValue: "Not Applicable",
       methodOfCalculation: "Based on Value",
       otherStatutoryDetails: 0,
+      activateInterest: 0,
+      interestIncludeAdded: 0,
+      interestIncludeDeducted: 0,
+      interestRate: 0,
+      interestStyle: "30-Day Month",
+      interestBalances: "All Balances",
     });
   }
 };
@@ -147,6 +153,12 @@ module.exports = {
           includeAssessableValue: data.include_assessable_value || "Not Applicable",
           methodOfCalculation: data.method_of_calculation || "Based on Value",
           otherStatutoryDetails: data.other_statutory_details ? 1 : 0,
+          activateInterest: data.activate_interest ? 1 : 0,
+          interestIncludeAdded: data.interest_include_added ? 1 : 0,
+          interestIncludeDeducted: data.interest_include_deducted ? 1 : 0,
+          interestRate: Number(data.interest_rate) || 0,
+          interestStyle: data.interest_style || "30-Day Month",
+          interestBalances: data.interest_balances || "All Balances",
         })
         .returning({ id: ledgers.ledgerId });
 
@@ -352,6 +364,31 @@ module.exports = {
             "Based on Value",
           otherStatutoryDetails:
             data.other_statutory_details ?? ledger.other_statutory_details ?? 0,
+          activateInterest:
+            data.activate_interest !== undefined
+              ? data.activate_interest
+                ? 1
+                : 0
+              : (ledger.activate_interest ?? 0),
+          interestIncludeAdded:
+            data.interest_include_added !== undefined
+              ? data.interest_include_added
+                ? 1
+                : 0
+              : (ledger.interest_include_added ?? 0),
+          interestIncludeDeducted:
+            data.interest_include_deducted !== undefined
+              ? data.interest_include_deducted
+                ? 1
+                : 0
+              : (ledger.interest_include_deducted ?? 0),
+          interestRate:
+            data.interest_rate !== undefined
+              ? Number(data.interest_rate) || 0
+              : (ledger.interest_rate ?? 0),
+          interestStyle: data.interest_style ?? ledger.interest_style ?? "30-Day Month",
+          interestBalances:
+            data.interest_balances ?? ledger.interest_balances ?? "All Balances",
           updatedAt: sql`datetime('now')`,
         })
         .where(eq(ledgers.ledgerId, data.ledger_id));

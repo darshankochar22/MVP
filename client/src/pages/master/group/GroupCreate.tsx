@@ -1,7 +1,6 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import { loadFormState, saveFormState, clearFormState } from "@/utils/formPersistence";
 import GroupFlatList from "@/components/GroupFlatList";
 import type { GroupType } from "@/types/api";
 import { TOGGLE_META, getConfig, type StatutoryToggle } from "@/config/statutoryConfig";
@@ -61,8 +60,6 @@ export default function GroupCreate() {
   const { selectedCompany } = useCompany();
   const navigate = useNavigate();
   const companyId = selectedCompany?.company_id;
-  const persistKey = companyId ? `groupCreate_${companyId}` : null;
-  const hasRestored = useRef(false);
 
   const [flatGroups, setFlatGroups] = useState<GroupType[]>([]);
   const [loading, setLoading] = useState(false);
@@ -72,19 +69,7 @@ export default function GroupCreate() {
   const [activeFeatureModal, setActiveFeatureModal] = useState<StatutoryToggle | null>(null);
   const [activeFeatureCreateModal, setActiveFeatureCreateModal] = useState<StatutoryToggle | null>(null);
 
-  const [form, setForm] = useState<Partial<GroupType>>(
-    () => loadFormState<any>(persistKey ?? "")?.form ?? INITIAL_FORM
-  );
-
-  // Auto-save to sessionStorage
-  useEffect(() => {
-    if (!persistKey) return;
-    if (!hasRestored.current) {
-      hasRestored.current = true;
-      return;
-    }
-    saveFormState(persistKey, { form });
-  }, [persistKey, form]);
+  const [form, setForm] = useState<Partial<GroupType>>(INITIAL_FORM);
 
   // Escape key handler
   useEffect(() => {
@@ -223,8 +208,6 @@ export default function GroupCreate() {
 
       const res = await window.api.group.create(payload);
       if (res.success) {
-        if (persistKey) clearFormState(persistKey);
-        hasRestored.current = false;
         setSuccess(`Group "${form.name}" created.`);
         const capital = flatGroups.find((g) => g.name === "Capital Account");
         setForm((f) => ({
