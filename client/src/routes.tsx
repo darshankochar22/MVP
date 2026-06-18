@@ -116,6 +116,9 @@ import TaxCreate from "./pages/master/statutory/Tax-units/taxCreate.tsx";
 import TaxCOA from "./pages/master/statutory/Tax-units/taxCOA.tsx";
 import TaxAlter from "./pages/master/statutory/Tax-units/taxAlter.tsx";
 import GSTR2AReconciliation from "./pages/master/statutory/gst-return/GSTR2A-Reconcilation.tsx";
+import IMSInwardSupplies from "./pages/master/statutory/gst-return/IMSInwardSupplies.tsx";
+import GSTR2BReconciliation from "./pages/master/statutory/gst-return/GSTR2BReconciliation.tsx";
+import ChallanReconciliation from "./pages/master/statutory/gst-return/ChallanReconciliation.tsx";
 
 export interface RouteConfig {
   path: string;
@@ -208,6 +211,9 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/statutory/gstr3b", element: <GSTR3BView /> },
   { path: "/master/statutory/annual-computation", element: <AnnualComputation /> },
   { path: "/master/statutory/gstr2a/reconciliation", element: <GSTR2AReconciliation />},
+  { path: "/master/statutory/gstr2b/reconciliation", element: <GSTR2BReconciliation /> },
+  { path: "/master/statutory/challan/reconciliation", element: <ChallanReconciliation /> },
+  { path: "/master/statutory/ims", element: <IMSInwardSupplies /> },
 
   { path: "/master/create/tax-units", element: <TaxCreate /> },
   { path: "/master/alter/tax-units", element: <TaxAlter /> },
