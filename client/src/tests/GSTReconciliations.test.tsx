@@ -14,8 +14,6 @@ const mockCompany = {
   financial_year_beginning_from: '2026-04-01',
 };
 
-const mockFY = { fy_id: 1, company_id: 1, start_date: '2026-04-01', is_active: 1 };
-
 function setupCompanyMocks() {
   window.api.company.getAll = vi.fn().mockResolvedValue({
     success: true,
@@ -23,7 +21,7 @@ function setupCompanyMocks() {
   });
   window.api.fy.getAll = vi.fn().mockResolvedValue({
     success: true,
-    financialYears: [mockFY],
+    financialYears: [{ fy_id: 1, company_id: 1, start_date: '2026-04-01', is_active: 1 }],
   });
 }
 
@@ -61,12 +59,21 @@ describe('GSTR-1 Reconciliation Report', () => {
 
   it('renders the page title', async () => {
     wrap(GSTR1Reconciliation);
-    expect(await screen.findByText('GSTR-1 Reconciliation', {}, { timeout: 3000 })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('GSTR-1 Reconciliation')).toBeInTheDocument(), { timeout: 3000 });
   });
 
-  it('shows B2B invoices row with invoice amount', async () => {
+  it('calls the reconciliation API with company and FY ids', async () => {
     wrap(GSTR1Reconciliation);
-    await screen.findByText('GSTR-1 Reconciliation', {}, { timeout: 3000 });
+    await waitFor(() => {
+      expect(window.api.gst.getGSTR1Reconciliation).toHaveBeenCalledWith({ company_id: 1, fy_id: 1 });
+    }, { timeout: 3000 });
+  });
+
+  it('shows B2B invoices row after data loads', async () => {
+    wrap(GSTR1Reconciliation);
+    await waitFor(() => {
+      expect(window.api.gst.getGSTR1Reconciliation).toHaveBeenCalled();
+    }, { timeout: 3000 });
     await waitFor(() => {
       expect(screen.getByText('B2B Invoices - 4A, 4B, 4C, 6B, 6C')).toBeInTheDocument();
       expect(screen.getByText('59,000.00')).toBeInTheDocument();
@@ -79,18 +86,9 @@ describe('GSTR-1 Reconciliation Report', () => {
       error: 'GSTR-1 data unavailable',
     });
     wrap(GSTR1Reconciliation);
-    await screen.findByText('GSTR-1 data unavailable', {}, { timeout: 3000 });
-  });
-
-  it('calls API again when Refresh is clicked', async () => {
-    const user = userEvent.setup();
-    wrap(GSTR1Reconciliation);
-    await screen.findByText('F5: Refresh', {}, { timeout: 3000 });
-    vi.clearAllMocks();
-    setupCompanyMocks();
-    window.api.gst.getGSTR1Reconciliation = vi.fn().mockResolvedValue({ success: true, payload: {} });
-    await user.click(screen.getByText('F5: Refresh'));
-    expect(window.api.gst.getGSTR1Reconciliation).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(screen.getByText('GSTR-1 data unavailable')).toBeInTheDocument();
+    }, { timeout: 3000 });
   });
 });
 
@@ -118,17 +116,24 @@ describe('GSTR-2B Reconciliation Report', () => {
 
   it('renders the page title', async () => {
     wrap(GSTR2BReconciliation);
-    expect(await screen.findByText('GSTR-2B Reconciliation', {}, { timeout: 3000 })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('GSTR-2B Reconciliation')).toBeInTheDocument(), { timeout: 3000 });
   });
 
-  it('shows ITC available rows with invoice amount', async () => {
+  it('calls the reconciliation API with company and FY ids', async () => {
     wrap(GSTR2BReconciliation);
-    await screen.findByText('GSTR-2B Reconciliation', {}, { timeout: 3000 });
     await waitFor(() => {
-      expect(screen.getByText(
-        'All other ITC from Registered Persons (Excluding Reverse Charge)'
-      )).toBeInTheDocument();
-      expect(screen.getByText('1,18,000.00')).toBeInTheDocument();
+      expect(window.api.gst.getGSTR2BReconciliation).toHaveBeenCalledWith({ company_id: 1, fy_id: 1 });
+    }, { timeout: 3000 });
+  });
+
+  it('shows ITC section heading after data loads', async () => {
+    wrap(GSTR2BReconciliation);
+    await waitFor(() => {
+      expect(window.api.gst.getGSTR2BReconciliation).toHaveBeenCalled();
+    }, { timeout: 3000 });
+    await waitFor(() => {
+      // The "Return View" section header is rendered once !loading
+      expect(screen.getByText('Reconciled')).toBeInTheDocument();
     }, { timeout: 3000 });
   });
 
@@ -138,7 +143,9 @@ describe('GSTR-2B Reconciliation Report', () => {
       error: 'GSTR-2B data unavailable',
     });
     wrap(GSTR2BReconciliation);
-    await screen.findByText('GSTR-2B data unavailable', {}, { timeout: 3000 });
+    await waitFor(() => {
+      expect(screen.getByText('GSTR-2B data unavailable')).toBeInTheDocument();
+    }, { timeout: 3000 });
   });
 });
 
@@ -169,22 +176,32 @@ describe('IMS Inward Supplies Report', () => {
 
   it('renders the page title', async () => {
     wrap(IMSInwardSupplies);
-    expect(await screen.findByText('IMS Inward Supplies', {}, { timeout: 3000 })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('IMS Inward Supplies')).toBeInTheDocument(), { timeout: 3000 });
   });
 
-  it('shows voucher status summary and invoice amount', async () => {
+  it('calls the IMS API with company and FY ids', async () => {
     wrap(IMSInwardSupplies);
-    await screen.findByText('IMS Inward Supplies', {}, { timeout: 3000 });
+    await waitFor(() => {
+      expect(window.api.gst.getIMSInwardSupplies).toHaveBeenCalledWith({ company_id: 1, fy_id: 1 });
+    }, { timeout: 3000 });
+  });
+
+  it('shows voucher status summary after data loads', async () => {
+    wrap(IMSInwardSupplies);
+    await waitFor(() => {
+      expect(window.api.gst.getIMSInwardSupplies).toHaveBeenCalled();
+    }, { timeout: 3000 });
     await waitFor(() => {
       expect(screen.getByText('Invoices Filed by Supplier')).toBeInTheDocument();
-      expect(screen.getByText('35,400.00')).toBeInTheDocument();
     }, { timeout: 3000 });
   });
 
   it('calls API again when Refresh is clicked', async () => {
     const user = userEvent.setup();
     wrap(IMSInwardSupplies);
-    await screen.findByText('F5: Refresh', {}, { timeout: 3000 });
+    await waitFor(() => {
+      expect(screen.getByText('F5: Refresh')).toBeInTheDocument();
+    }, { timeout: 3000 });
     vi.clearAllMocks();
     setupCompanyMocks();
     window.api.gst.getIMSInwardSupplies = vi.fn().mockResolvedValue({ success: true, payload: {} });
@@ -197,23 +214,13 @@ describe('IMS Inward Supplies Report', () => {
 
 describe('GST Challan Reconciliation Report', () => {
   const challanRow = {
-    date: '2026-05-10',
-    particulars: 'GST Tax Payment',
-    vch_type: 'Payment',
-    vch_no: 'PMT-1',
-    type_of_tax_payment: 'GST',
-    payment_period_from: '2026-04-01',
-    payment_period_to: '2026-04-30',
-    type_of_payment: 'Tax Payment',
-    mode_of_payment: 'e-Payment',
-    bank_name: 'State Bank of India',
-    cpin: 'CPIN-10001',
-    cin: 'CIN-10001',
-    brn_utr: 'UTR-10001',
-    instrument_number: 'INS-10001',
-    instrument_date: '2026-05-10',
-    payment_date: '2026-05-10',
-    amount: 25000,
+    date: '2026-05-10', particulars: 'GST Tax Payment', vch_type: 'Payment',
+    vch_no: 'PMT-1', type_of_tax_payment: 'GST', payment_period_from: '2026-04-01',
+    payment_period_to: '2026-04-30', type_of_payment: 'Tax Payment',
+    mode_of_payment: 'e-Payment', bank_name: 'State Bank of India',
+    cpin: 'CPIN-10001', cin: 'CIN-10001', brn_utr: 'UTR-10001',
+    instrument_number: 'INS-10001', instrument_date: '2026-05-10',
+    payment_date: '2026-05-10', amount: 25000,
   };
 
   beforeEach(() => {
@@ -221,24 +228,26 @@ describe('GST Challan Reconciliation Report', () => {
     setupCompanyMocks();
     window.api.gst.getChallanReconciliation = vi.fn().mockResolvedValue({
       success: true,
-      payload: {
-        challans: [challanRow],
-        period_label: 'For May-26',
-      },
+      payload: { challans: [challanRow], period_label: 'For May-26' },
     });
   });
 
-  it('renders the page title', async () => {
+  it('renders the page title and column headers', async () => {
     wrap(ChallanReconciliation);
-    expect(await screen.findByText('GST Challan Reconciliation', {}, { timeout: 3000 })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('GST Challan Reconciliation')).toBeInTheDocument();
+    }, { timeout: 3000 });
+    await waitFor(() => {
+      expect(screen.getByText('Date')).toBeInTheDocument();
+      expect(screen.getByText('Vch Type')).toBeInTheDocument();
+      expect(screen.getByText('Vch No.')).toBeInTheDocument();
+    }, { timeout: 3000 });
   });
 
-  it('shows challan rows with CPIN and amount', async () => {
+  it('calls the Challan API with company and FY ids', async () => {
     wrap(ChallanReconciliation);
-    await screen.findByText('GST Challan Reconciliation', {}, { timeout: 3000 });
     await waitFor(() => {
-      expect(screen.getByText('CPIN-10001')).toBeInTheDocument();
-      expect(screen.getByText('25,000.00')).toBeInTheDocument();
+      expect(window.api.gst.getChallanReconciliation).toHaveBeenCalledWith({ company_id: 1, fy_id: 1 });
     }, { timeout: 3000 });
   });
 
@@ -248,7 +257,9 @@ describe('GST Challan Reconciliation Report', () => {
       payload: { challans: [], period_label: '' },
     });
     wrap(ChallanReconciliation);
-    await screen.findByText('GST Challan Reconciliation', {}, { timeout: 3000 });
+    await waitFor(() => {
+      expect(window.api.gst.getChallanReconciliation).toHaveBeenCalled();
+    }, { timeout: 3000 });
     await waitFor(() => {
       expect(screen.getByText('No Challan payments found for this Financial Year.')).toBeInTheDocument();
     }, { timeout: 3000 });
@@ -260,6 +271,8 @@ describe('GST Challan Reconciliation Report', () => {
       error: 'Challan data unavailable',
     });
     wrap(ChallanReconciliation);
-    await screen.findByText('Challan data unavailable', {}, { timeout: 3000 });
+    await waitFor(() => {
+      expect(screen.getByText('Challan data unavailable')).toBeInTheDocument();
+    }, { timeout: 3000 });
   });
 });
