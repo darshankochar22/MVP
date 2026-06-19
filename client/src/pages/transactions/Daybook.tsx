@@ -26,6 +26,7 @@ interface VoucherRow {
   narration: string | null;
   party_name: string | null;
   is_cancelled: number;
+  is_optional: number;
   debit_amount: number;
   credit_amount: number;
   inwards_qty: number;
@@ -206,7 +207,9 @@ export default function Daybook() {
                         <TableCell className="px-3 py-1.5 text-zinc-800 text-[12px]">{formatDate(v.date)}</TableCell>
                         <TableCell className="px-3 py-1.5 font-bold text-zinc-900 text-[12px]">{v.party_name || v.narration || "—"}</TableCell>
                         <TableCell className={cn("px-3 py-1.5 text-right text-[12px]", idx === 0 ? "font-bold text-zinc-900" : "text-zinc-700")}>{v.voucher_type}</TableCell>
-                        <TableCell className="px-3 py-1.5 text-right text-zinc-700 text-[12px]">{v.voucher_number || "—"}</TableCell>
+                        <TableCell className="px-3 py-1.5 text-right text-zinc-700 text-[12px]">
+                          {v.is_optional ? `(Optional) ${v.voucher_number || ""}` : v.voucher_number || "—"}
+                        </TableCell>
                         <TableCell className={cn("px-3 py-1.5 text-right text-[12px]", v.debit_amount ? "font-bold text-zinc-900" : "text-zinc-400")}>
                           {v.debit_amount ? formatAmount(v.debit_amount) : ""}
                         </TableCell>

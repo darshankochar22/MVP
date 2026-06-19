@@ -163,6 +163,11 @@ contextBridge.exposeInMainWorld('api', {
         esiReport:        (company_id, fy_id) => invoke('report:esiReport',        { company_id, fy_id }),
         professionalTax:  (company_id, fy_id) => invoke('report:professionalTax',  { company_id, fy_id }),
         gratuity:         (company_id, fy_id) => invoke('report:gratuity',         { company_id, fy_id }),
+        journalRegister:   (company_id, fy_id) => invoke('report:journalRegister',   { company_id, fy_id }),
+        debitNoteRegister:  (company_id, fy_id) => invoke('report:debitNoteRegister',  { company_id, fy_id }),
+        creditNoteRegister: (company_id, fy_id) => invoke('report:creditNoteRegister', { company_id, fy_id }),
+        purchaseRegister:   (company_id, fy_id) => invoke('report:purchaseRegister',   { company_id, fy_id }),
+        salesRegister:      (company_id, fy_id) => invoke('report:salesRegister',      { company_id, fy_id }),
     },
     banking: {
         getUnreconciled: (company_id, fy_id, ledger_id)                          => invoke('banking:getUnreconciled', { company_id, fy_id, ledger_id }),

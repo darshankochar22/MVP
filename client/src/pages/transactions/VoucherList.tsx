@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar, RightActionPanel } from "@/components/ui";
 import { PageFooterBar } from "./ui";
@@ -48,8 +48,21 @@ const formatAmount = (n: number) => {
 
 export default function VoucherList() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { selectedCompany, activeFY } = useCompany();
-  const [selectedType, setSelectedType] = useState<string>("All");
+
+  const typeParam = searchParams.get("type") || "All";
+  const monthParam = searchParams.get("month");
+
+  const selectedType = VOUCHER_TYPES.includes(typeParam) || typeParam === "All" ? typeParam : "All";
+
+  const handleTypeChange = (type: string) => {
+    const params = new URLSearchParams(searchParams);
+    params.set("type", type);
+    params.delete("month");
+    setSearchParams(params);
+  };
+
   const [vouchers, setVouchers] = useState<VoucherRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -123,14 +136,30 @@ export default function VoucherList() {
     { key: "Esc", label: "Quit", onClick: () => navigate("/") },
   ];
 
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
   const filtered = vouchers.filter(v => {
     const q = search.toLowerCase();
-    return (
-      !q ||
+    const matchesSearch = !q ||
       v.voucher_number?.toLowerCase().includes(q) ||
       v.party_name?.toLowerCase().includes(q) ||
-      v.narration?.toLowerCase().includes(q)
-    );
+      v.narration?.toLowerCase().includes(q);
+
+    if (!matchesSearch) return false;
+
+    if (monthParam) {
+      const dateObj = new Date(v.date);
+      if (isNaN(dateObj.getTime())) return true;
+      const monthIndex = dateObj.getMonth(); // 0-11
+      const targetMonthIndex = monthNames.indexOf(monthParam);
+      if (targetMonthIndex !== -1 && monthIndex !== targetMonthIndex) {
+        return false;
+      }
+    }
+    return true;
   });
 
   const handleRowClick = (idx: number) => {
@@ -158,7 +187,7 @@ export default function VoucherList() {
         <div className="flex-1 flex flex-col min-w-0">
           <Tabs
             value={selectedType}
-            onValueChange={setSelectedType}
+            onValueChange={handleTypeChange}
             className="shrink-0"
           >
             <TabsList
@@ -180,13 +209,29 @@ export default function VoucherList() {
             </TabsList>
           </Tabs>
 
-          <div className="px-3 py-2 border-b border-zinc-100 bg-zinc-50/50">
+          <div className="px-3 py-2 border-b border-zinc-100 bg-zinc-50/50 flex flex-wrap items-center gap-3">
             <Input
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by voucher no, party, narration…"
-              className="h-auto max-w-sm rounded border-zinc-300 bg-white px-2.5 py-1.5 text-xs"
+              className="h-auto max-w-sm rounded border-zinc-300 bg-white px-2.5 py-1.5 text-xs flex-1"
             />
+            {monthParam && (
+              <div className="flex items-center gap-2 px-3 py-1 bg-amber-50 border border-amber-200 text-amber-900 rounded text-[11px] font-semibold">
+                <span>Month: <strong>{monthParam}</strong></span>
+                <button
+                  onClick={() => {
+                    const params = new URLSearchParams(searchParams);
+                    params.delete("month");
+                    setSearchParams(params);
+                  }}
+                  className="text-amber-600 hover:text-amber-950 font-bold ml-1"
+                  title="Clear month filter"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
           </div>
 
           {error && (

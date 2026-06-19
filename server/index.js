@@ -202,6 +202,11 @@ ipcMain.handle('report:pfReport',         reportController.pfReport);
 ipcMain.handle('report:esiReport',        reportController.esiReport);
 ipcMain.handle('report:professionalTax',  reportController.professionalTax);
 ipcMain.handle('report:gratuity',         reportController.gratuity);
+ipcMain.handle('report:journalRegister',    reportController.journalRegister);
+ipcMain.handle('report:debitNoteRegister',   reportController.debitNoteRegister);
+ipcMain.handle('report:creditNoteRegister',  reportController.creditNoteRegister);
+ipcMain.handle('report:purchaseRegister',    reportController.purchaseRegister);
+ipcMain.handle('report:salesRegister',       reportController.salesRegister);
 
 ipcMain.handle('banking:getUnreconciled', bankingController.getUnreconciled);
 ipcMain.handle('banking:reconcile', bankingController.reconcile);

@@ -74,52 +74,50 @@ const REPORT_DEFINITIONS: Record<string, ReportConfig> = {
   },
   "sales-register": {
     title: "Sales Register",
+    apiMethod: "salesRegister",
     columns: [
-      { header: "Month", field: "month" },
-      { header: "Transactions Count", field: "count", type: "number", align: "center" },
-      { header: "Value", field: "value", type: "currency", align: "right" },
+      { header: "Particulars", field: "month" },
+      { header: "Debit", field: "debit", type: "currency", align: "right" },
+      { header: "Credit", field: "credit", type: "currency", align: "right" },
+      { header: "Closing Balance", field: "closing_balance", type: "currency", align: "right" },
     ],
-    
   },
   "purchase-register": {
     title: "Purchase Register",
+    apiMethod: "purchaseRegister",
     columns: [
-      { header: "Month", field: "month" },
-      { header: "Transactions Count", field: "count", type: "number", align: "center" },
-      { header: "Value", field: "value", type: "currency", align: "right" },
+      { header: "Particulars", field: "month" },
+      { header: "Debit", field: "debit", type: "currency", align: "right" },
+      { header: "Credit", field: "credit", type: "currency", align: "right" },
+      { header: "Closing Balance", field: "closing_balance", type: "currency", align: "right" },
     ],
-    
   },
   "journal-register": {
     title: "Journal Register",
+    apiMethod: "journalRegister",
     columns: [
-      { header: "Date", field: "date", type: "date" },
-      { header: "Particulars", field: "particulars" },
-      { header: "Vch No", field: "voucher_number" },
-      { header: "Debit", field: "debit", type: "currency", align: "right" },
-      { header: "Credit", field: "credit", type: "currency", align: "right" },
+      { header: "Particulars", field: "month" },
+      { header: "Total Vouchers", field: "total_vouchers", type: "number", align: "right" },
+      { header: "(cancelled)", field: "cancelled", type: "number", align: "right" },
     ],
-    
   },
   "debit-note-register": {
     title: "Debit Note Register",
+    apiMethod: "debitNoteRegister",
     columns: [
-      { header: "Date", field: "date", type: "date" },
-      { header: "Supplier Name", field: "particulars" },
-      { header: "Vch No", field: "voucher_number" },
-      { header: "Amount", field: "amount", type: "currency", align: "right" },
+      { header: "Particulars", field: "month" },
+      { header: "Total Vouchers", field: "total_vouchers", type: "number", align: "right" },
+      { header: "(cancelled)", field: "cancelled", type: "number", align: "right" },
     ],
-    
   },
   "credit-note-register": {
     title: "Credit Note Register",
+    apiMethod: "creditNoteRegister",
     columns: [
-      { header: "Date", field: "date", type: "date" },
-      { header: "Customer Name", field: "particulars" },
-      { header: "Vch No", field: "voucher_number" },
-      { header: "Amount", field: "amount", type: "currency", align: "right" },
+      { header: "Particulars", field: "month" },
+      { header: "Total Vouchers", field: "total_vouchers", type: "number", align: "right" },
+      { header: "(cancelled)", field: "cancelled", type: "number", align: "right" },
     ],
-    
   },
   "trial-balance": {
     title: "Trial Balance",
@@ -654,6 +652,191 @@ export function ReportRunner() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
+  const isRegister = [
+    "sales-register",
+    "purchase-register",
+    "journal-register",
+    "debit-note-register",
+    "credit-note-register"
+  ].includes(reportType);
+
+  const [focusedIndex, setFocusedIndex] = React.useState<number>(0);
+
+  // Reset focused index when reportType changes
+  React.useEffect(() => {
+    setFocusedIndex(0);
+  }, [reportType]);
+
+  const handleRegisterRowDrilldown = React.useCallback((row: any) => {
+    if (!row) return;
+    const voucherTypeMap: Record<string, string> = {
+      "sales-register": "Sales",
+      "purchase-register": "Purchase",
+      "journal-register": "Journal",
+      "debit-note-register": "Debit Note",
+      "credit-note-register": "Credit Note"
+    };
+    const vchType = voucherTypeMap[reportType];
+    navigate(`/transactions/voucher-list?type=${vchType}&month=${row.month}`);
+  }, [reportType, navigate]);
+
+  React.useEffect(() => {
+    if (!isRegister || loading || rows.length === 0) return;
+
+    const handleRegisterKeys = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === "INPUT" ||
+          activeEl.tagName === "SELECT" ||
+          activeEl.tagName === "TEXTAREA" ||
+          activeEl.closest("[role='dialog']"))
+      ) {
+        return;
+      }
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setFocusedIndex(prev => Math.min(rows.length - 1, prev + 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusedIndex(prev => Math.max(0, prev - 1));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        const activeRow = rows[focusedIndex];
+        if (activeRow) {
+          handleRegisterRowDrilldown(activeRow);
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleRegisterKeys);
+    return () => window.removeEventListener("keydown", handleRegisterKeys);
+  }, [isRegister, loading, rows, focusedIndex, handleRegisterRowDrilldown]);
+
+  const formatCurrency = (val: any) => {
+    const num = Number(val);
+    if (isNaN(num) || num === 0) return "";
+    return new Intl.NumberFormat("en-IN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num);
+  };
+
+  const formatNumber = (val: any) => {
+    const num = Number(val);
+    if (isNaN(num) || num === 0) return "";
+    return num.toLocaleString("en-IN");
+  };
+
+  const renderRegisterChart = () => {
+    const chartHeight = 140;
+    const padding = { top: 15, right: 20, bottom: 20, left: 55 };
+    const width = 800;
+    
+    const maxVal = Math.max(...rows.map(r => r.value || 0), 10);
+    const months = ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
+    const plotWidth = width - padding.left - padding.right;
+    const plotHeight = chartHeight - padding.top - padding.bottom;
+    const barWidth = Math.floor(plotWidth / 12) - 10;
+    
+    return (
+      <div className="p-3 bg-zinc-50 border-t border-zinc-200 select-none">
+        <div className="w-full max-w-4xl mx-auto h-[160px] bg-white border border-zinc-300 rounded shadow-sm p-1.5 flex flex-col justify-between">
+          <div className="text-[9px] font-bold text-zinc-600 px-1 border-b border-zinc-100 pb-0.5 font-mono">
+            {reportType === "purchase-register" ? "Purchase Transaction Value Trend (Monthly)" : "Sales Transaction Value Trend (Monthly)"}
+          </div>
+          <div className="flex-1 min-h-0 relative mt-1">
+            <svg viewBox={`0 0 ${width} ${chartHeight}`} className="w-full h-full font-mono text-[9px]">
+              {/* Grid Lines */}
+              {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
+                const y = padding.top + plotHeight * (1 - ratio);
+                const gridVal = maxVal * ratio;
+                return (
+                  <g key={idx}>
+                    <line
+                      x1={padding.left}
+                      y1={y}
+                      x2={width - padding.right}
+                      y2={y}
+                      stroke="#f3f3f3"
+                      strokeWidth={1}
+                    />
+                    <text
+                      x={padding.left - 8}
+                      y={y + 3}
+                      textAnchor="end"
+                      fill="#71717a"
+                    >
+                      {gridVal >= 10000000 
+                        ? `₹${(gridVal / 10000000).toFixed(1)}Cr` 
+                        : gridVal >= 100000 
+                          ? `₹${(gridVal / 100000).toFixed(1)}L` 
+                          : gridVal >= 1000 
+                            ? `₹${(gridVal / 1000).toFixed(0)}k` 
+                            : `₹${gridVal.toFixed(0)}`}
+                    </text>
+                  </g>
+                );
+              })}
+
+              {/* Bars */}
+              {rows.map((row, idx) => {
+                const val = row.value || 0;
+                const h = (val / maxVal) * plotHeight;
+                const x = padding.left + idx * (plotWidth / 12) + (plotWidth / 12 - barWidth) / 2;
+                const y = padding.top + plotHeight - h;
+                
+                return (
+                  <g key={row.month} className="group">
+                    <rect
+                      x={x}
+                      y={y}
+                      width={barWidth}
+                      height={h}
+                      fill={reportType === "purchase-register" ? "#006699" : "#0088cc"}
+                      className="hover:opacity-85 transition-opacity"
+                    />
+                    <title>{`${row.month}: ₹${val.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`}</title>
+                  </g>
+                );
+              })}
+
+              {/* X Axis Labels */}
+              {months.map((m, idx) => {
+                const x = padding.left + idx * (plotWidth / 12) + (plotWidth / 12) / 2;
+                return (
+                  <text
+                    key={m}
+                    x={x}
+                    y={chartHeight - 5}
+                    textAnchor="middle"
+                    fill="#3f3f46"
+                    className="font-semibold"
+                  >
+                    {m}
+                  </text>
+                );
+              })}
+              
+              {/* X Axis Line */}
+              <line
+                x1={padding.left}
+                y1={padding.top + plotHeight}
+                x2={width - padding.right}
+                y2={padding.top + plotHeight}
+                stroke="#d4d4d8"
+                strokeWidth={1}
+              />
+            </svg>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
+
   // Configuration and View State
   const [config, setConfig] = React.useState<ReportContextConfig>({
     basisOfValues: "Accrual",
@@ -684,6 +867,214 @@ export function ReportRunner() {
   // Dates
   const [fromDate, setFromDate] = React.useState<string>(activeFY?.start_date || "2026-04-01");
   const [toDate, setToDate] = React.useState<string>(activeFY?.end_date || "2027-03-31");
+
+  const getRegisterVoucherTypeTitle = () => {
+    const voucherTypeMap: Record<string, string> = {
+      "sales-register": "Sales",
+      "purchase-register": "Purchase",
+      "journal-register": "Journal",
+      "debit-note-register": "Debit Note",
+      "credit-note-register": "Credit Note"
+    };
+    return voucherTypeMap[reportType] || "";
+  };
+
+  const periodText = React.useMemo(() => {
+    if (!fromDate) return "";
+    const dateObj = new Date(fromDate);
+    if (isNaN(dateObj.getTime())) return "";
+    const day = dateObj.getDate();
+    const month = dateObj.toLocaleString("en-US", { month: "short" });
+    const year = dateObj.getFullYear();
+    return `For ${day}-${month}-${year.toString().slice(-2)}`;
+  }, [fromDate]);
+
+  const renderRegisterTable = () => {
+    if (rows.length === 0) {
+      return (
+        <div className="flex-1 flex items-center justify-center text-zinc-400 italic font-mono text-[11px]">
+          No records found.
+        </div>
+      );
+    }
+
+    const isJournalOrNote = ["journal-register", "debit-note-register", "credit-note-register"].includes(reportType);
+    const voucherTypeTitle = getRegisterVoucherTypeTitle();
+    const companyNameText = selectedCompany?.name || "Moly Jain";
+
+    // Compute Totals
+    let totalVouchersSum = 0;
+    let totalCancelledSum = 0;
+    let totalDebitSum = 0;
+    let totalCreditSum = 0;
+    let finalClosingBalance = 0;
+
+    rows.forEach(r => {
+      totalVouchersSum += Number(r.total_vouchers) || 0;
+      totalCancelledSum += Number(r.cancelled) || 0;
+      totalDebitSum += Number(r.debit) || 0;
+      totalCreditSum += Number(r.credit) || 0;
+    });
+
+    if (rows.length > 0) {
+      finalClosingBalance = Number(rows[rows.length - 1].closing_balance) || 0;
+    }
+
+    return (
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-white border-b border-zinc-200">
+        <div className="flex-1 overflow-auto">
+          <table className="w-full border-collapse font-mono text-[11px] select-none text-zinc-850">
+            <thead className="sticky top-0 bg-[#e5eff5] text-zinc-900 border-b border-zinc-300 z-10">
+              {isJournalOrNote ? (
+                <>
+                  <tr className="bg-[#e5eff5]">
+                    <th rowSpan={5} className="border-b border-r border-zinc-300 px-3 py-1.5 text-left font-bold w-[50%] align-bottom">
+                      Particulars
+                    </th>
+                    <th colSpan={2} className="px-3 py-0.5 text-right font-normal italic">
+                      {voucherTypeTitle}
+                    </th>
+                  </tr>
+                  <tr className="bg-[#e5eff5]">
+                    <th colSpan={2} className="px-3 py-0.5 text-right font-bold text-zinc-800">
+                      {companyNameText}
+                    </th>
+                  </tr>
+                  <tr className="bg-[#e5eff5]">
+                    <th colSpan={2} className="px-3 py-0.5 text-right font-normal text-zinc-700">
+                      {periodText}
+                    </th>
+                  </tr>
+                  <tr className="bg-[#e5eff5] border-t border-zinc-200">
+                    <th colSpan={2} className="px-3 py-1 text-center font-bold border-b border-zinc-200">
+                      Transactions
+                    </th>
+                  </tr>
+                  <tr className="bg-[#e5eff5] border-b border-zinc-300">
+                    <th className="border-r border-zinc-300 px-3 py-1 text-right font-bold w-[25%]">
+                      Total Vouchers
+                    </th>
+                    <th className="px-3 py-1 text-right font-bold w-[25%]">
+                      (cancelled )
+                    </th>
+                  </tr>
+                </>
+              ) : (
+                <>
+                  <tr className="bg-[#e5eff5]">
+                    <th rowSpan={5} className="border-b border-r border-zinc-300 px-3 py-1.5 text-left font-bold w-[40%] align-bottom">
+                      Particulars
+                    </th>
+                    <th colSpan={3} className="px-3 py-0.5 text-right font-normal italic">
+                      {voucherTypeTitle}
+                    </th>
+                  </tr>
+                  <tr className="bg-[#e5eff5]">
+                    <th colSpan={3} className="px-3 py-0.5 text-right font-bold text-zinc-800">
+                      {companyNameText}
+                    </th>
+                  </tr>
+                  <tr className="bg-[#e5eff5]">
+                    <th colSpan={3} className="px-3 py-0.5 text-right font-normal text-zinc-700">
+                      {periodText}
+                    </th>
+                  </tr>
+                  <tr className="bg-[#e5eff5] border-t border-zinc-200">
+                    <th colSpan={2} className="px-3 py-1 text-center font-bold border-r border-zinc-300 border-b border-zinc-200">
+                      Transactions
+                    </th>
+                    <th className="px-3 py-1 text-right font-bold">
+                      Closing
+                    </th>
+                  </tr>
+                  <tr className="bg-[#e5eff5] border-b border-zinc-300">
+                    <th className="border-r border-zinc-300 px-3 py-1 text-right font-bold w-[15%]">
+                      Debit
+                    </th>
+                    <th className="border-r border-zinc-300 px-3 py-1 text-right font-bold w-[15%]">
+                      Credit
+                    </th>
+                    <th className="px-3 py-1 text-right font-bold w-[30%]">
+                      Balance
+                    </th>
+                  </tr>
+                </>
+              )}
+            </thead>
+            <tbody>
+              {rows.map((row, idx) => {
+                const isFocused = idx === focusedIndex;
+                return (
+                  <tr
+                    key={row.month}
+                    onClick={() => setFocusedIndex(idx)}
+                    onDoubleClick={() => handleRegisterRowDrilldown(row)}
+                    className={`border-b border-zinc-100 hover:bg-zinc-50 transition-colors cursor-pointer ${
+                      isFocused ? "bg-[#ffcc33] text-zinc-950 font-bold" : "text-zinc-800"
+                    }`}
+                  >
+                    <td className="border-r border-zinc-155 px-3 py-1.5 text-left">{row.month}</td>
+                    {isJournalOrNote ? (
+                      <>
+                        <td className="border-r border-zinc-155 px-3 py-1.5 text-right font-mono">
+                          {formatNumber(row.total_vouchers)}
+                        </td>
+                        <td className="px-3 py-1.5 text-right font-mono text-zinc-500">
+                          {row.cancelled > 0 ? `(${row.cancelled} )` : ""}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="border-r border-zinc-155 px-3 py-1.5 text-right font-mono">
+                          {formatCurrency(row.debit)}
+                        </td>
+                        <td className="border-r border-zinc-155 px-3 py-1.5 text-right font-mono">
+                          {formatCurrency(row.credit)}
+                        </td>
+                        <td className="px-3 py-1.5 text-right font-mono">
+                          {formatCurrency(row.closing_balance)}
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
+              
+              {/* Grand Total Row */}
+              <tr className="border-t-2 border-b-2 border-zinc-300 bg-zinc-50 font-bold text-zinc-900">
+                <td className="border-r border-zinc-300 px-3 py-2 text-left">Grand Total</td>
+                {isJournalOrNote ? (
+                  <>
+                    <td className="border-r border-zinc-300 px-3 py-2 text-right font-mono">
+                      {totalVouchersSum > 0 ? totalVouchersSum : ""}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-zinc-500">
+                      {totalCancelledSum > 0 ? `(${totalCancelledSum} )` : ""}
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td className="border-r border-zinc-300 px-3 py-2 text-right font-mono">
+                      {totalDebitSum > 0 ? formatCurrency(totalDebitSum) : ""}
+                    </td>
+                    <td className="border-r border-zinc-300 px-3 py-2 text-right font-mono">
+                      {totalCreditSum > 0 ? formatCurrency(totalCreditSum) : ""}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono">
+                      {formatCurrency(finalClosingBalance)}
+                    </td>
+                  </>
+                )}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Chart Section */}
+        {!isJournalOrNote && renderRegisterChart()}
+      </div>
+    );
+  };
 
   const loadData = React.useCallback(async () => {
     if (!selectedCompany?.company_id || !activeFY?.fy_id) {
@@ -717,7 +1108,10 @@ export function ReportRunner() {
       if (definition.apiMethod && window.api?.report?.[definition.apiMethod]) {
         let res;
         if (definition.apiMethod === "ledgerReport") {
-          res = await window.api.report.ledgerReport(selectedCompany.company_id, activeFY.fy_id, 1, fromDate, toDate);
+          const queryParams = new URLSearchParams(location.search);
+          const ledgerIdParam = queryParams.get("ledger_id") || (location.state as any)?.ledger_id;
+          const ledgerId = ledgerIdParam ? Number(ledgerIdParam) : 1;
+          res = await window.api.report.ledgerReport(selectedCompany.company_id, activeFY.fy_id, ledgerId, fromDate, toDate);
         } else if (definition.apiMethod === "cashBook" || definition.apiMethod === "daybook" || definition.apiMethod === "bankBook") {
           res = await window.api.report[definition.apiMethod](selectedCompany.company_id, activeFY.fy_id, fromDate, toDate);
         } else if (definition.apiMethod === "cashFlow" || definition.apiMethod === "fundsFlow") {
@@ -1068,7 +1462,7 @@ export function ReportRunner() {
     <TallyReportLayout
       title={definition.title}
       companyName={selectedCompany?.name || "No Company Selected"}
-      leftSubtitle={
+      leftSubtitle={isRegister ? undefined : (
         <div className="flex gap-4 items-center">
           <span>Basis of Values: <span className="font-bold">{config.basisOfValues}</span></span>
           <span>Valuation: <span className="font-bold">{config.valuationMethod}</span></span>
@@ -1078,18 +1472,20 @@ export function ReportRunner() {
             </span>
           )}
         </div>
-      }
-      rightSubtitle={
+      )}
+      rightSubtitle={isRegister ? undefined : (
         <span>
           Period: <span className="font-bold">{fromDate}</span> to <span className="font-bold">{toDate}</span>
         </span>
-      }
+      )}
     >
       <div className="flex h-full w-full overflow-hidden">
         {loading ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500 font-mono text-xs">
             Loading report data...
           </div>
+        ) : isRegister ? (
+          renderRegisterTable()
         ) : (
           <ReportTable
             columns={definition.columns}

@@ -138,4 +138,19 @@ module.exports = {
   gratuity: async (event, { company_id, fy_id }) => {
     return await payrollReportService.gratuity(company_id, fy_id);
   },
+  journalRegister: async (event, { company_id, fy_id }) => {
+    return await reportService.journalRegister(company_id, fy_id);
+  },
+  debitNoteRegister: async (event, { company_id, fy_id }) => {
+    return await reportService.debitNoteRegister(company_id, fy_id);
+  },
+  creditNoteRegister: async (event, { company_id, fy_id }) => {
+    return await reportService.creditNoteRegister(company_id, fy_id);
+  },
+  purchaseRegister: async (event, { company_id, fy_id }) => {
+    return await reportService.purchaseRegister(company_id, fy_id);
+  },
+  salesRegister: async (event, { company_id, fy_id }) => {
+    return await reportService.salesRegister(company_id, fy_id);
+  },
 };
