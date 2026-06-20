@@ -31,6 +31,7 @@ import {
 } from "./SimpleTaxModals";
 import TDSDetailsModal from "./TDSDetailsModal";
 import TCSDetailsModal from "./TCSDetailsModal";
+import { useCompany } from "../../../../../context/CompanyContext";
 
 export interface OtherStatutoryForm {
   tds: TdsFormState;
@@ -78,6 +79,7 @@ export default function OtherStatutoryModal({
 }: OtherStatutoryModalProps) {
   const [form, setForm] = useState<OtherStatutoryForm>(value);
   const [activeTier2, setActiveTier2] = useState<Tier2>(null);
+  const { selectedCompany } = useCompany();
 
   useEscapeClose(isOpen, () => {
     if (activeTier2) setActiveTier2(null);
@@ -212,6 +214,7 @@ export default function OtherStatutoryModal({
             updateSection("tds", state);
             setActiveTier2(null);
           }}
+          companyId={selectedCompany?.company_id} 
         />
       )}
       {activeTier2?.kind === "tcs" && (

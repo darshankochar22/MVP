@@ -17,6 +17,7 @@ import type { TaxUnitAPI } from './TaxUnits';
 import type { AiAPI } from './Ai';
 import type { TallyAPI } from './Tally';
 import type { AuditTrailAPI } from './AuditTrail';
+import type { TDSNatureOfPaymentAPI } from './TDSNatureOfPayment';
 
 export type {
   CompanyType,
@@ -72,6 +73,7 @@ export type WindowAPI =
   & AiAPI
   & TallyAPI
   & AuditTrailAPI
+  & TDSNatureOfPaymentAPI
   & { app: { getDataPath: () => Promise<string> } };
 
 declare global {

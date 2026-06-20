@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   inputCls,
   selectCls,
@@ -10,8 +10,16 @@ import {
   useEscapeClose,
 } from "./shared";
 import ApplicabilityDropdown from "./ApplicabilityDropdown";
+import NatureOfPaymentFlatList from "./Natureofpaymentflatlist";
+import { useNavigate } from "react-router-dom";
+import { useTdsNatureOfPayments } from "../../hooks/usetdsnatureofpayments";
 
 /* ── Static option lists (Tally-aligned) ───────────────────────────────────── */
+/* NOTE: TDS_NATURE_OF_PAYMENT_SUGGESTIONS removed — Nature of Payment is now
+   sourced live from window.api.tdsNatureOfPayment.getAll(companyId) via
+   useTdsNatureOfPayments, with "Any"/"Undefined" pinned in the popup
+   (see NatureOfPaymentFlatList). Deductee types & PAN statuses are left as
+   static lists below since they weren't part of this change. */
 
 export const TDS_DEDUCTEE_TYPES = [
   "Unknown",
@@ -53,18 +61,6 @@ export const TDS_PAN_STATUSES = [
   "Not Required",
 ];
 
-export const TDS_NATURE_OF_PAYMENT_SUGGESTIONS = [
-  "Any",
-  "Undefined",
-  "Salary",
-  "Interest",
-  "Rent",
-  "Commission",
-  "Professional Fees",
-  "Royalty",
-  "Contractor Payments",
-];
-
 /* ── Form shape ───────────────────────────────────────────────────────────── */
 
 export interface TdsFormState {
@@ -99,8 +95,8 @@ interface TDSDetailsModalProps {
   onAccept: (state: TdsFormState) => void;
   ledgerName?: string;
   value: TdsFormState;
-  /** Optional list of available nature-of-payment names. Falls back to a small static list. */
-  natureOfPaymentOptions?: string[];
+  /** Needed to fetch/create company-scoped Nature of Payment records. */
+  companyId: number;
 }
 
 /* ── Component ────────────────────────────────────────────────────────────── */
@@ -111,9 +107,17 @@ export default function TDSDetailsModal({
   onAccept,
   ledgerName,
   value,
-  natureOfPaymentOptions,
+  companyId,
 }: TDSDetailsModalProps) {
   const [form, setForm] = useState<TdsFormState>(value);
+  const [nopPopupOpen, setNopPopupOpen] = useState(false);
+  const nopFieldRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  const {
+    items: natureOfPaymentItems,
+    loading: nopLoading,
+  } = useTdsNatureOfPayments(companyId);
 
   useEscapeClose(isOpen, onClose);
 
@@ -124,10 +128,18 @@ export default function TDSDetailsModal({
 
   const panStatusOptions = TDS_PAN_STATUSES.map((s) => ({ value: s, label: s }));
 
-  const nopList = (natureOfPaymentOptions && natureOfPaymentOptions.length > 0
-    ? natureOfPaymentOptions
-    : TDS_NATURE_OF_PAYMENT_SUGGESTIONS
-  ).map((s) => ({ value: s, label: s }));
+  const handleSelectNop = (val: string) => {
+    update("nature_of_payment", val);
+    setNopPopupOpen(false);
+  };
+
+  const handleCreateNop = () => {
+    // Full create page already exists for this entity (with its own
+    // validation, alter-mode, accept/quit shortcuts) — navigate there
+    // instead of duplicating that logic in a second, smaller form.
+    setNopPopupOpen(false);
+    navigate("/master/create/tds-nature-of-payment");
+  };
 
   return (
     <ModalChrome width={520}>
@@ -200,21 +212,35 @@ export default function TDSDetailsModal({
               </select>
             </ModalFormRow>
 
-            <ModalFormRow
-              label="Nature of Payment"
-              labelWidth="w-56"
-            >
-              <select
-                className={selectCls + " max-w-[200px]"}
-                value={form.nature_of_payment}
-                onChange={(e) => update("nature_of_payment", e.target.value)}
-              >
-                {nopList.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-              </select>
+            {/* ── Nature of Payment: now a click-to-open popup backed by
+                real data, replacing the old static <select>. ── */}
+            <ModalFormRow label="Nature of Payment" labelWidth="w-56">
+              <div className="relative" ref={nopFieldRef}>
+                <button
+                  type="button"
+                  onClick={() => setNopPopupOpen((v) => !v)}
+                  className={
+                    selectCls +
+                    " max-w-[200px] text-left flex items-center justify-between"
+                  }
+                >
+                  <span className="truncate">{form.nature_of_payment}</span>
+                  <span className="text-zinc-400 ml-1">▾</span>
+                </button>
+
+                {nopPopupOpen && (
+                  <div className="absolute z-50 top-full left-0 mt-1 w-[280px] h-[260px] border border-zinc-300 shadow-lg rounded-sm overflow-hidden">
+                    <NatureOfPaymentFlatList
+                      items={natureOfPaymentItems}
+                      loading={nopLoading}
+                      selectedValue={form.nature_of_payment}
+                      onSelect={handleSelectNop}
+                      onCreate={handleCreateNop}
+                      onClose={() => setNopPopupOpen(false)}
+                    />
+                  </div>
+                )}
+              </div>
             </ModalFormRow>
 
             <ModalFormRow
