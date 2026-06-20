@@ -243,6 +243,20 @@ const currentConfig = getLedgerConfig(groupName);
             groupLineage={groupLineage}
           />
 
+          <LedgerMailingPanel
+            form={form}
+            setField={setField}
+            groupLineage={groupLineage}
+          />
+          <LedgerBankingPanel
+            provideBank={provideBank}
+            handleProvideBankChange={handleProvideBankChange}
+            bankForm={bankForm}
+            showBankPopup={showBankPopup}
+            setShowBankPopup={setShowBankPopup}
+            groupLineage={groupLineage}
+          />
+
           <LedgerTaxPanel
             form={form}
             setField={setField}
@@ -275,21 +289,6 @@ const currentConfig = getLedgerConfig(groupName);
               </select>
             </FormRow>
           </div>
-
-          <LedgerMailingPanel
-            form={form}
-            setField={setField}
-            groupLineage={groupLineage}
-          />
-
-          <LedgerBankingPanel
-            provideBank={provideBank}
-            handleProvideBankChange={handleProvideBankChange}
-            bankForm={bankForm}
-            showBankPopup={showBankPopup}
-            setShowBankPopup={setShowBankPopup}
-            groupLineage={groupLineage}
-          />
         </div>
 
         {showGroupPanel && (

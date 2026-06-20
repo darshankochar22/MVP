@@ -474,24 +474,6 @@ export default function TrialBalance() {
 
   return (
     <div className="flex flex-col h-screen w-screen bg-white select-none text-zinc-900 font-mono text-[11px]">
-      {/* Top Application Header */}
-      <div className="bg-[#0b2e27] text-white px-3 py-1 flex items-center justify-between border-b border-[#08221d] shrink-0 text-[10px]">
-        <div className="flex items-center gap-1.5">
-          <span className="font-bold tracking-wider text-sky-400">TallyPrime</span>
-          <span className="bg-[#ffcc00] text-black px-1 rounded-[2px] font-bold text-[8px]">EDU</span>
-        </div>
-        <div className="flex items-center gap-4 text-emerald-200">
-          <span><span className="underline">K</span>: Company</span>
-          <span><span className="underline">Y</span>: Data</span>
-          <span><span className="underline">Z</span>: Exchange</span>
-          <span className="bg-[#cbe2ec] text-[#0b2e27] px-1 font-bold">G: Go To</span>
-          <span><span className="underline">O</span>: Import</span>
-          <span><span className="underline">E</span>: Export</span>
-          <span><span className="underline">M</span>: Share</span>
-          <span><span className="underline">P</span>: Print</span>
-          <span><span className="underline">F1</span>: Help</span>
-        </div>
-      </div>
 
       {/* Page Title Bar */}
       <div className="bg-[#cbe2ec] border-b border-[#a8c6d1] px-3 py-1.5 flex items-center justify-between shrink-0 text-[#002d40]">
@@ -596,15 +578,6 @@ export default function TrialBalance() {
                 </tr>
               </tbody>
             </table>
-          </div>
-
-          {/* Bottom Bar Controls */}
-          <div className="bg-[#cbe2ec] border-t border-[#a8c6d1] px-3 py-1 flex items-center gap-6 shrink-0 text-[#002d40] text-[10px]">
-            <span><span className="font-bold">Q</span>: Quit</span>
-            <span><span className="font-bold">Space</span>: Select</span>
-            <span><span className="font-bold">R</span>: Remove Line</span>
-            <span><span className="font-bold">U</span>: Restore Line</span>
-            <span className="ml-auto"><span className="font-bold">F12</span>: Configure</span>
           </div>
         </div>
 

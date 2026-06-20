@@ -173,15 +173,20 @@ const balanceSheet = async (company_id, fy_id) => {
       .filter(g => g.balance !== 0);
 
     if (netProfit !== 0) {
-      liabilities.push({
+      const pnlEntry = {
         group_id:    -1,
         group_name:  netProfit >= 0 ? 'Profit & Loss A/c' : 'Profit & Loss A/c (Loss)',
-        nature:      'Liabilities',
+        nature:      netProfit >= 0 ? 'Liabilities' : 'Assets',
         balance:     netProfit,
         ledgers:     [],
         childGroups: [],
         isPnL:       true,
-      });
+      };
+      if (netProfit >= 0) {
+        liabilities.push(pnlEntry);
+      } else {
+        assets.push(pnlEntry);
+      }
     }
 
     const totalAssets      = assets.reduce((s, g) => s + Math.abs(g.balance), 0);

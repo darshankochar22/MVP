@@ -11,12 +11,6 @@ interface OtherStatutoryTriggerPanelProps {
   onDisable: () => void;
 }
 
-/**
- * Left-column row that opens the "Set/Alter other Statutory details" modal.
- * Shows "Yes" if any of the five sub-sections is active; otherwise "No".
- * Modal only opens when the value is already Yes (edit mode).
- * When No, flipping to Yes just calls onEnable to set defaults.
- */
 export default function OtherStatutoryTriggerPanel({
   form,
   onOpen,
