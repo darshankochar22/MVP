@@ -182,6 +182,19 @@ const currentConfig = getLedgerConfig(groupName);
             </div>
           </div>
 
+          <div className="p-3 border-t border-zinc-100 bg-white">
+            <FormRow label="Activate interest calculation" labelWidth="w-52" className="flex items-center min-h-[26px]">
+              <select
+                className="bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded"
+                value={form.activate_interest ? "Yes" : "No"}
+                onChange={handleActivateInterestChange}
+              >
+                <option value="No">No</option>
+                <option value="Yes">Yes</option>
+              </select>
+            </FormRow>
+          </div>
+
           <LedgerBankDetailsForm
             bankForm={bankForm}
             setBankForm={setBankForm}
@@ -266,7 +279,6 @@ const currentConfig = getLedgerConfig(groupName);
             setStatutoryForm={setStatutoryForm}
             groupLineage={groupLineage}
             config={currentConfig}
-            handleActivateInterestChange={handleActivateInterestChange}
           />
 
           <LedgerBillwisePanel
@@ -276,20 +288,7 @@ const currentConfig = getLedgerConfig(groupName);
             groupLineage={groupLineage}
           />
 
-          <div className="p-3 border-t border-zinc-100 bg-white">
-            <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Cost Centre Details</div>
-            <FormRow label="Cost Centres are applicable" labelWidth="w-52" className="flex items-center min-h-[26px]">
-              <select
-                className="bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded"
-                value={form.allow_cost_centres ? "Yes" : "No"}
-                onChange={(e) => setForm((f) => ({ ...f, allow_cost_centres: e.target.value === "Yes" ? 1 : 0 }))}
-              >
-                <option>No</option>
-                <option>Yes</option>
-              </select>
-            </FormRow>
-          </div>
-        </div>
+        </div>  
 
         {showGroupPanel && (
           <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
