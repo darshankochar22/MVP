@@ -8,14 +8,14 @@ const stockSummaryReportService = require('./stockSummaryReportService');
 const ratioAnalysisReportService = require('./ratioAnalysisReportService');
 const payrollReportService = require('./payrollReportService');
 const reportRuntime = require('./reportRuntime');
+const balanceSheetService = require('./services/balanceSheetService');
 
 module.exports = {
-  // ── Core Accounting ───────────────────────────────────────────────────────
   trialBalance: async (event, { company_id, fy_id }) => {
     return await reportService.trialBalance(company_id, fy_id);
   },
   balanceSheet: async (event, { company_id, fy_id }) => {
-    return await reportService.balanceSheet(company_id, fy_id);
+  return await balanceSheetService.balanceSheet(company_id, fy_id);
   },
   profitLoss: async (event, { company_id, fy_id }) => {
     return await reportService.profitLoss(company_id, fy_id);
@@ -51,7 +51,6 @@ module.exports = {
     return await ratioAnalysisReportService.ratioAnalysis(company_id, fy_id);
   },
 
-  // ── Dynamic runtime engine ────────────────────────────────────────────────
   run: async (event, { reportId, params }) => {
     return await reportRuntime.runReport(reportId, params);
   },
@@ -65,7 +64,6 @@ module.exports = {
     return await reportRuntime.deleteSavedView(id);
   },
 
-  // ── Accounting Summaries ──────────────────────────────────────────────────
   groupSummary: async (event, { company_id, fy_id }) => {
     return await reportService.groupSummary(company_id, fy_id);
   },
@@ -76,7 +74,6 @@ module.exports = {
     return await reportService.costCategorySummary(company_id, fy_id);
   },
 
-  // ── Advanced Inventory Reports ────────────────────────────────────────────
   godownSummary: async (event, { company_id, fy_id, as_on_date }) => {
     return await advancedInventoryReportService.godownSummary(company_id, fy_id, as_on_date);
   },

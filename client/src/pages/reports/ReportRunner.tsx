@@ -12,6 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/shadcn/button";
 import { Input } from "@/components/shadcn/input";
 import { REPORT_DEFINITIONS, REPORT_CATEGORIES, type ReportConfig } from "./reportDefinitions";
+import { BalanceSheetLayout } from "@/components/reports/BalanceSheetLayout";
+import { StockSummaryLayout } from "@/components/reports/StockSummaryLayout";
 
 export function ReportRunner() {
   const navigate = useNavigate();
@@ -956,7 +958,11 @@ export function ReportRunner() {
           </div>
         ) : isRegister ? (
           renderRegisterTable()
-        ) : (
+        ) :reportType === "balance-sheet" ?(
+           <BalanceSheetLayout />
+        ):reportType === "stock-summary" ?(
+          <StockSummaryLayout />
+        ):(
           <ReportTable
             columns={tableColumns}
             rows={rows}

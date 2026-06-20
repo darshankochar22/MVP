@@ -1,6 +1,6 @@
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
-const { stockItems, stockGroups, voucherStockEntries, vouchers } = require('../db/schema');
+const { stockItems, stockGroups, voucherStockEntries, vouchers, units } = require('../db/schema');
 const { calculateClosingStock } = require('./stockValuationEngine');
 
 // Inwards / outwards voucher-type conventions, mirroring voucherService.getDaybook
@@ -10,19 +10,8 @@ const INWARD_TYPES = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In']
 const OUTWARD_TYPES = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out'];
 
 module.exports = {
-  // Stock Summary: closing quantity + value per stock item (with stock-group
-  // attribution), built from voucher_stock_entries movements layered on top of
-  // each item's opening balance. Read-only.
-  //
-  //   closing_qty   = opening_quantity + SUM(inwards qty) - SUM(outwards qty)
-  //   closing_value = opening_value    + SUM(inwards amt) - SUM(outwards amt)
-  //
-  //
-  // as_on_date (optional, 'YYYY-MM-DD') caps movements at v.date <= as_on_date.
-  // method (optional, default 'FIFO') uses the valuation engine to compute true closing value.
   stockSummary: async (company_id, fy_id, as_on_date, method = 'FIFO') => {
     try {
-      // Optional date ceiling on the movement sub-aggregate.
       const dateCond = as_on_date ? sql` AND v.date <= ${as_on_date}` : sql``;
 
       const rows = await db.all(
@@ -31,6 +20,7 @@ module.exports = {
               si.name           AS item_name,
               si.group_id       AS group_id,
               sg.name           AS group_name,
+              u.name            AS unit_name,
               COALESCE(si.opening_quantity, 0) AS opening_qty,
               COALESCE(si.opening_value, 0)    AS opening_value,
               COALESCE(mv.inwards_qty, 0)      AS inwards_qty,
@@ -39,6 +29,7 @@ module.exports = {
               COALESCE(mv.outwards_value, 0)   AS outwards_value
             FROM ${stockItems} si
             LEFT JOIN ${stockGroups} sg ON sg.sg_id = si.group_id
+            LEFT JOIN ${units} u ON u.unit_id = si.unit_id
             LEFT JOIN (
               SELECT
                 vse.stock_item_id AS stock_item_id,
@@ -76,6 +67,7 @@ module.exports = {
           item_name: r.item_name,
           group_id: r.group_id,
           group_name: r.group_name || 'Ungrouped',
+          unit_name: r.unit_name || '',
           opening_qty,
           opening_value,
           inwards_qty,
@@ -84,6 +76,7 @@ module.exports = {
           outwards_value,
           closing_qty: opening_qty + inwards_qty - outwards_qty,
           closing_value: 0, // Will be overridden by valuation engine
+          rate: 0,           // derived after valuation below
         };
       });
 
@@ -106,6 +99,12 @@ module.exports = {
         }
       }
 
+      // Rate = closing_value / closing_qty (e.g. 120 Box @ 50.00 = 6,000.00).
+      // Left at 0 for zero/negative qty rather than dividing by zero.
+      for (const it of items) {
+        it.rate = it.closing_qty !== 0 ? it.closing_value / it.closing_qty : 0;
+      }
+
       // Group-level rollup of closing quantity + value.
       const groupMap = new Map();
       for (const it of items) {
@@ -117,12 +116,14 @@ module.exports = {
             closing_qty: 0,
             closing_value: 0,
             item_count: 0,
+            items: [],
           });
         }
         const g = groupMap.get(key);
         g.closing_qty += it.closing_qty;
         g.closing_value += it.closing_value;
         g.item_count += 1;
+        g.items.push(it);
       }
       const groups = Array.from(groupMap.values())
         .sort((a, b) => (a.group_name || '').localeCompare(b.group_name || ''));

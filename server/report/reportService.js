@@ -2,6 +2,7 @@ const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
 const { voucherEntries, vouchers, ledgers, groups } = require('../db/schema');
 const voucherService = require('../voucher/voucherService');
+const balanceSheetService = require('./services/balanceSheetService');
 
 const getEntries = async (company_id, fy_id) => {
   const rows = await db.all(
@@ -53,37 +54,8 @@ module.exports = {
     }
   },
 
-  balanceSheet: async (company_id, fy_id) => {
-    try {
-      const entries = await getEntries(company_id, fy_id);
-
-      const ledgerRows = await db.all(
-        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.group_id,
-                   g.nature
-            FROM ${ledgers} l
-            INNER JOIN ${groups} g ON g.group_id = l.group_id
-            WHERE l.company_id = ${company_id} AND l.is_active = 1`
-      );
-
-      const getLedgersByNature = (nature) => ledgerRows
-        .filter(l => l.nature === nature)
-        .map(l => ({
-          ledger_id: l.ledger_id,
-          ledger_name: l.name,
-          balance: calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0),
-        }))
-        .filter(l => l.balance !== 0);
-
-      const assets      = getLedgersByNature('Assets');
-      const liabilities = getLedgersByNature('Liabilities');
-
-      const totalAssets      = assets.reduce((s, l) => s + Math.abs(l.balance), 0);
-      const totalLiabilities = liabilities.reduce((s, l) => s + Math.abs(l.balance), 0);
-
-      return { success: true, assets, liabilities, totalAssets, totalLiabilities };
-    } catch (err) {
-      return { success: false, error: err.message };
-    }
+  balanceSheet: async (event, { company_id, fy_id }) => {
+  return await balanceSheetService.balanceSheet(company_id, fy_id);
   },
 
   profitLoss: async (company_id, fy_id) => {
