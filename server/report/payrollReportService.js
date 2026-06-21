@@ -30,6 +30,14 @@ const getSalaryData = (company_id) =>
     WHERE ss.company_id = ${company_id} AND ss.is_active = 1
   `);
 
+// A pay head reduces the employee's net pay (a deduction) when its type names a
+// deduction ('Deductions', 'Deductions from Employees', "Employees' Statutory
+// Deductions") OR it is flagged as not increasing net salary. The old code only
+// matched the exact string 'Deductions from Employees', so the production pay
+// heads (type 'Deductions': PF/ESI/PT) were counted as earnings.
+const isDeductionHead = (r) =>
+  /deduct/i.test(r.pay_head_type || '') || Number(r.affects_net_salary) === 0;
+
 module.exports = {
 
   /** Payslip — one row per employee showing gross/deductions/net. */
@@ -50,7 +58,7 @@ module.exports = {
         }
         const entry = empMap[row.employee_id];
         const amt = Number(row.amount) || 0;
-        if (row.pay_head_type === 'Deductions from Employees') {
+        if (isDeductionHead(row)) {
           entry.deductions += amt;
         } else {
           entry.earnings += amt;
@@ -86,7 +94,7 @@ module.exports = {
         const phName = (row.pay_head_name || '').toLowerCase();
         if (phName.includes('basic')) e.basic += amt;
         if (phName.includes('hra') || phName.includes('house rent')) e.hra += amt;
-        if (row.pay_head_type === 'Deductions from Employees') {
+        if (isDeductionHead(row)) {
           e.deductions += amt;
         } else {
           e.gross += amt;
@@ -111,7 +119,7 @@ module.exports = {
       for (const row of salaryData) {
         if (!empMap[row.employee_id]) empMap[row.employee_id] = { gross: 0, deductions: 0 };
         const amt = Number(row.amount) || 0;
-        if (row.pay_head_type === 'Deductions from Employees') {
+        if (isDeductionHead(row)) {
           empMap[row.employee_id].deductions += amt;
         } else {
           empMap[row.employee_id].gross += amt;
@@ -208,7 +216,7 @@ module.exports = {
           };
         }
         const amt = Number(r.amount) || 0;
-        if (r.pay_head_type === 'Deductions from Employees') {
+        if (isDeductionHead(r)) {
           empMap[r.employee_id].emp_contrib += amt;
         } else {
           empMap[r.employee_id].employer_contrib += amt;
@@ -255,7 +263,7 @@ module.exports = {
           };
         }
         const amt = Number(r.amount) || 0;
-        if (r.pay_head_type === 'Deductions from Employees') {
+        if (isDeductionHead(r)) {
           empMap[r.employee_id].emp_contrib += amt;
         } else {
           empMap[r.employee_id].employer_contrib += amt;
@@ -291,7 +299,7 @@ module.exports = {
         const phn = (r.pay_head_name || '').toLowerCase();
         const sc = (r.statutory_component || '').toLowerCase();
         const isPT = phn.includes('professional tax') || phn.includes('pt') || sc.includes('professional tax');
-        if (!isPT || r.pay_head_type !== 'Deductions from Employees') continue;
+        if (!isPT || !isDeductionHead(r)) continue;
         if (!empMap[r.employee_id]) {
           empMap[r.employee_id] = { emp_name: r.emp_name, amount: 0 };
         }
@@ -324,7 +332,7 @@ module.exports = {
             monthly_earnings: 0,
           };
         }
-        if (r.pay_head_type !== 'Deductions from Employees') {
+        if (!isDeductionHead(r)) {
           empMap[r.employee_id].monthly_earnings += Number(r.amount) || 0;
         }
       }

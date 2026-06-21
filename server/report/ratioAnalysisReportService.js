@@ -79,8 +79,12 @@ module.exports = {
       );
       const groupById = new Map(groupRows.map(g => [g.group_id, g]));
 
+      // Select explicit columns: `SELECT l.*, g.nature` re-introduced the
+      // ledger's own (null) `nature` column after the alias and clobbered the
+      // group nature, which zeroed every component and ratio.
       const ledgerRows = await db.all(
-        sql`SELECT l.*, g.nature AS nature FROM ${ledgers} l
+        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.group_id, g.nature AS nature
+            FROM ${ledgers} l
             INNER JOIN ${groups} g ON g.group_id = l.group_id
             WHERE l.company_id = ${company_id} AND l.is_active = 1`
       );

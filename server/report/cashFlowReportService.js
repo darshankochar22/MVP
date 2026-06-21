@@ -110,11 +110,15 @@ const cashFlow = async (company_id, fy_id, from_date, to_date) => {
       const netCash = v.cashEntries.reduce((s, e) => s + signed(e), 0);
       if (netCash === 0) continue; // contra within cash/bank only, or balanced — no net flow
 
-      const isInflow = netCash > 0;
-
       for (const ce of v.counterEntries) {
-        const amount = Math.abs(ce.amount);
-        if (amount === 0) continue;
+        // Each counter line's contribution to cash is the opposite of its own
+        // Dr/Cr sign (the voucher balances, so counter movement = -cash
+        // movement). A line on the SAME side as the cash entry (e.g. Discount
+        // Allowed Dr alongside Cash Dr) therefore REDUCES the inflow rather than
+        // adding to it — the old code used a single per-voucher inflow flag with
+        // Math.abs and double-counted such split lines.
+        const contrib = -signed(ce);
+        if (contrib === 0) continue;
 
         if (!ledgerMap.has(ce.ledger_id)) {
           ledgerMap.set(ce.ledger_id, {
@@ -135,14 +139,14 @@ const cashFlow = async (company_id, fy_id, from_date, to_date) => {
         }
         const vt = voucherTypeMap.get(v.voucher_type);
 
-        if (isInflow) {
-          lm.inflow += amount;
-          vt.inflow += amount;
-          totalInflow += amount;
+        if (contrib > 0) {
+          lm.inflow += contrib;
+          vt.inflow += contrib;
+          totalInflow += contrib;
         } else {
-          lm.outflow += amount;
-          vt.outflow += amount;
-          totalOutflow += amount;
+          lm.outflow += -contrib;
+          vt.outflow += -contrib;
+          totalOutflow += -contrib;
         }
       }
     }

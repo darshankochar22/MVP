@@ -425,13 +425,34 @@ const aggregateByPeriod = async (company_id, fy_id, periodType = 'monthly') => {
   }
 };
 
+// Decide whether an outstanding/ageing report is payable-side (Sundry
+// Creditors) or receivable-side (Sundry Debtors). Definitions pass an object
+// like { reportId, outstandingType, subType } that the old `=== 'payable'`
+// check never matched, so every payable report wrongly showed receivables.
+const PAYABLE_TOKENS = ['payable', 'bills_payable', 'bill_wise_payable',
+  'overdue_payable', 'due_today_payable', 'advance_to_suppliers',
+  'unadjusted_payments', 'payment_planning', 'payment_followup', 'msme_outstanding'];
+const resolveOutstandingSide = (arg) => {
+  if (typeof arg === 'string') return arg === 'payable' ? 'payable' : 'receivable';
+  if (!arg || typeof arg !== 'object') return 'receivable';
+  const ot = arg.outstandingType || '';
+  const sub = arg.subType || '';
+  const rid = arg.reportId || '';
+  const isPayable =
+    PAYABLE_TOKENS.includes(ot) ||
+    (ot === 'interest' && sub === 'payable') ||
+    /payab|supplier|creditor|msme/i.test(ot) ||
+    /payable|payment_planning|payment_followup|unadjusted_payments|msme/i.test(rid);
+  return isPayable ? 'payable' : 'receivable';
+};
+
 // ---------------------------------------------------------------------------
 // 6. calculateOutstanding -- receivables / payables outstanding
-//    type: 'receivable' | 'payable'
+//    type: 'receivable' | 'payable' | { reportId, outstandingType, ... }
 // ---------------------------------------------------------------------------
 const calculateOutstanding = async (company_id, fy_id, type = 'receivable') => {
   try {
-    const groupName = type === 'payable' ? 'Sundry Creditors' : 'Sundry Debtors';
+    const groupName = resolveOutstandingSide(type) === 'payable' ? 'Sundry Creditors' : 'Sundry Debtors';
 
     const rows = await db.all(
       sql`SELECT
@@ -455,7 +476,7 @@ const calculateOutstanding = async (company_id, fy_id, type = 'receivable') => {
             AND g.company_id = ${company_id}
             AND g.name = ${groupName}
           GROUP BY l.ledger_id, l.name, vbr.bill_name
-          HAVING total_amount > 0.01
+          HAVING ABS(total_amount) > 0.01
           ORDER BY l.name ASC, MAX(v.date) DESC`
     );
 
@@ -492,7 +513,7 @@ const calculateAgeing = async (company_id, fy_id, type = 'receivable', buckets =
     ];
     const ageingBuckets = buckets && buckets.length > 0 ? buckets : defaultBuckets;
     const asOnDate = new Date().toISOString().slice(0, 10);
-    const groupName = type === 'payable' ? 'Sundry Creditors' : 'Sundry Debtors';
+    const groupName = resolveOutstandingSide(type) === 'payable' ? 'Sundry Creditors' : 'Sundry Debtors';
 
     const rows = await db.all(
       sql`SELECT
@@ -515,7 +536,7 @@ const calculateAgeing = async (company_id, fy_id, type = 'receivable', buckets =
             AND g.company_id = ${company_id}
             AND g.name = ${groupName}
           GROUP BY l.ledger_id, l.name, vbr.bill_name
-          HAVING total_amount > 0.01
+          HAVING ABS(total_amount) > 0.01
           ORDER BY l.name ASC`
     );
 
@@ -583,11 +604,45 @@ const getExceptions = async (company_id, fy_id, exceptionTypeArg = 'negative_sto
       'negative_cash': 'negative_cash', 'overdue': 'overdue',
       'data_health': 'data_health', 'credit_limit': 'overdue',
       'credit_period': 'overdue',
-      'missing_gstin': 'negative_ledger', 'ledgers_without_pan': 'negative_ledger',
+      'missing_gstin': 'negative_ledger',
+      'ledgers_without_pan_collectees': 'missing_pan_collectees',
+      'ledgers_without_pan_deductees': 'missing_pan_deductees',
     });
     let rows;
 
     switch (exceptionType) {
+      case 'missing_pan_collectees':
+      case 'missing_pan_deductees': {
+        // Party ledgers with no PAN on file — a TDS/TCS compliance exception.
+        // Deductees are TDS-side, collectees are TCS-side.
+        const sideCond = exceptionType === 'missing_pan_deductees'
+          ? sql`AND l.is_tds_deductable = 1`
+          : sql`AND l.is_tcs_applicable = 1`;
+        rows = await db.all(
+          sql`SELECT l.ledger_id, l.name AS ledger_name, g.name AS group_name,
+                     l.pan, l.deductee_type, l.is_tds_deductable, l.is_tcs_applicable
+              FROM ${ledgers} l
+              LEFT JOIN ${groups} g ON g.group_id = l.group_id
+              WHERE l.company_id = ${company_id} AND l.is_active = 1
+                AND (l.pan IS NULL OR l.pan = '' OR l.tds_pan_status = 'Not Available')
+                ${sideCond}
+              ORDER BY l.name ASC`
+        );
+        // If no party is flagged for the relevant statute, fall back to any
+        // active ledger missing a PAN so the exception is still meaningful.
+        if (rows.length === 0) {
+          rows = await db.all(
+            sql`SELECT l.ledger_id, l.name AS ledger_name, g.name AS group_name,
+                       l.pan, l.deductee_type, l.is_tds_deductable, l.is_tcs_applicable
+                FROM ${ledgers} l
+                LEFT JOIN ${groups} g ON g.group_id = l.group_id
+                WHERE l.company_id = ${company_id} AND l.is_active = 1
+                  AND (l.pan IS NULL OR l.pan = '' OR l.tds_pan_status = 'Not Available')
+                ORDER BY l.name ASC`
+          );
+        }
+        break;
+      }
       case 'negative_stock': {
         // Stock items where closing quantity or value is negative.
         // Use JS calculation to avoid correlated subquery issues.
@@ -695,7 +750,7 @@ const getExceptions = async (company_id, fy_id, exceptionTypeArg = 'negative_sto
                 AND vbr.due_date IS NOT NULL
                 AND vbr.due_date < ${today}
               GROUP BY l.ledger_id, l.name, vbr.bill_name
-              HAVING total_amount > 0.01
+              HAVING ABS(total_amount) > 0.01
               ORDER BY overdue_days DESC`
         );
         break;
@@ -775,7 +830,27 @@ const getExceptions = async (company_id, fy_id, exceptionTypeArg = 'negative_sto
 const getRegister = async (company_id, fy_id, voucherTypeArg) => {
   try {
     const knownTypes = ['Sales','Purchase','Journal','Payment','Receipt','Contra','Debit Note','Credit Note','Sales Order','Purchase Order','Delivery Note','Receipt Note','Rejection In','Rejection Out','Stock Journal','Manufacturing Journal','Physical Stock','Payroll','Memorandum','Optional','Reversing Journal','Cancelled'];
-    const voucherType = normalizeType(voucherTypeArg, null, {
+    // Compound register types must be resolved by EXACT match: normalizeType's
+    // bidirectional substring match would otherwise collapse e.g. 'sales_order'
+    // onto 'Sales' (because 'sales_order'.includes('sales')), so order/note/
+    // sub-journal registers all degraded into their base voucher register.
+    const COMPOUND_TYPES = {
+      sales_order: 'Sales Order', purchase_order: 'Purchase Order',
+      delivery_note: 'Delivery Note', receipt_note: 'Receipt Note',
+      rejection_in: 'Rejection In', rejection_out: 'Rejection Out',
+      stock_journal: 'Stock Journal', manufacturing_journal: 'Manufacturing Journal',
+      reversing_journal: 'Reversing Journal', physical_stock: 'Physical Stock',
+      debit_note: 'Debit Note', credit_note: 'Credit Note',
+    };
+    const rawArg = (voucherTypeArg && typeof voucherTypeArg === 'object') ? voucherTypeArg : {};
+    const registerHint = rawArg.registerType || (typeof voucherTypeArg === 'string' ? voucherTypeArg : '');
+    // 'cancelled' / 'optional' are voucher STATUSES, not voucher types — the
+    // standard base filter excludes both, so naming them as a voucher_type
+    // (the old behaviour) always yielded zero rows and fell back to all
+    // vouchers. Handle them as status filters instead.
+    const statusRegister = (registerHint === 'cancelled' || rawArg.subType === 'cancelled') ? 'cancelled'
+      : (registerHint === 'optional') ? 'optional' : '';
+    const voucherType = statusRegister ? null : (COMPOUND_TYPES[registerHint] || normalizeType(voucherTypeArg, null, {
       'sales': 'Sales', 'purchase': 'Purchase', 'journal': 'Journal',
       'payment': 'Payment', 'receipt': 'Receipt', 'contra': 'Contra',
       'debit_note': 'Debit Note', 'debit-note': 'Debit Note',
@@ -789,11 +864,20 @@ const getRegister = async (company_id, fy_id, voucherTypeArg) => {
       'reversing_journal': 'Reversing Journal', 'cancelled': 'Cancelled',
       'day_book': null, 'cash_bank': null, 'voucher_type': null,
       'voucher_numbering': null, 'deleted_voucher': null,
-    });
-    const conditions = baseVoucherFilter(company_id, fy_id);
-    // Only filter by voucher_type if it's a known type
-    if (voucherType && knownTypes.includes(voucherType)) {
-      conditions.push(sql`v.voucher_type = ${voucherType}`);
+    }));
+    const subType = rawArg.subType || '';
+    const conditions = statusRegister === 'cancelled'
+      ? [sql`v.company_id = ${company_id}`, sql`v.fy_id = ${fy_id}`, sql`v.is_cancelled = 1`]
+      : statusRegister === 'optional'
+      ? [sql`v.company_id = ${company_id}`, sql`v.fy_id = ${fy_id}`, sql`v.is_cancelled = 0`, sql`COALESCE(v.is_optional, 0) = 1`]
+      : baseVoucherFilter(company_id, fy_id);
+    // Resolve to the canonical (capitalised) voucher type, so a bare lowercase
+    // string like 'purchase' still filters instead of returning the day book.
+    const canonicalType = voucherType
+      ? (knownTypes.find(t => t.toLowerCase() === String(voucherType).toLowerCase()) || null)
+      : null;
+    if (canonicalType) {
+      conditions.push(sql`v.voucher_type = ${canonicalType}`);
     }
 
     const rows = await db.all(
@@ -825,8 +909,11 @@ const getRegister = async (company_id, fy_id, voucherTypeArg) => {
           ORDER BY v.date ASC, v.voucher_id ASC`
     );
 
-    // If filtered by specific type and got no results, fall back to all vouchers
-    if (rows.length === 0 && voucherType && knownTypes.includes(voucherType)) {
+    // If filtered by specific type and got no results, fall back to all vouchers.
+    // Compound (order/note/sub-journal) and cancelled-status views stay honest:
+    // an empty order register must report empty, not the entire day book.
+    const allowEmptyFallback = !COMPOUND_TYPES[registerHint] && subType !== 'cancelled' && !statusRegister;
+    if (allowEmptyFallback && rows.length === 0 && canonicalType) {
       const fallbackRows = await db.all(
         sql`SELECT
               v.voucher_id, v.voucher_type, v.voucher_number, v.date,
@@ -1104,8 +1191,11 @@ const getSummary = async (company_id, fy_id, entityTypeArg = 'ledger') => {
 const getReconciliation = async (company_id, fy_id, type = 'bank') => {
   try {
     let rows;
+    // Accept either a plain type string or { type, viewType } from definitions.
+    const recType = (type && typeof type === 'object') ? (type.type || 'bank') : (type || 'bank');
+    const viewType = (type && typeof type === 'object') ? (type.viewType || '') : '';
 
-    if (type === 'bank') {
+    if (recType === 'bank') {
       // Bank reconciliation: voucher entries against bank-type ledgers,
       // showing which are reconciled and which are not.
       rows = await db.all(
@@ -1138,10 +1228,13 @@ const getReconciliation = async (company_id, fy_id, type = 'bank') => {
 
       const reconciled = rows.filter(r => r.is_reconciled);
       const unreconciled = rows.filter(r => !r.is_reconciled);
+      // reconciled / unreconciled views return only the matching subset.
+      const viewRows = viewType === 'reconciled' ? reconciled
+        : viewType === 'unreconciled' ? unreconciled : rows;
 
       return {
         success: true,
-        rows,
+        rows: viewRows,
         reconciled_count: reconciled.length,
         unreconciled_count: unreconciled.length,
         reconciled_amount: reconciled.reduce((s, r) => s + (Number(r.amount) || 0), 0),
@@ -1360,6 +1453,88 @@ const getPartyAnalysis = async (company_id, fy_id, partyType = 'debtors', analys
 };
 
 // ---------------------------------------------------------------------------
+// 12b. getEInvoiceReport -- e-invoice (IRN) and e-way-bill reports.
+//      Sources the einvoice_records table directly (irn, ack_no, ewb_no,
+//      status, cancellation), keyed on statutoryType ('einvoice' | 'eway')
+//      and subType, instead of falling through to generic GSTR-1 B2B data.
+// ---------------------------------------------------------------------------
+const getEInvoiceReport = async (company_id, fy_id, arg = {}) => {
+  try {
+    const domain = arg.statutoryType === 'eway' ? 'eway' : 'einvoice';
+    const subType = arg.subType || 'register';
+
+    // Portal/exchange activity logs are not persisted locally — be honest
+    // rather than returning unrelated voucher data.
+    if (subType === 'exchange_log') {
+      return {
+        success: true,
+        rows: [],
+        message: 'Portal exchange/import-export activity is not stored locally; connect the GST portal integration to populate this log.',
+      };
+    }
+
+    const sel = sql`
+      SELECT er.irn_id, er.voucher_id, er.invoice_number, er.invoice_date,
+             er.buyer_gstin, er.irn, er.ack_no, er.ack_dt, er.signed_qr_code,
+             er.ewb_no, er.ewb_dt, er.status, er.cancel_reason,
+             er.cancel_remarks, er.cancelled_at
+      FROM ${einvoiceRecords} er
+      LEFT JOIN ${vouchers} v ON v.voucher_id = er.voucher_id`;
+    const base = [sql`er.company_id = ${company_id}`,
+      sql`(v.fy_id = ${fy_id} OR v.fy_id IS NULL)`];
+
+    // "Pending generation" = invoices with no matching e-invoice/e-way record.
+    if (subType === 'pending') {
+      const col = domain === 'eway' ? sql`er.ewb_no` : sql`er.irn`;
+      const rows = await db.all(
+        sql`SELECT v.voucher_id, v.voucher_number, v.date, v.party_name,
+                   v.place_of_supply
+            FROM ${vouchers} v
+            LEFT JOIN ${einvoiceRecords} er
+              ON er.voucher_id = v.voucher_id AND ${col} IS NOT NULL AND ${col} != ''
+            WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id}
+              AND v.is_invoice = 1 AND er.irn_id IS NULL
+            ORDER BY v.date ASC`
+      );
+      return { success: true, rows, count: rows.length, subType, domain };
+    }
+
+    const conds = [...base];
+    if (domain === 'eway') {
+      conds.push(sql`er.ewb_no IS NOT NULL AND er.ewb_no != ''`);
+    }
+
+    const cancelled = sql`(er.cancelled_at IS NOT NULL OR UPPER(er.status) = 'CANCELLED')`;
+    switch (subType) {
+      case 'generated': {
+        const idCol = domain === 'eway' ? sql`er.ewb_no` : sql`er.irn`;
+        conds.push(sql`${idCol} IS NOT NULL AND ${idCol} != ''`);
+        conds.push(sql`NOT ${cancelled}`);
+        break;
+      }
+      case 'cancelled':
+        conds.push(cancelled);
+        break;
+      case 'failed':
+      case 'error':
+        conds.push(sql`UPPER(COALESCE(er.status, '')) NOT IN ('GENERATED', 'ACTIVE', 'CANCELLED', 'PENDING')`);
+        conds.push(sql`(er.irn IS NULL OR er.irn = '')`);
+        break;
+      // register, summary, irn_details, correction, part_b_pending, expired,
+      // extended_validity, consolidated: full record set for the domain (the
+      // schema has no validity/part-B columns to narrow further).
+      default:
+        break;
+    }
+
+    const rows = await db.all(sql`${sel} WHERE ${sql.join(conds, sql` AND `)} ORDER BY er.invoice_date ASC, er.irn_id ASC`);
+    return { success: true, rows, count: rows.length, subType, domain };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
+// ---------------------------------------------------------------------------
 // 13. getStatutoryReport -- GST / TDS / TCS reports
 //     reportType: 'gstr1_b2b' | 'gstr1_b2c_large' | 'gstr1_b2c_small' | 'hsn_summary' |
 //                 'gstr1_cdnr' | 'gstr3b_summary' | 'tds_summary' | 'tcs_summary'
@@ -1367,6 +1542,11 @@ const getPartyAnalysis = async (company_id, fy_id, partyType = 'debtors', analys
 // ---------------------------------------------------------------------------
 const getStatutoryReport = async (company_id, fy_id, reportTypeArg = 'gstr1_b2b', paramsArg = {}) => {
   try {
+    // E-invoice / e-way-bill reports have a dedicated data source.
+    if (reportTypeArg && typeof reportTypeArg === 'object' &&
+        (reportTypeArg.statutoryType === 'einvoice' || reportTypeArg.statutoryType === 'eway')) {
+      return await getEInvoiceReport(company_id, fy_id, reportTypeArg);
+    }
     const reportType = normalizeType(reportTypeArg, 'gstr1_b2b', {
       'gstr-1-b2b': 'gstr1_b2b', 'gstr-1-b2c-large': 'gstr1_b2c_large', 'gstr-1-b2c-small': 'gstr1_b2c_small',
       'gstr-1-hsn': 'hsn_summary', 'gstr-1-document': 'gstr1_doc', 'gstr-1-cdnr': 'gstr1_cdnr',
@@ -1405,6 +1585,97 @@ const getStatutoryReport = async (company_id, fy_id, reportTypeArg = 'gstr1_b2b'
     let rows;
 
     switch (reportType) {
+      // ── GST analytical breakups (rate / state / party / place wise) ──
+      case 'rate_wise_sales':
+      case 'rate_wise_purchase':
+      case 'state_wise_sales':
+      case 'state_wise_purchase':
+      case 'party_wise_sales':
+      case 'party_wise_purchase': {
+        const dirTypes = reportType.endsWith('_purchase') ? INWARD_TYPES : OUTWARD_TYPES;
+        const gconds = [...conditions, sql`v.is_invoice = 1`, sql`v.voucher_type IN (${sqlIn(dirTypes)})`];
+        let groupExpr, labelCol;
+        if (reportType.startsWith('rate_wise')) {
+          groupExpr = sql`COALESCE(vse.gst_rate, 0)`;
+          labelCol = sql`COALESCE(vse.gst_rate, 0) AS gst_rate`;
+        } else if (reportType.startsWith('state_wise')) {
+          groupExpr = sql`COALESCE(l.state, v.place_of_supply, 'Unspecified')`;
+          labelCol = sql`COALESCE(l.state, v.place_of_supply, 'Unspecified') AS state`;
+        } else {
+          groupExpr = sql`v.party_name`;
+          labelCol = sql`v.party_name AS party_name, MAX(l.gstin) AS party_gstin`;
+        }
+        rows = await db.all(
+          sql`SELECT ${labelCol},
+                     COALESCE(SUM(vse.amount), 0) AS taxable_value,
+                     COALESCE(SUM(vse.cgst_amount), 0) AS cgst,
+                     COALESCE(SUM(vse.sgst_amount), 0) AS sgst,
+                     COALESCE(SUM(vse.igst_amount), 0) AS igst,
+                     COUNT(DISTINCT v.voucher_id) AS invoice_count
+              FROM ${voucherStockEntries} vse
+              INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
+              LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
+              WHERE ${sql.join(gconds, sql` AND `)}
+              GROUP BY ${groupExpr}
+              ORDER BY taxable_value DESC`
+        );
+        break;
+      }
+
+      case 'place_of_supply': {
+        // Exception: invoices with no place of supply recorded.
+        rows = await db.all(
+          sql`SELECT v.voucher_id, v.voucher_number, v.date, v.party_name, v.place_of_supply
+              FROM ${vouchers} v
+              WHERE ${sql.join(conditions, sql` AND `)}
+                AND v.is_invoice = 1 AND COALESCE(v.place_of_supply, '') = ''
+              ORDER BY v.date ASC`
+        );
+        break;
+      }
+
+      case 'missing_gstin': {
+        rows = await db.all(
+          sql`SELECT v.voucher_id, v.voucher_number, v.date, v.party_name, l.gstin
+              FROM ${vouchers} v
+              LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
+              WHERE ${sql.join(conditions, sql` AND `)}
+                AND v.is_invoice = 1 AND (l.gstin IS NULL OR l.gstin = '')
+              ORDER BY v.date ASC`
+        );
+        break;
+      }
+
+      case 'gstin_validation': {
+        rows = await db.all(
+          sql`SELECT v.voucher_id, v.voucher_number, v.date, v.party_name, l.gstin,
+                     CASE WHEN l.gstin IS NULL OR l.gstin = '' THEN 'missing'
+                          WHEN length(l.gstin) <> 15 THEN 'invalid_length'
+                          ELSE 'ok' END AS gstin_status
+              FROM ${vouchers} v
+              LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
+              WHERE ${sql.join(conditions, sql` AND `)}
+                AND v.is_invoice = 1
+                AND (l.gstin IS NULL OR l.gstin = '' OR length(l.gstin) <> 15)
+              ORDER BY v.date ASC`
+        );
+        break;
+      }
+
+      case 'missing_hsn': {
+        rows = await db.all(
+          sql`SELECT v.voucher_id, v.voucher_number, v.date, vse.item_name,
+                     COALESCE(NULLIF(vse.hsn_code, ''), si.hsn_code, '') AS hsn_code
+              FROM ${voucherStockEntries} vse
+              INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
+              LEFT JOIN ${stockItems} si ON si.item_id = vse.stock_item_id
+              WHERE ${sql.join(conditions, sql` AND `)}
+                AND COALESCE(NULLIF(vse.hsn_code, ''), si.hsn_code, '') = ''
+              ORDER BY v.date ASC`
+        );
+        break;
+      }
+
       case 'tds_summary': {
         rows = await db.all(
           sql`SELECT tds_id AS id, name, section, payment_code,
@@ -1433,7 +1704,7 @@ const getStatutoryReport = async (company_id, fy_id, reportTypeArg = 'gstr1_b2b'
 
       case 'gstr1_b2b': {
         // B2B invoices: parties with a valid GSTIN.
-        const b2bConds = [...conditions, sql`v.is_invoice = 1`, sql`l.gstin IS NOT NULL AND l.gstin != ''`];
+        const b2bConds = [...conditions, sql`v.is_invoice = 1`, sql`v.voucher_type IN (${sqlIn(OUTWARD_TYPES)})`, sql`l.gstin IS NOT NULL AND l.gstin != ''`];
         rows = await db.all(
           sql`SELECT
                 v.voucher_id,
@@ -1460,7 +1731,7 @@ const getStatutoryReport = async (company_id, fy_id, reportTypeArg = 'gstr1_b2b'
 
       case 'gstr1_b2c_large': {
         // B2C Large: inter-state invoices > Rs. 2,50,000 to unregistered parties.
-        const b2clConds = [...conditions, sql`v.is_invoice = 1`, sql`(l.gstin IS NULL OR l.gstin = '')`];
+        const b2clConds = [...conditions, sql`v.is_invoice = 1`, sql`v.voucher_type IN (${sqlIn(OUTWARD_TYPES)})`, sql`(l.gstin IS NULL OR l.gstin = '')`];
         rows = await db.all(
           sql`SELECT
                 v.voucher_id,
@@ -1481,7 +1752,7 @@ const getStatutoryReport = async (company_id, fy_id, reportTypeArg = 'gstr1_b2b'
         );
         // Fallback: if no unregistered parties, show all invoices
         if (rows.length === 0) {
-          const allConds = [...conditions, sql`v.is_invoice = 1`];
+          const allConds = [...conditions, sql`v.is_invoice = 1`, sql`v.voucher_type IN (${sqlIn(OUTWARD_TYPES)})`];
           rows = await db.all(
             sql`SELECT
                   v.voucher_id, v.voucher_number, v.date, v.party_name,
@@ -1501,7 +1772,7 @@ const getStatutoryReport = async (company_id, fy_id, reportTypeArg = 'gstr1_b2b'
 
       case 'gstr1_b2c_small': {
         // B2C Small: remaining invoices to unregistered parties (aggregated by place of supply).
-        const b2csConds = [...conditions, sql`v.is_invoice = 1`, sql`(l.gstin IS NULL OR l.gstin = '')`];
+        const b2csConds = [...conditions, sql`v.is_invoice = 1`, sql`v.voucher_type IN (${sqlIn(OUTWARD_TYPES)})`, sql`(l.gstin IS NULL OR l.gstin = '')`];
         rows = await db.all(
           sql`SELECT
                 v.place_of_supply,
@@ -1519,7 +1790,7 @@ const getStatutoryReport = async (company_id, fy_id, reportTypeArg = 'gstr1_b2b'
         );
         // Fallback: if no unregistered parties, aggregate all invoices
         if (rows.length === 0) {
-          const allConds = [...conditions, sql`v.is_invoice = 1`];
+          const allConds = [...conditions, sql`v.is_invoice = 1`, sql`v.voucher_type IN (${sqlIn(OUTWARD_TYPES)})`];
           rows = await db.all(
             sql`SELECT
                   v.place_of_supply,
@@ -1539,6 +1810,8 @@ const getStatutoryReport = async (company_id, fy_id, reportTypeArg = 'gstr1_b2b'
       }
 
       case 'gstr1_hsn':
+      case 'hsn_sac_summary':
+      case 'gstr1_summary':
       case 'hsn_summary': {
         // HSN-wise summary of outward stock movements.
         rows = await db.all(
@@ -1563,9 +1836,13 @@ const getStatutoryReport = async (company_id, fy_id, reportTypeArg = 'gstr1_b2b'
         break;
       }
 
+      case 'gstr1_cd_notes':
       case 'gstr1_cdnr': {
-        // Credit / Debit notes register.
+        // Credit / Debit notes register. Use the shared `conditions` array so
+        // the requested from_date/to_date tax-period window is honoured (the
+        // old inline WHERE ignored it and returned the whole financial year).
         const noteTypes = ['Credit Note', 'Debit Note'];
+        const noteConds = [...conditions, sql`v.voucher_type IN (${sqlIn(noteTypes)})`];
         rows = await db.all(
           sql`SELECT
                 v.voucher_id,
@@ -1581,12 +1858,7 @@ const getStatutoryReport = async (company_id, fy_id, reportTypeArg = 'gstr1_b2b'
               FROM ${vouchers} v
               LEFT JOIN ${voucherStockEntries} vse ON vse.voucher_id = v.voucher_id
               LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
-              WHERE v.company_id = ${company_id}
-                AND v.fy_id = ${fy_id}
-                AND v.is_cancelled = 0
-                AND COALESCE(v.is_optional, 0) = 0
-                AND COALESCE(v.is_post_dated, 0) = 0
-                AND v.voucher_type IN (${sqlIn(noteTypes)})
+              WHERE ${sql.join(noteConds, sql` AND `)}
               GROUP BY v.voucher_id
               ORDER BY v.date ASC`
         );
@@ -1739,6 +2011,12 @@ const getStatutoryReport = async (company_id, fy_id, reportTypeArg = 'gstr1_b2b'
 //                 'attendance' | 'gratuity' | 'professional_tax'
 //     params: { employee_id, month, from_date, to_date }
 // ---------------------------------------------------------------------------
+// A pay head is an employee deduction when its type names a deduction or it is
+// flagged as not adding to net salary — not only the exact 'Deductions from
+// Employees' string (production pay heads use type 'Deductions').
+const isPayrollDeduction = (r) =>
+  /deduct/i.test(r.pay_head_type || '') || Number(r.affects_net_salary) === 0;
+
 const getPayrollReport = async (company_id, fy_id, reportTypeArg = 'payslip', paramsArg = {}) => {
   try {
     const reportType = normalizeType(reportTypeArg, 'payslip', {
@@ -1800,7 +2078,7 @@ const getPayrollReport = async (company_id, fy_id, reportTypeArg = 'payslip', pa
             empMap[r.employee_id] = { emp_name: r.emp_name, designation: r.designation, department: r.department, earnings: 0, deductions: 0 };
           }
           const amt = Number(r.amount) || 0;
-          if (r.pay_head_type === 'Deductions from Employees') {
+          if (isPayrollDeduction(r)) {
             empMap[r.employee_id].deductions += amt;
           } else {
             empMap[r.employee_id].earnings += amt;
@@ -1827,7 +2105,7 @@ const getPayrollReport = async (company_id, fy_id, reportTypeArg = 'payslip', pa
           const e = empMap[r.employee_id];
           const amt = Number(r.amount) || 0;
           const phName = (r.pay_head_name || '').toLowerCase();
-          if (r.pay_head_type === 'Deductions from Employees') {
+          if (isPayrollDeduction(r)) {
             e.deductions += amt;
           } else {
             e.gross += amt;
@@ -1864,7 +2142,7 @@ const getPayrollReport = async (company_id, fy_id, reportTypeArg = 'payslip', pa
             empMap[r.employee_id] = { emp_name: r.emp_name, pf_no: r.pf_account_number || r.uan || 'N/A', emp_contrib: 0, employer_contrib: 0 };
           }
           const amt = Number(r.amount) || 0;
-          if (r.pay_head_type === 'Deductions from Employees') empMap[r.employee_id].emp_contrib += amt;
+          if (isPayrollDeduction(r)) empMap[r.employee_id].emp_contrib += amt;
           else empMap[r.employee_id].employer_contrib += amt;
         }
         rows = Object.values(empMap).map((r, idx) => ({ id: idx + 1, ...r }));
@@ -1882,7 +2160,7 @@ const getPayrollReport = async (company_id, fy_id, reportTypeArg = 'payslip', pa
             empMap[r.employee_id] = { emp_name: r.emp_name, esi_no: r.esi_number || 'N/A', emp_contrib: 0, employer_contrib: 0 };
           }
           const amt = Number(r.amount) || 0;
-          if (r.pay_head_type === 'Deductions from Employees') empMap[r.employee_id].emp_contrib += amt;
+          if (isPayrollDeduction(r)) empMap[r.employee_id].emp_contrib += amt;
           else empMap[r.employee_id].employer_contrib += amt;
         }
         rows = Object.values(empMap).map((r, idx) => ({ id: idx + 1, ...r }));
@@ -1933,7 +2211,7 @@ const getPayrollReport = async (company_id, fy_id, reportTypeArg = 'payslip', pa
           if (!empMap[r.employee_id]) {
             empMap[r.employee_id] = { emp_name: r.emp_name, date_of_joining: r.date_of_joining, monthly_earnings: 0 };
           }
-          if (r.pay_head_type !== 'Deductions from Employees') {
+          if (!isPayrollDeduction(r)) {
             empMap[r.employee_id].monthly_earnings += Number(r.amount) || 0;
           }
         }
@@ -1955,7 +2233,7 @@ const getPayrollReport = async (company_id, fy_id, reportTypeArg = 'payslip', pa
           const phn = (r.pay_head_name || '').toLowerCase();
           const sc = (r.statutory_component || '').toLowerCase();
           const isPT = phn.includes('professional tax') || phn.includes(' pt') || sc.includes('professional tax');
-          if (!isPT || r.pay_head_type !== 'Deductions from Employees') continue;
+          if (!isPT || !isPayrollDeduction(r)) continue;
           if (!empMap[r.employee_id]) empMap[r.employee_id] = { emp_name: r.emp_name, amount: 0 };
           empMap[r.employee_id].amount += Number(r.amount) || 0;
         }
@@ -2210,10 +2488,12 @@ const getInventoryReport = async (company_id, fy_id, reportTypeArg = 'stock_summ
           const iq = Number(r.in_qty) || 0;
           const iv = Number(r.in_value) || 0;
           const oqq = Number(r.out_qty) || 0;
-          const ovv = Number(r.out_value) || 0;
           const closingQty = oq + iq - oqq;
-          const closingValue = ov + iv - ovv;
+          // Value remaining stock at weighted-average COST. The old code did
+          // `opening_value + in_value - out_value`, but out_value is sale
+          // REVENUE, not cost — subtracting it understated closing inventory.
           const avgRate = (oq + iq) > 0 ? (ov + iv) / (oq + iq) : 0;
+          const closingValue = avgRate * closingQty;
           return {
             item_id: r.item_id,
             item_name: r.item_name,
@@ -2468,53 +2748,83 @@ const getCostingReport = async (company_id, fy_id, reportTypeArg = 'cost_centre_
 // ---------------------------------------------------------------------------
 // 17. queryAuditTrail -- audit trail / edit log queries
 // ---------------------------------------------------------------------------
+// Entity types treated as "masters" for master-side audit reports.
+const AUDIT_MASTER_ENTITIES = ['ledger', 'group', 'stock_item', 'stock_group',
+  'cost_centre', 'employee', 'godown', 'unit', 'voucher_type'];
+
 const queryAuditTrail = async (company_id, fy_id, filters = {}) => {
   try {
     const params = typeof filters === 'object' ? filters : {};
     const reportId = params.reportId || '';
+    // Definitions drive this via auditType; fall back to reportId substrings
+    // for any legacy callers.
+    const auditType = params.auditType ||
+      (reportId.includes('deleted-voucher') ? 'deleted_vouchers'
+        : reportId.includes('deleted-masters') ? 'deleted_masters'
+        : reportId.includes('altered-vouchers') ? 'altered_vouchers'
+        : reportId.includes('altered-ledgers') ? 'altered_ledgers'
+        : reportId.includes('voucher-audit') ? 'voucher_audit'
+        : reportId.includes('ledger-audit') ? 'ledger_audit'
+        : reportId.includes('voucher-numbering') ? 'voucher_numbering'
+        : '');
 
-    let rows;
-    if (reportId.includes('voucher-audit') || reportId.includes('altered-vouchers') || reportId.includes('deleted-voucher')) {
-      rows = await db.all(
+    // Reports that are not backed by the audit_trail table keep their
+    // dedicated, honest outputs.
+    if (auditType === 'data_health' || reportId.includes('data-health')) {
+      const ledgerCount = await db.get(sql`SELECT COUNT(*) as cnt FROM ${ledgers} WHERE company_id = ${company_id}`);
+      const voucherCount = await db.get(sql`SELECT COUNT(*) as cnt FROM ${vouchers} WHERE company_id = ${company_id} AND fy_id = ${fy_id}`);
+      const auditCount = await db.get(sql`SELECT COUNT(*) as cnt FROM ${auditTrail} WHERE company_id = ${company_id}`);
+      return { success: true, rows: [
+        { id: 1, check: 'Total Ledgers', result: String(ledgerCount?.cnt || 0), status: 'OK' },
+        { id: 2, check: 'Total Vouchers', result: String(voucherCount?.cnt || 0), status: 'OK' },
+        { id: 3, check: 'Audit Trail Entries', result: String(auditCount?.cnt || 0), status: 'OK' },
+        { id: 4, check: 'Database Integrity', result: 'Pass', status: 'OK' },
+      ] };
+    }
+
+    // Voucher numbering register: vouchers ordered by type and number so gaps
+    // and duplicates are visible (the previous code returned a recency list).
+    if (auditType === 'voucher_numbering') {
+      const rows = await db.all(
         sql`SELECT v.voucher_id, v.voucher_type, v.voucher_number, v.date, v.party_name,
-                   v.created_at, v.updated_at,
                    CASE WHEN v.is_cancelled = 1 THEN 'Cancelled' ELSE 'Active' END AS status
             FROM ${vouchers} v
             WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id}
-            ORDER BY v.updated_at DESC`
+            ORDER BY v.voucher_type ASC, v.voucher_number ASC`
       );
-    } else if (reportId.includes('ledger-audit') || reportId.includes('altered-ledgers') || reportId.includes('deleted-masters')) {
-      rows = await db.all(
-        sql`SELECT l.ledger_id, l.name AS ledger_name, l.opening_balance, l.is_active,
-                   g.name AS group_name
-            FROM ${ledgers} l
-            LEFT JOIN ${groups} g ON g.group_id = l.group_id
-            WHERE l.company_id = ${company_id}
-            ORDER BY l.name ASC`
-      );
-    } else if (reportId.includes('user-activity') || reportId.includes('login')) {
-      rows = [{ id: 1, event: 'System', description: 'User activity tracking requires audit_trail table', timestamp: new Date().toISOString() }];
-    } else if (reportId.includes('security') || reportId.includes('user-rights') || reportId.includes('role-permission')) {
-      rows = [{ id: 1, feature: 'Security Control', status: 'Active', description: 'Company-level security settings' }];
-    } else if (reportId.includes('backup') || reportId.includes('restore') || reportId.includes('data-import') || reportId.includes('data-export') || reportId.includes('remote-access')) {
-      rows = [{ id: 1, event: 'System', description: 'Data management operations log', timestamp: new Date().toISOString() }];
-    } else if (reportId.includes('data-health')) {
-      const ledgerCount = await db.get(sql`SELECT COUNT(*) as cnt FROM ${ledgers} WHERE company_id = ${company_id}`);
-      const voucherCount = await db.get(sql`SELECT COUNT(*) as cnt FROM ${vouchers} WHERE company_id = ${company_id} AND fy_id = ${fy_id}`);
-      rows = [
-        { id: 1, check: 'Total Ledgers', result: String(ledgerCount?.cnt || 0), status: 'OK' },
-        { id: 2, check: 'Total Vouchers', result: String(voucherCount?.cnt || 0), status: 'OK' },
-        { id: 3, check: 'Database Integrity', result: 'Pass', status: 'OK' },
-      ];
-    } else {
-      rows = await db.all(
-        sql`SELECT v.voucher_id, v.voucher_type, v.voucher_number, v.date,
-                   v.created_at, v.updated_at
-            FROM ${vouchers} v
-            WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id}
-            ORDER BY v.updated_at DESC LIMIT 100`
-      );
+      return { success: true, rows };
     }
+
+    // Everything else is a genuine audit-trail view. Build entity/action
+    // predicates from the requested auditType and query audit_trail directly.
+    const conds = [sql`at.company_id = ${company_id}`];
+    const isVoucherScope = ['voucher_audit', 'tally_audit', 'edit_log_voucher',
+      'alteration_history', 'altered_vouchers', 'deleted_vouchers'].includes(auditType);
+    const isMasterScope = ['edit_log_master', 'master_alteration', 'altered_ledgers',
+      'ledger_audit', 'deleted_masters'].includes(auditType);
+
+    if (isVoucherScope) {
+      conds.push(sql`LOWER(at.entity_type) = 'voucher'`);
+    } else if (auditType === 'altered_ledgers' || auditType === 'ledger_audit') {
+      conds.push(sql`LOWER(at.entity_type) = 'ledger'`);
+    } else if (isMasterScope) {
+      conds.push(sql`LOWER(at.entity_type) IN (${sqlIn(AUDIT_MASTER_ENTITIES)})`);
+    }
+
+    if (['altered_vouchers', 'altered_ledgers', 'alteration_history', 'master_alteration'].includes(auditType)) {
+      conds.push(sql`LOWER(at.action) = 'update'`);
+    } else if (['deleted_vouchers', 'deleted_masters'].includes(auditType)) {
+      conds.push(sql`LOWER(at.action) IN ('delete', 'cancel')`);
+    }
+
+    const rows = await db.all(
+      sql`SELECT at.log_id AS id, at.entity_type, at.entity_id, at.action,
+                 at."user" AS user, at.before_snapshot, at.after_snapshot,
+                 at.created_at AS timestamp
+          FROM ${auditTrail} at
+          WHERE ${sql.join(conds, sql` AND `)}
+          ORDER BY at.created_at DESC, at.log_id DESC`
+    );
 
     return { success: true, rows: rows || [] };
   } catch (err) {

@@ -1,6 +1,6 @@
 module.exports = {
   run: async (company_id, fy_id, params = {}) => {
     const service = require('../universalReportService');
-    return await service.getRegister(company_id, fy_id, { reportId: 'R144', registerType: 'bank_reconciliation', viewType: 'reconciled', ...params });
+    return await service.getReconciliation(company_id, fy_id, { type: 'bank', viewType: 'detailed', ...params });
   }
 };
