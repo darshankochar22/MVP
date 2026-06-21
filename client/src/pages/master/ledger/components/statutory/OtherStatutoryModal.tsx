@@ -1,4 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import DetailedServiceTaxModal from "../ServiceTaxModal";
+import DetailedVATDetailsModal from "./VATTaxRateDetailsModal";
+import DetailedExciseTariffDetails from "../../../inventory/stock-item/components/ExciseTariffDetails";
+import type { ServiceTaxDetails as ServiceTaxRegnDetails } from "../ServiceTaxModal";
+import type { VATTaxRateFormData } from "./VATTaxRateDetailsModal";
+import type { ExciseTariffFormData } from "../../../inventory/stock-item/components/ExciseTariffDetails";
 import {
   ModalChrome,
   ModalTitleBar,
@@ -55,10 +61,18 @@ const selectCls =
 interface OtherStatutoryModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAccept: (state: OtherStatutoryForm) => void;
+  onAccept: (
+    state: OtherStatutoryForm,
+    serviceTax?: ServiceTaxRegnDetails,
+    vat?: VATTaxRateFormData,
+    excise?: ExciseTariffFormData
+  ) => void;
   ledgerName?: string;
   visibleSections: OtherStatutorySectionKey[];
   value: OtherStatutoryForm;
+  serviceTaxDetails: ServiceTaxRegnDetails;
+  vatDetails: VATTaxRateFormData;
+  exciseDetails: ExciseTariffFormData;
 }
 
 type Tier2 =
@@ -76,13 +90,34 @@ export default function OtherStatutoryModal({
   ledgerName,
   visibleSections,
   value,
+  serviceTaxDetails,
+  vatDetails,
+  exciseDetails,
 }: OtherStatutoryModalProps) {
   const [form, setForm] = useState<OtherStatutoryForm>(value);
   const [activeTier2, setActiveTier2] = useState<Tier2>(null);
+  const [activeTier3, setActiveTier3] = useState<"serviceTax" | "vat" | "excise" | null>(null);
+
+  const [localServiceTaxDetails, setLocalServiceTaxDetails] = useState<ServiceTaxRegnDetails>(serviceTaxDetails);
+  const [localVatDetails, setLocalVatDetails] = useState<VATTaxRateFormData>(vatDetails);
+  const [localExciseDetails, setLocalExciseDetails] = useState<ExciseTariffFormData>(exciseDetails);
+
   const { selectedCompany } = useCompany();
 
+  useEffect(() => {
+    if (isOpen) {
+      setForm(value);
+      setLocalServiceTaxDetails(serviceTaxDetails);
+      setLocalVatDetails(vatDetails);
+      setLocalExciseDetails(exciseDetails);
+      setActiveTier2(null);
+      setActiveTier3(null);
+    }
+  }, [isOpen, value, serviceTaxDetails, vatDetails, exciseDetails]);
+
   useEscapeClose(isOpen, () => {
-    if (activeTier2) setActiveTier2(null);
+    if (activeTier3) setActiveTier3(null);
+    else if (activeTier2) setActiveTier2(null);
     else onClose();
   });
 
@@ -176,44 +211,59 @@ export default function OtherStatutoryModal({
     }
   };
 
+  const showParent = activeTier2 === null && activeTier3 === null;
+
   return (
     <>
-      <ModalChrome width={520}>
-        <ModalTitleBar
-          title={`Statutory Details for ${ledgerName || "Ledger"}`}
-          onClose={onClose}
-        />
-        <div className="px-6 py-4 space-y-2">
-          {visibleSections.length === 0 && (
-            <div className="text-[12px] text-zinc-500 italic">
-              No statutory sections are applicable for this group.
-            </div>
-          )}
-          {visibleSections.map((key) => {
-            const meta = SECTION_META[key];
-            const isActive = sectionActive(key);
-            return (
-              <FormRow
-                key={key}
-                label={`Set/Alter ${meta.label} details`}
-                labelWidth="w-60"
-                className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50"
-              >
-                <select
-                  className={selectCls + " max-w-[80px]"}
-                  value={isActive ? "Yes" : "No"}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={() => onRowClick(key)}
+      {showParent && (
+        <ModalChrome width={520}>
+          <ModalTitleBar
+            title={`Statutory Details for ${ledgerName || "Ledger"}`}
+            onClose={onClose}
+          />
+          <div className="px-6 py-4 space-y-2">
+            {visibleSections.length === 0 && (
+              <div className="text-[12px] text-zinc-500 italic">
+                No statutory sections are applicable for this group.
+              </div>
+            )}
+            {visibleSections.map((key) => {
+              const meta = SECTION_META[key];
+              const isActive = sectionActive(key);
+              return (
+                <FormRow
+                  key={key}
+                  label={`Set/Alter ${meta.label} details`}
+                  labelWidth="w-60"
+                  className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50"
                 >
-                  <option>No</option>
-                  <option>Yes</option>
-                </select>
-              </FormRow>
-            );
-          })}
-        </div>
-        <ModalFooter onClose={onClose} onAccept={() => onAccept(form)} acceptLabel="Ok" />
-      </ModalChrome>
+                  <select
+                    className={selectCls + " max-w-[80px]"}
+                    value={isActive ? "Yes" : "No"}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => onRowClick(key)}
+                  >
+                    <option>No</option>
+                    <option>Yes</option>
+                  </select>
+                </FormRow>
+              );
+            })}
+          </div>
+          <ModalFooter
+            onClose={onClose}
+            onAccept={() =>
+              onAccept(
+                form,
+                localServiceTaxDetails,
+                localVatDetails,
+                localExciseDetails
+              )
+            }
+            acceptLabel="Ok"
+          />
+        </ModalChrome>
+      )}
 
       {/* Tier-2 detail modals (z-[60] on top of Tier-1's z-50) */}
       {activeTier2?.kind === "tds" && (
@@ -250,6 +300,9 @@ export default function OtherStatutoryModal({
           onAccept={(state) => {
             updateSection("serviceTax", state);
             setActiveTier2(null);
+            if (state.set_alter_service_tax_details === 1) {
+              setActiveTier3("serviceTax");
+            }
           }}
         />
       )}
@@ -262,6 +315,9 @@ export default function OtherStatutoryModal({
           onAccept={(state) => {
             updateSection("excise", state);
             setActiveTier2(null);
+            if (state.set_alter_excise_details === 1) {
+              setActiveTier3("excise");
+            }
           }}
         />
       )}
@@ -274,6 +330,45 @@ export default function OtherStatutoryModal({
           onAccept={(state) => {
             updateSection("vat", state);
             setActiveTier2(null);
+            if (state.set_alter_vat_details === 1) {
+              setActiveTier3("vat");
+            }
+          }}
+        />
+      )}
+
+      {/* Tier-3 detail modals (z-[70] on top of Tier-2's z-[60]) */}
+      {activeTier3 === "serviceTax" && (
+        <DetailedServiceTaxModal
+          isOpen
+          ledgerName={ledgerName}
+          value={localServiceTaxDetails}
+          onClose={() => setActiveTier3(null)}
+          onAccept={(state) => {
+            setLocalServiceTaxDetails(state);
+            setActiveTier3(null);
+          }}
+        />
+      )}
+      {activeTier3 === "excise" && (
+        <DetailedExciseTariffDetails
+          initialData={localExciseDetails}
+          onAccept={(state) => {
+            setLocalExciseDetails(state);
+            setActiveTier3(null);
+          }}
+          onClose={() => setActiveTier3(null)}
+        />
+      )}
+      {activeTier3 === "vat" && (
+        <DetailedVATDetailsModal
+          isOpen
+          ledgerName={ledgerName}
+          value={localVatDetails}
+          onClose={() => setActiveTier3(null)}
+          onAccept={(state) => {
+            setLocalVatDetails(state);
+            setActiveTier3(null);
           }}
         />
       )}

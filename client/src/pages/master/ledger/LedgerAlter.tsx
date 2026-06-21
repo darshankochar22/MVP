@@ -100,6 +100,11 @@ export default function LedgerAlter() {
     handleVATDetailsOpen,
     handleVATDetailsClose,
     handleVATDetailsAccept,
+    exciseDetails,
+    setExciseDetails,
+    vatTaxRateDetails,
+    setVatTaxRateDetails,
+    setServiceTaxDetails,
   } = useLedgerForm({ mode: "alter" });
 
   const groupName = selectedGroup?.name || groupLineage.primaryGroupName || "";
@@ -232,9 +237,15 @@ export default function LedgerAlter() {
           ledgerName={form.name || ""}
           visibleSections={getOtherStatutoryConfig(groupLineage.primaryGroupName).sections}
           value={otherStatutory}
+          serviceTaxDetails={serviceTaxDetails}
+          vatDetails={vatTaxRateDetails}
+          exciseDetails={exciseDetails}
           onClose={() => setShowOtherStatutoryModal(false)}
-          onAccept={(state) => {
+          onAccept={(state, serviceTax, vat, excise) => {
             setOtherStatutory(state);
+            if (serviceTax) setServiceTaxDetails(serviceTax);
+            if (vat) setVatTaxRateDetails(vat);
+            if (excise) setExciseDetails(excise);
             setShowOtherStatutoryModal(false);
           }}
         />

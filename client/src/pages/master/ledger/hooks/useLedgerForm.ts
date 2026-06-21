@@ -9,6 +9,24 @@ import { EMPTY_SERVICE_TAX_DETAILS } from "../components/ServiceTaxModal";
 import type { ServiceTaxDetails as ServiceTaxRegnDetails } from "../components/ServiceTaxModal";
 import { EMPTY_VAT_DETAILS } from "../components/VATDetailsModal";
 import type { VATDetails } from "../components/VATDetailsModal";
+import type { ExciseTariffFormData } from "@/pages/master/inventory/stock-item/components/ExciseTariffDetails";
+import type { VATTaxRateFormData } from "../components/statutory/VATTaxRateDetailsModal";
+
+export const EMPTY_EXCISE_TARIFF_DETAILS: ExciseTariffFormData = {
+  tariff_name: "",
+  hsn_code: "",
+  reporting_uom: "Undefined",
+  valuation_type: "Undefined",
+  rate: "0",
+  rate_per_unit: "0",
+};
+
+export const EMPTY_VAT_TAX_RATE_DETAILS: VATTaxRateFormData = {
+  nature_of_transaction: "Undefined",
+  tax_rate: "0",
+  tax_type: "Unknown",
+};
+
 
 export interface StatutoryDetails {
   gst_applicability?: string;
@@ -263,6 +281,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
   // ── VAT Details ─────────────────────────────────────────────────────────────
   const [vatDetails, setVatDetails] = useState<VATDetails>({ ...EMPTY_VAT_DETAILS });
   const [showVATDetailsModal, setShowVATDetailsModal] = useState(false);
+  const [exciseDetails, setExciseDetails] = useState<ExciseTariffFormData>({ ...EMPTY_EXCISE_TARIFF_DETAILS });
+  const [vatTaxRateDetails, setVatTaxRateDetails] = useState<VATTaxRateFormData>({ ...EMPTY_VAT_TAX_RATE_DETAILS });
   const [provideBank, setProvideBank] = useState<"No" | "Yes">("No");
 
   const [form, setForm] = useState<Partial<LedgerType>>(INITIAL_FORM);
@@ -389,6 +409,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
       setGstDetails({ ...EMPTY_GST_DETAILS });
       setServiceTaxDetails({ ...EMPTY_SERVICE_TAX_DETAILS });
       setVatDetails({ ...EMPTY_VAT_DETAILS });
+      setExciseDetails({ ...EMPTY_EXCISE_TARIFF_DETAILS });
+      setVatTaxRateDetails({ ...EMPTY_VAT_TAX_RATE_DETAILS });
       setOtherStatutory({
         tds: { ...EMPTY_TDS },
         tcs: { ...EMPTY_TCS },
@@ -489,6 +511,21 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         cst_no: (l as any).cst_no || "",
         sales_purchases_against_form_c:
           (l as any).sales_purchases_against_form_c === "Yes" ? "Yes" : "No",
+      });
+
+      setExciseDetails({
+        tariff_name: (l as any).excise_tariff_name || "",
+        hsn_code: (l as any).excise_hsn_code || "",
+        reporting_uom: (l as any).excise_reporting_uom || "Undefined",
+        valuation_type: (l as any).excise_valuation_type || "Undefined",
+        rate: String((l as any).excise_rate ?? "0"),
+        rate_per_unit: String((l as any).excise_rate_per_unit ?? "0"),
+      });
+
+      setVatTaxRateDetails({
+        nature_of_transaction: (l as any).vat_nature_of_transaction || "Undefined",
+        tax_rate: String((l as any).vat_tax_rate ?? "0"),
+        tax_type: (l as any).vat_tax_type || "Unknown",
       });
 
       setOtherStatutory({
@@ -806,6 +843,19 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         is_vat_cst_applicable: otherStatutory.vat.is_vat_cst_applicable,
         deductee_ref: otherStatutory.tcs.deductee_ref,
         tax_unique_id_no: otherStatutory.tcs.tax_unique_id_no,
+
+        // Excise tariff details
+        excise_tariff_name: exciseDetails.tariff_name || undefined,
+        excise_hsn_code: exciseDetails.hsn_code || undefined,
+        excise_reporting_uom: exciseDetails.reporting_uom || "Undefined",
+        excise_valuation_type: exciseDetails.valuation_type || "Undefined",
+        excise_rate: Number(exciseDetails.rate) || 0,
+        excise_rate_per_unit: Number(exciseDetails.rate_per_unit) || 0,
+
+        // VAT Tax rate details
+        vat_nature_of_transaction: vatTaxRateDetails.nature_of_transaction || "Undefined",
+        vat_tax_rate: Number(vatTaxRateDetails.tax_rate) || 0,
+        vat_tax_type: vatTaxRateDetails.tax_type || "Unknown",
       };
 
       if (mode === "alter") {
@@ -906,6 +956,8 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     validate,
     mode,
     loadInitial,
+    exciseDetails,
+    vatTaxRateDetails,
   ]);
 
   return {
@@ -925,6 +977,10 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
     setVatDetails,
     otherStatutory,
     setOtherStatutory,
+    exciseDetails,
+    setExciseDetails,
+    vatTaxRateDetails,
+    setVatTaxRateDetails,
     provideBank,
     setProvideBank,
     showBankPopup,

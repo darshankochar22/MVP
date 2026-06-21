@@ -54,7 +54,6 @@ export const TDS_PAN_STATUSES = [
   "Not Required",
 ];
 
-// Show foreign fields for these PAN statuses (matches Tally Prime behaviour)
 const FOREIGN_PAN_STATUSES = new Set(["Not Available", "Not Required"]);
 
 export interface TdsFormState {

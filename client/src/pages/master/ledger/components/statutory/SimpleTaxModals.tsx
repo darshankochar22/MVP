@@ -97,7 +97,14 @@ function SimpleTaxModal<TForm extends object>({
             <select
               className={selectCls + " max-w-[80px]"}
               value={form[yesNoField] ? "Yes" : "No"}
-              onChange={(e) => update(yesNoField, e.target.value === "Yes" ? 1 : 0)}
+              onChange={(e) => {
+                const isYes = e.target.value === "Yes";
+                const nextState = { ...form, [yesNoField]: isYes ? 1 : 0 };
+                setForm(nextState);
+                if (isYes) {
+                  onAccept(nextState);
+                }
+              }}
             >
               <option>No</option>
               <option>Yes</option>

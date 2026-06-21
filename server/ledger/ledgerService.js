@@ -154,6 +154,15 @@ module.exports = {
           vatTinNo: data.vat_tin_no || null,
           cstNo: data.cst_no || null,
           salesPurchasesAgainstFormC: data.sales_purchases_against_form_c || "No",
+          exciseTariffName: data.excise_tariff_name || null,
+          exciseHsnCode: data.excise_hsn_code || null,
+          exciseReportingUom: data.excise_reporting_uom || "Undefined",
+          exciseValuationType: data.excise_valuation_type || "Undefined",
+          exciseRate: Number(data.excise_rate) || 0,
+          exciseRatePerUnit: Number(data.excise_rate_per_unit) || 0,
+          vatNatureOfTransaction: data.vat_nature_of_transaction || "Undefined",
+          vatTaxRate: Number(data.vat_tax_rate) || 0,
+          vatTaxType: data.vat_tax_type || "Unknown",
       includeAssessableValue: data.include_assessable_value || "Not Applicable",
       methodOfCalculation: data.method_of_calculation || "Based on Value",
       otherStatutoryDetails: data.other_statutory_details ? 1 : 0,
@@ -414,6 +423,15 @@ module.exports = {
           cstNo: data.cst_no ?? ledger.cst_no ?? null,
           salesPurchasesAgainstFormC:
             data.sales_purchases_against_form_c ?? ledger.sales_purchases_against_form_c ?? "No",
+          exciseTariffName: data.excise_tariff_name ?? ledger.excise_tariff_name ?? null,
+          exciseHsnCode: data.excise_hsn_code ?? ledger.excise_hsn_code ?? null,
+          exciseReportingUom: data.excise_reporting_uom ?? ledger.excise_reporting_uom ?? "Undefined",
+          exciseValuationType: data.excise_valuation_type ?? ledger.excise_valuation_type ?? "Undefined",
+          exciseRate: data.excise_rate !== undefined ? Number(data.excise_rate) : (ledger.excise_rate ?? 0),
+          exciseRatePerUnit: data.excise_rate_per_unit !== undefined ? Number(data.excise_rate_per_unit) : (ledger.excise_rate_per_unit ?? 0),
+          vatNatureOfTransaction: data.vat_nature_of_transaction ?? ledger.vat_nature_of_transaction ?? "Undefined",
+          vatTaxRate: data.vat_tax_rate !== undefined ? Number(data.vat_tax_rate) : (ledger.vat_tax_rate ?? 0),
+          vatTaxType: data.vat_tax_type ?? ledger.vat_tax_type ?? "Unknown",
           includeAssessableValue:
             data.include_assessable_value ??
             ledger.include_assessable_value ??

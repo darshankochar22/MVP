@@ -71,6 +71,15 @@ export interface LedgerType {
   is_vat_cst_applicable?: string;
   deductee_ref?: string;
   tax_unique_id_no?: string;
+  excise_tariff_name?: string;
+  excise_hsn_code?: string;
+  excise_reporting_uom?: string;
+  excise_valuation_type?: string;
+  excise_rate?: number;
+  excise_rate_per_unit?: number;
+  vat_nature_of_transaction?: string;
+  vat_tax_rate?: number;
+  vat_tax_type?: string;
   bank_details?: {
   account_holder_name?: string;
   account_number?: string;

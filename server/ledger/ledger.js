@@ -213,8 +213,18 @@ const init = async (db) => {
   // VAT details
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN vat_type_of_dealer TEXT DEFAULT 'Unknown'`); } catch (err) {}
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN vat_tin_no TEXT`); } catch (err) {}
-  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN cst_no TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN sales_purchases_against_form_c TEXT DEFAULT 'No'`); } catch (err) {}
+
+  // Detailed Excise & VAT details
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN excise_tariff_name TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN excise_hsn_code TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN excise_reporting_uom TEXT DEFAULT 'Undefined'`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN excise_valuation_type TEXT DEFAULT 'Undefined'`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN excise_rate REAL DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN excise_rate_per_unit REAL DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN vat_nature_of_transaction TEXT DEFAULT 'Undefined'`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN vat_tax_rate REAL DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE ledgers ADD COLUMN vat_tax_type TEXT DEFAULT 'Unknown'`); } catch (err) {}
 
   // TDS-specific deductee ref (separate from TCS's deductee_ref/tax_unique_id_no)
   try { await db.execute(`ALTER TABLE ledgers ADD COLUMN tds_deductee_ref TEXT`); } catch (err) {}
