@@ -84,7 +84,6 @@ export default function LedgerAlter() {
     setField,
     setNumber,
     setBankField,
-    setBankNumber,
     setStatutoryField,
     setStatutoryNumber,
     handleActivateInterestChange,
@@ -713,9 +712,7 @@ export default function LedgerAlter() {
           {selectedLedgerId && (
             <LedgerBankDetailsForm
               bankForm={bankForm}
-              setBankForm={setBankForm}
               setBankField={setBankField}
-              setBankNumber={setBankNumber}
               groupLineage={groupLineage}
             />
           )}

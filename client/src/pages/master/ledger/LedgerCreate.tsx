@@ -77,7 +77,6 @@ export default function LedgerCreate() {
     setField,
     setNumber,
     setBankField,
-    setBankNumber,
     setStatutoryField,
     setStatutoryNumber,
     handleActivateInterestChange,
@@ -662,9 +661,7 @@ export default function LedgerCreate() {
           {/* Bank details form (inline fields when group is bank) */}
           <LedgerBankDetailsForm
             bankForm={bankForm}
-            setBankForm={setBankForm}
             setBankField={setBankField}
-            setBankNumber={setBankNumber}
             groupLineage={groupLineage}
           />
 
