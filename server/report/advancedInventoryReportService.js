@@ -89,9 +89,9 @@ module.exports = {
         sql`SELECT
               si.name AS item_name,
               COALESCE(si.opening_quantity, 0) +
-              COALESCE((SELECT SUM(vse.quantity) FROM ${voucherStockEntries} vse JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id WHERE vse.stock_item_id = si.item_id AND v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})), 0) -
-              COALESCE((SELECT SUM(vse.quantity) FROM ${voucherStockEntries} vse JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id WHERE vse.stock_item_id = si.item_id AND v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})), 0) AS closing,
-              25 AS level,
+              COALESCE((SELECT SUM(vse.quantity) FROM ${voucherStockEntries} vse JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id WHERE vse.stock_item_id = si.item_id AND v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0 AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0 AND v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})), 0) -
+              COALESCE((SELECT SUM(vse.quantity) FROM ${voucherStockEntries} vse JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id WHERE vse.stock_item_id = si.item_id AND v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0 AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0 AND v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})), 0) AS closing,
+              COALESCE(si.reorder_level, 0) AS level,
               0 AS shortage
             FROM ${stockItems} si
             WHERE si.company_id = ${company_id} AND si.is_active = 1`

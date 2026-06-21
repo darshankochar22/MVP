@@ -65,22 +65,51 @@ module.exports = {
             WHERE l.company_id = ${company_id} AND l.is_active = 1`
       );
 
-      const getLedgersByNature = (nature) => ledgerRows
+      // Internal raw (signed, Dr +) balance per ledger of a given nature.
+      const rawByNature = (nature) => ledgerRows
         .filter(l => l.nature === nature)
         .map(l => ({
           ledger_id: l.ledger_id,
           ledger_name: l.name,
           balance: calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0),
-        }))
+        }));
+
+      // Assets carry debit (positive) balances; liabilities carry credit
+      // balances, presented as positive figures (-rawBalance).
+      const assets = rawByNature('Assets')
+        .filter(l => l.balance !== 0);
+      const liabilities = rawByNature('Liabilities')
+        .map(l => ({ ...l, balance: -l.balance }))
         .filter(l => l.balance !== 0);
 
-      const assets      = getLedgersByNature('Assets');
-      const liabilities = getLedgersByNature('Liabilities');
+      // Current-year profit/loss MUST appear on the balance sheet, otherwise it
+      // cannot tie out. Income is credit (-raw), expense is debit (+raw).
+      const sumRaw = (nature) => rawByNature(nature).reduce((s, l) => s + l.balance, 0);
+      const netProfit = (-sumRaw('Income')) - sumRaw('Expenses');
 
-      const totalAssets      = assets.reduce((s, l) => s + Math.abs(l.balance), 0);
-      const totalLiabilities = liabilities.reduce((s, l) => s + Math.abs(l.balance), 0);
+      const totalAssets = assets.reduce((s, l) => s + l.balance, 0);
+      let totalLiabilities = liabilities.reduce((s, l) => s + l.balance, 0);
 
-      return { success: true, assets, liabilities, totalAssets, totalLiabilities };
+      // Append the P&L result as a reserves line on the liabilities side.
+      if (Math.abs(netProfit) >= 0.001) {
+        liabilities.push({
+          ledger_id: null,
+          ledger_name: netProfit >= 0 ? 'Profit & Loss A/c (Current Year)' : 'Profit & Loss A/c (Loss, Current Year)',
+          balance: netProfit,
+          is_pl_account: true,
+        });
+        totalLiabilities += netProfit;
+      }
+
+      return {
+        success: true,
+        assets,
+        liabilities,
+        totalAssets,
+        totalLiabilities,
+        netProfit,
+        difference: Number((totalAssets - totalLiabilities).toFixed(2)),
+      };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -100,11 +129,14 @@ module.exports = {
 
       const getLedgersByNature = (nature) => ledgerRows
         .filter(l => l.nature === nature)
-        .map(l => ({
-          ledger_id: l.ledger_id,
-          ledger_name: l.name,
-          balance: Math.abs(calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0)),
-        }))
+        .map(l => {
+          const raw = calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0);
+          return {
+            ledger_id: l.ledger_id,
+            ledger_name: l.name,
+            balance: nature === 'Income' ? -raw : raw,
+          };
+        })
         .filter(l => l.balance !== 0);
 
       const income   = getLedgersByNature('Income');
@@ -327,7 +359,7 @@ module.exports = {
                COALESCE(SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD.map(t => sql`${t}`), sql`, `)}) THEN vse.amount ELSE 0 END), 0) -
                COALESCE(SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD.map(t => sql`${t}`), sql`, `)}) THEN vse.amount ELSE 0 END), 0) AS closing_value
         FROM ${stockItems} si
-        LEFT JOIN ${stockGroups} sg ON sg.sg_id = si.stock_group_id
+        LEFT JOIN ${stockGroups} sg ON sg.sg_id = si.group_id
         LEFT JOIN ${voucherStockEntries} vse ON vse.stock_item_id = si.item_id
         LEFT JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
           AND v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
@@ -366,7 +398,7 @@ module.exports = {
                      AND v3.voucher_type IN (${sql.join(OUTWARD.map(t => sql`${t}`), sql`, `)}) AND v3.is_cancelled = 0), 0)
                ), 0) AS value
         FROM ${stockGroups} sg
-        LEFT JOIN ${stockItems} si ON si.stock_group_id = sg.sg_id AND si.company_id = ${company_id} AND si.is_active = 1
+        LEFT JOIN ${stockItems} si ON si.group_id = sg.sg_id AND si.company_id = ${company_id} AND si.is_active = 1
         WHERE sg.company_id = ${company_id} AND sg.is_active = 1
         GROUP BY sg.sg_id, sg.name
         ORDER BY sg.name ASC`
@@ -406,7 +438,7 @@ module.exports = {
                      AND v5.voucher_type IN (${sql.join(OUTWARD.map(t => sql`${t}`), sql`, `)}) AND v5.is_cancelled = 0), 0)
                ) AS value
         FROM ${stockItems} si
-        LEFT JOIN ${stockCategories} sc ON sc.sc_id = si.stock_category_id
+        LEFT JOIN ${stockCategories} sc ON sc.sc_id = si.category_id
         WHERE si.company_id = ${company_id} AND si.is_active = 1
         GROUP BY sc.sc_id, sc.name
         ORDER BY category_name ASC`
@@ -420,17 +452,20 @@ module.exports = {
   /** Cost Category Summary — debit/credit totals by cost centre grouped by category. */
   costCategorySummary: async (company_id, fy_id) => {
     try {
-      const { costCentres } = require('../db/schema');
+      const { costCentres, voucherCostCentres } = require('../db/schema');
+      // Cost-centre splits live in voucher_cost_centres(entry_id, cost_centre_id,
+      // amount); the cost category is cost_centres.category. Aggregating vcc.amount
+      // avoids fan-out when a voucher entry is split across several cost centres.
       const rows = await db.all(sql`
-        SELECT COALESCE(cc.cost_category, 'General') AS category_name,
-               SUM(CASE WHEN ve.type = 'Dr' THEN ve.amount ELSE 0 END) AS debit,
-               SUM(CASE WHEN ve.type = 'Cr' THEN ve.amount ELSE 0 END) AS credit
-        FROM ${voucherEntries} ve
-        INNER JOIN ${vouchers} v ON v.voucher_id = ve.voucher_id
-        LEFT JOIN ${costCentres} cc ON cc.cost_centre_id = ve.cost_centre_id
+        SELECT COALESCE(cc.category, 'General') AS category_name,
+               SUM(CASE WHEN ve.type = 'Dr' THEN vcc.amount ELSE 0 END) AS debit,
+               SUM(CASE WHEN ve.type = 'Cr' THEN vcc.amount ELSE 0 END) AS credit
+        FROM ${voucherCostCentres} vcc
+        INNER JOIN ${voucherEntries} ve ON ve.entry_id = vcc.entry_id
+        INNER JOIN ${vouchers} v ON v.voucher_id = vcc.voucher_id
+        LEFT JOIN ${costCentres} cc ON cc.cc_id = vcc.cost_centre_id
         WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
-          AND ve.cost_centre_id IS NOT NULL
-        GROUP BY cc.cost_category
+        GROUP BY COALESCE(cc.category, 'General')
         ORDER BY category_name ASC`
       );
       return { success: true, rows };

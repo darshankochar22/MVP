@@ -65,7 +65,7 @@ const buildOutstanding = async (company_id, fy_id, groupName) => {
         AND g.company_id = ${company_id}
         AND g.name = ${groupName}
       GROUP BY l.ledger_id, l.name, vbr.bill_name
-      HAVING total_amount > 0.01
+      HAVING ABS(total_amount) > 0.01
       ORDER BY l.name ASC, MAX(v.date) DESC
     `
   );
