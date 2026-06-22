@@ -2,17 +2,13 @@ import { Link, useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
 import { Button } from "@/components/shadcn/button";
 
-export default function InventoryBooks() {
+export default function AnalysisVerification() {
   const navigate = useNavigate();
 
   const sections = [
     {
-      title: "SUMMARY",
-      items: ["Stock Item", "Batch", "Godowns / Excise Units", "Stock Group Summary", "Stock Category Summary"],
-    },
-    {
-      title: "REGISTERS",
-      items: ["Stock Transfer Journal Register", "Physical Stock Register"],
+      title: "",
+      items: ["Data Analysis", "Voucher Verification"],
     },
     {
       title: "",
@@ -22,13 +18,8 @@ export default function InventoryBooks() {
 
   const getRoute = (_section: string, item: string) => {
     const routes: Record<string, string> = {
-      "Stock Item": "/reports/inventory-books/stock-item",
-      "Batch": "/reports/inventory-books/batch",
-      "Godowns / Excise Units": "/reports/inventory-books/godowns",
-      "Stock Group Summary": "/reports/inventory-books/stock-group-summary",
-      "Stock Category Summary": "/reports/inventory-books/stock-category-summary",
-      "Stock Transfer Journal Register": "/reports/inventory-books/stock-transfer-journal",
-      "Physical Stock Register": "/reports/inventory-books/physical-stock-register",
+      "Data Analysis": "/reports/analysis-verification/data-analysis",
+      "Voucher Verification": "/reports/analysis-verification/voucher-verification",
     };
     return routes[item] ?? null;
   };
@@ -41,7 +32,7 @@ export default function InventoryBooks() {
           <span>&gt;</span>
           <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">Display More Reports</Link>
         </div>
-        <CardTitle className="text-base font-semibold">Inventory Books</CardTitle>
+        <CardTitle className="text-base font-semibold">Analysis & Verification</CardTitle>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-4">

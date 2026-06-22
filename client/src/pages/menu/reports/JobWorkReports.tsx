@@ -2,17 +2,31 @@ import { Link, useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
 import { Button } from "@/components/shadcn/button";
 
-export default function InventoryBooks() {
+export default function JobWorkReports() {
   const navigate = useNavigate();
 
   const sections = [
     {
-      title: "SUMMARY",
-      items: ["Stock Item", "Batch", "Godowns / Excise Units", "Stock Group Summary", "Stock Category Summary"],
+      title: "ORDER OUTSTANDINGS",
+      items: ["Orders", "Components"],
     },
     {
       title: "REGISTERS",
-      items: ["Stock Transfer Journal Register", "Physical Stock Register"],
+      items: [
+        "Job Work IN Orders Book",
+        "Job Work OUT Orders Book",
+        "Material OUT Register",
+        "Material In Register",
+        "Material Movement Register",
+      ],
+    },
+    {
+      title: "STOCK",
+      items: ["From Party", "With Job Worker", "Ageing Analysis"],
+    },
+    {
+      title: "VARIANCE ANALYSIS",
+      items: ["Issue Variance", "Receipt Variance"],
     },
     {
       title: "",
@@ -22,13 +36,18 @@ export default function InventoryBooks() {
 
   const getRoute = (_section: string, item: string) => {
     const routes: Record<string, string> = {
-      "Stock Item": "/reports/inventory-books/stock-item",
-      "Batch": "/reports/inventory-books/batch",
-      "Godowns / Excise Units": "/reports/inventory-books/godowns",
-      "Stock Group Summary": "/reports/inventory-books/stock-group-summary",
-      "Stock Category Summary": "/reports/inventory-books/stock-category-summary",
-      "Stock Transfer Journal Register": "/reports/inventory-books/stock-transfer-journal",
-      "Physical Stock Register": "/reports/inventory-books/physical-stock-register",
+      "Orders": "/reports/job-work/orders",
+      "Components": "/reports/job-work/components",
+      "Job Work IN Orders Book": "/reports/job-work/in-orders-book",
+      "Job Work OUT Orders Book": "/reports/job-work/out-orders-book",
+      "Material OUT Register": "/reports/job-work/material-out-register",
+      "Material In Register": "/reports/job-work/material-in-register",
+      "Material Movement Register": "/reports/job-work/material-movement-register",
+      "From Party": "/reports/job-work/stock-from-party",
+      "With Job Worker": "/reports/job-work/stock-with-job-worker",
+      "Ageing Analysis": "/reports/job-work/ageing-analysis",
+      "Issue Variance": "/reports/job-work/issue-variance",
+      "Receipt Variance": "/reports/job-work/receipt-variance",
     };
     return routes[item] ?? null;
   };
@@ -41,7 +60,7 @@ export default function InventoryBooks() {
           <span>&gt;</span>
           <Link to="/reports/display-more" className="hover:underline hover:text-zinc-900">Display More Reports</Link>
         </div>
-        <CardTitle className="text-base font-semibold">Inventory Books</CardTitle>
+        <CardTitle className="text-base font-semibold">Job Work Reports</CardTitle>
       </CardHeader>
 
       <CardContent className="flex flex-col gap-4">

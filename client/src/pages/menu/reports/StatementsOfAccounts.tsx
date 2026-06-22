@@ -1,44 +1,30 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
 import { Button } from "@/components/shadcn/button";
-import { Separator } from "@/components/shadcn/separator";
 
 export default function StatementsOfAccounts() {
   const navigate = useNavigate();
 
   const sections = [
     {
-      title: "FINANCIAL STATEMENTS",
-      items: [
-        { label: "Trial Balance",           route: "/reports/accounts/trial-balance" },
-        { label: "Profit & Loss A/c",       route: "/reports/accounts/profit-loss" },
-        { label: "Balance Sheet",           route: "/reports/accounts/balance-sheet" },
-        { label: "Cash Flow Statement",     route: "/reports/accounts/cash-flow" },
-        { label: "Funds Flow Statement",    route: "/reports/accounts/funds-flow" },
-      ],
+      title: "",
+      items: ["Outstandings", "Interest Calculations", "Cost Centres", "Statistics"],
     },
     {
-      title: "OUTSTANDINGS",
-      items: [
-        { label: "Receivables (Debtors)",   route: "/reports/accounts/outstandings-receivable" },
-        { label: "Payables (Creditors)",    route: "/reports/accounts/outstandings-payable" },
-        { label: "Interest Calculations",   route: "/reports/accounts/interest-calculations" },
-      ],
-    },
-    {
-      title: "COST CENTRES",
-      items: [
-        { label: "Cost Centre Summary",     route: "/reports/accounts/cost-centre-summary" },
-        { label: "Cost Category Summary",   route: "/reports/accounts/cost-category-summary" },
-      ],
-    },
-    {
-      title: "OTHER",
-      items: [
-        { label: "Statistics",              route: "/reports/accounts/statistics" },
-      ],
+      title: "",
+      items: ["Quit"],
     },
   ];
+
+  const getRoute = (_section: string, item: string) => {
+    const routes: Record<string, string> = {
+      "Outstandings": "/reports/statements-of-accounts/outstandings",
+      "Interest Calculations": "/reports/statements-of-accounts/interest-calculations",
+      "Cost Centres": "/reports/statements-of-accounts/cost-centres",
+      "Statistics": "/reports/statements-of-accounts/statistics",
+    };
+    return routes[item] ?? null;
+  };
 
   return (
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
@@ -52,36 +38,39 @@ export default function StatementsOfAccounts() {
       </CardHeader>
 
       <CardContent className="flex flex-col gap-4">
-        {sections.map((section, si) => (
-          <div key={si} className="flex flex-col gap-1.5">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-1">
-              {section.title}
-            </div>
+        {sections.map((section, idx) => (
+          <div key={idx} className="flex flex-col gap-1.5">
+            {section.title && (
+              <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-1">
+                {section.title}
+              </div>
+            )}
             <div className="flex flex-col pl-3 gap-0.5">
-              {section.items.map((item) => (
-                <Button
-                  key={item.label}
-                  asChild
-                  variant="ghost"
-                  size="xs"
-                  className="justify-start text-[11px] font-normal px-2 h-7 text-zinc-700"
-                >
-                  <Link to={item.route}>{item.label}</Link>
-                </Button>
-              ))}
+              {section.items.map((item) => {
+                if (item === "Quit") {
+                  return (
+                    <Button key={item} onClick={() => navigate(-1)} variant="ghost" size="xs"
+                      className="justify-start text-[11px] font-semibold px-2 h-7 mt-2 text-zinc-900">
+                      {item}
+                    </Button>
+                  );
+                }
+                const route = getRoute(section.title, item);
+                return route ? (
+                  <Button key={item} asChild variant="ghost" size="xs"
+                    className="justify-start text-[11px] font-normal px-2 h-7 text-zinc-700">
+                    <Link to={route}>{item}</Link>
+                  </Button>
+                ) : (
+                  <Button key={item} variant="ghost" size="xs"
+                    className="justify-start text-[11px] font-normal px-2 h-7 text-zinc-700">
+                    {item}
+                  </Button>
+                );
+              })}
             </div>
           </div>
         ))}
-
-        <Separator className="my-1" />
-        <Button
-          onClick={() => navigate(-1)}
-          variant="ghost"
-          size="xs"
-          className="justify-start text-[11px] font-semibold px-2 h-7 text-zinc-900"
-        >
-          Quit
-        </Button>
       </CardContent>
     </Card>
   );

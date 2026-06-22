@@ -1,35 +1,39 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
 import { Button } from "@/components/shadcn/button";
-import { Separator } from "@/components/shadcn/separator";
 
 export default function StatementsOfInventory() {
   const navigate = useNavigate();
 
   const sections = [
     {
-      title: "OUTSTANDINGS",
+      title: "STOCK",
       items: [
-        { label: "Sales Order Outstanding",    route: "/reports/inventory/sales-order-outstanding" },
-        { label: "Purchase Order Outstanding", route: "/reports/inventory/purchase-order-outstanding" },
-        { label: "Work Order Outstanding",     route: "/reports/inventory/work-order-outstanding" },
+        "Stock Query",
+        "Movement Analysis",
+        "Ageing Analysis",
+        "Job Work Analysis",
+        "Cost Estimation",
+        "Item Cost Analysis",
       ],
     },
     {
-      title: "ANALYSIS",
-      items: [
-        { label: "Stock Query",                route: "/reports/inventory/stock-query" },
-        { label: "Reorder Status",             route: "/reports/inventory/reorder-status" },
-        { label: "Movement Analysis",          route: "/reports/inventory/movement-analysis" },
-      ],
-    },
-    {
-      title: "JOB WORK",
-      items: [
-        { label: "Job Work Reports",           route: "/reports/inventory/job-work" },
-      ],
+      title: "",
+      items: ["Quit"],
     },
   ];
+
+  const getRoute = (_section: string, item: string) => {
+    const routes: Record<string, string> = {
+      "Stock Query": "/reports/statements-of-inventory/stock-query",
+      "Movement Analysis": "/reports/statements-of-inventory/movement-analysis",
+      "Ageing Analysis": "/reports/statements-of-inventory/ageing-analysis",
+      "Job Work Analysis": "/reports/statements-of-inventory/job-work-analysis",
+      "Cost Estimation": "/reports/statements-of-inventory/cost-estimation",
+      "Item Cost Analysis": "/reports/statements-of-inventory/item-cost-analysis",
+    };
+    return routes[item] ?? null;
+  };
 
   return (
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
@@ -43,36 +47,39 @@ export default function StatementsOfInventory() {
       </CardHeader>
 
       <CardContent className="flex flex-col gap-4">
-        {sections.map((section, si) => (
-          <div key={si} className="flex flex-col gap-1.5">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-1">
-              {section.title}
-            </div>
+        {sections.map((section, idx) => (
+          <div key={idx} className="flex flex-col gap-1.5">
+            {section.title && (
+              <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-1">
+                {section.title}
+              </div>
+            )}
             <div className="flex flex-col pl-3 gap-0.5">
-              {section.items.map((item) => (
-                <Button
-                  key={item.label}
-                  asChild
-                  variant="ghost"
-                  size="xs"
-                  className="justify-start text-[11px] font-normal px-2 h-7 text-zinc-700"
-                >
-                  <Link to={item.route}>{item.label}</Link>
-                </Button>
-              ))}
+              {section.items.map((item) => {
+                if (item === "Quit") {
+                  return (
+                    <Button key={item} onClick={() => navigate(-1)} variant="ghost" size="xs"
+                      className="justify-start text-[11px] font-semibold px-2 h-7 mt-2 text-zinc-900">
+                      {item}
+                    </Button>
+                  );
+                }
+                const route = getRoute(section.title, item);
+                return route ? (
+                  <Button key={item} asChild variant="ghost" size="xs"
+                    className="justify-start text-[11px] font-normal px-2 h-7 text-zinc-700">
+                    <Link to={route}>{item}</Link>
+                  </Button>
+                ) : (
+                  <Button key={item} variant="ghost" size="xs"
+                    className="justify-start text-[11px] font-normal px-2 h-7 text-zinc-700">
+                    {item}
+                  </Button>
+                );
+              })}
             </div>
           </div>
         ))}
-
-        <Separator className="my-1" />
-        <Button
-          onClick={() => navigate(-1)}
-          variant="ghost"
-          size="xs"
-          className="justify-start text-[11px] font-semibold px-2 h-7 text-zinc-900"
-        >
-          Quit
-        </Button>
       </CardContent>
     </Card>
   );

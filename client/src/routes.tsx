@@ -44,7 +44,6 @@ import InventoryBooks from "./pages/menu/reports/InventoryBooks.tsx";
 import StatementsOfInventory from "./pages/menu/reports/StatementsOfInventory.tsx";
 import ExceptionReports from "./pages/menu/reports/ExceptionReports.tsx";
 import PayrollReports from "./pages/menu/reports/PayrollReports.tsx";
-// Account report pages
 import CashBookReport from "./pages/reports/accounts/CashBookReport.tsx";
 import BankBookReport from "./pages/reports/accounts/BankBookReport.tsx";
 import LedgerReport from "./pages/reports/accounts/LedgerReport.tsx";
@@ -66,7 +65,6 @@ import InterestCalculations from "./pages/reports/accounts/InterestCalculations.
 import CostCentreSummary from "./pages/reports/accounts/CostCentreSummary.tsx";
 import CostCategorySummary from "./pages/reports/accounts/CostCategorySummary.tsx";
 import Statistics from "./pages/reports/accounts/Statistics.tsx";
-// Inventory report pages
 import StockSummary from "./pages/reports/inventory/StockSummary.tsx";
 import StockItemReport from "./pages/reports/inventory/StockItemReport.tsx";
 import StockGroupReport from "./pages/reports/inventory/StockGroupReport.tsx";
@@ -82,16 +80,12 @@ import PurchaseOrderOutstanding from "./pages/reports/inventory/PurchaseOrderOut
 import WorkOrderOutstanding from "./pages/reports/inventory/WorkOrderOutstanding.tsx";
 import StockQuery from "./pages/reports/inventory/StockQuery.tsx";
 import ReorderStatus from "./pages/reports/inventory/ReorderStatus.tsx";
-import JobWorkReports from "./pages/reports/inventory/JobWorkReports.tsx";
-// Exception report pages
 import OverdueReceivables from "./pages/reports/exception/OverdueReceivables.tsx";
 import OverduePayables from "./pages/reports/exception/OverduePayables.tsx";
 import PendingDocuments from "./pages/reports/exception/PendingDocuments.tsx";
 import NegativeStock from "./pages/reports/exception/NegativeStock.tsx";
 import NegativeLedger from "./pages/reports/exception/NegativeLedger.tsx";
-import AnalysisVerification from "./pages/reports/exception/AnalysisVerification.tsx";
 import EditLogSummary from "./pages/reports/exception/EditLogSummary.tsx";
-// Payroll report pages
 import PayslipReport from "./pages/reports/payroll/PayslipReport.tsx";
 import SalaryStatement from "./pages/reports/payroll/SalaryStatement.tsx";
 import SalaryRegister from "./pages/reports/payroll/SalaryRegister.tsx";
@@ -184,6 +178,8 @@ import GSTR2BReconciliation from "./pages/master/statutory/gst-return/GSTR2BReco
 import ChallanReconciliation from "./pages/master/statutory/gst-return/ChallanReconciliation.tsx";
 import { ReportRunner } from "./pages/reports/ReportRunner.tsx";
 import CategoryMenuPage from "./pages/reports/CategoryMenuPage.tsx";
+import  JobWorkReports  from "./pages/menu/reports/JobWorkReports.tsx";
+import AnalysisVerification from "./pages/menu/reports/AnalysisVerification.tsx";
 
 export interface RouteConfig {
   path: string;
@@ -207,7 +203,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/inventory-books",         element: <InventoryBooks /> },
   { path: "/reports/statements-of-inventory", element: <StatementsOfInventory /> },
   { path: "/reports/exception",               element: <ExceptionReports /> },
-  { path: "/reports/payroll",                 element: <PayrollReports /> },
+  { path: "/reports/payroll-hr",                 element: <PayrollReports /> },
   // Account reports
   { path: "/reports/accounts/cash-book",              element: <CashBookReport /> },
   { path: "/reports/accounts/bank-book",              element: <BankBookReport /> },
@@ -246,14 +242,13 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/inventory/work-order-outstanding",   element: <WorkOrderOutstanding /> },
   { path: "/reports/inventory/stock-query",              element: <StockQuery /> },
   { path: "/reports/inventory/reorder-status",           element: <ReorderStatus /> },
-  { path: "/reports/inventory/job-work",                 element: <JobWorkReports /> },
-  // Exception reports
+  { path: "/reports/job-work",                           element: <JobWorkReports /> },
   { path: "/reports/exception/overdue-receivables",      element: <OverdueReceivables /> },
   { path: "/reports/exception/overdue-payables",         element: <OverduePayables /> },
   { path: "/reports/exception/pending-documents",        element: <PendingDocuments /> },
   { path: "/reports/exception/negative-stock",           element: <NegativeStock /> },
   { path: "/reports/exception/negative-ledger",          element: <NegativeLedger /> },
-  { path: "/reports/exception/analysis-verification",    element: <AnalysisVerification /> },
+  { path: "/reports/analysis-verification",    element: <AnalysisVerification /> },
   { path: "/reports/exception/edit-log",                 element: <EditLogSummary /> },
   // Payroll reports
   { path: "/reports/payroll/payslip",           element: <PayslipReport /> },

@@ -1,43 +1,53 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
 import { Button } from "@/components/shadcn/button";
-import { Separator } from "@/components/shadcn/separator";
 
 export default function AccountBooks() {
   const navigate = useNavigate();
 
   const sections = [
     {
-      title: "CASH & BANK",
-      items: [
-        { label: "Cash Book",           route: "/reports/accounts/cash-book" },
-        { label: "Bank Book",           route: "/reports/accounts/bank-book" },
-      ],
-    },
-    {
-      title: "LEDGER",
-      items: [
-        { label: "Ledger",              route: "/reports/accounts/ledger" },
-        { label: "Group Summary",       route: "/reports/accounts/group-summary" },
-      ],
+      title: "SUMMARY",
+      items: ["Cash/Bank Book(s)", "Ledger", "Group Summary", "Group Vouchers"],
     },
     {
       title: "REGISTERS",
       items: [
-        { label: "Sales Register",      route: "/reports/accounts/sales-register" },
-        { label: "Purchase Register",   route: "/reports/accounts/purchase-register" },
-        { label: "Journal Register",    route: "/reports/accounts/journal-register" },
-        { label: "Debit Note Register", route: "/reports/accounts/debit-note-register" },
-        { label: "Credit Note Register",route: "/reports/accounts/credit-note-register" },
+        "Contra Register",
+        "Payment Register",
+        "Receipt Register",
+        "Sales Register",
+        "Purchase Register",
+        "Journal Register",
+        "Debit Note Register",
+        "Credit Note Register",
+        "Voucher Clarification",
       ],
     },
     {
-      title: "TRANSACTIONS",
-      items: [
-        { label: "Day Book",            route: "/transactions/daybook" },
-      ],
+      title: "",
+      items: ["Quit"],
     },
   ];
+
+  const getRoute = (_section: string, item: string) => {
+    const routes: Record<string, string> = {
+      "Cash/Bank Book(s)": "/reports/account-books/cash-bank",
+      "Ledger": "/reports/account-books/ledger",
+      "Group Summary": "/reports/account-books/group-summary",
+      "Group Vouchers": "/reports/account-books/group-vouchers",
+      "Contra Register": "/reports/account-books/contra-register",
+      "Payment Register": "/reports/account-books/payment-register",
+      "Receipt Register": "/reports/account-books/receipt-register",
+      "Sales Register": "/reports/account-books/sales-register",
+      "Purchase Register": "/reports/account-books/purchase-register",
+      "Journal Register": "/reports/account-books/journal-register",
+      "Debit Note Register": "/reports/account-books/debit-note-register",
+      "Credit Note Register": "/reports/account-books/credit-note-register",
+      "Voucher Clarification": "/reports/account-books/voucher-clarification",
+    };
+    return routes[item] ?? null;
+  };
 
   return (
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
@@ -51,36 +61,39 @@ export default function AccountBooks() {
       </CardHeader>
 
       <CardContent className="flex flex-col gap-4">
-        {sections.map((section, si) => (
-          <div key={si} className="flex flex-col gap-1.5">
-            <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-1">
-              {section.title}
-            </div>
+        {sections.map((section) => (
+          <div key={section.title || "misc"} className="flex flex-col gap-1.5">
+            {section.title && (
+              <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 px-1">
+                {section.title}
+              </div>
+            )}
             <div className="flex flex-col pl-3 gap-0.5">
-              {section.items.map((item) => (
-                <Button
-                  key={item.label}
-                  asChild
-                  variant="ghost"
-                  size="xs"
-                  className="justify-start text-[11px] font-normal px-2 h-7 text-zinc-700"
-                >
-                  <Link to={item.route}>{item.label}</Link>
-                </Button>
-              ))}
+              {section.items.map((item) => {
+                if (item === "Quit") {
+                  return (
+                    <Button key={item} onClick={() => navigate(-1)} variant="ghost" size="xs"
+                      className="justify-start text-[11px] font-semibold px-2 h-7 mt-2 text-zinc-900">
+                      {item}
+                    </Button>
+                  );
+                }
+                const route = getRoute(section.title, item);
+                return route ? (
+                  <Button key={item} asChild variant="ghost" size="xs"
+                    className="justify-start text-[11px] font-normal px-2 h-7 text-zinc-700">
+                    <Link to={route}>{item}</Link>
+                  </Button>
+                ) : (
+                  <Button key={item} variant="ghost" size="xs"
+                    className="justify-start text-[11px] font-normal px-2 h-7 text-zinc-700">
+                    {item}
+                  </Button>
+                );
+              })}
             </div>
           </div>
         ))}
-
-        <Separator className="my-1" />
-        <Button
-          onClick={() => navigate(-1)}
-          variant="ghost"
-          size="xs"
-          className="justify-start text-[11px] font-semibold px-2 h-7 text-zinc-900"
-        >
-          Quit
-        </Button>
       </CardContent>
     </Card>
   );
