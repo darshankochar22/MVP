@@ -3,6 +3,7 @@ const { sql } = require('drizzle-orm');
 const { voucherEntries, vouchers, ledgers, groups } = require('../db/schema');
 const voucherService = require('../voucher/voucherService');
 const balanceSheetService = require('./services/balanceSheetService');
+const trailbalanceService = require('./services/trailbalanceService');
 
 const getEntries = async (company_id, fy_id) => {
   const rows = await db.all(
@@ -26,32 +27,28 @@ const calcLedgerBalance = (ledger_id, entries, opening_balance = 0) => {
 };
 
 module.exports = {
-  trialBalance: async (company_id, fy_id) => {
-    try {
-      const entries = await getEntries(company_id, fy_id);
-      const ledgerRows = await db.all(
-        sql`SELECT * FROM ${ledgers}
-            WHERE ${ledgers.companyId} = ${company_id} AND ${ledgers.isActive} = 1`
-      );
-
-      const rows = ledgerRows.map(l => {
-        const balance = calcLedgerBalance(l.ledger_id, entries, l.opening_balance || 0);
-        return {
-          ledger_id: l.ledger_id,
-          ledger_name: l.name,
-          group_id: l.group_id,
-          debit:  balance > 0 ? balance : 0,
-          credit: balance < 0 ? Math.abs(balance) : 0,
-        };
-      }).filter(r => r.debit !== 0 || r.credit !== 0);
-
-      const totalDebit  = rows.reduce((s, r) => s + r.debit, 0);
-      const totalCredit = rows.reduce((s, r) => s + r.credit, 0);
-
-      return { success: true, rows, totalDebit, totalCredit };
-    } catch (err) {
-      return { success: false, error: err.message };
+  trialBalance: async (arg1, arg2) => {
+    const company_id = arg2 && typeof arg2 === 'object' ? arg2.company_id : arg1;
+    const fy_id = arg2 && typeof arg2 === 'object' ? arg2.fy_id : arg2;
+    const result = await trailbalanceService.trialBalance(company_id, fy_id);
+    if (result.success && result.groups) {
+      return { ...result, rows: result.groups };
     }
+    return result;
+  },
+
+  groupSummaryDrilldown: async (arg1, arg2, arg3, arg4) => {
+    const company_id = arg2 && typeof arg2 === 'object' ? arg2.company_id : arg1;
+    const fy_id = arg2 && typeof arg2 === 'object' ? arg2.fy_id : arg2;
+    const group_id = arg2 && typeof arg2 === 'object' ? arg2.group_id : arg3;
+    return await trailbalanceService.groupSummary(company_id, fy_id, group_id);
+  },
+
+  ledgerMonthlySummary: async (arg1, arg2, arg3, arg4) => {
+    const company_id = arg2 && typeof arg2 === 'object' ? arg2.company_id : arg1;
+    const fy_id = arg2 && typeof arg2 === 'object' ? arg2.fy_id : arg2;
+    const ledger_id = arg2 && typeof arg2 === 'object' ? arg2.ledger_id : arg3;
+    return await trailbalanceService.ledgerMonthlySummary(company_id, fy_id, ledger_id);
   },
 
   balanceSheet: async (company_id, fy_id) => {
@@ -297,7 +294,7 @@ module.exports = {
     }
   },
 
-  /** Group Summary — closing balance per account group derived from ledger + voucher entries. */
+  /** Group Summary - closing balance per account group derived from ledger + voucher entries. */
   groupSummary: async (company_id, fy_id) => {
     try {
       const entries = await getEntries(company_id, fy_id);
@@ -326,7 +323,7 @@ module.exports = {
     }
   },
 
-  /** Statistics — voucher counts by type for a financial year. */
+  /** Statistics - voucher counts by type for a financial year. */
   statistics: async (company_id, fy_id) => {
     try {
       const rows = await db.all(
@@ -342,7 +339,7 @@ module.exports = {
     }
   },
 
-  /** Stock Item Summary — inward/outward quantities and closing balance. */
+  /** Stock Item Summary - inward/outward quantities and closing balance. */
   stockItemSummary: async (company_id, fy_id) => {
     try {
       const { stockItems, stockGroups, voucherStockEntries } = require('../db/schema');
@@ -379,7 +376,7 @@ module.exports = {
     }
   },
 
-  /** Stock Group Summary — closing inventory value grouped by stock group. */
+  /** Stock Group Summary - closing inventory value grouped by stock group. */
   stockGroupSummary: async (company_id, fy_id) => {
     try {
       const { stockItems, stockGroups, voucherStockEntries } = require('../db/schema');
@@ -410,7 +407,7 @@ module.exports = {
     }
   },
 
-  /** Stock Category Summary — closing inventory value by stock category. */
+  /** Stock Category Summary - closing inventory value by stock category. */
   stockCategorySummary: async (company_id, fy_id) => {
     try {
       const { stockItems, stockCategories, voucherStockEntries } = require('../db/schema');
@@ -450,7 +447,7 @@ module.exports = {
     }
   },
 
-  /** Cost Category Summary — debit/credit totals by cost centre grouped by category. */
+  /** Cost Category Summary - debit/credit totals by cost centre grouped by category. */
   costCategorySummary: async (company_id, fy_id) => {
     try {
       const { costCentres, voucherCostCentres } = require('../db/schema');
@@ -535,7 +532,7 @@ const getRegisterData = async (company_id, fy_id, voucher_type) => {
     'April', 'May', 'June', 'July', 'August', 'September',
     'October', 'November', 'December', 'January', 'February', 'March'
   ];
-  
+
   const months = monthNames.map((name, idx) => {
     let m = idx + 4; // April is 4 (1-indexed)
     let y = startYear;
@@ -565,7 +562,7 @@ const getRegisterData = async (company_id, fy_id, voucher_type) => {
     const monthVouchers = voucherRows.filter(v => v.date.startsWith(m.prefix));
     const active = monthVouchers.filter(v => v.is_cancelled === 0 && v.is_optional === 0 && v.is_post_dated === 0);
     const cancelled = monthVouchers.filter(v => v.is_cancelled === 1);
-    
+
     const count = active.length;
     const totalAmount = active.reduce((sum, v) => sum + (v.amount || 0), 0);
 

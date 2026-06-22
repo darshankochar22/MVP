@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld('api', {
         update:     (data)               => invoke('ledger:update', data),
         delete:     (id)                 => invoke('ledger:delete', id),
         getByGroup: (company_id, groupId) => invoke('ledger:getByGroup', { company_id, group_id: groupId }),
+        getTotalOpeningBalance: (company_id) => invoke('ledger:getTotalOpeningBalance', company_id),
     },
     costCentre: {
         create:  (data)       => invoke('costCentre:create', data),

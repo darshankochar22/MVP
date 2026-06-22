@@ -248,6 +248,9 @@ const init = async (db) => {
   try {
     await db.execute(`ALTER TABLE ledgers ADD COLUMN interest_balances TEXT DEFAULT 'All Balances'`);
   } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN opening_balance_type TEXT DEFAULT 'Dr'`);
+  } catch (err) {}
 };
 
 module.exports = { init };

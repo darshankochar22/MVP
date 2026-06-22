@@ -102,6 +102,7 @@ const getLedgerBalance = async (ledger_id, company_id, fy_id) => {
   const rows = await db.all(
     sql`SELECT
            l.opening_balance,
+           l.opening_balance_type,
            l.nature,
            COALESCE(SUM(CASE WHEN e.type = 'Dr' AND v.voucher_id IS NOT NULL THEN e.amount ELSE 0 END), 0) as total_dr,
            COALESCE(SUM(CASE WHEN e.type = 'Cr' AND v.voucher_id IS NOT NULL THEN e.amount ELSE 0 END), 0) as total_cr
@@ -116,19 +117,22 @@ const getLedgerBalance = async (ledger_id, company_id, fy_id) => {
   if (!row) return { success: false, error: 'Ledger not found' };
 
   const isDrNature = row.nature !== 'Liabilities' && row.nature !== 'Income';
-  const openingBal = Number(row.opening_balance) || 0;
+  const isDrType = row.opening_balance_type === 'Dr';
+  const openingBal = Math.abs(Number(row.opening_balance)) || 0;
   const totalDr = Number(row.total_dr) || 0;
   const totalCr = Number(row.total_cr) || 0;
 
+  const effectiveOpening = (isDrNature === isDrType) ? openingBal : -openingBal;
+
   const balance = isDrNature
-    ? openingBal + totalDr - totalCr
-    : openingBal + totalCr - totalDr;
+    ? effectiveOpening + totalDr - totalCr
+    : effectiveOpening + totalCr - totalDr;
 
   let label;
   if (balance > 0.01) label = `${balance.toFixed(2)} Dr`;
   else if (balance < -0.01) label = `${Math.abs(balance).toFixed(2)} Cr`;
   else label = '0.00';
-  return { success: true, balance: label, rawBalance: balance };
+  return { success: true, balance: label, rawBalance: balance, totalDr, totalCr };
 };
 
 const searchLedgers = async (company_id, searchTerm) => {

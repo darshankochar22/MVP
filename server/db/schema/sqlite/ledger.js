@@ -15,6 +15,7 @@ const ledgers = sqliteTable('ledgers', {
   ledgerType: text('ledger_type').default('General'),
   nature: text('nature'),
   openingBalance: real('opening_balance').default(0),
+  openingBalanceType: text('opening_balance_type').default('Dr'),
   closingBalance: real('closing_balance').default(0),
   isBillWise: integer('is_bill_wise').default(0),
   maintainInventoryValues: integer('maintain_inventory_values').default(0),

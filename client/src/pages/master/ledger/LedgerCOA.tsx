@@ -384,7 +384,7 @@ export default function LedgerCOA() {
                       </span>
                       <div className="flex items-center gap-3">
                         <span className="text-[12px] tabular-nums text-zinc-500">
-                          {Number(ledger.opening_balance) === 0 ? "—" : Number(ledger.opening_balance).toFixed(2)}
+                          {Number(ledger.opening_balance) === 0 ? "—" : `${Number(ledger.opening_balance).toFixed(2)} ${(ledger as any).opening_balance_type || "Dr"}`}
                         </span>
                         <button
                           onClick={(e) => { e.stopPropagation(); navigate(`/master/alter/ledger`, { state: { ledgerId } }); }}
@@ -505,7 +505,7 @@ export default function LedgerCOA() {
                           </div>
                           <div className="w-36 px-4 py-1.5 flex items-center justify-between border-l border-zinc-100/50">
                             <span className="text-xs font-medium tabular-nums text-zinc-700 ml-auto">
-                              {Number(ledger.opening_balance) === 0 ? "—" : Number(ledger.opening_balance).toFixed(2)}
+                              {Number(ledger.opening_balance) === 0 ? "—" : `${Number(ledger.opening_balance).toFixed(2)} ${(ledger as any).opening_balance_type || "Dr"}`}
                             </span>
                             <button
                               onClick={(e) => { e.stopPropagation(); navigate(`/master/alter/ledger`, { state: { ledgerId } }); }}

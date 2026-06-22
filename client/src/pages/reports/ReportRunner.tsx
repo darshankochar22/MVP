@@ -14,6 +14,7 @@ import { Input } from "@/components/shadcn/input";
 import { REPORT_DEFINITIONS, REPORT_CATEGORIES, type ReportConfig } from "./reportDefinitions";
 import { BalanceSheetLayout } from "@/components/reports/BalanceSheetLayout";
 import { StockSummaryLayout } from "@/components/reports/StockSummaryLayout";
+import { TrialBalanceLayout } from "@/components/reports/TrialBalanceLayout";
 
 export function ReportRunner() {
   const navigate = useNavigate();
@@ -702,8 +703,7 @@ export function ReportRunner() {
     window.print();
   }, []);
 
-  // Removing/Hiding lines — moved above the keyboard-shortcuts effect since
-  // handleRestoreLastLine is referenced inside it.
+
   const handleHideRow = (rowId: string | number) => {
     setHiddenRowIds((prev) => {
       const copy = new Set(prev);
@@ -762,15 +762,14 @@ export function ReportRunner() {
     setComparisonColumns((prev) => [...prev, newCol]);
   };
 
-  // Keyboard shortcut handlers (Tally-parity)
   React.useEffect(() => {
     const handleGlobalShortcuts = (e: KeyboardEvent) => {
-      // Escape checks
+
       if (e.key === "Escape") {
-        return; // Layout will handle going back
+        return; 
       }
 
-      // Check if inputs have focus
+
       const activeEl = document.activeElement;
       if (
         activeEl &&
@@ -782,22 +781,22 @@ export function ReportRunner() {
         return;
       }
 
-      // F2 Date/Period
+
       if (e.key === "F2") {
         e.preventDefault();
         setIsPeriodOpen(true);
       }
-      // F3 Company Selection
+
       if (e.key === "F3") {
         e.preventDefault();
         setIsCompanyOpen(true);
       }
-      // F4 Context Options
+
       if (e.key === "F4") {
         e.preventDefault();
         setIsContextOpen(true);
       }
-      // Ctrl+B Basis of Values
+
       if (e.key === "b" && e.ctrlKey) {
         e.preventDefault();
         setConfig(prev => ({
@@ -805,54 +804,54 @@ export function ReportRunner() {
           basisOfValues: prev.basisOfValues === "Accrual" ? "Cash" : "Accrual"
         }));
       }
-      // Ctrl+H Change View
+
       if (e.key === "h" && e.ctrlKey) {
         e.preventDefault();
         setIsPaletteOpen(true);
       }
-      // Ctrl+J Exception Reports
+
       if (e.key === "j" && e.ctrlKey) {
         e.preventDefault();
         navigate("/reports/exception");
       }
-      // Ctrl+L Save View
+
       if (e.key === "l" && e.ctrlKey) {
         e.preventDefault();
         setIsSaveViewOpen(true);
       }
-      // Alt+F5 Toggle Detailed
+
       if (e.key === "F5" && e.altKey) {
         e.preventDefault();
         setConfig(prev => ({ ...prev, detailedFormat: !prev.detailedFormat }));
       }
-      // Alt+C Add comparison column
+
       if (e.key === "c" && e.altKey) {
         e.preventDefault();
         setIsCompareOpen(true);
       }
-      // Alt+N Delete comparison column
+
       if (e.key === "n" && e.altKey) {
         e.preventDefault();
         if (comparisonColumns.length > 0) {
           setComparisonColumns(prev => prev.slice(0, -1));
         }
       }
-      // Alt+U Restore Line
+
       if (e.key === "u" && e.altKey) {
         e.preventDefault();
         handleRestoreLastLine();
       }
-      // Alt+E Export
+
       if (e.key === "e" && e.altKey) {
         e.preventDefault();
         handleExportCSV();
       }
-      // Alt+P Print
+
       if (e.key === "p" && e.altKey) {
         e.preventDefault();
         handlePrint();
       }
-      // Alt+A Ask AI
+
       if (e.key === "a" && e.altKey) {
         e.preventDefault();
         let prompt = `Analyze the ${definition.title} from ${fromDate} to ${toDate}. Explain any anomalies and suggest follow-up actions.`;
@@ -867,9 +866,8 @@ export function ReportRunner() {
     return () => window.removeEventListener("keydown", handleGlobalShortcuts);
   }, [comparisonColumns, navigate, handleExportCSV, handlePrint, handleRestoreLastLine, definition, fromDate, toDate, reportType]);
 
-  // List of all reports for Go To search
+
   const commandPaletteItems = React.useMemo(() => {
-    // Build a reverse lookup: slug -> category name
     const slugToCategory: Record<string, string> = {};
     for (const [cat, reports] of Object.entries(REPORT_CATEGORIES)) {
       for (const r of reports) {
@@ -899,20 +897,14 @@ export function ReportRunner() {
     return totals.join(" | ");
   }, [rows, definition, hiddenRowIds]);
 
-  // Hoisted out of the ternary below — this hook must run unconditionally,
-  // on every render, in the same position, regardless of which branch
-  // (loading / register / generic table) ends up being shown.
   const tableColumns = React.useMemo(() => {
-    // If we have no rows, use defined columns
     if (!rows.length) return definition.columns;
-    // Check if defined columns match actual data fields
     const firstRow = rows.find((r: any) => !r.isHeader && !r.isTotal) || rows[0];
     const dataFields = Object.keys(firstRow).filter(k => k !== 'id' && k !== 'isHeader' && k !== 'isTotal');
     const definedFields = definition.columns.map(c => c.field);
     const matchCount = definedFields.filter(f => dataFields.includes(f)).length;
-    // If at least half the defined columns match, use them
     if (matchCount >= Math.max(1, Math.floor(definedFields.length / 2))) return definition.columns;
-    // Auto-generate columns from data fields
+
     const CURRENCY_FIELDS = new Set(['balance','debit','credit','amount','total','value','opening_balance','closing_balance','opening_value','closing_value','inwards_value','outwards_value','taxable_value','invoice_value','gross','deductions','net','current_period','previous_period','variance','total_debit','total_credit','net_balance','total_amount','total_debt','equity','working_capital','total_allocated','actual','budget','inflow','outflow','in_value','out_value','net_value','emp_contrib','employer_contrib','gratuity','total_payout','totalAssets','totalLiabilities','totalIncome','totalExpenses','netProfit','totalSources','totalApplications','totalInflow','totalOutflow','netCashFlow','closing_qty','opening_qty','inwards_qty','outwards_qty','reorder_level','reorder_qty','shortage','fifo_value','avg_rate','closing_rate']);
     const DATE_FIELDS = new Set(['date','bill_date','due_date','from_date','to_date','as_on_date','voucher_date','reconciled_date','bank_date','last_inward_date','first_bill_date','last_bill_date','created_at','updated_at','timestamp']);
     const NUMBER_FIELDS = new Set(['count','voucher_count','employees_count','item_count','ledger_count','cost_centre_count','transaction_count','bill_count','present','absent','leave','overdue_days','days30','days60','daysOver','days_since_inward','years','invoice_count','totalClosingQty','totalClosingValue','total_debit','total_credit','net','in_qty','out_qty','closing_qty','opening_qty','inwards_qty','outwards_qty','quantity','total_qty']);
@@ -958,12 +950,14 @@ export function ReportRunner() {
           </div>
         ) : isRegister ? (
           renderRegisterTable()
-        ) :reportType === "balance-sheet" ?(
-           <BalanceSheetLayout />
-        ):reportType === "stock-summary" ?(
-          <StockSummaryLayout />
-        ):(
-          <ReportTable
+         ) :reportType === "balance-sheet" ?(
+        <BalanceSheetLayout />
+         ):reportType === "stock-summary" ?(
+        <StockSummaryLayout />
+        ):reportType === "trial-balance" ?(
+        <TrialBalanceLayout />
+         ):(
+        <ReportTable
             columns={tableColumns}
             rows={rows}
             comparisonColumns={comparisonColumns}
@@ -976,8 +970,6 @@ export function ReportRunner() {
             primaryKey="id"
             detailedFormat={config.detailedFormat}
             onRowDrillDown={(row) => {
-              // Standard Tally Drill-down logic:
-              // If we double-click/enter a row, we can drill down.
               if (row.ledger_name) {
                 navigate(`/reports/accounts/ledger`);
               }

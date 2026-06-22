@@ -95,6 +95,7 @@ ipcMain.handle('ledger:getById', ledgerController.getById);
 ipcMain.handle('ledger:update', ledgerController.update);
 ipcMain.handle('ledger:delete', ledgerController.delete);
 ipcMain.handle('ledger:getByGroup', ledgerController.getByGroup);
+ipcMain.handle('ledger:getTotalOpeningBalance', ledgerController.getTotalOpeningBalance);
 
 ipcMain.handle('costCentre:create', costCentreController.create);
 ipcMain.handle('costCentre:getAll', costCentreController.getAll);

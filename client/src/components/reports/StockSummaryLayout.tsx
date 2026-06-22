@@ -29,8 +29,6 @@ interface StockSummaryData {
   as_on_date: string | null;
 }
 
-// Matches BalanceSheetLayout's fmt() — plain Indian-grouped 2dp, sign handled
-// separately by the caller (Tally shows negatives as "(-)1,234.00").
 const fmt = (val: number) =>
   new Intl.NumberFormat("en-IN", {
     minimumFractionDigits: 2,

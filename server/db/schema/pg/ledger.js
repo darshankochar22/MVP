@@ -15,6 +15,7 @@ const ledgers = pgTable('ledgers', {
   ledgerType: text('ledger_type').default('General'),
   nature: text('nature'),
   openingBalance: numeric('opening_balance', { precision: 18, scale: 2 }).default('0'),
+  openingBalanceType: text('opening_balance_type').default('Dr'),
   closingBalance: numeric('closing_balance', { precision: 18, scale: 2 }).default('0'),
   isBillWise: boolean('is_bill_wise').default(false),
   maintainInventoryValues: boolean('maintain_inventory_values').default(false),

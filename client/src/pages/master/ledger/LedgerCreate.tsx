@@ -44,6 +44,21 @@ const selectCls =
 export default function LedgerCreate() {
   const { selectedCompany } = useCompany();
   const navigate = useNavigate();
+  const [totalOpeningBalance, setTotalOpeningBalance] = useState<{ totalDr: number; totalCr: number; netBalance: number; balanceType: string } | null>(null);
+
+  useEffect(() => {
+    if (!selectedCompany?.company_id) return;
+    window.api.ledger.getTotalOpeningBalance(selectedCompany.company_id).then((res: any) => {
+      if (res.success) {
+        setTotalOpeningBalance({
+          totalDr: res.totalDr,
+          totalCr: res.totalCr,
+          netBalance: res.netBalance,
+          balanceType: res.balanceType,
+        });
+      }
+    });
+  }, [selectedCompany?.company_id]);
 
   const {
     form,
@@ -110,12 +125,9 @@ export default function LedgerCreate() {
   const groupName = selectedGroup?.name || groupLineage.primaryGroupName || "";
   const currentConfig = getLedgerConfig(groupName);
 
-  // Whether to show the "Statutory Details" block on the LEFT panel.
-  // This matches Tally: shown for Current Assets (assessableValueCalc) and always
-  // present for the "Set/Alter other Statutory details" toggle.
   const showLeftStatutorySection =
     !form.behave_as_payment_gateway &&
-    (currentConfig.assessableValueCalc || true); // "Set/Alter other Statutory details" always shows
+    (currentConfig.assessableValueCalc || true);
 
   const isOtherStatutoryActive =
     otherStatutory.tds.is_tds_deductable === 1 ||
@@ -678,16 +690,35 @@ export default function LedgerCreate() {
               value={form.opening_balance ?? 0}
               onChange={setNumber("opening_balance")}
             />
+            <select
+              className={selectCls}
+              value={(form as any).opening_balance_type || "Dr"}
+              onChange={setField("opening_balance_type")}
+            >
+              <option value="Dr">Dr</option>
+              <option value="Cr">Cr</option>
+            </select>
           </div>
         </div>
 
         {/* ── RIGHT PANEL ────────────────────────────────────────────────────── */}
         <div className="w-[480px] border-l border-zinc-200 flex flex-col overflow-y-auto shrink-0 bg-zinc-50/25">
           <div className="p-3 flex justify-end">
-            <div className="w-44 border border-zinc-200 rounded shrink-0 bg-white shadow-sm overflow-hidden">
-              <div className="text-center text-[10px] font-bold border-b border-zinc-100 py-1 bg-zinc-50 text-zinc-500 uppercase tracking-wider">Total Opening Balance</div>
-              <div className="h-14 flex items-center justify-center text-sm font-semibold tabular-nums text-zinc-800">
-                {Number(form.opening_balance || 0).toFixed(2)}
+            <div className="w-48 border border-zinc-300 rounded-md shrink-0 bg-white shadow-sm overflow-hidden">
+              <div className="text-center text-[9px] font-bold border-b border-zinc-200 py-1 bg-zinc-100 text-zinc-600 uppercase tracking-wider">Total Opening Balance</div>
+              <div className="flex divide-x divide-zinc-100">
+                <div className="flex-1 text-center py-1.5">
+                  <div className="text-[9px] font-semibold text-zinc-500 uppercase">Dr</div>
+                  <div className="text-xs font-bold tabular-nums text-zinc-900 mt-0.5">{totalOpeningBalance ? totalOpeningBalance.totalDr.toFixed(2) : "0.00"}</div>
+                </div>
+                <div className="flex-1 text-center py-1.5">
+                  <div className="text-[9px] font-semibold text-zinc-500 uppercase">Cr</div>
+                  <div className="text-xs font-bold tabular-nums text-zinc-900 mt-0.5">{totalOpeningBalance ? totalOpeningBalance.totalCr.toFixed(2) : "0.00"}</div>
+                </div>
+              </div>
+              <div className="border-t border-zinc-200 py-1 text-center bg-zinc-50/40">
+                <div className="text-[9px] font-semibold text-zinc-500 uppercase">Net</div>
+                <div className="text-sm font-extrabold tabular-nums text-zinc-900">{totalOpeningBalance ? `${totalOpeningBalance.netBalance.toFixed(2)} ${totalOpeningBalance.balanceType}` : "—"}</div>
               </div>
             </div>
           </div>

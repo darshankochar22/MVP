@@ -86,4 +86,8 @@ module.exports = {
     getByGroup: async (event, {company_id, group_id } ) => {
         return await ledgerService.getByGroup(company_id, group_id);
     },
+
+    getTotalOpeningBalance: async (event, company_id) => {
+        return await ledgerService.getTotalOpeningBalance(company_id);
+    },
 };

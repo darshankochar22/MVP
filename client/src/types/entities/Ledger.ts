@@ -7,6 +7,7 @@ export interface LedgerType {
   ledger_type?: string;
   nature?: string;
   opening_balance?: number;
+  opening_balance_type?: string;
   closing_balance?: number;
   is_bill_wise?: number;
   maintain_inventory_values?: number;

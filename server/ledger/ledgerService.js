@@ -114,6 +114,7 @@ module.exports = {
           ledgerType: data.ledger_type || "General",
           nature: data.nature || null,
           openingBalance: data.opening_balance || 0,
+          openingBalanceType: data.opening_balance_type || 'Dr',
           closingBalance: data.closing_balance || 0,
           isBillWise: data.is_bill_wise ? 1 : 0,
           maintainInventoryValues: data.maintain_inventory_values ? 1 : 0,
@@ -372,6 +373,7 @@ module.exports = {
           ledgerType: data.ledger_type ?? ledger.ledger_type,
           nature: data.nature ?? ledger.nature,
           openingBalance: data.opening_balance ?? ledger.opening_balance,
+          openingBalanceType: data.opening_balance_type ?? ledger.opening_balance_type ?? 'Dr',
           closingBalance: data.closing_balance ?? ledger.closing_balance,
           isBillWise: data.is_bill_wise ? 1 : 0,
           maintainInventoryValues: data.maintain_inventory_values ? 1 : 0,
@@ -630,6 +632,32 @@ module.exports = {
         success: false,
         error: err.message,
       };
+    }
+  },
+
+  getTotalOpeningBalance: async (company_id) => {
+    try {
+      const rows = await db.all(
+        sql`SELECT
+              COALESCE(SUM(CASE WHEN opening_balance_type = 'Dr' THEN ABS(opening_balance) ELSE 0 END), 0) as total_dr,
+              COALESCE(SUM(CASE WHEN opening_balance_type = 'Cr' THEN ABS(opening_balance) ELSE 0 END), 0) as total_cr
+            FROM ${ledgers}
+            WHERE ${ledgers.companyId} = ${company_id} AND ${ledgers.isActive} = 1`
+      );
+      const row = rows[0];
+      const totalDr = Number(row.total_dr) || 0;
+      const totalCr = Number(row.total_cr) || 0;
+      const net = totalDr - totalCr;
+
+      return {
+        success: true,
+        totalDr,
+        totalCr,
+        netBalance: Math.abs(net),
+        balanceType: net >= 0 ? 'Dr' : 'Cr',
+      };
+    } catch (err) {
+      return { success: false, error: err.message };
     }
   },
 };
