@@ -1,4 +1,4 @@
-const reportService = require('../reportService');
+const reportService = require('..');
 const { calculateClosingStock } = require('../stockValuationEngine');
 
 module.exports = {

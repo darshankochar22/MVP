@@ -1,4 +1,23 @@
-const reportService = require('../report/reportService');
+const trialBalance = require('./services/trailbalanceService');
+const groupSummaryDrilldown = require('./services/trailbalanceService');
+const ledgerMonthlySummary = require('./services/trailbalanceService');
+const balanceSheet = require('./services/balanceSheetService');
+const profitLoss = require('./financial/profitAndLoss');
+const ledgerReport = require('./ledger/ledgerReport');
+const cashBook = require('./ledger/cashBook');
+const bankBook = require('./ledger/bankBook');
+const daybook = require('./daybook/daybook');
+const groupSummary = require('./financial/groupSummary');
+const statistics = require('./financial/statistics');
+const costCategorySummary = require('./financial/costCategorySummary');
+const stockItemSummary = require('./inventory/stockItemSummary');
+const stockGroupSummary = require('./inventory/stockGroupSummary');
+const stockCategorySummary = require('./inventory/stockCategorySummary');
+const journalRegister = require('./registers/journalRegister');
+const debitNoteRegister = require('./registers/debitNoteRegister');
+const creditNoteRegister = require('./registers/creditNoteRegister');
+const purchaseRegister = require('./registers/purchaseRegister');
+const salesRegister = require('./registers/salesRegister');
 const outstandingReportService = require('./outstandingReportService');
 const advancedInventoryReportService = require('./advancedInventoryReportService');
 const advancedAccountingReportService = require('./advancedAccountingReportService');
@@ -8,29 +27,28 @@ const stockSummaryReportService = require('./stockSummaryReportService');
 const ratioAnalysisReportService = require('./ratioAnalysisReportService');
 const payrollReportService = require('./payrollReportService');
 const reportRuntime = require('./reportRuntime');
-const balanceSheetService = require('./services/balanceSheetService');
 
 module.exports = {
   trialBalance: async (event, { company_id, fy_id }) => {
-    return await reportService.trialBalance(company_id, fy_id);
+    return await trialBalance.trialBalance(company_id, fy_id);
   },
   balanceSheet: async (event, { company_id, fy_id }) => {
-  return await balanceSheetService.balanceSheet(company_id, fy_id);
+    return await balanceSheet.balanceSheet(company_id, fy_id);
   },
   profitLoss: async (event, { company_id, fy_id }) => {
-    return await reportService.profitLoss(company_id, fy_id);
+    return await profitLoss(company_id, fy_id);
   },
   ledgerReport: async (event, { company_id, fy_id, ledger_id, from_date, to_date }) => {
-    return await reportService.ledgerReport(company_id, fy_id, ledger_id, from_date, to_date);
+    return await ledgerReport(company_id, fy_id, ledger_id, from_date, to_date);
   },
   cashBook: async (event, { company_id, fy_id, from_date, to_date }) => {
-    return await reportService.cashBook(company_id, fy_id, from_date, to_date);
+    return await cashBook(company_id, fy_id, from_date, to_date);
   },
   bankBook: async (event, { company_id, fy_id, ledger_id, from_date, to_date }) => {
-    return await reportService.bankBook(company_id, fy_id, ledger_id, from_date, to_date);
+    return await bankBook(company_id, fy_id, ledger_id, from_date, to_date);
   },
   daybook: async (event, { company_id, fy_id, from_date, to_date }) => {
-    return await reportService.daybook(company_id, fy_id, from_date, to_date);
+    return await daybook(company_id, fy_id, from_date, to_date);
   },
   billsReceivable: async (event, { company_id, fy_id }) => {
     return await outstandingReportService.billsReceivable(company_id, fy_id);
@@ -70,14 +88,21 @@ module.exports = {
     return await reportRuntime.deleteSavedView(id);
   },
 
+  groupSummaryDrilldown: async (event, { company_id, fy_id, group_id }) => {
+    return await groupSummaryDrilldown.groupSummary(company_id, fy_id, group_id);
+  },
+  ledgerMonthlySummary: async (event, { company_id, fy_id, ledger_id }) => {
+    return await ledgerMonthlySummary.ledgerMonthlySummary(company_id, fy_id, ledger_id);
+  },
+
   groupSummary: async (event, { company_id, fy_id }) => {
-    return await reportService.groupSummary(company_id, fy_id);
+    return await groupSummary(company_id, fy_id);
   },
   statistics: async (event, { company_id, fy_id }) => {
-    return await reportService.statistics(company_id, fy_id);
+    return await statistics(company_id, fy_id);
   },
   costCategorySummary: async (event, { company_id, fy_id }) => {
-    return await reportService.costCategorySummary(company_id, fy_id);
+    return await costCategorySummary(company_id, fy_id);
   },
 
   godownSummary: async (event, { company_id, fy_id, as_on_date }) => {
@@ -96,13 +121,13 @@ module.exports = {
     return await advancedInventoryReportService.orderOutstanding(company_id, fy_id, type);
   },
   stockItemSummary: async (event, { company_id, fy_id }) => {
-    return await reportService.stockItemSummary(company_id, fy_id);
+    return await stockItemSummary(company_id, fy_id);
   },
   stockGroupSummary: async (event, { company_id, fy_id }) => {
-    return await reportService.stockGroupSummary(company_id, fy_id);
+    return await stockGroupSummary(company_id, fy_id);
   },
   stockCategorySummary: async (event, { company_id, fy_id }) => {
-    return await reportService.stockCategorySummary(company_id, fy_id);
+    return await stockCategorySummary(company_id, fy_id);
   },
 
   // ── Advanced Accounting Reports ───────────────────────────────────────────
@@ -142,18 +167,18 @@ module.exports = {
     return await payrollReportService.gratuity(company_id, fy_id);
   },
   journalRegister: async (event, { company_id, fy_id }) => {
-    return await reportService.journalRegister(company_id, fy_id);
+    return await journalRegister(company_id, fy_id);
   },
   debitNoteRegister: async (event, { company_id, fy_id }) => {
-    return await reportService.debitNoteRegister(company_id, fy_id);
+    return await debitNoteRegister(company_id, fy_id);
   },
   creditNoteRegister: async (event, { company_id, fy_id }) => {
-    return await reportService.creditNoteRegister(company_id, fy_id);
+    return await creditNoteRegister(company_id, fy_id);
   },
   purchaseRegister: async (event, { company_id, fy_id }) => {
-    return await reportService.purchaseRegister(company_id, fy_id);
+    return await purchaseRegister(company_id, fy_id);
   },
   salesRegister: async (event, { company_id, fy_id }) => {
-    return await reportService.salesRegister(company_id, fy_id);
+    return await salesRegister(company_id, fy_id);
   },
 };

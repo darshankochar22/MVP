@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 
 interface LedgerRow {
@@ -31,116 +32,72 @@ const fmt = (val: number) =>
     maximumFractionDigits: 2,
   }).format(Math.abs(val));
 
+// What is currently focused, kept alongside the key so Enter can act on it.
+type FocusPayload = { key: string; group?: GroupRow; ledger?: LedgerRow };
 
+// ─── group rows ───────────────────────────────────────────────────────────────
 
 interface GroupRowsProps {
   groups: GroupRow[];
   depth: number;
-  expandedIds: Set<string>;
   focusedId: string | null;
-  onFocus: (id: string) => void;
-  onToggle: (id: string) => void;
-  side: "L" | "A"; 
+  onFocus: (payload: FocusPayload) => void;
+  onOpenGroup: (group: GroupRow) => void;
+  onOpenLedger: (ledger: LedgerRow) => void;
+  side: "L" | "A";
 }
 
 function GroupRows({
   groups,
   depth,
-  expandedIds,
   focusedId,
   onFocus,
-  onToggle,
+  onOpenGroup,
+  onOpenLedger,
   side,
 }: GroupRowsProps) {
   return (
     <>
       {groups.map((group) => {
         const key = `${side}-g-${group.group_id}-d${depth}`;
-        const isExpanded = expandedIds.has(key);
         const isFocused = focusedId === key;
         const hasChildren =
           group.childGroups.length > 0 || group.ledgers.length > 0;
         const indent = depth * 16;
 
         return (
-          <React.Fragment key={key}>
-            {/* Group row */}
-            <tr
-              className={`border-b border-zinc-100 cursor-pointer transition-colors select-none ${
-                isFocused
-                  ? "bg-[#ffcc00] text-zinc-950 font-bold"
-                  : depth === 0
-                  ? "hover:bg-zinc-50 text-zinc-800 font-semibold"
-                  : "hover:bg-zinc-50 text-zinc-700"
-              }`}
-              onClick={() => onFocus(key)}
-              onDoubleClick={() => hasChildren && onToggle(key)}
+          <tr
+            key={key}
+            className={`border-b border-zinc-100 cursor-pointer transition-colors select-none ${
+              isFocused
+                ? "bg-[#ffcc00] text-zinc-950 font-bold"
+                : depth === 0
+                ? "hover:bg-zinc-50 text-zinc-800 font-semibold"
+                : "hover:bg-zinc-50 text-zinc-700"
+            }`}
+            onClick={() => onFocus({ key, group })}
+            onDoubleClick={() => onOpenGroup(group)}
+          >
+            <td
+              className="px-3 py-1.5 text-left"
+              style={{ paddingLeft: `${12 + indent}px` }}
             >
-              <td
-                className="px-3 py-1.5 text-left"
-                style={{ paddingLeft: `${12 + indent}px` }}
-              >
-                {hasChildren && (
-                  <span className="mr-1.5 text-zinc-400 text-[9px]">
-                    {isExpanded ? "▼" : "▶"}
-                  </span>
-                )}
-                {!hasChildren && (
-                  <span className="mr-1.5 text-zinc-300 text-[9px]">–</span>
-                )}
-                {group.group_name}
-                {group.isPnL && (
-                  <span className="ml-2 text-[9px] text-zinc-500 italic font-normal">
-                    (Net {(group.balance ?? 0) >= 0 ? "Profit" : "Loss"})
-                  </span>
-                )}
-              </td>
-              <td className="px-3 py-1.5 text-right whitespace-nowrap w-36 font-mono">
-                ₹{fmt(group.balance)}
-              </td>
-            </tr>
-
-            {/* Expanded: child groups first, then ledgers */}
-            {isExpanded && (
-              <>
-                {group.childGroups.length > 0 && (
-                  <GroupRows
-                    groups={group.childGroups}
-                    depth={depth + 1}
-                    expandedIds={expandedIds}
-                    focusedId={focusedId}
-                    onFocus={onFocus}
-                    onToggle={onToggle}
-                    side={side}
-                  />
-                )}
-                {group.ledgers.map((l) => {
-                  const lKey = `${side}-l-${l.ledger_id}-d${depth}`;
-                  return (
-                    <tr
-                      key={lKey}
-                      className={`border-b border-zinc-50 cursor-pointer select-none ${
-                        focusedId === lKey
-                          ? "bg-[#ffcc00] text-zinc-950 font-bold"
-                          : "bg-zinc-50 hover:bg-zinc-100 text-zinc-600 italic"
-                      }`}
-                      onClick={() => onFocus(lKey)}
-                    >
-                      <td
-                        className="px-3 py-1 text-left"
-                        style={{ paddingLeft: `${12 + (depth + 1) * 16}px` }}
-                      >
-                        {l.ledger_name}
-                      </td>
-                      <td className="px-3 py-1 text-right whitespace-nowrap w-36 font-mono">
-                        ₹{fmt(l.balance)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </>
-            )}
-          </React.Fragment>
+              {hasChildren ? (
+                <span className="mr-1.5 text-zinc-400 text-[9px]">▶</span>
+              ) : (
+                <span className="mr-1.5 text-zinc-300 text-[9px]">–</span>
+              )}
+              {group.group_name}
+              {group.isPnL && (
+                <span className="ml-2 text-[9px] text-zinc-500 italic font-normal">
+                  (Net {(group.balance ?? 0) >= 0 ? "Profit" : "Loss"})
+                </span>
+              )}
+            </td>
+            <td className="px-3 py-1.5 text-right whitespace-nowrap w-36 font-mono">
+              ₹{fmt(group.balance)}
+            </td>
+          </tr>
         );
       })}
     </>
@@ -154,10 +111,10 @@ interface PanelProps {
   groups: GroupRow[];
   total: number;
   totalLabel: string;
-  expandedIds: Set<string>;
   focusedId: string | null;
-  onFocus: (id: string) => void;
-  onToggle: (id: string) => void;
+  onFocus: (payload: FocusPayload) => void;
+  onOpenGroup: (group: GroupRow) => void;
+  onOpenLedger: (ledger: LedgerRow) => void;
   side: "L" | "A";
   periodLabel: string;
 }
@@ -167,10 +124,10 @@ function Panel({
   groups,
   total,
   totalLabel,
-  expandedIds,
   focusedId,
   onFocus,
-  onToggle,
+  onOpenGroup,
+  onOpenLedger,
   side,
   periodLabel,
 }: PanelProps) {
@@ -201,10 +158,10 @@ function Panel({
               <GroupRows
                 groups={groups}
                 depth={0}
-                expandedIds={expandedIds}
                 focusedId={focusedId}
                 onFocus={onFocus}
-                onToggle={onToggle}
+                onOpenGroup={onOpenGroup}
+                onOpenLedger={onOpenLedger}
                 side={side}
               />
             )}
@@ -221,19 +178,21 @@ function Panel({
   );
 }
 
-// ─── main ─────────────────────────────────────────────────────────────────────
+// ─── main layout ──────────────────────────────────────────────────────────────
 
 export function BalanceSheetLayout() {
   const { selectedCompany, activeFY } = useCompany();
+  const navigate = useNavigate();
 
   const [data, setData] = React.useState<BSData | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
   const [focusedId, setFocusedId] = React.useState<string | null>(null);
-  const [expandedIds, setExpandedIds] = React.useState<Set<string>>(new Set());
+  // Holds whichever group/ledger is currently focused, so the Enter key
+  // handler below knows what to drill into.
+  const focusedRef = React.useRef<FocusPayload | null>(null);
 
-  // ── fetch ──────────────────────────────────────────────────────────────────
   React.useEffect(() => {
     if (!selectedCompany?.company_id || !activeFY?.fy_id) {
       setLoading(false);
@@ -251,34 +210,43 @@ export function BalanceSheetLayout() {
       .finally(() => setLoading(false));
   }, [selectedCompany?.company_id, activeFY?.fy_id]);
 
-  // ── keyboard ───────────────────────────────────────────────────────────────
-  const toggle = React.useCallback((id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const openGroup = React.useCallback(
+    (group: GroupRow) => {
+      navigate(`/reports/accounts/group-summary/${group.group_id}`);
+    },
+    [navigate]
+  );
+
+  const openLedger = React.useCallback(
+    (ledger: LedgerRow) => {
+      navigate(`/reports/accounts/ledger-summary/${ledger.ledger_id}`);
+    },
+    [navigate]
+  );
+
+  const handleFocus = React.useCallback((payload: FocusPayload) => {
+    setFocusedId(payload.key);
+    focusedRef.current = payload;
   }, []);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!focusedId) return;
+      if (!focusedRef.current) return;
       if (e.key === "Enter") {
         e.preventDefault();
-        toggle(focusedId);
+        const { group, ledger } = focusedRef.current;
+        if (group) openGroup(group);
+        else if (ledger) openLedger(ledger);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [focusedId, toggle]);
+  }, [openGroup, openLedger]);
 
-  // ── period label ───────────────────────────────────────────────────────────
   const periodLabel = activeFY
     ? `${activeFY.start_date} to ${activeFY.end_date}`
     : "";
 
-  // ── states ─────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
@@ -301,20 +269,18 @@ export function BalanceSheetLayout() {
     );
   }
 
-  // ── render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col h-full w-full overflow-hidden bg-white font-mono">
-      {/* Two panels side by side */}
       <div className="flex flex-1 overflow-hidden">
         <Panel
           title="Liabilities"
           groups={data.liabilities}
           total={data.totalLiabilities}
           totalLabel="Total"
-          expandedIds={expandedIds}
           focusedId={focusedId}
-          onFocus={setFocusedId}
-          onToggle={toggle}
+          onFocus={handleFocus}
+          onOpenGroup={openGroup}
+          onOpenLedger={openLedger}
           side="L"
           periodLabel={periodLabel}
         />
@@ -323,10 +289,10 @@ export function BalanceSheetLayout() {
           groups={data.assets}
           total={data.totalAssets}
           totalLabel="Total"
-          expandedIds={expandedIds}
           focusedId={focusedId}
-          onFocus={setFocusedId}
-          onToggle={toggle}
+          onFocus={handleFocus}
+          onOpenGroup={openGroup}
+          onOpenLedger={openLedger}
           side="A"
           periodLabel={periodLabel}
         />

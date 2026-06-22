@@ -9,7 +9,13 @@
 // company_id / fy_id are injected from the active context, so the model doesn't have to
 // pass them (fewer args = fewer wrong calls = fewer loops).
 
-const reportService = require('../report/reportService');
+const { trialBalance } = require('../report/services/trailbalanceService');
+const { balanceSheet } = require('../report/services/balanceSheetService');
+const profitLoss = require('../report/financial/profitAndLoss');
+const daybook = require('../report/daybook/daybook');
+const cashBook = require('../report/ledger/cashBook');
+const bankBook = require('../report/ledger/bankBook');
+const ledgerReport = require('../report/ledger/ledgerReport');
 const outstandingReportService = require('../report/outstandingReportService');
 const cashFlowReportService = require('../report/cashFlowReportService');
 const fundsFlowReportService = require('../report/fundsFlowReportService');
@@ -23,13 +29,13 @@ const advancedInventoryReportService = require('../report/advancedInventoryRepor
 const advancedAccountingReportService = require('../report/advancedAccountingReportService');
 
 const QUERY_RESOURCES = {
-  trial_balance:    (c) => reportService.trialBalance(c.company_id, c.fy_id),
-  balance_sheet:    (c) => reportService.balanceSheet(c.company_id, c.fy_id),
-  profit_loss:      (c) => reportService.profitLoss(c.company_id, c.fy_id),
-  daybook:          (c, a) => reportService.daybook(c.company_id, c.fy_id, a.from_date, a.to_date),
-  cash_book:        (c, a) => reportService.cashBook(c.company_id, c.fy_id, a.from_date, a.to_date),
-  bank_book:        (c, a) => reportService.bankBook(c.company_id, c.fy_id, a.ledger_id, a.from_date, a.to_date),
-  ledger_statement: (c, a) => reportService.ledgerReport(c.company_id, c.fy_id, a.ledger_id, a.from_date, a.to_date),
+  trial_balance:    (c) => trialBalance(c.company_id, c.fy_id),
+  balance_sheet:    (c) => balanceSheet(c.company_id, c.fy_id),
+  profit_loss:      (c) => profitLoss(c.company_id, c.fy_id),
+  daybook:          (c, a) => daybook(c.company_id, c.fy_id, a.from_date, a.to_date),
+  cash_book:        (c, a) => cashBook(c.company_id, c.fy_id, a.from_date, a.to_date),
+  bank_book:        (c, a) => bankBook(c.company_id, c.fy_id, a.ledger_id, a.from_date, a.to_date),
+  ledger_statement: (c, a) => ledgerReport(c.company_id, c.fy_id, a.ledger_id, a.from_date, a.to_date),
   bills_receivable: (c) => outstandingReportService.billsReceivable(c.company_id, c.fy_id),
   bills_payable:    (c) => outstandingReportService.billsPayable(c.company_id, c.fy_id),
   cash_flow:        (c, a) => cashFlowReportService.cashFlow(c.company_id, c.fy_id, a.from_date, a.to_date),

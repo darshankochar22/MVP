@@ -1,4 +1,4 @@
-const reportService = require('../reportService');
+const reportService = require('..');
 
 module.exports = {
   run: async (company_id, fy_id, params = {}) => {
