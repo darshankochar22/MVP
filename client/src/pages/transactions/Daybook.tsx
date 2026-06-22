@@ -1,10 +1,245 @@
-import { useState, useEffect, useCallback } from "react";
+// import { useState, useEffect, useCallback } from "react";
+// import { useNavigate } from "react-router-dom";
+// import { useCompany } from "../../context/CompanyContext";
+// import { PageTitleBar, AlertBanner, RightActionPanel } from "../../components/ui";
+// import { PageFooterBar } from "./ui";
+// import { Button } from "@/components/shadcn/button";
+// import { Input } from "@/components/shadcn/input";
+// import {
+//   Table,
+//   TableHeader,
+//   TableBody,
+//   TableRow,
+//   TableHead,
+//   TableCell,
+// } from "@/components/shadcn/table";
+// import { EmptyState } from "@/components/blocks/EmptyState";
+// import { cn } from "@/lib/utils";
+
+// const todayISO = () => new Date().toISOString().split("T")[0];
+
+// interface VoucherRow {
+//   voucher_id: number;
+//   voucher_type: string;
+//   voucher_number: string;
+//   date: string;
+//   narration: string | null;
+//   party_name: string | null;
+//   is_cancelled: number;
+//   is_optional: number;
+//   debit_amount: number;
+//   credit_amount: number;
+//   inwards_qty: number;
+//   outwards_qty: number;
+// }
+
+// const formatDate = (d: string) => {
+//   if (!d) return "";
+//   const dt = new Date(d);
+//   if (isNaN(dt.getTime())) return d;
+//   return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" });
+// };
+
+// const formatAmount = (n: number) => {
+//   if (!n) return "";
+//   return Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// };
+
+// export default function Daybook() {
+//   const navigate = useNavigate();
+//   const { selectedCompany, activeFY } = useCompany();
+//   const [vouchers, setVouchers] = useState<VoucherRow[]>([]);
+//   const [loading, setLoading] = useState(false);
+//   const [error, setError] = useState<string | null>(null);
+//   const [selectedDate, setSelectedDate] = useState(todayISO());
+//   const [selectedIndex, setSelectedIndex] = useState(0);
+
+//   const companyId = selectedCompany?.company_id;
+//   const fyId = activeFY?.fy_id;
+
+//   const fetchDaybook = useCallback(async () => {
+//     if (!companyId || !fyId || !selectedDate) return;
+//     setLoading(true);
+//     setError(null);
+//     try {
+//       const res: any = await window.api.voucher.getDaybook(companyId, fyId, selectedDate, selectedDate);
+//       if (res.success) {
+//         setVouchers(res.vouchers || []);
+//         setSelectedIndex(0);
+//       } else {
+//         setError(res.error || "Failed to fetch daybook");
+//       }
+//     } catch (e: any) {
+//       setError(e.message);
+//     } finally {
+//       setLoading(false);
+//     }
+//   }, [companyId, fyId, selectedDate]);
+
+//   useEffect(() => { fetchDaybook(); }, [fetchDaybook]);
+
+//   useEffect(() => {
+//     const handleKeys = (e: KeyboardEvent) => {
+//       if (e.altKey && (e.key === "c" || e.key === "C")) {
+//         e.preventDefault();
+//         navigate("/transactions/vouchers");
+//       }
+//       if (e.altKey && (e.key === "v" || e.key === "V")) {
+//         e.preventDefault();
+//         navigate("/transactions/voucher-list");
+//       }
+//       if (e.altKey && (e.key === "b" || e.key === "B")) {
+//         e.preventDefault();
+//         navigate("/utilities/banking");
+//       }
+//       if (e.key === "ArrowDown") {
+//         e.preventDefault();
+//         setSelectedIndex(prev => Math.min(prev + 1, vouchers.length - 1));
+//       }
+//       if (e.key === "ArrowUp") {
+//         e.preventDefault();
+//         setSelectedIndex(prev => Math.max(prev - 1, 0));
+//       }
+//       if (e.key === "Enter" && vouchers.length > 0) {
+//         e.preventDefault();
+//         navigate(`/transactions/voucher/${vouchers[selectedIndex].voucher_id}`);
+//       }
+//       if (e.key === "Escape") {
+//         e.preventDefault();
+//         navigate("/");
+//       }
+//     };
+//     window.addEventListener("keydown", handleKeys);
+//     return () => window.removeEventListener("keydown", handleKeys);
+//   }, [navigate, selectedIndex, vouchers]);
+
+//   const daybookActions = [
+//     { key: "Alt+C", label: "New Voucher", onClick: () => navigate("/transactions/vouchers") },
+//     { key: "Alt+V", label: "Voucher Reg", onClick: () => navigate("/transactions/voucher-list") },
+//     { key: "Alt+B", label: "Banking", onClick: () => navigate("/utilities/banking") },
+//     { key: "Esc", label: "Quit", onClick: () => navigate("/") },
+//   ];
+
+//   const handleRowClick = (idx: number) => {
+//     setSelectedIndex(idx);
+//     navigate(`/transactions/voucher/${vouchers[idx].voucher_id}`);
+//   };
+
+//   return (
+//     <div className="flex-1 flex flex-col bg-white h-full text-xs select-none">
+//       <PageTitleBar
+//         title="Day Book"
+//         subtitle={selectedCompany?.name}
+//       />
+
+//       <div className="flex-1 flex min-h-0">
+//         <div className="flex-1 flex flex-col min-w-0">
+//           {/* Date picker bar */}
+//           <div className="flex items-center gap-3 px-3 py-2 border-b border-zinc-200 bg-zinc-50 shrink-0">
+//             <span className="text-[11px] font-bold text-zinc-600 uppercase tracking-wider">Date</span>
+//             <Input
+//               type="date"
+//               value={selectedDate}
+//               onChange={e => setSelectedDate(e.target.value)}
+//               className="text-xs w-auto h-7 px-2 py-1 rounded border-zinc-300 bg-white focus-visible:ring-0 focus-visible:border-zinc-900"
+//             />
+//             <Button
+//               variant="link"
+//               size="xs"
+//               onClick={() => setSelectedDate(todayISO())}
+//               className="h-auto p-0 text-[10px] text-zinc-500 hover:text-zinc-900 underline"
+//             >
+//               Today
+//             </Button>
+//             <span className="text-[10px] text-zinc-400 ml-auto">
+//               {vouchers.length} transaction{vouchers.length !== 1 ? "s" : ""} on {formatDate(selectedDate)}
+//             </span>
+//           </div>
+
+//           {error && (
+//             <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />
+//           )}
+
+//           {/* Tally-style table */}
+//           <div className="flex-1 overflow-y-auto min-h-0">
+//             {loading && (
+//               <EmptyState message="Loading…" className="py-8 italic text-xs" />
+//             )}
+
+//             {!loading && vouchers.length === 0 && (
+//               <EmptyState message="No vouchers found for this date." className="py-8 italic text-xs" />
+//             )}
+
+//             {!loading && vouchers.length > 0 && (
+//               <Table className="border-collapse">
+//                 <TableHeader>
+//                   <TableRow className="border-b border-zinc-300 hover:bg-transparent">
+//                     <TableHead className="text-left text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[10%]">Date</TableHead>
+//                     <TableHead className="text-left text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[35%]">Particulars</TableHead>
+//                     <TableHead className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[15%]">Vch Type</TableHead>
+//                     <TableHead className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[10%]">Vch No.</TableHead>
+//                     <TableHead className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[15%]">Debit Amount</TableHead>
+//                     <TableHead className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[15%]">Credit Amount</TableHead>
+//                   </TableRow>
+//                   <TableRow className="border-b border-zinc-300 hover:bg-transparent">
+//                     <TableHead className="px-3 py-0.5 h-auto"></TableHead>
+//                     <TableHead className="px-3 py-0.5 h-auto"></TableHead>
+//                     <TableHead className="px-3 py-0.5 h-auto"></TableHead>
+//                     <TableHead className="px-3 py-0.5 h-auto"></TableHead>
+//                     <TableHead className="text-right text-[10px] font-bold text-zinc-500 px-3 py-0.5 h-auto">Inwards Qty</TableHead>
+//                     <TableHead className="text-right text-[10px] font-bold text-zinc-500 px-3 py-0.5 h-auto">Outwards Qty</TableHead>
+//                   </TableRow>
+//                 </TableHeader>
+//                 <TableBody>
+//                   {vouchers.map((v, idx) => {
+//                     const isSelected = idx === selectedIndex;
+//                     return (
+//                       <TableRow
+//                         key={v.voucher_id}
+//                         onClick={() => handleRowClick(idx)}
+//                         data-state={isSelected ? "selected" : undefined}
+//                         className={cn(
+//                           "border-b border-zinc-100 cursor-pointer transition-colors",
+//                           isSelected ? "bg-zinc-100 data-[state=selected]:bg-zinc-100" : "hover:bg-zinc-50",
+//                           v.is_cancelled ? "opacity-50" : ""
+//                         )}
+//                       >
+//                         <TableCell className="px-3 py-1.5 text-zinc-800 text-[12px]">{formatDate(v.date)}</TableCell>
+//                         <TableCell className="px-3 py-1.5 font-bold text-zinc-900 text-[12px]">{v.party_name || v.narration || "—"}</TableCell>
+//                         <TableCell className={cn("px-3 py-1.5 text-right text-[12px]", idx === 0 ? "font-bold text-zinc-900" : "text-zinc-700")}>{v.voucher_type}</TableCell>
+//                         <TableCell className="px-3 py-1.5 text-right text-zinc-700 text-[12px]">
+//                           {v.is_optional ? `(Optional) ${v.voucher_number || ""}` : v.voucher_number || "—"}
+//                         </TableCell>
+//                         <TableCell className={cn("px-3 py-1.5 text-right text-[12px]", v.debit_amount ? "font-bold text-zinc-900" : "text-zinc-400")}>
+//                           {v.debit_amount ? formatAmount(v.debit_amount) : ""}
+//                         </TableCell>
+//                         <TableCell className="px-3 py-1.5 text-right text-[12px] text-zinc-700">
+//                           {v.credit_amount ? formatAmount(v.credit_amount) : ""}
+//                         </TableCell>
+//                       </TableRow>
+//                     );
+//                   })}
+//                 </TableBody>
+//               </Table>
+//             )}
+//           </div>
+//         </div>
+
+//         <RightActionPanel actions={daybookActions} />
+//       </div>
+
+//       <PageFooterBar
+//         countLabel={`${vouchers.length} voucher${vouchers.length !== 1 ? "s" : ""} on ${formatDate(selectedDate)}`}
+//         onBack={() => navigate("/")}
+//       />
+//     </div>
+//   );
+// }
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../context/CompanyContext";
 import { PageTitleBar, AlertBanner, RightActionPanel } from "../../components/ui";
 import { PageFooterBar } from "./ui";
-import { Button } from "@/components/shadcn/button";
-import { Input } from "@/components/shadcn/input";
 import {
   Table,
   TableHeader,
@@ -18,6 +253,35 @@ import { cn } from "@/lib/utils";
 
 const todayISO = () => new Date().toISOString().split("T")[0];
 
+const ALL_VOUCHER_TYPES = [
+  "All Items",
+  "All Contra Vouchers",
+  "All Payment Vouchers",
+  "Attendance",
+  "Contra",
+  "Credit Note",
+  "Debit Note",
+  "Delivery Note",
+  "Job Work In Order",
+  "Job Work Out Order",
+  "Journal",
+  "Material In",
+  "Material Out",
+  "Manufacturing Journal",
+  "Memorandum",
+  "Payment",
+  "Payroll",
+  "Physical Stock",
+  "Purchase",
+  "Receipt",
+  "Rejection In",
+  "Rejection Out",
+  "Reversing Journal",
+  "Sales",
+  "Sales Order",
+  "Stock Journal",
+];
+
 interface VoucherRow {
   voucher_id: number;
   voucher_type: string;
@@ -25,6 +289,7 @@ interface VoucherRow {
   date: string;
   narration: string | null;
   party_name: string | null;
+  ledger_names: string | null;
   is_cancelled: number;
   is_optional: number;
   debit_amount: number;
@@ -45,26 +310,227 @@ const formatAmount = (n: number) => {
   return Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+// ── Debit/Credit display logic matching TallyPrime Day Book ──────────────────
+//
+// TallyPrime shows ONE amount per row — either in Debit or Credit column —
+// based on the PRIMARY effect of the voucher type:
+//
+//   Sales        → Debit   (party/debtor is debited)
+//   Debit Note   → Debit   (reduces creditor balance, Dr effect)
+//   Journal      → Debit   (show Dr side, the "expense/asset" side)
+//   Payment      → Debit   (expense/party ledger is Dr)
+//
+//   Purchase     → Credit  (party/creditor is credited)
+//   Credit Note  → Credit  (reduces debtor balance, Cr effect)
+//   Receipt      → Credit  (income/party ledger is Cr)
+//   Contra       → Credit  (bank/cash receiving account is Cr-side of transfer)
+//   Payroll      → Credit  (salary payable is Cr)
+//
+// For anything else we fall back to whichever side has the larger total.
+// ─────────────────────────────────────────────────────────────────────────────
+function getAmountDisplay(v: VoucherRow): { debit: number; credit: number } {
+  const dr = Number(v.debit_amount) || 0;
+  const cr = Number(v.credit_amount) || 0;
+  const amount = Math.max(dr, cr); // use the larger side as the display amount
+
+  const DEBIT_TYPES = new Set(["Sales", "Debit Note", "Journal", "Payment", "Reversing Journal"]);
+  const CREDIT_TYPES = new Set(["Purchase", "Credit Note", "Receipt", "Contra", "Payroll"]);
+
+  if (DEBIT_TYPES.has(v.voucher_type)) {
+    return { debit: amount, credit: 0 };
+  }
+  if (CREDIT_TYPES.has(v.voucher_type)) {
+    return { debit: 0, credit: amount };
+  }
+
+  // Inventory / order vouchers and anything else — show the amount on
+  // whichever side the data says is larger (or debit if equal).
+  if (cr > dr) return { debit: 0, credit: cr };
+  return { debit: dr, credit: 0 };
+}
+
+// ── Popups ────────────────────────────────────────────────────────────────────
+
+function ChangeDatePopup({ currentDate, onConfirm, onClose }: {
+  currentDate: string;
+  onConfirm: (d: string) => void;
+  onClose: () => void;
+}) {
+  const [value, setValue] = useState(currentDate);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+      <div className="bg-white border border-gray-400 shadow-xl w-64">
+        <div className="bg-blue-700 text-white text-sm font-semibold px-3 py-1">Change Date</div>
+        <div className="px-4 py-4 flex flex-col gap-3">
+          <input
+            ref={ref}
+            type="date"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Enter") onConfirm(value);
+              if (e.key === "Escape") onClose();
+            }}
+            className="w-full border border-gray-400 px-2 py-1 text-sm outline-none focus:border-black"
+          />
+          <div className="flex justify-end gap-2">
+            <button onClick={onClose} className="text-xs border border-gray-400 px-3 py-1 hover:bg-gray-100">Cancel</button>
+            <button onClick={() => onConfirm(value)} className="text-xs bg-black text-white px-3 py-1 hover:bg-gray-800">Accept</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChangePeriodPopup({ fromDate, toDate, onConfirm, onClose }: {
+  fromDate: string;
+  toDate: string;
+  onConfirm: (from: string, to: string) => void;
+  onClose: () => void;
+}) {
+  const [from, setFrom] = useState(fromDate);
+  const [to, setTo] = useState(toDate);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+      <div className="bg-white border border-gray-400 shadow-xl w-72">
+        <div className="bg-blue-700 text-white text-sm font-semibold px-3 py-1">Change Period</div>
+        <div className="px-4 py-4 flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-sm w-10 shrink-0">From</span>
+            <span className="text-sm">:</span>
+            <input
+              ref={ref}
+              type="date"
+              value={from}
+              onChange={e => setFrom(e.target.value)}
+              onKeyDown={e => { if (e.key === "Escape") onClose(); }}
+              className="flex-1 border border-gray-400 px-2 py-1 text-sm outline-none focus:border-black"
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm w-10 shrink-0">To</span>
+            <span className="text-sm">:</span>
+            <input
+              type="date"
+              value={to}
+              onChange={e => setTo(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter") onConfirm(from, to);
+                if (e.key === "Escape") onClose();
+              }}
+              className="flex-1 border border-gray-400 px-2 py-1 text-sm outline-none focus:border-black"
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={onClose} className="text-xs border border-gray-400 px-3 py-1 hover:bg-gray-100">Cancel</button>
+            <button onClick={() => onConfirm(from, to)} className="text-xs bg-black text-white px-3 py-1 hover:bg-gray-800">Accept</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChangeVoucherTypePopup({ currentType, onSelect, onClose }: {
+  currentType: string;
+  onSelect: (t: string) => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState(currentType === "All Items" ? "" : currentType);
+  const filtered = ALL_VOUCHER_TYPES.filter(t =>
+    !search || t.toLowerCase().includes(search.toLowerCase())
+  );
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+      <div className="bg-white border border-gray-400 shadow-xl w-80">
+        <div className="bg-blue-700 text-white text-sm font-semibold px-3 py-1">Change Voucher Type</div>
+        <div className="px-3 pt-2 pb-1">
+          <div className="text-xs text-gray-500 mb-1">Name of Voucher Type</div>
+          <input
+            ref={ref}
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Escape") onClose();
+              if (e.key === "Enter" && filtered.length > 0) onSelect(filtered[0]);
+            }}
+            className="w-full border border-blue-700 px-2 py-1 text-sm outline-none mb-1"
+            placeholder="Search voucher type…"
+          />
+        </div>
+        <div className="bg-blue-700 text-white text-xs font-semibold px-3 py-0.5">Voucher Types</div>
+        <div className="max-h-64 overflow-y-auto">
+          {filtered.map(t => (
+            <div
+              key={t}
+              onClick={() => onSelect(t)}
+              className={cn(
+                "px-3 py-1 text-sm cursor-pointer hover:bg-orange-200",
+                t === currentType ? "bg-orange-300 font-semibold" : ""
+              )}
+            >
+              {t}
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-gray-300 px-3 py-1 flex justify-end">
+          <button onClick={onClose} className="text-xs border border-gray-400 px-3 py-1 hover:bg-gray-100">Esc: Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Daybook component ────────────────────────────────────────────────────
+
 export default function Daybook() {
   const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
-  const [vouchers, setVouchers] = useState<VoucherRow[]>([]);
+
+  const [allVouchers, setAllVouchers] = useState<VoucherRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState(todayISO());
+
+  const [fromDate, setFromDate] = useState(todayISO());
+  const [toDate, setToDate] = useState(todayISO());
+  const isSingleDay = fromDate === toDate;
+
+  const [voucherTypeFilter, setVoucherTypeFilter] = useState("All Items");
+  const [showDatePopup, setShowDatePopup] = useState(false);
+  const [showPeriodPopup, setShowPeriodPopup] = useState(false);
+  const [showTypePopup, setShowTypePopup] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
 
+  // Filtered list based on type filter
+  const vouchers = allVouchers.filter(v => {
+    if (voucherTypeFilter === "All Items") return true;
+    if (voucherTypeFilter === "All Contra Vouchers") return v.voucher_type === "Contra";
+    if (voucherTypeFilter === "All Payment Vouchers") return v.voucher_type === "Payment";
+    return v.voucher_type === voucherTypeFilter;
+  });
+
   const fetchDaybook = useCallback(async () => {
-    if (!companyId || !fyId || !selectedDate) return;
+    if (!companyId || !fyId || !fromDate || !toDate) return;
     setLoading(true);
     setError(null);
     try {
-      const res: any = await window.api.voucher.getDaybook(companyId, fyId, selectedDate, selectedDate);
+      const res: any = await window.api.voucher.getDaybook(companyId, fyId, fromDate, toDate);
       if (res.success) {
-        setVouchers(res.vouchers || []);
+        setAllVouchers(res.vouchers || []);
         setSelectedIndex(0);
       } else {
         setError(res.error || "Failed to fetch daybook");
@@ -74,152 +540,180 @@ export default function Daybook() {
     } finally {
       setLoading(false);
     }
-  }, [companyId, fyId, selectedDate]);
+  }, [companyId, fyId, fromDate, toDate]);
 
   useEffect(() => { fetchDaybook(); }, [fetchDaybook]);
 
+  const periodLabel = isSingleDay
+    ? (fromDate === todayISO() ? `For ${formatDate(fromDate)}` : formatDate(fromDate))
+    : `${formatDate(fromDate)} to ${formatDate(toDate)}`;
+
+  const anyPopup = showDatePopup || showPeriodPopup || showTypePopup;
+
+  // ── Navigate to EDITABLE voucher form on click/Enter ─────────────────────
+  // Tries the edit route first; adjust the path to match your router setup.
+  // Common patterns: /transactions/vouchers/edit/:id  OR  /transactions/voucher/:id/edit
+  const openVoucher = useCallback((voucherId: number) => {
+    navigate(`/transactions/vouchers/edit/${voucherId}`);
+  }, [navigate]);
+
   useEffect(() => {
-    const handleKeys = (e: KeyboardEvent) => {
-      if (e.altKey && (e.key === "c" || e.key === "C")) {
-        e.preventDefault();
-        navigate("/transactions/vouchers");
-      }
-      if (e.altKey && (e.key === "v" || e.key === "V")) {
-        e.preventDefault();
-        navigate("/transactions/voucher-list");
-      }
-      if (e.altKey && (e.key === "b" || e.key === "B")) {
-        e.preventDefault();
-        navigate("/utilities/banking");
-      }
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedIndex(prev => Math.min(prev + 1, vouchers.length - 1));
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedIndex(prev => Math.max(prev - 1, 0));
-      }
-      if (e.key === "Enter" && vouchers.length > 0) {
-        e.preventDefault();
-        navigate(`/transactions/voucher/${vouchers[selectedIndex].voucher_id}`);
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        navigate("/");
-      }
+    const h = (e: KeyboardEvent) => {
+      if (anyPopup) return;
+      if (e.key === "F2" && !e.altKey)  { e.preventDefault(); setShowDatePopup(true); }
+      if (e.key === "F2" && e.altKey)   { e.preventDefault(); setShowPeriodPopup(true); }
+      if (e.key === "F4")               { e.preventDefault(); setShowTypePopup(true); }
+      if (e.altKey && (e.key === "c" || e.key === "C")) { e.preventDefault(); navigate("/transactions/vouchers"); }
+      if (e.altKey && (e.key === "v" || e.key === "V")) { e.preventDefault(); navigate("/transactions/voucher-list"); }
+      if (e.altKey && (e.key === "b" || e.key === "B")) { e.preventDefault(); navigate("/utilities/banking"); }
+      if (e.key === "ArrowDown") { e.preventDefault(); setSelectedIndex(p => Math.min(p + 1, vouchers.length - 1)); }
+      if (e.key === "ArrowUp")   { e.preventDefault(); setSelectedIndex(p => Math.max(p - 1, 0)); }
+      if (e.key === "Enter" && vouchers.length > 0) { e.preventDefault(); openVoucher(vouchers[selectedIndex].voucher_id); }
+      if (e.key === "Escape") { e.preventDefault(); navigate("/"); }
     };
-    window.addEventListener("keydown", handleKeys);
-    return () => window.removeEventListener("keydown", handleKeys);
-  }, [navigate, selectedIndex, vouchers]);
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [navigate, selectedIndex, vouchers, anyPopup, openVoucher]);
 
   const daybookActions = [
-    { key: "Alt+C", label: "New Voucher", onClick: () => navigate("/transactions/vouchers") },
-    { key: "Alt+V", label: "Voucher Reg", onClick: () => navigate("/transactions/voucher-list") },
-    { key: "Alt+B", label: "Banking", onClick: () => navigate("/utilities/banking") },
-    { key: "Esc", label: "Quit", onClick: () => navigate("/") },
+    { key: "F2",     label: "Date",              onClick: () => setShowDatePopup(true) },
+    { key: "Alt+F2", label: "Period",            onClick: () => setShowPeriodPopup(true) },
+    { key: "F3",     label: "Company",           onClick: () => {} },
+    { key: "F4",     label: "Voucher Type",      onClick: () => setShowTypePopup(true) },
+    { key: "B",      label: "Basis of Values",   onClick: () => {} },
+    { key: "H",      label: "Change View",       onClick: () => {} },
+    { key: "J",      label: "Exception Reports", onClick: () => {} },
+    { key: "L",      label: "Save View",         onClick: () => {} },
+    { key: "F",      label: "Apply Filter",      onClick: () => {} },
+    { key: "Esc",    label: "Quit",              onClick: () => navigate("/") },
   ];
 
-  const handleRowClick = (idx: number) => {
-    setSelectedIndex(idx);
-    navigate(`/transactions/voucher/${vouchers[idx].voucher_id}`);
-  };
+  const listTitle = voucherTypeFilter === "All Items"
+    ? "Day Book"
+    : `List of ${voucherTypeFilter} Vouchers`;
+
+  // ── Totals for footer ─────────────────────────────────────────────────────
+  const totalDebit  = vouchers.reduce((s, v) => s + (getAmountDisplay(v).debit  || 0), 0);
+  const totalCredit = vouchers.reduce((s, v) => s + (getAmountDisplay(v).credit || 0), 0);
 
   return (
     <div className="flex-1 flex flex-col bg-white h-full text-xs select-none">
-      <PageTitleBar
-        title="Day Book"
-        subtitle={selectedCompany?.name}
-      />
+      <PageTitleBar title={listTitle} subtitle={selectedCompany?.name} />
 
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Date picker bar */}
-          <div className="flex items-center gap-3 px-3 py-2 border-b border-zinc-200 bg-zinc-50 shrink-0">
-            <span className="text-[11px] font-bold text-zinc-600 uppercase tracking-wider">Date</span>
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={e => setSelectedDate(e.target.value)}
-              className="text-xs w-auto h-7 px-2 py-1 rounded border-zinc-300 bg-white focus-visible:ring-0 focus-visible:border-zinc-900"
-            />
-            <Button
-              variant="link"
-              size="xs"
-              onClick={() => setSelectedDate(todayISO())}
-              className="h-auto p-0 text-[10px] text-zinc-500 hover:text-zinc-900 underline"
-            >
-              Today
-            </Button>
-            <span className="text-[10px] text-zinc-400 ml-auto">
-              {vouchers.length} transaction{vouchers.length !== 1 ? "s" : ""} on {formatDate(selectedDate)}
+
+          {/* ── Period info bar (NO inline F2/F4 buttons — those are in the right panel) */}
+          <div className="flex items-center gap-2 px-3 py-1.5 border-b border-zinc-200 bg-zinc-50 shrink-0 text-[11px]">
+            <span className="font-semibold text-zinc-700">{periodLabel}</span>
+            {voucherTypeFilter !== "All Items" && (
+              <>
+                <span className="text-zinc-300">·</span>
+                <span className="text-zinc-500">{voucherTypeFilter}</span>
+              </>
+            )}
+            <span className="ml-auto text-zinc-400">
+              {vouchers.length} voucher{vouchers.length !== 1 ? "s" : ""}
             </span>
           </div>
 
-          {error && (
-            <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />
-          )}
+          {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
 
-          {/* Tally-style table */}
           <div className="flex-1 overflow-y-auto min-h-0">
-            {loading && (
-              <EmptyState message="Loading…" className="py-8 italic text-xs" />
-            )}
-
+            {loading && <EmptyState message="Loading…" className="py-8 italic text-xs" />}
             {!loading && vouchers.length === 0 && (
-              <EmptyState message="No vouchers found for this date." className="py-8 italic text-xs" />
+              <EmptyState message="No vouchers found for this period." className="py-8 italic text-xs" />
             )}
-
             {!loading && vouchers.length > 0 && (
-              <Table className="border-collapse">
+              <Table className="border-collapse w-full">
                 <TableHeader>
                   <TableRow className="border-b border-zinc-300 hover:bg-transparent">
-                    <TableHead className="text-left text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[10%]">Date</TableHead>
-                    <TableHead className="text-left text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[35%]">Particulars</TableHead>
+                    <TableHead className="text-left  text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[10%]">Date</TableHead>
+                    <TableHead className="text-left  text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[35%]">Particulars</TableHead>
                     <TableHead className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[15%]">Vch Type</TableHead>
                     <TableHead className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[10%]">Vch No.</TableHead>
                     <TableHead className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[15%]">Debit Amount</TableHead>
                     <TableHead className="text-right text-[11px] font-bold text-zinc-700 px-3 py-1.5 h-auto w-[15%]">Credit Amount</TableHead>
                   </TableRow>
                   <TableRow className="border-b border-zinc-300 hover:bg-transparent">
-                    <TableHead className="px-3 py-0.5 h-auto"></TableHead>
-                    <TableHead className="px-3 py-0.5 h-auto"></TableHead>
-                    <TableHead className="px-3 py-0.5 h-auto"></TableHead>
-                    <TableHead className="px-3 py-0.5 h-auto"></TableHead>
+                    <TableHead className="px-3 py-0.5 h-auto" />
+                    <TableHead className="px-3 py-0.5 h-auto" />
+                    <TableHead className="px-3 py-0.5 h-auto" />
+                    <TableHead className="px-3 py-0.5 h-auto" />
                     <TableHead className="text-right text-[10px] font-bold text-zinc-500 px-3 py-0.5 h-auto">Inwards Qty</TableHead>
                     <TableHead className="text-right text-[10px] font-bold text-zinc-500 px-3 py-0.5 h-auto">Outwards Qty</TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
                   {vouchers.map((v, idx) => {
                     const isSelected = idx === selectedIndex;
+                    const { debit, credit } = getAmountDisplay(v);
+
                     return (
                       <TableRow
                         key={v.voucher_id}
-                        onClick={() => handleRowClick(idx)}
+                        onClick={() => { setSelectedIndex(idx); openVoucher(v.voucher_id); }}
                         data-state={isSelected ? "selected" : undefined}
                         className={cn(
                           "border-b border-zinc-100 cursor-pointer transition-colors",
-                          isSelected ? "bg-zinc-100 data-[state=selected]:bg-zinc-100" : "hover:bg-zinc-50",
-                          v.is_cancelled ? "opacity-50" : ""
+                          isSelected ? "bg-blue-50 data-[state=selected]:bg-blue-50" : "hover:bg-zinc-50",
+                          v.is_cancelled ? "opacity-40 line-through" : ""
                         )}
                       >
-                        <TableCell className="px-3 py-1.5 text-zinc-800 text-[12px]">{formatDate(v.date)}</TableCell>
-                        <TableCell className="px-3 py-1.5 font-bold text-zinc-900 text-[12px]">{v.party_name || v.narration || "—"}</TableCell>
-                        <TableCell className={cn("px-3 py-1.5 text-right text-[12px]", idx === 0 ? "font-bold text-zinc-900" : "text-zinc-700")}>{v.voucher_type}</TableCell>
-                        <TableCell className="px-3 py-1.5 text-right text-zinc-700 text-[12px]">
-                          {v.is_optional ? `(Optional) ${v.voucher_number || ""}` : v.voucher_number || "—"}
+                        <TableCell className="px-3 py-1.5 text-zinc-600 text-[12px]">{formatDate(v.date)}</TableCell>
+
+                        <TableCell className="px-3 py-1.5 font-semibold text-zinc-900 text-[12px]">
+                          {v.party_name || v.ledger_names || v.narration || "—"}
                         </TableCell>
-                        <TableCell className={cn("px-3 py-1.5 text-right text-[12px]", v.debit_amount ? "font-bold text-zinc-900" : "text-zinc-400")}>
-                          {v.debit_amount ? formatAmount(v.debit_amount) : ""}
+
+                        <TableCell className={cn(
+                          "px-3 py-1.5 text-right text-[12px]",
+                          isSelected ? "font-bold text-zinc-900" : "text-zinc-600"
+                        )}>
+                          {v.voucher_type}
                         </TableCell>
-                        <TableCell className="px-3 py-1.5 text-right text-[12px] text-zinc-700">
-                          {v.credit_amount ? formatAmount(v.credit_amount) : ""}
+
+                        <TableCell className="px-3 py-1.5 text-right text-zinc-500 text-[12px]">
+                          {v.is_optional
+                            ? `(Optional) ${v.voucher_number || ""}`
+                            : v.voucher_number || "—"}
+                        </TableCell>
+
+                        {/* Debit column — only filled for Dr-primary voucher types */}
+                        <TableCell className={cn(
+                          "px-3 py-1.5 text-right text-[12px]",
+                          debit > 0 ? "font-bold text-zinc-900" : "text-zinc-300"
+                        )}>
+                          {debit > 0 ? formatAmount(debit) : ""}
+                        </TableCell>
+
+                        {/* Credit column — only filled for Cr-primary voucher types */}
+                        <TableCell className={cn(
+                          "px-3 py-1.5 text-right text-[12px]",
+                          credit > 0 ? "font-bold text-zinc-900" : "text-zinc-300"
+                        )}>
+                          {credit > 0 ? formatAmount(credit) : ""}
                         </TableCell>
                       </TableRow>
                     );
                   })}
                 </TableBody>
+
+                {/* ── Totals row ─────────────────────────────────────────── */}
+                <tfoot>
+                  <tr className="border-t-2 border-zinc-400 bg-zinc-50">
+                    <td className="px-3 py-1.5 text-[11px] font-bold text-zinc-700" colSpan={4}>
+                      Grand Total
+                    </td>
+                    <td className="px-3 py-1.5 text-right text-[12px] font-bold text-zinc-900">
+                      {totalDebit > 0 ? formatAmount(totalDebit) : ""}
+                    </td>
+                    <td className="px-3 py-1.5 text-right text-[12px] font-bold text-zinc-900">
+                      {totalCredit > 0 ? formatAmount(totalCredit) : ""}
+                    </td>
+                  </tr>
+                </tfoot>
               </Table>
             )}
           </div>
@@ -229,9 +723,36 @@ export default function Daybook() {
       </div>
 
       <PageFooterBar
-        countLabel={`${vouchers.length} voucher${vouchers.length !== 1 ? "s" : ""} on ${formatDate(selectedDate)}`}
+        countLabel={`${vouchers.length} voucher${vouchers.length !== 1 ? "s" : ""} · ${periodLabel}`}
         onBack={() => navigate("/")}
       />
+
+      {showDatePopup && (
+        <ChangeDatePopup
+          currentDate={fromDate}
+          onConfirm={(d) => { setFromDate(d); setToDate(d); setShowDatePopup(false); }}
+          onClose={() => setShowDatePopup(false)}
+        />
+      )}
+      {showPeriodPopup && (
+        <ChangePeriodPopup
+          fromDate={fromDate}
+          toDate={toDate}
+          onConfirm={(from, to) => {
+            const f = from <= to ? from : to;
+            const t = from <= to ? to : from;
+            setFromDate(f); setToDate(t); setShowPeriodPopup(false);
+          }}
+          onClose={() => setShowPeriodPopup(false)}
+        />
+      )}
+      {showTypePopup && (
+        <ChangeVoucherTypePopup
+          currentType={voucherTypeFilter}
+          onSelect={(t) => { setVoucherTypeFilter(t); setSelectedIndex(0); setShowTypePopup(false); }}
+          onClose={() => setShowTypePopup(false)}
+        />
+      )}
     </div>
   );
 }

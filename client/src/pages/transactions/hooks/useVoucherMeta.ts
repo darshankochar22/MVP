@@ -76,6 +76,7 @@ export function useVoucherMeta({
   const [dispatchDetails, setDispatchDetails] = useState<any | null>(null);
   const [creditNoteDetails, setCreditNoteDetails] = useState<any | null>(null);
   const [debitNoteDetails, setDebitNoteDetails] = useState<any | null>(null);
+  const [exciseDetails, setExciseDetails] = useState<any | null>(null);
 
   // ── Derived display ───────────────────────────────────────────────────────────
   const dateDisplay = useMemo(() => formatDateDisplay(date), [date]);
@@ -99,6 +100,7 @@ export function useVoucherMeta({
     setDispatchDetails(null);
     setCreditNoteDetails(null);
     setDebitNoteDetails(null);
+    setExciseDetails(null);
   }, []);
 
   return {
@@ -154,6 +156,8 @@ export function useVoucherMeta({
     setCreditNoteDetails,
     debitNoteDetails,
     setDebitNoteDetails,
+    exciseDetails,       
+    setExciseDetails, 
     // reset
     resetMeta,
   };

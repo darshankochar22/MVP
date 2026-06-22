@@ -77,25 +77,40 @@ const prefixMap = {
 
 const nullify = (v) => (v === undefined ? null : v);
 
+// const generateVoucherNumber = async (company_id, fy_id, voucher_type) => {
+//   const prefix = (prefixMap[voucher_type] || 'VCH') + '-';
+//   const rows = await db.all(
+//     sql`SELECT COALESCE(MAX(CAST(REPLACE(${vouchers.voucherNumber}, ${prefix}, '') AS INTEGER)), 0) + 1 as next_num
+//         FROM ${vouchers} WHERE ${vouchers.companyId} = ${company_id} AND ${vouchers.fyId} = ${fy_id} AND ${vouchers.voucherType} = ${voucher_type}`
+//   );
+//   const next = Number(rows[0].next_num);
+//   return `${prefixMap[voucher_type] || 'VCH'}-${String(next).padStart(5, '0')}`;
+// };
 const generateVoucherNumber = async (company_id, fy_id, voucher_type) => {
-  const prefix = (prefixMap[voucher_type] || 'VCH') + '-';
   const rows = await db.all(
-    sql`SELECT COALESCE(MAX(CAST(REPLACE(${vouchers.voucherNumber}, ${prefix}, '') AS INTEGER)), 0) + 1 as next_num
+    sql`SELECT COALESCE(MAX(CAST(${vouchers.voucherNumber} AS INTEGER)), 0) + 1 as next_num
         FROM ${vouchers} WHERE ${vouchers.companyId} = ${company_id} AND ${vouchers.fyId} = ${fy_id} AND ${vouchers.voucherType} = ${voucher_type}`
   );
-  const next = Number(rows[0].next_num);
-  return `${prefixMap[voucher_type] || 'VCH'}-${String(next).padStart(5, '0')}`;
+  return String(Number(rows[0].next_num));
 };
 
-const getNextVoucherNumber = async (company_id, fy_id, voucher_type) => {
-  const prefix = (prefixMap[voucher_type] || 'VCH') + '-';
-  const rows = await db.all(
-    sql`SELECT COALESCE(MAX(CAST(REPLACE(${vouchers.voucherNumber}, ${prefix}, '') AS INTEGER)), 0) + 1 as next_num
+// const getNextVoucherNumber = async (company_id, fy_id, voucher_type) => {
+//   const prefix = (prefixMap[voucher_type] || 'VCH') + '-';
+//   const rows = await db.all(
+//     sql`SELECT COALESCE(MAX(CAST(REPLACE(${vouchers.voucherNumber}, ${prefix}, '') AS INTEGER)), 0) + 1 as next_num
+//         FROM ${vouchers} WHERE ${vouchers.companyId} = ${company_id} AND ${vouchers.fyId} = ${fy_id} AND ${vouchers.voucherType} = ${voucher_type}`
+//   );
+//   const nextNum = Number(rows[0].next_num);
+//   const fullNumber = `${prefixMap[voucher_type] || 'VCH'}-${String(nextNum).padStart(5, '0')}`;
+//   return { success: true, nextNumber: nextNum, voucher_number: fullNumber };
+// };
+     const getNextVoucherNumber = async (company_id, fy_id, voucher_type) => {
+    const rows = await db.all(
+    sql`SELECT COALESCE(MAX(CAST(${vouchers.voucherNumber} AS INTEGER)), 0) + 1 as next_num
         FROM ${vouchers} WHERE ${vouchers.companyId} = ${company_id} AND ${vouchers.fyId} = ${fy_id} AND ${vouchers.voucherType} = ${voucher_type}`
   );
-  const nextNum = Number(rows[0].next_num);
-  const fullNumber = `${prefixMap[voucher_type] || 'VCH'}-${String(nextNum).padStart(5, '0')}`;
-  return { success: true, nextNumber: nextNum, voucher_number: fullNumber };
+     const nextNum = Number(rows[0].next_num);
+     return { success: true, nextNumber: nextNum, voucher_number: String(nextNum) };
 };
 
 const getLedgerBalance = async (ledger_id, company_id, fy_id) => {
@@ -925,25 +940,59 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
       const today = new Date().toISOString().split('T')[0];
       const from = from_date || today;
       const to = to_date || today;
+      // const rows = await db.all(
+      //   sql`SELECT v.*,
+      //         COALESCE((SELECT SUM(amount) FROM ${voucherEntries} WHERE voucher_id = v.voucher_id AND type = 'Dr'), 0) AS debit_amount,
+      //         COALESCE((SELECT SUM(amount) FROM ${voucherEntries} WHERE voucher_id = v.voucher_id AND type = 'Cr'), 0) AS credit_amount,
+      //         // (SELECT GROUP_CONCAT(DISTINCT COALESCE(e.ledger_name, l.name))
+      //         // FROM ${voucherEntries} e
+      //         // LEFT JOIN ${ledgers} l ON l.ledger_id = e.ledger_id
+      //         // WHERE e.voucher_id = v.voucher_id) AS ledger_names,
+      //         (SELECT COALESCE(e.ledger_name, l.name)
+      //         FROM ${voucherEntries} e
+      //         LEFT JOIN ${ledgers} l ON l.ledger_id = e.ledger_id
+      //         WHERE e.voucher_id = v.voucher_id
+      //         AND (e.ledger_id != v.party_ledger_id OR v.party_ledger_id IS NULL)
+      //         ORDER BY e.entry_id ASC
+      //         LIMIT 1) AS ledger_names,
+      //         CASE
+      //           WHEN v.voucher_type IN ('Purchase','Receipt Note','Rejection In','Material In')
+      //           THEN COALESCE((SELECT SUM(quantity) FROM ${voucherStockEntries} WHERE voucher_id = v.voucher_id), 0)
+      //           ELSE 0
+      //         END AS inwards_qty,
+      //         CASE
+      //           WHEN v.voucher_type IN ('Sales','Delivery Note','Rejection Out','Material Out')
+      //           THEN COALESCE((SELECT SUM(quantity) FROM ${voucherStockEntries} WHERE voucher_id = v.voucher_id), 0)
+      //           ELSE 0
+      //         END AS outwards_qty
+      //       FROM ${vouchers} v
+      //       WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+      //       AND v.date >= ${from} AND v.date <= ${to}
+      //       ORDER BY v.date ASC, v.voucher_id ASC`
+      // );
       const rows = await db.all(
-        sql`SELECT v.*,
-              COALESCE((SELECT SUM(amount) FROM ${voucherEntries} WHERE voucher_id = v.voucher_id AND type = 'Dr'), 0) AS debit_amount,
-              COALESCE((SELECT SUM(amount) FROM ${voucherEntries} WHERE voucher_id = v.voucher_id AND type = 'Cr'), 0) AS credit_amount,
-              CASE
-                WHEN v.voucher_type IN ('Purchase','Receipt Note','Rejection In','Material In')
-                THEN COALESCE((SELECT SUM(quantity) FROM ${voucherStockEntries} WHERE voucher_id = v.voucher_id), 0)
-                ELSE 0
-              END AS inwards_qty,
-              CASE
-                WHEN v.voucher_type IN ('Sales','Delivery Note','Rejection Out','Material Out')
-                THEN COALESCE((SELECT SUM(quantity) FROM ${voucherStockEntries} WHERE voucher_id = v.voucher_id), 0)
-                ELSE 0
-              END AS outwards_qty
-            FROM ${vouchers} v
-            WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
-            AND v.date >= ${from} AND v.date <= ${to}
-            ORDER BY v.date ASC, v.voucher_id ASC`
-      );
+  sql`SELECT v.*,
+        COALESCE((SELECT SUM(amount) FROM ${voucherEntries} WHERE voucher_id = v.voucher_id AND type = 'Dr'), 0) AS debit_amount,
+        COALESCE((SELECT SUM(amount) FROM ${voucherEntries} WHERE voucher_id = v.voucher_id AND type = 'Cr'), 0) AS credit_amount,
+        (SELECT COALESCE(e.ledger_name, l.name)
+         FROM ${voucherEntries} e
+         LEFT JOIN ${ledgers} l ON l.ledger_id = e.ledger_id
+         WHERE e.voucher_id = v.voucher_id
+         ORDER BY e.entry_id ASC
+         LIMIT 1) AS ledger_names,
+        CASE WHEN v.voucher_type IN ('Purchase','Receipt Note','Rejection In','Material In')
+          THEN COALESCE((SELECT SUM(quantity) FROM ${voucherStockEntries} WHERE voucher_id = v.voucher_id), 0)
+          ELSE 0
+        END AS inwards_qty,
+        CASE WHEN v.voucher_type IN ('Sales','Delivery Note','Rejection Out','Material Out')
+          THEN COALESCE((SELECT SUM(quantity) FROM ${voucherStockEntries} WHERE voucher_id = v.voucher_id), 0)
+          ELSE 0
+        END AS outwards_qty
+      FROM ${vouchers} v
+      WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+      AND v.date >= ${from} AND v.date <= ${to}
+      ORDER BY v.date ASC, v.voucher_id ASC`
+);
       return { success: true, vouchers: rows };
     } catch (err) {
       return { success: false, error: err.message };

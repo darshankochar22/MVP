@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../context/CompanyContext";
+
 import { useVoucherForm } from "./hooks/useVoucherForm";
 import { AlertBanner } from "../../components/ui";
 import { Button } from "@/components/shadcn/button";
 import { cn } from "@/lib/utils";
+import CompanyTaxRegistrationPopup from "./components/popups/CompanyTaxRegistrationPopup";
 import BillWiseAllocationPopup from "./components/popups/BillWiseAllocationPopup";
 import CostCentreAllocationPopup from "./components/popups/CostCentreAllocationPopup";
 import BankAllocationPopup from "./components/popups/BankAllocationPopup";
@@ -16,6 +18,7 @@ import DatePickerPopup from "./components/popups/DatePickerPopup";
 import CreditNoteDetailsPopup from "./components/popups/CreditNoteDetailsPopup";
 import DebitNoteDetailsPopup from "./components/popups/DebitNoteDetailsPopup";
 import OtherVouchersPopup from "./components/popups/OtherVouchersPopup";
+import ExciseDetailsPopup from "./components/popups/ExciseDetailsPopup";
 import LedgerListPanel from "./components/LedgerListPanel";
 import PaymentVoucher from "./vouchers/PaymentVoucher";
 import ReceiptVoucher from "./vouchers/ReceiptVoucher";
@@ -48,6 +51,7 @@ function RightSidebar({
   entryMode,
   onEntryModeChange,
   onDateClick,
+  onCompanyTaxRegistrationClick, 
   onCreateLedger,
   onAccept,
   onQuit,
@@ -64,6 +68,7 @@ function RightSidebar({
   entryMode: "single" | "double";
   onEntryModeChange: () => void;
   onDateClick: () => void;
+  onCompanyTaxRegistrationClick: () => void;
   onCreateLedger: () => void;
   onAccept: () => void;
   onQuit: () => void;
@@ -125,6 +130,17 @@ function RightSidebar({
           <span className="text-gray-500">F2</span>: Date
         </Button>
       </div>
+
+      <div className="border-b border-black px-2 py-1">
+        <Button
+          variant="ghost"
+          onClick={onCompanyTaxRegistrationClick}
+          className="w-full h-auto justify-start rounded-none p-0 text-xs font-normal text-black hover:bg-transparent hover:underline"
+        >
+          <span className="text-gray-500">F3</span>: Company/Tax Registration
+        </Button>
+      </div>
+
 
       {types.map(({ key, label }) => {
         const children = voucherTypeChildren[label];
@@ -272,6 +288,7 @@ export default function Vouchers() {
 
   const [voucherTypeChildren, setVoucherTypeChildren] = useState<Record<string, string[]>>({});
   const [voucherTypeParentMap, setVoucherTypeParentMap] = useState<Record<string, string>>({});
+  const [showTaxRegistrationPopup, setShowTaxRegistrationPopup] = useState(false);
 
   const resolveEffectiveVoucherType = useCallback(
     (type: string) => voucherTypeParentMap[type] || type,
@@ -286,6 +303,7 @@ export default function Vouchers() {
   const [showReceiptDetails, setShowReceiptDetails] = useState(false);
   const [showPartyDetails, setShowPartyDetails] = useState(false);
   const [showCreditNoteDetails, setShowCreditNoteDetails] = useState(false);
+  const [showExciseDetails, setShowExciseDetails] = useState(false);
   const [showDebitNoteDetails, setShowDebitNoteDetails] = useState(false);
   const [showOtherVouchers, setShowOtherVouchers] = useState(false);
   const [subDropdownType, setSubDropdownType] = useState<string | null>(null);
@@ -1019,16 +1037,26 @@ export default function Vouchers() {
     [form.setReceiptDetails]
   );
 
-  const handleSavePartyDetails = useCallback(
-    (details: any) => {
-      form.setPartyDetails(details);
-      if (details.state) {
-        form.setPlaceOfSupply(details.state);
-      }
-      setShowPartyDetails(false);
-    },
-    [form.setPartyDetails, form.setPlaceOfSupply]
-  );
+const handleSavePartyDetails = useCallback(
+  (details: any) => {
+    form.setPartyDetails(details);
+    if (details.state) {
+      form.setPlaceOfSupply(details.state);
+    }
+    setShowPartyDetails(false);
+    if (effectiveVoucherType === "Credit Note") {
+      setShowExciseDetails(true);
+    }
+  },
+  [form.setPartyDetails, form.setPlaceOfSupply, effectiveVoucherType]
+);
+const handleSaveExciseDetails = useCallback(
+  (details: any) => {
+    form.setExciseDetails(details);
+    setShowExciseDetails(false);
+  },
+  [form.setExciseDetails]
+);
 
   const handleSaveCreditNoteDetails = useCallback(
     (details: any) => {
@@ -1219,6 +1247,7 @@ export default function Vouchers() {
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === "F2") { e.preventDefault(); setShowDatePicker(true); }
+      if (e.key === "F3") { e.preventDefault(); setShowTaxRegistrationPopup(true); }
       if (e.key === "F4") { e.preventDefault(); handleTypeKey("Contra"); }
       if (e.key === "F5") { e.preventDefault(); handleTypeKey("Payment"); }
       if (e.key === "F6") { e.preventDefault(); handleTypeKey("Receipt"); }
@@ -1338,6 +1367,29 @@ export default function Vouchers() {
           ✕
         </button>
       </div>
+    {/* ── GST Registration / Tax Unit ── */}
+    {["Sales", "Purchase", "Contra", "Payment", "Journal", "Receipt","Credit Note","Debit Note"].includes(effectiveVoucherType) && (
+      <div className="flex justify-center gap-2 px-3 py-1 border-b border-zinc-200 bg-white shrink-0 text-sm">
+        <div className="text-right text-zinc-500">
+          <div>GST Registration</div>
+          {["Sales", "Purchase"].includes(effectiveVoucherType) && <div>Tax Unit</div>}
+        </div>
+        <div className="text-zinc-500">
+          <div>:</div>
+          {["Sales", "Purchase"].includes(effectiveVoucherType) && <div>:</div>}
+        </div>
+        <div className="font-semibold text-black">
+          <div>
+            {form.gstRegistration
+              ? (form.gstRegistration.name ?? form.gstRegistration.legal_name ?? form.gstRegistration.trade_name ?? form.gstRegistration.gstin)
+              : "♦ Not Applicable"}
+          </div>
+          {["Sales", "Purchase"].includes(effectiveVoucherType) && (
+            <div>{form.taxUnit ? form.taxUnit.name : "♦ Not Applicable"}</div>
+          )}
+        </div>
+      </div>
+    )}
 
       {/* ── Voucher type / number / date bar ── */}
       <div className="flex items-center px-3 py-1 border-b border-black bg-white shrink-0">
@@ -1624,6 +1676,7 @@ export default function Vouchers() {
             }
           }}
           onDateClick={() => setShowDatePicker(true)}
+         onCompanyTaxRegistrationClick={() => setShowTaxRegistrationPopup(true)}
           onCreateLedger={() => navigate("/master/create/ledger")}
           onAccept={handleAccept}
           onQuit={() => navigate("/")}
@@ -1642,6 +1695,26 @@ export default function Vouchers() {
           label="Voucher Date"
         />
       )}
+      {showTaxRegistrationPopup && (
+  <CompanyTaxRegistrationPopup
+    gstRegistrations={form.allGstRegistrations}
+    taxUnits={form.allTaxUnits}
+    onClose={() => setShowTaxRegistrationPopup(false)}
+    onSelect={(selection) => {
+      if (!selection) {
+        form.setGstRegistration(null);
+        form.setTaxUnit(null);
+      } else if (selection.kind === "gst") {
+        form.setGstRegistration(selection.raw);
+        form.setTaxUnit(null);
+      } else {
+        form.setTaxUnit(selection.raw);
+        form.setGstRegistration(null);
+      }
+      setShowTaxRegistrationPopup(false);
+    }}
+  />
+)}
 
       {showDispatchDetails && form.partyLedger && (
         <DispatchDetailsPopup
@@ -1659,17 +1732,32 @@ export default function Vouchers() {
         />
       )}
 
-      {showPartyDetails && form.partyLedger && (
-        <PartyDetailsPopup
-          partyLedger={form.partyLedger}
-          allLedgers={form.allLedgers}
-          initialDetails={form.partyDetails}
-          onClose={() => setShowPartyDetails(false)}
-          onSave={handleSavePartyDetails}
-          onCreateLedger={() => navigate("/master/create/ledger")}
-          buyerLabel={effectiveVoucherType === "Sales" ? "Buyer (Bill to)" : "Supplier (Bill from)"}
-        />
-      )}
+    {showPartyDetails && form.partyLedger && (
+  <PartyDetailsPopup
+    partyLedger={form.partyLedger}
+    allLedgers={form.allLedgers}
+    initialDetails={form.partyDetails}
+    onClose={() => setShowPartyDetails(false)}
+    onSave={handleSavePartyDetails}
+    onCreateLedger={() => navigate("/master/create/ledger")}
+    buyerLabel={
+      ["Sales", "Credit Note", "Delivery Note", "Rejection In","Debit Note"].includes(effectiveVoucherType)
+        ? "Buyer (Bill to)"
+        : "Supplier (Bill from)"
+    }
+    natureOfReturnLabel={
+      effectiveVoucherType === "Credit Note" ? "Nature of Sales Return"
+      : undefined
+    }
+  />
+)}
+{showExciseDetails && form.partyLedger && (
+  <ExciseDetailsPopup
+    initialDetails={form.exciseDetails}
+    onClose={() => setShowExciseDetails(false)}
+    onSave={handleSaveExciseDetails}
+  />
+)}
 
       {showCreditNoteDetails && form.partyLedger && (
         <CreditNoteDetailsPopup

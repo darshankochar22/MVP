@@ -168,6 +168,16 @@ const formatDate = (d: string | null) => {
   return isNaN(dt.getTime()) ? d : dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 };
 
+const formatDateBox = (d: string | null) => {
+  if (!d) return { date: "—", day: "" };
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return { date: d, day: "" };
+  return {
+    date: dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }),
+    day: dt.toLocaleDateString("en-IN", { weekday: "long" }),
+  };
+};
+
 const formatAmount = (n: number | null | undefined) => {
   if (!n) return "";
   return Number(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -216,7 +226,6 @@ function ReadOnlyStockTable({ entries }: { entries: StockEntry[] }) {
               <div className="w-32 text-right text-sm text-black">{formatAmount(item.rate)}</div>
               <div className="w-32 text-right text-sm font-bold text-black">{formatAmount(item.amount)}</div>
             </div>
-            {/* Batches */}
             {item.batches?.length > 0 && (
               <div className="px-6 py-1 bg-gray-50 border-b border-gray-100 text-[10px] text-gray-500 flex gap-4">
                 {item.batches.map(b => (
@@ -230,11 +239,9 @@ function ReadOnlyStockTable({ entries }: { entries: StockEntry[] }) {
             )}
           </div>
         ))}
-        {/* Filler rows */}
         {Array.from({ length: Math.max(0, 5 - entries.length) }).map((_, i) => (
           <div key={`sf-${i}`} className="flex border-b border-gray-50 min-h-[22px] px-3" />
         ))}
-        {/* Subtotal */}
         {total > 0 && (
           <div className="flex border-t border-gray-300 border-b border-gray-300 px-3 py-0.5 bg-white">
             <div className="flex-1 text-xs text-gray-700">Subtotal</div>
@@ -282,40 +289,62 @@ function ReadOnlyParticularsTable({ entries }: { entries: { ledger_name: string;
   );
 }
 
-function ReadOnlyDoubleEntryTable({ entries }: { entries: VoucherEntry[] }) {
+function ReadOnlyDoubleEntryTable({
+  entries,
+  balances,
+}: {
+  entries: VoucherEntry[];
+  balances: Record<number, string>;
+}) {
   const drTotal = entries.filter(e => e.type === "Dr").reduce((s, e) => s + e.amount, 0);
   const crTotal = entries.filter(e => e.type === "Cr").reduce((s, e) => s + e.amount, 0);
-  const balanced = Math.abs(drTotal - crTotal) < 0.01;
+
   return (
     <>
-      <div className="flex border-b border-black shrink-0 px-3 py-0.5 bg-white">
-        <div className="w-10 text-center text-sm font-semibold text-black">Dr/Cr</div>
+      <div className="flex border-b border-black shrink-0 px-3 py-1 bg-white">
         <div className="flex-1 text-sm font-semibold text-black">Particulars</div>
-        <div className="w-40 text-right text-sm font-semibold text-black">Amount</div>
+        <div className="w-36 text-right text-sm font-semibold text-black">Debit</div>
+        <div className="w-36 text-right text-sm font-semibold text-black">Credit</div>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0">
-        {entries.map((entry) => (
-          <div key={entry.entry_id} className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0">
-            <div className="w-10 text-center"><DrCrBadge type={entry.type} /></div>
-            <div className="flex-1 text-sm text-black font-semibold">{entry.ledger_name || `Ledger #${entry.ledger_id}`}</div>
-            <div className="w-40 text-right text-sm font-bold text-black">{formatAmount(entry.amount)}</div>
-          </div>
-        ))}
-        {Array.from({ length: Math.max(0, 8 - entries.length) }).map((_, i) => (
-          <div key={`de-${i}`} className="flex border-b border-gray-50 min-h-[22px]">
-            <div className="w-10" />
+        {entries.map((entry) => {
+          const bal = balances[entry.ledger_id];
+          return (
+            <div key={entry.entry_id} className="border-b border-gray-100 px-3 py-1.5">
+              <div className="flex items-start">
+                <div className="w-6 text-sm font-semibold text-black shrink-0">{entry.type}</div>
+                <div className="flex-1 text-sm font-bold text-black">{entry.ledger_name || `Ledger #${entry.ledger_id}`}</div>
+                <div className="w-36 text-right text-sm font-bold text-black tabular-nums">
+                  {entry.type === "Dr" ? formatAmount(entry.amount) : ""}
+                </div>
+                <div className="w-36 text-right text-sm font-bold text-black tabular-nums">
+                  {entry.type === "Cr" ? formatAmount(entry.amount) : ""}
+                </div>
+              </div>
+              {bal && (
+                <div className="pl-6 text-xs italic">
+                  Cur Bal:{" "}
+                  <span className={bal.includes("Cr") ? "text-red-600 font-semibold" : "text-zinc-500 font-semibold"}>
+                    {bal}
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {Array.from({ length: Math.max(0, 6 - entries.length) }).map((_, i) => (
+          <div key={`de-${i}`} className="flex border-b border-gray-50 min-h-[28px]">
+            <div className="w-6" />
             <div className="flex-1 px-3" />
-            <div className="w-40 pr-3" />
+            <div className="w-36 pr-3" />
+            <div className="w-36 pr-3" />
           </div>
         ))}
       </div>
-      <div className={`flex border-t border-black shrink-0 px-3 py-0.5 bg-white`}>
-        <div className="flex-1 text-xs text-gray-600">
-          {balanced ? "✓ Balanced" : `Difference: ${formatAmount(Math.abs(drTotal - crTotal))}`}
-        </div>
-        <div className="w-40 text-right text-sm font-bold text-black pr-0">
-          {drTotal > 0 ? formatAmount(drTotal) : ""}
-        </div>
+      <div className="flex border-t-2 border-double border-black shrink-0 px-3 py-1 bg-white">
+        <div className="flex-1" />
+        <div className="w-36 text-right text-sm font-bold text-black tabular-nums">{formatAmount(drTotal)}</div>
+        <div className="w-36 text-right text-sm font-bold text-black tabular-nums">{formatAmount(crTotal)}</div>
       </div>
     </>
   );
@@ -354,22 +383,50 @@ function ReadOnlyPayrollTable({ entries }: { entries: PayrollEntry[] }) {
   );
 }
 
-function DetailCard({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="border-t border-gray-300 px-3 py-1 shrink-0">
-      <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider mb-1">{title}</div>
-      <div className="grid grid-cols-2 lg:grid-cols-3 divide-x divide-y divide-zinc-100 border border-zinc-100 rounded">
-        {children}
-      </div>
-    </div>
-  );
-}
+function FKeyPanel({ voucherType }: { voucherType: string }) {
+  const top = [
+    ["F2", "Date"],
+    ["F3", "Company/Tax Registration"],
+    ["F4", "Contra"],
+    ["F5", "Payment"],
+    ["F6", "Receipt"],
+    ["F7", "Journal"],
+    ["F8", "Sales"],
+    ["F9", "Purchase"],
+    ["F10", "Other Vouchers"],
+  ];
+  const bottom = [
+    ["F", "Autofill"],
+    ["H", "Change Mode"],
+    ["I", "More Details"],
+    ["O", "Related Reports"],
+  ];
+  const tail = [
+    ["L", "Optional"],
+    ["T", "Post-Dated"],
+  ];
 
-function DetailCell({ label, value }: { label: string; value: string }) {
+  const renderRow = ([key, label]: string[]) => {
+    const active = label.toLowerCase() === voucherType.toLowerCase();
+    return (
+      <div
+        key={key}
+        className={cn(
+          "flex items-center justify-between px-2 py-1.5 border-b border-zinc-100 text-xs",
+          active ? "bg-[#ffcc00] text-zinc-950 font-bold" : "text-zinc-700"
+        )}
+      >
+        <span><span className="underline">{key[0]}</span>{key.slice(1)}: {label}</span>
+        <span className="text-zinc-400">‹</span>
+      </div>
+    );
+  };
+
   return (
-    <div className="px-2 py-1">
-      <div className="text-[9px] text-zinc-400 uppercase font-bold tracking-wider">{label}</div>
-      <div className="text-xs text-zinc-800 font-semibold truncate" title={value}>{value || "—"}</div>
+    <div className="w-56 shrink-0 border-l border-zinc-300 bg-[#e5eff5] overflow-y-auto">
+      <div className="py-1">{top.map(renderRow)}</div>
+      <div className="py-1 border-t border-zinc-300">{bottom.map(renderRow)}</div>
+      <div className="py-1 border-t border-zinc-300">{tail.map(renderRow)}</div>
     </div>
   );
 }
@@ -377,8 +434,9 @@ function DetailCell({ label, value }: { label: string; value: string }) {
 export default function VoucherView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { selectedCompany } = useCompany();
+  const { selectedCompany, activeFY } = useCompany();
   const [voucher, setVoucher] = useState<Voucher | null>(null);
+  const [balances, setBalances] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -399,6 +457,32 @@ export default function VoucherView() {
     })();
   }, [id]);
 
+  useEffect(() => {
+    if (!voucher || !selectedCompany?.company_id || !activeFY?.fy_id) return;
+    const uniqueLedgerIds = Array.from(
+      new Set(voucher.entries.map(e => e.ledger_id).filter(Boolean))
+    );
+    if (uniqueLedgerIds.length === 0) return;
+
+    (async () => {
+      try {
+        const results = await Promise.all(
+          uniqueLedgerIds.map(lid =>
+            window.api.voucher
+              .getLedgerBalance(lid, selectedCompany.company_id, activeFY.fy_id)
+              .then((r: any) => [lid, r?.success ? r.balance : null] as const)
+              .catch(() => [lid, null] as const)
+          )
+        );
+        const map: Record<number, string> = {};
+        for (const [lid, bal] of results) if (bal) map[lid] = bal;
+        setBalances(map);
+      } catch {
+        // Non-critical — balances are a nice-to-have, don't block the view.
+      }
+    })();
+  }, [voucher, selectedCompany?.company_id, activeFY?.fy_id]);
+
   const handleDelete = async () => {
     if (!voucher) return;
     if (!window.confirm(`Permanently delete voucher ${voucher.voucher_number}?`)) return;
@@ -406,6 +490,21 @@ export default function VoucherView() {
       const res = await window.api.voucher.delete(voucher.voucher_id);
       if (res.success) navigate(-1);
       else setError(res.error || "Failed to delete");
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!voucher) return;
+    if (!window.confirm(`Cancel voucher ${voucher.voucher_number}? This cannot be undone.`)) return;
+    try {
+      const res = await window.api.voucher.cancel(voucher.voucher_id);
+      if (res.success) {
+        setVoucher({ ...voucher, is_cancelled: 1 });
+      } else {
+        setError(res.error || "Failed to cancel");
+      }
     } catch (e: any) {
       setError(e.message);
     }
@@ -451,66 +550,67 @@ export default function VoucherView() {
   const isAttendanceVoucher = voucher.voucher_type === "Attendance";
 
   const getTitle = () => {
-    if (isAttendanceVoucher) return "Attendance Voucher View";
-    if (isPayrollVoucher) return "Payroll Voucher View";
-    if (isInventoryOnly) return "Inventory Voucher View";
-    return "Accounting Voucher View";
+    if (isAttendanceVoucher) return "Attendance Voucher Alteration (Secondary)";
+    if (isPayrollVoucher) return "Payroll Voucher Alteration (Secondary)";
+    if (isInventoryOnly) return "Inventory Voucher Alteration (Secondary)";
+    return "Accounting Voucher Alteration (Secondary)";
   };
 
-  // Determine main sales/purchase ledger from entries
+  // Credit Note is treated exactly like Sales (Party Dr, ledger Cr, "Sales ledger" label)
+  // Debit Note is treated exactly like Purchase (ledger Dr, Party Cr, "Purchase ledger" label)
+  const isSalesLike = ["Sales", "Credit Note"].includes(voucher.voucher_type);
   const mainLedger = isSalesPurchase ? voucher.entries.find(e =>
-    voucher.voucher_type === "Sales" ? e.type === "Cr" : e.type === "Dr"
+    isSalesLike ? e.type === "Cr" : e.type === "Dr"
   ) : null;
 
-  // Account ledger for single-entry
   const accountLedger = isSingleEntry ? voucher.entries.find(e => e.type === "Dr") || voucher.entries[0] : null;
 
-  // Particulars (non-account entries) for single-entry
   const particulars = isSingleEntry && voucher.entries.length > 1
     ? voucher.entries.filter(e => e.ledger_name !== accountLedger?.ledger_name)
     : [];
 
-  // Additional entries (tax, freight, etc) for sales/purchase
   const additionalEntries = mainLedger
     ? voucher.entries.filter(e => e.ledger_name !== mainLedger.ledger_name && e.ledger_name !== voucher.party_name)
     : [];
+
+  const { date: dateStr, day: dayStr } = formatDateBox(voucher.date);
+  const showDoubleEntryTable = (!isSingleEntry && !isSalesPurchase && hasEntries) ||
+    (isSingleEntry && voucher.entries.length <= 2 && hasEntries);
 
   return (
     <div className="flex flex-col h-screen bg-white text-black text-sm select-none overflow-hidden">
       {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
 
-      {/* Title bar — matches create page */}
-      <div className="flex items-center justify-between px-3 py-1 border-b border-black bg-white shrink-0">
-        <span className="text-sm font-semibold text-black">{getTitle()}</span>
-        <span className="text-sm text-black">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-zinc-300 bg-[#bfe1f0] shrink-0">
+        <span className="text-sm font-bold text-zinc-900">{getTitle()}</span>
+        <span className="text-sm font-bold text-zinc-900">
           {selectedCompany?.name ?? ""}
           {voucher.is_cancelled ? " · CANCELLED" : ""}
           {voucher.is_post_dated ? " · POST-DATED" : ""}
         </span>
-        <Button
+        <button
           onClick={() => navigate(-1)}
-          variant="ghost"
-          size="xs"
-          className="h-auto p-0 text-black text-sm font-bold hover:opacity-60 hover:bg-transparent leading-none"
+          className="text-zinc-700 text-sm font-bold hover:opacity-60 leading-none"
         >
           ✕
-        </Button>
+        </button>
       </div>
 
-      {/* Voucher type / number / date bar — matches create page */}
-      <div className="flex items-center px-3 py-1 border-b border-black bg-white shrink-0">
-        <div className="text-xs font-bold text-white bg-black px-3 py-0.5 min-w-[80px] text-center uppercase">
-          {voucher.voucher_type}
-        </div>
-        <span className="text-sm text-black ml-3">No.</span>
-        <span className="text-sm font-bold text-black ml-2 mr-6">{voucher.voucher_number}</span>
-        <div className="flex-1" />
-        <span className="text-sm font-semibold text-black">{formatDate(voucher.date)}</span>
-      </div>
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+          <div className="flex items-center px-3 py-1.5 border-b border-black bg-white shrink-0">
+            <div className="text-sm font-bold text-white bg-[#2f7ab8] px-3 py-0.5 min-w-[90px] text-center">
+              {voucher.voucher_type}
+            </div>
+            <span className="text-sm text-black ml-3">No.</span>
+            <span className="text-sm font-bold text-black ml-2 mr-6">{voucher.voucher_number}</span>
+            <div className="flex-1" />
+            <div className="bg-[#ffcc00] px-3 py-0.5 text-right">
+              <div className="text-sm font-bold text-zinc-900">{dateStr}</div>
+              {dayStr && <div className="text-[10px] text-zinc-700">{dayStr}</div>}
+            </div>
+          </div>
 
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-
-          {/* Supplier invoice fields (Purchase) */}
           {voucher.voucher_type === "Purchase" && (voucher.supplier_invoice_no || voucher.supplier_invoice_date) && (
             <div className="flex items-center border-b border-gray-300 shrink-0 px-3 py-1 gap-6 bg-white">
               {voucher.supplier_invoice_no && (
@@ -530,31 +630,21 @@ export default function VoucherView() {
             </div>
           )}
 
-          {/* Party A/c name */}
           {voucher.party_name && (
             <ReadOnlyFieldRow label="Party A/c name" value={voucher.party_name} />
           )}
 
-          {/* Sales / Purchase ledger */}
           {isSalesPurchase && mainLedger && (
             <ReadOnlyFieldRow
-              label={voucher.voucher_type === "Sales" ? "Sales ledger" : "Purchase ledger"}
+              label={isSalesLike ? "Sales ledger" : "Purchase ledger"}
               value={mainLedger.ledger_name}
             />
           )}
 
-          {/* Account field (single-entry) */}
-          {isSingleEntry && accountLedger && (
-            <ReadOnlyFieldRow label="Account" value={accountLedger.ledger_name} />
-          )}
-
-          {/* Separator */}
           {(hasStock || hasEntries) && <div className="border-b border-black shrink-0" />}
 
-          {/* Stock entries table */}
           {hasStock && <ReadOnlyStockTable entries={voucher.stock_entries} />}
 
-          {/* Additional ledger entries (tax, freight, discount) */}
           {isSalesPurchase && additionalEntries.length > 0 && (
             <div className="border-b border-gray-300 shrink-0">
               {additionalEntries.map((row, idx) => (
@@ -574,205 +664,58 @@ export default function VoucherView() {
             </div>
           )}
 
-          {/* Particulars table (single-entry) */}
-          {isSingleEntry && particulars.length > 0 && (
+          {isSingleEntry && particulars.length > 0 && !showDoubleEntryTable && (
             <ReadOnlyParticularsTable
               entries={particulars.map(e => ({ ledger_name: e.ledger_name, amount: e.amount }))}
             />
           )}
 
-          {/* Double entry table (for vouchers with 2+ entries not already rendered as single-entry) */}
-          {!isSingleEntry && !isSalesPurchase && hasEntries && (
-            <ReadOnlyDoubleEntryTable entries={voucher.entries} />
+          {showDoubleEntryTable && (
+            <ReadOnlyDoubleEntryTable entries={voucher.entries} balances={balances} />
           )}
 
-          {/* Also render double entry if single-entry has more than 1+1 entries */}
-          {isSingleEntry && voucher.entries.length <= 2 && hasEntries && (
-            <ReadOnlyDoubleEntryTable entries={voucher.entries} />
-          )}
-
-          {/* Payroll entries */}
           {voucher.payroll_entries?.length > 0 && (
             <ReadOnlyPayrollTable entries={voucher.payroll_entries} />
           )}
 
-          {/* Detail sections — shown below the main content in the scrollable area */}
-
-          {/* Reference info */}
-          {(voucher.reference_number || voucher.reference_date) && (
-            <DetailCard title="Reference">
-              <DetailCell label="Ref No." value={voucher.reference_number || ""} />
-              <DetailCell label="Ref Date" value={formatDate(voucher.reference_date)} />
-            </DetailCard>
-          )}
-
-          {/* Place of supply */}
-          {voucher.place_of_supply && (
-            <DetailCard title="Supply">
-              <DetailCell label="Place of Supply" value={voucher.place_of_supply} />
-            </DetailCard>
-          )}
-
-          {/* Bank details */}
-          {voucher.bank_details && (
-            <DetailCard title="Bank Details">
-              <DetailCell label="Transaction Type" value={voucher.bank_details.transaction_type || ""} />
-              <DetailCell label="Instrument No." value={voucher.bank_details.instrument_number || ""} />
-              <DetailCell label="Instrument Date" value={formatDate(voucher.bank_details.instrument_date)} />
-              <DetailCell label="Bank Name" value={voucher.bank_details.bank_name || ""} />
-              <DetailCell label="Branch" value={voucher.bank_details.branch || ""} />
-              <DetailCell label="Amount" value={formatAmount(voucher.bank_details.amount)} />
-              <DetailCell label="Cheque Range" value={voucher.bank_details.cheque_range || ""} />
-            </DetailCard>
-          )}
-
-          {/* Bill-wise allocations */}
-          {voucher.bill_references?.length > 0 && (
-            <DetailCard title="Bill-wise Allocations">
-              {voucher.bill_references.map((b, i) => (
-                <DetailCell key={b.bill_id} label={`Bill ${i + 1}`} value={`${b.bill_name || ""} (${b.bill_type || ""}) ${formatAmount(b.amount)}`} />
-              ))}
-            </DetailCard>
-          )}
-
-          {/* Cost centres */}
-          {voucher.cost_centres?.length > 0 && (
-            <DetailCard title="Cost Centre Allocations">
-              {voucher.cost_centres.map((c, i) => (
-                <DetailCell key={i} label={`CC ${i + 1}`} value={`ID: ${c.cost_centre_id || ""} | Amount: ${formatAmount(c.amount)}`} />
-              ))}
-            </DetailCard>
-          )}
-
-          {/* Cash denominations */}
-          {voucher.cash_denominations?.length > 0 && (
-            <DetailCard title="Cash Denominations">
-              {voucher.cash_denominations.map((c, i) => (
-                <DetailCell key={i} label={c.denomination || `#${i + 1}`} value={`Qty: ${c.quantity || 0} | Amount: ${formatAmount(c.amount)}`} />
-              ))}
-            </DetailCard>
-          )}
-
-          {/* Receipt details */}
-          {voucher.receipt_details && (
-            <DetailCard title="Receipt Details">
-              <DetailCell label="Receipt Note No." value={voucher.receipt_details.receipt_note_no || ""} />
-              <DetailCell label="Receipt Doc No." value={voucher.receipt_details.receipt_doc_no || ""} />
-              <DetailCell label="Dispatched Through" value={voucher.receipt_details.dispatched_through || ""} />
-              <DetailCell label="Destination" value={voucher.receipt_details.destination || ""} />
-              <DetailCell label="Carrier Name" value={voucher.receipt_details.carrier_name || ""} />
-              <DetailCell label="Bill of Lading No." value={voucher.receipt_details.bill_of_lading_no || ""} />
-              <DetailCell label="Bill of Lading Date" value={formatDate(voucher.receipt_details.bill_of_lading_date)} />
-              <DetailCell label="Motor Vehicle No." value={voucher.receipt_details.motor_vehicle_no || ""} />
-            </DetailCard>
-          )}
-
-          {/* Party details */}
-          {voucher.party_details && (
-            <DetailCard title="Party / Supplier Details">
-              <DetailCell label="Supplier Name" value={voucher.party_details.supplier_name || ""} />
-              <DetailCell label="Mailing Name" value={voucher.party_details.mailing_name || ""} />
-              <DetailCell label="Address" value={voucher.party_details.address || ""} />
-              <DetailCell label="State" value={voucher.party_details.state || ""} />
-              <DetailCell label="Country" value={voucher.party_details.country || ""} />
-            </DetailCard>
-          )}
-
-          {/* Dispatch details */}
-          {voucher.dispatch_details && (
-            <DetailCard title="Dispatch Details">
-              <DetailCell label="Delivery Note Nos." value={voucher.dispatch_details.delivery_note_nos || ""} />
-              <DetailCell label="Dispatch Doc No." value={voucher.dispatch_details.dispatch_doc_no || ""} />
-              <DetailCell label="Dispatched Through" value={voucher.dispatch_details.dispatched_through || ""} />
-              <DetailCell label="Destination" value={voucher.dispatch_details.destination || ""} />
-              <DetailCell label="Carrier Name" value={voucher.dispatch_details.carrier_name || ""} />
-              <DetailCell label="Bill of Lading No." value={voucher.dispatch_details.bill_of_lading_no || ""} />
-              <DetailCell label="Bill of Lading Date" value={formatDate(voucher.dispatch_details.bill_of_lading_date)} />
-              <DetailCell label="Motor Vehicle No." value={voucher.dispatch_details.motor_vehicle_no || ""} />
-            </DetailCard>
-          )}
-
-          {/* Credit / Debit note details */}
-          {(voucher.credit_note_details || voucher.debit_note_details) && (
-            <DetailCard title={`${voucher.voucher_type === "Credit Note" ? "Credit" : "Debit"} Note Details`}>
-              <DetailCell label="Tracking No." value={(voucher.credit_note_details || voucher.debit_note_details).tracking_no || ""} />
-              <DetailCell label="Dispatch Doc No." value={(voucher.credit_note_details || voucher.debit_note_details).dispatch_doc_no || ""} />
-              <DetailCell label="Dispatched Through" value={(voucher.credit_note_details || voucher.debit_note_details).dispatched_through || ""} />
-              <DetailCell label="Destination" value={(voucher.credit_note_details || voucher.debit_note_details).destination || ""} />
-              <DetailCell label="Carrier Name" value={(voucher.credit_note_details || voucher.debit_note_details).carrier_name || ""} />
-              <DetailCell label="Bill of Lading No." value={(voucher.credit_note_details || voucher.debit_note_details).bill_of_lading_no || ""} />
-              <DetailCell label="Bill of Lading Date" value={formatDate((voucher.credit_note_details || voucher.debit_note_details).bill_of_lading_date)} />
-              <DetailCell label="Motor Vehicle No." value={(voucher.credit_note_details || voucher.debit_note_details).motor_vehicle_no || ""} />
-              <DetailCell label="Original Invoice No." value={(voucher.credit_note_details || voucher.debit_note_details).original_invoice_no || ""} />
-              <DetailCell label="Original Invoice Date" value={formatDate((voucher.credit_note_details || voucher.debit_note_details).original_invoice_date)} />
-            </DetailCard>
-          )}
-
-          {/* HSN / GST summary on stock entries */}
-          {hasStock && voucher.stock_entries.some(s => s.hsn_code || s.gst_rate) && (
-            <DetailCard title="Stock GST Summary">
-              {voucher.stock_entries.map(s => (
-                <DetailCell key={s.stock_entry_id} label={s.item_name || `Item #${s.stock_entry_id}`}
-                  value={[
-                    s.hsn_code ? `HSN: ${s.hsn_code}` : "",
-                    s.gst_rate ? `GST: ${s.gst_rate}%` : "",
-                    s.cgst_amount ? `CGST: ${formatAmount(s.cgst_amount)}` : "",
-                    s.sgst_amount ? `SGST: ${formatAmount(s.sgst_amount)}` : "",
-                    s.igst_amount ? `IGST: ${formatAmount(s.igst_amount)}` : "",
-                  ].filter(Boolean).join(" | ")}
-                />
-              ))}
-            </DetailCard>
-          )}
-
-          {/* Voucher flags */}
-          <DetailCard title="Voucher Info">
-            <DetailCell label="Voucher ID" value={String(voucher.voucher_id)} />
-            <DetailCell label="Created At" value={formatDate(voucher.created_at)} />
-            <DetailCell label="Updated At" value={formatDate(voucher.updated_at)} />
-            <DetailCell label="Flags" value={[
-              voucher.is_invoice ? "Invoice" : "",
-              voucher.is_accounting_voucher ? "Accounting" : "",
-              voucher.is_inventory_voucher ? "Inventory" : "",
-              voucher.is_order_voucher ? "Order" : "",
-            ].filter(Boolean).join(", ") || "None"} />
-            <DetailCell label="Optional" value={voucher.is_optional ? "Yes" : "No"} />
-            <DetailCell label="Post-Dated" value={voucher.is_post_dated ? "Yes" : "No"} />
-          </DetailCard>
-
-          {/* Narration + grand total — matches create page */}
-          <div className="flex items-center border-t border-black shrink-0 px-3 py-1 bg-white">
-            <span className="text-sm text-black shrink-0 w-24">Narration</span>
-            <span className="text-sm text-black shrink-0 mr-2">:</span>
-            <span className="flex-1 text-sm text-black">{voucher.narration || "—"}</span>
-            {totalAmount > 0 && (
-              <span className="text-sm font-bold text-black ml-4 shrink-0 tabular-nums">
-                {formatAmount(totalAmount)}
-              </span>
-            )}
+          {/* Narration — only thing left at the bottom now */}
+          <div className="flex items-center border-t border-black shrink-0 px-3 py-1.5 bg-white">
+            <span className="text-sm text-black shrink-0">Narration:</span>
+            <span className="flex-1 text-sm text-black ml-2">{voucher.narration || "—"}</span>
           </div>
+        </div>
 
-          {/* Quit / Cancel / Delete — matches create page layout */}
-          <div className="flex items-center justify-between border-t border-black shrink-0 px-3 py-1.5 bg-white">
+        <FKeyPanel voucherType={voucher.voucher_type} />
+      </div>
+
+      <div className="flex items-center justify-between border-t border-black shrink-0 px-3 py-1.5 bg-white">
+        <Button
+          onClick={() => navigate(-1)}
+          variant="ghost"
+          size="xs"
+          className="h-auto p-0 text-sm text-black hover:underline hover:bg-transparent"
+        >
+          <span className="underline">Q</span>: Quit
+        </Button>
+        <div className="flex items-center gap-3">
+          {!voucher.is_cancelled && (
             <Button
-              onClick={() => navigate(-1)}
-              variant="ghost"
+              onClick={handleCancel}
+              variant="outline"
               size="xs"
-              className="h-auto p-0 text-sm text-black hover:underline hover:bg-transparent"
+              className="h-auto rounded-none text-sm px-3 py-0.5 border-zinc-400 text-zinc-800 hover:bg-zinc-100"
             >
-              <span className="underline">Q</span>: Quit
+              <span className="underline">X</span>: Cancel Vch
             </Button>
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={handleDelete}
-                size="xs"
-                className="h-auto rounded-none text-sm px-3 py-0.5 bg-red-700 text-white hover:bg-red-800"
-              >
-                Delete
-              </Button>
-            </div>
-          </div>
-
+          )}
+          <Button
+            onClick={handleDelete}
+            size="xs"
+            className="h-auto rounded-none text-sm px-3 py-0.5 bg-red-700 text-white hover:bg-red-800"
+          >
+            <span className="underline">D</span>: Delete
+          </Button>
+        </div>
       </div>
     </div>
   );

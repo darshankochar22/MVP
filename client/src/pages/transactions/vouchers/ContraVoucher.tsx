@@ -4,6 +4,7 @@ import FieldRow from "../components/FieldRow";
 import BalanceIndicator from "../components/BalanceIndicator";
 import VoucherDoubleEntryTable from "../components/VoucherDoubleEntryTable";
 
+
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
   handleAmountConfirm: (row: any, idx: number) => void;
@@ -13,6 +14,7 @@ export default function ContraVoucher({ form, handleAmountConfirm }: Props) {
   if (form.contraEntryMode === "single") {
     return (
       <>
+     
         {/* Account field */}
         <div className="border-b border-gray-300 shrink-0 py-1">
           <FieldRow

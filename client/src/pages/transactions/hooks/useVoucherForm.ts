@@ -7,6 +7,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useCompany } from "../../../context/CompanyContext";
 
+import { useState } from "react"; // add useState to your existing import from "react"  
+
 import { useVoucherMeta } from "./useVoucherMeta";
 import { useVoucherLedgers } from "./useVoucherLedgers";
 import { useVoucherRows as useVoucherRowsInternal } from "./useVoucherRowsNew";
@@ -22,6 +24,36 @@ export function useVoucherForm(
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
+  // ── GST Registration / Tax Unit / Price Level masters ─────────────────────
+  const [allGstRegistrations, setAllGstRegistrations] = useState<any[]>([]);
+  const [allTaxUnits, setAllTaxUnits] = useState<any[]>([]);
+  const [allPriceLevels, setAllPriceLevels] = useState<string[]>([]);
+
+  const [gstRegistration, setGstRegistration] = useState<any | null>(null);
+  const [taxUnit, setTaxUnit] = useState<any | null>(null);
+  const [priceLevel, setPriceLevel] = useState<string>("");
+
+  const fetchTaxAndPriceMasters = useCallback(async () => {
+    if (!companyId) return;
+    try {
+      const [gstRes, taxUnitRes, priceLevelRes] = await Promise.all([
+        window.api.gstRegistration.getAll(companyId),
+        window.api.taxUnits.getAll(companyId),
+        window.api.priceLevels.get(companyId),
+      ]);
+      if (gstRes?.success) setAllGstRegistrations(gstRes.gstRegistrations || []);
+      if (taxUnitRes?.success) setAllTaxUnits(taxUnitRes.taxUnits || []);
+      if (priceLevelRes?.success) {
+        setAllPriceLevels((priceLevelRes.data || []).filter((n: string) => !!n && n.trim() !== ""));
+      }
+    } catch (err) {
+      console.error("Failed to load GST Registration / Tax Unit / Price Level masters:", err);
+    }
+  }, [companyId]);
+
+  useEffect(() => {
+    fetchTaxAndPriceMasters();
+  }, [fetchTaxAndPriceMasters]);
 
   // ── Sub-hooks ──────────────────────────────────────────────────────────────
 
@@ -312,6 +344,7 @@ export function useVoucherForm(
           const isPurchaseLike = effectiveVoucherType === "Purchase";
           const partyType: "Dr" | "Cr" = isPurchaseLike ? "Cr" : "Dr";
           const spType: "Dr" | "Cr" = isPurchaseLike ? "Dr" : "Cr";
+          
           entries = [
             { ledger_id: rows.partyLedger!.ledger_id, ledger_name: rows.partyLedger!.name, type: partyType, amount: rows.totalAmount, currency: "INR" },
             { ledger_id: rows.salesPurchaseLedger!.ledger_id, ledger_name: rows.salesPurchaseLedger!.name, type: spType, amount: stockSubtotal, currency: "INR" },
@@ -482,6 +515,7 @@ export function useVoucherForm(
           dispatch_details: effectiveVoucherType === "Delivery Note" ? meta.dispatchDetails || undefined : undefined,
           credit_note_details: meta.creditNoteDetails || undefined,
           debit_note_details: meta.debitNoteDetails || undefined,
+          excise_details: meta.exciseDetails || undefined,
           payroll_entries: effectiveVoucherType === "Payroll"
             ? rows.payrollEntries
                 .filter((r) => r.employee && r.payHead && Number(r.amountRaw) > 0)
@@ -574,6 +608,8 @@ export function useVoucherForm(
     setCreditNoteDetails: meta.setCreditNoteDetails,
     debitNoteDetails: meta.debitNoteDetails,
     setDebitNoteDetails: meta.setDebitNoteDetails,
+    exciseDetails: meta.exciseDetails,
+    setExciseDetails: meta.setExciseDetails,
 
     // ── Reference / invoice
     referenceNumber: meta.referenceNumber,
@@ -584,6 +620,15 @@ export function useVoucherForm(
     setPlaceOfSupply: meta.setPlaceOfSupply,
 
     // ── Master data
+    allGstRegistrations,
+    allTaxUnits,
+    allPriceLevels,
+    gstRegistration,
+    setGstRegistration,
+    taxUnit,
+    setTaxUnit,
+    priceLevel,
+    setPriceLevel,
     allLedgers: ledgers.allLedgers,
     allStockItems: ledgers.allStockItems,
     stockBalances: ledgers.stockBalances,

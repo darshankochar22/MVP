@@ -42,10 +42,18 @@ export function useInventoryRows({
         prev.map((r) => {
           if (r.id !== id) return r;
           const updated = { ...r, ...updates };
-          if (updates.quantityRaw !== undefined || updates.rateRaw !== undefined) {
-            const qty = Number(updated.quantityRaw) || 0;
+          if (
+            updates.quantityRaw !== undefined ||
+            updates.rateRaw !== undefined ||
+            updates.billedQtyRaw !== undefined ||
+            updates.discPercentRaw !== undefined
+          ) {
+            const billedQty = Number(updated.billedQtyRaw ?? updated.quantityRaw) || 0;
             const rate = Number(updated.rateRaw) || 0;
-            updated.amountRaw = qty > 0 && rate > 0 ? (qty * rate).toFixed(2) : "";
+            const discPercent = Number(updated.discPercentRaw) || 0;
+            const gross = billedQty * rate;
+            const net = gross * (1 - discPercent / 100);
+            updated.amountRaw = billedQty > 0 && rate > 0 ? net.toFixed(2) : "";
           }
           return updated;
         })

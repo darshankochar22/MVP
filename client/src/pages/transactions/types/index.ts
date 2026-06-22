@@ -22,6 +22,8 @@ export interface StockEntryRow {
   quantityRaw: string;
   rateRaw: string;
   amountRaw: string;
+  billedQtyRaw?: string;
+  discPercentRaw?: string;
   batchNo?: string;
   lotNo?: string;
   mfgDate?: string;
