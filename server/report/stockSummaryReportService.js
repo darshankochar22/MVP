@@ -3,17 +3,12 @@ const { sql } = require('drizzle-orm');
 const { stockItems, stockGroups, voucherStockEntries, vouchers, units } = require('../db/schema');
 const { calculateClosingStock } = require('./stockValuationEngine');
 
-// Inwards / outwards voucher-type conventions, mirroring voucherService.getDaybook
-// and getById (CASE WHEN v.voucher_type IN (...)) so inventory movement direction
-// stays consistent across the app.
+
 const INWARD_TYPES = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In'];
 const OUTWARD_TYPES = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out'];
 
 module.exports = {
-  /**
-   * stockGroupItems — stock items that belong to a specific stock group,
-   * with per-item closing qty, rate, and value.
-   */
+
   stockGroupItems: async (company_id, fy_id, group_id) => {
     try {
       const { stockItems, stockGroups, voucherStockEntries, vouchers, units } = require('../db/schema');
@@ -91,10 +86,7 @@ module.exports = {
     }
   },
 
-  /**
-   * stockItemMonthly — month-by-month inwards, outwards, and closing balance
-   * for a single stock item over the active financial year (Apr → Mar).
-   */
+
   stockItemMonthly: async (company_id, fy_id, item_id) => {
     try {
       const { stockItems, voucherStockEntries, vouchers } = require('../db/schema');
@@ -176,9 +168,6 @@ module.exports = {
     try {
       const dateCond = as_on_date ? sql` AND v.date <= ${as_on_date}` : sql``;
 
-      // All stock groups for this company, including their parent, so we can
-      // build a real tree (group -> child groups -> ... -> items) instead of
-      // flattening everything to one level by item.group_id.
       const allGroups = await db.all(
         sql`SELECT sg_id AS group_id, name AS group_name, parent_group_id
             FROM ${stockGroups}
@@ -270,18 +259,11 @@ module.exports = {
         }
       }
 
-      // Rate = closing_value / closing_qty (e.g. 120 Box @ 50.00 = 6,000.00).
-      // Left at 0 for zero/negative qty rather than dividing by zero.
       for (const it of items) {
         it.rate = it.closing_qty !== 0 ? it.closing_value / it.closing_qty : 0;
       }
 
-      // ── Build the real stock-group tree ──────────────────────────────────
-      // stock_groups.parent_group_id lets a group sit inside another group
-      // (e.g. Choco -> Dairy Milk -> 5 Star). Items can attach to a group at
-      // any depth. A node's closing qty/value must roll up everything below
-      // it - its own direct items, plus every descendant group's items -
-      // exactly like balanceSheetService.buildDescendantMap does for ledgers.
+
       const childrenOf = new Map(); // group_id -> [child group_id, ...]
       for (const g of allGroups) {
         if (g.parent_group_id == null) continue;
@@ -296,8 +278,6 @@ module.exports = {
         directItemsByGroup.get(key).push(it);
       }
 
-      // Recursively build a node for a group, rolling up qty/value/item_count
-      // from its own items plus all descendant groups.
       const buildNode = (group) => {
         const directItems = directItemsByGroup.get(group.group_id) || [];
         const childGroupIds = childrenOf.get(group.group_id) || [];
@@ -309,52 +289,61 @@ module.exports = {
         let closing_qty = directItems.reduce((s, it) => s + it.closing_qty, 0);
         let closing_value = directItems.reduce((s, it) => s + it.closing_value, 0);
         let item_count = directItems.length;
+        const unitSet = new Set(directItems.map(it => it.unit_name || ''));
         for (const child of childNodes) {
           closing_qty += child.closing_qty;
           closing_value += child.closing_value;
           item_count += child.item_count;
+          for (const u of child.unit_set) unitSet.add(u);
         }
+
+        const qtyDisplayable = unitSet.size === 1;
 
         return {
           group_id: group.group_id,
           group_name: group.group_name,
-          closing_qty,
+          closing_qty: qtyDisplayable ? closing_qty : 0,
           closing_value,
           item_count,
+          qty_displayable: qtyDisplayable,
+          unit_name: qtyDisplayable ? [...unitSet][0] : '',
           items: directItems,
           childGroups: childNodes,
+          unit_set: unitSet, // internal only, stripped before returning to the client
         };
       };
 
-      // Top-level groups = groups with no parent. "Ungrouped" items (no
-      // group_id at all) form their own synthetic top-level bucket.
       const topLevelGroups = allGroups.filter(g => g.parent_group_id == null);
-      let groups = topLevelGroups.map(buildNode);
+      const rootGroupNodes = topLevelGroups.map(buildNode);
+      const rootItems = directItemsByGroup.get('ungrouped') || [];
 
-      const ungroupedItems = directItemsByGroup.get('ungrouped') || [];
-      if (ungroupedItems.length > 0) {
-        groups.push({
-          group_id: null,
-          group_name: 'Ungrouped',
-          closing_qty: ungroupedItems.reduce((s, it) => s + it.closing_qty, 0),
-          closing_value: ungroupedItems.reduce((s, it) => s + it.closing_value, 0),
-          item_count: ungroupedItems.length,
-          items: ungroupedItems,
-          childGroups: [],
-        });
-      }
+      const stripInternal = (node) => {
+        const { unit_set, ...rest } = node;
+        return { ...rest, childGroups: rest.childGroups.map(stripInternal) };
+      };
 
-      groups = groups.sort((a, b) => (a.group_name || '').localeCompare(b.group_name || ''));
+      const groups = rootGroupNodes
+        .map(stripInternal)
+        .sort((a, b) => (a.group_name || '').localeCompare(b.group_name || ''));
 
-      const totalClosingQty = items.reduce((s, it) => s + it.closing_qty, 0);
+      const topLevelUnitSet = new Set([
+        ...rootItems.map(it => it.unit_name || '').filter(u => u !== ''),
+        ...groups.filter(g => g.qty_displayable).map(g => g.unit_name || '').filter(u => u !== ''),
+      ]);
+      const totalQtyDisplayable = topLevelUnitSet.size <= 1;
+      const totalClosingQty = totalQtyDisplayable
+        ? rootItems.reduce((s, it) => s + it.closing_qty, 0) + groups.reduce((s, g) => s + g.closing_qty, 0)
+        : 0;
       const totalClosingValue = items.reduce((s, it) => s + it.closing_value, 0);
 
       return {
         success: true,
         as_on_date: as_on_date || null,
         items,
+        rootItems,
         groups,
         totalClosingQty,
+        totalQtyDisplayable,
         totalClosingValue,
       };
     } catch (err) {

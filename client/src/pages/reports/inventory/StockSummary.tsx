@@ -153,9 +153,14 @@ export default function StockSummary() {
   // groupPath, or rootGroups if the path is empty.
   const [level, setLevel] = useState<Level>("groups");
   const [rootGroups, setRootGroups] = useState<StockSummaryGroupNode[]>([]);
+  // Items with no stock group at all sit as bare rows at root, beside the
+  // top-level groups - e.g. Fruits/Icecream/Kj next to the Choco group -
+  // not wrapped in a synthetic "Ungrouped" group.
+  const [rootItems, setRootItems] = useState<StockItem[]>([]);
   const [groupPath, setGroupPath] = useState<StockSummaryGroupNode[]>([]);
   const [totalClosingValue, setTotalClosingValue] = useState(0);
   const [totalClosingQty, setTotalClosingQty] = useState(0);
+  const [totalQtyDisplayable, setTotalQtyDisplayable] = useState(true);
 
   const [selectedItem, setSelectedItem] = useState<StockItem | null>(null);
   const [monthlyData, setMonthlyData] = useState<{ item_name: string; opening_qty: number; opening_value: number; months: MonthRow[] } | null>(null);
@@ -180,10 +185,11 @@ export default function StockSummary() {
 
   // Rows for the current level: child groups first (so sub-groups always
   // list above leaf items, matching Tally), then this node's own direct
-  // items, each filtered down to ones with real activity.
+  // items (or the bare ungrouped root items, if we're at the root), each
+  // filtered down to ones with real activity.
   const currentRows: Row[] = useMemo(() => {
     const childGroups = currentGroup ? currentGroup.childGroups : rootGroups;
-    const directItems = currentGroup ? currentGroup.items : [];
+    const directItems = currentGroup ? currentGroup.items : rootItems;
 
     const groupRows: Row[] = childGroups
       .filter((g) => g.closing_value !== 0 || g.closing_qty !== 0 || g.item_count > 0)
@@ -194,12 +200,24 @@ export default function StockSummary() {
       .map((item) => ({ kind: "item" as const, item }));
 
     return [...groupRows, ...itemRows];
-  }, [currentGroup, rootGroups]);
+  }, [currentGroup, rootGroups, rootItems]);
 
   const currentRowsTotal = useMemo(() => {
     const qty = currentRows.reduce((s, r) => s + (r.kind === "group" ? r.node.closing_qty : r.item.closing_qty), 0);
     const value = currentRows.reduce((s, r) => s + (r.kind === "group" ? r.node.closing_value : r.item.closing_value), 0);
-    return { qty, value };
+    // Tally blanks the total row's Quantity column whenever the rows being
+    // totalled don't share one common unit - same rule as a group node, just
+    // applied across whatever's currently on screen. A group row that's
+    // already qty-blank (mixed units underneath) is excluded rather than
+    // treated as unit "" so it can't falsely force a mismatch.
+    const unitsInPlay = new Set(
+      currentRows
+        .filter((r) => (r.kind === "group" ? r.node.qty_displayable : true))
+        .map((r) => (r.kind === "group" ? r.node.unit_name : r.item.unit_name) || "")
+        .filter((u) => u !== "")
+    );
+    const qtyDisplayable = unitsInPlay.size <= 1;
+    return { qty: qtyDisplayable ? qty : 0, value, qtyDisplayable };
   }, [currentRows]);
 
   // ── Visible rows for keyboard nav ──────────────────────────────────────────
@@ -228,10 +246,12 @@ export default function StockSummary() {
         (g) => g.closing_value !== 0 || g.closing_qty !== 0 || g.item_count > 0
       );
       setRootGroups(nonEmpty);
+      setRootItems(res.rootItems || []);
       setGroupPath([]);
       setLevel("groups");
       setTotalClosingValue(res.totalClosingValue || 0);
       setTotalClosingQty(res.totalClosingQty || 0);
+      setTotalQtyDisplayable(res.totalQtyDisplayable !== false);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -370,7 +390,7 @@ export default function StockSummary() {
                     <tr><td colSpan={4} className="text-center py-8 text-red-500">{error}</td></tr>
                   ) : currentRows.length === 0 ? (
                     <tr><td colSpan={4} className="text-center py-8 text-zinc-400 italic">
-                      {currentGroup ? "No stock items in this group." : "No stock groups with activity found."}
+                      {currentGroup ? "No stock items in this group." : "No stock items or groups with activity found."}
                     </td></tr>
                   ) : (
                     currentRows.map((row, idx) => {
@@ -378,7 +398,12 @@ export default function StockSummary() {
 
                       if (row.kind === "group") {
                         const g = row.node;
-                        const avgRate = g.closing_qty !== 0 ? g.closing_value / g.closing_qty : 0;
+                        // Qty/Rate only mean something if every item under
+                        // this group shares one unit (set server-side via
+                        // qty_displayable) - otherwise leave them blank and
+                        // show only the rolled-up Value, matching Tally.
+                        const showQty = g.qty_displayable && g.closing_qty !== 0;
+                        const avgRate = showQty && g.closing_qty !== 0 ? g.closing_value / g.closing_qty : 0;
                         return (
                           <tr
                             key={`g-${g.group_id}`}
@@ -394,7 +419,7 @@ export default function StockSummary() {
                               {g.group_name}
                             </td>
                             <td className="px-3 py-0.5 text-right border-r border-zinc-100 align-middle">
-                              {fmtQty(g.closing_qty)}
+                              {showQty ? `${fmtQty(g.closing_qty)}${g.unit_name ? " " + g.unit_name : ""}` : ""}
                             </td>
                             <td className="px-3 py-0.5 text-right border-r border-zinc-100 align-middle">
                               {avgRate > 0 ? fmt(avgRate) : ""}
@@ -443,7 +468,9 @@ export default function StockSummary() {
                         {currentGroup ? `${currentGroup.group_name} Total` : "Grand Total"}
                       </td>
                       <td className="px-3 py-1 text-right border-r border-[#a8c6d1] align-middle">
-                        {fmtQty(currentGroup ? currentRowsTotal.qty : totalClosingQty)}
+                        {currentGroup
+                          ? (currentRowsTotal.qtyDisplayable ? fmtQty(currentRowsTotal.qty) : "")
+                          : (totalQtyDisplayable ? fmtQty(totalClosingQty) : "")}
                       </td>
                       <td className="px-3 py-1 text-right border-r border-[#a8c6d1] align-middle"></td>
                       <td className="px-3 py-1 text-right align-middle">
