@@ -176,6 +176,20 @@ const balanceSheet = async (company_id, fy_id) => {
       .filter(g => g.balance !== 0);
 
     if (netProfit !== 0) {
+      // Tally shows P&L A/c broken into "Opening Balance" (profit/loss
+      // brought forward from prior years, via a P&L ledger's own opening
+      // balance if one exists) and "Current Period" (this year's movement
+      // from vouchers). If no such ledger is tracked, opening is just 0 and
+      // the whole figure sits under Current Period.
+      const pnlLedger = allLedgers.find(l => {
+        const g = allGroups.find(gr => gr.group_id === l.group_id);
+        return g && g.name === 'Profit & Loss A/c';
+      });
+      const pnlOpening = pnlLedger
+        ? (pnlLedger.opening_balance_type === 'Cr' ? -(pnlLedger.opening_balance || 0) : (pnlLedger.opening_balance || 0))
+        : 0;
+      const pnlCurrentPeriod = netProfit - pnlOpening;
+
       const pnlEntry = {
         group_id:    -1,
         group_name:  netProfit >= 0 ? 'Profit & Loss A/c' : 'Profit & Loss A/c (Loss)',
@@ -184,6 +198,10 @@ const balanceSheet = async (company_id, fy_id) => {
         ledgers:     [],
         childGroups: [],
         isPnL:       true,
+        pnlBreakup: {
+          openingBalance: pnlOpening,
+          currentPeriod:  pnlCurrentPeriod,
+        },
       };
       if (netProfit >= 0) {
         liabilities.push(pnlEntry);

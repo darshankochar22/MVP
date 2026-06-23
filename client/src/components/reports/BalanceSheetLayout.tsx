@@ -10,6 +10,10 @@ interface GroupRow {
   ledgers: { ledger_id: number; ledger_name: string; balance: number }[];
   childGroups: GroupRow[];
   isPnL?: boolean;
+  pnlBreakup?: {
+    openingBalance: number;
+    currentPeriod: number;
+  };
 }
 
 interface BSData {
@@ -44,28 +48,50 @@ function GroupRows({ groups, focusedId, onFocus, onOpenGroup, side }: GroupRowsP
         const isFocused = focusedId === key;
 
         return (
-          <tr
-            key={key}
-            className={`border-b border-zinc-100 cursor-pointer transition-colors select-none ${
-              isFocused
-                ? "bg-[#ffcc00] text-zinc-950 font-bold"
-                : "hover:bg-zinc-50 text-zinc-800 font-semibold"
-            }`}
-            onClick={() => onFocus(key, group)}
-            onDoubleClick={() => onOpenGroup(group)}
-          >
-            <td className="px-3 py-1.5 text-left">
-              {group.group_name}
-              {group.isPnL && (
-                <span className="ml-2 text-[9px] text-zinc-500 italic font-normal">
-                  (Net {(group.balance ?? 0) >= 0 ? "Profit" : "Loss"})
-                </span>
-              )}
-            </td>
-            <td className="px-3 py-1.5 text-right whitespace-nowrap w-36 font-mono">
-              ₹{fmt(group.balance)}
-            </td>
-          </tr>
+          <React.Fragment key={key}>
+            <tr
+              className={`border-b border-zinc-100 cursor-pointer transition-colors select-none ${
+                isFocused
+                  ? "bg-[#ffcc00] text-zinc-950 font-bold"
+                  : "hover:bg-zinc-50 text-zinc-800 font-semibold"
+              }`}
+              onClick={() => onFocus(key, group)}
+              onDoubleClick={() => onOpenGroup(group)}
+            >
+              <td className="px-3 py-1.5 text-left">
+                {group.group_name}
+                {group.isPnL && (
+                  <span className="ml-2 text-[9px] text-zinc-500 italic font-normal">
+                    (Net {(group.balance ?? 0) >= 0 ? "Profit" : "Loss"})
+                  </span>
+                )}
+              </td>
+              <td className="px-3 py-1.5 text-right whitespace-nowrap w-36 font-mono">
+                ₹{fmt(group.balance)}
+              </td>
+            </tr>
+
+            {/* P&L breakdown — static info rows, never clickable, matches Tally's
+                "Opening Balance" / "Current Period" sub-lines under P&L A/c */}
+            {group.isPnL && group.pnlBreakup && (
+              <>
+                <tr className="border-b border-zinc-50 text-zinc-500 italic select-none">
+                  <td className="px-3 py-1 pl-8 text-left text-[10px]">Opening Balance</td>
+                  <td className="px-3 py-1 text-right w-36 font-mono text-[10px]">
+                    {group.pnlBreakup.openingBalance !== 0
+                      ? `₹${fmt(group.pnlBreakup.openingBalance)}`
+                      : ""}
+                  </td>
+                </tr>
+                <tr className="border-b border-zinc-50 text-zinc-500 italic select-none">
+                  <td className="px-3 py-1 pl-8 text-left text-[10px]">Current Period</td>
+                  <td className="px-3 py-1 text-right w-36 font-mono text-[10px]">
+                    ₹{fmt(group.pnlBreakup.currentPeriod)}
+                  </td>
+                </tr>
+              </>
+            )}
+          </React.Fragment>
         );
       })}
     </>
