@@ -1,11 +1,3 @@
-/**
- * VoucherView.tsx — Accounting Voucher Alteration (Secondary)
- *
- * Opens the SAME Vouchers.tsx UI pre-filled with existing voucher data.
- * On Accept it calls window.api.voucher.update(...) instead of create.
- *
- * Route: /transactions/voucher/:id  (already in router)
- */
 
 import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";

@@ -61,7 +61,7 @@ export default function LedgerMonthlySummaryLayout() {
 
   const handleMonthOpen = React.useCallback(
     (row: MonthRow) => {
-      navigate(`/reports/accounts/daybook?ledger_id=${ledgerId}&month=${encodeURIComponent(row.month)}`);
+      navigate(`/reports/accounts/ledger?ledger_id=${ledgerId}&month=${encodeURIComponent(row.month)}`);
     },
     [navigate, ledgerId]
   );

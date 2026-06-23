@@ -18,6 +18,7 @@ import { TrialBalanceLayout } from "@/components/reports/TrialBalanceLayout";
 import { ProfitLossLayout } from "@/components/reports/ProfitnLossLayout";
 import GroupSummaryLayout from "@/components/reports/GroupSummaryLayout";
 import LedgerMonthlySummaryLayout from "@/components/reports/LedgerMonthlySummaryLayout";
+import LedgerVouchersLayout from "@/components/reports/LedgerVouchersLayout";
 import { RatioAnalysisLayout } from "@/components/reports/RatioAnalysisLayout";
 
 export function ReportRunner() {
@@ -263,6 +264,40 @@ export function ReportRunner() {
   // Dates
   const [fromDate, setFromDate] = React.useState<string>(activeFY?.start_date || "2026-04-01");
   const [toDate, setToDate] = React.useState<string>(activeFY?.end_date || "2027-03-31");
+
+  React.useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const fromParam = queryParams.get("from_date");
+    const toParam = queryParams.get("to_date");
+    const monthParam = queryParams.get("month");
+    
+    if (fromParam) setFromDate(fromParam);
+    if (toParam) setToDate(toParam);
+    
+    if (monthParam && activeFY?.start_date && activeFY?.end_date) {
+      const months = [
+        "january", "february", "march", "april", "may", "june",
+        "july", "august", "september", "october", "november", "december"
+      ];
+      const mIndex = months.findIndex(m => m.startsWith(monthParam.toLowerCase().trim()));
+      if (mIndex !== -1) {
+        const fyStart = new Date(activeFY.start_date);
+        const fyEnd = new Date(activeFY.end_date);
+        const fyStartMonth = fyStart.getMonth();
+        let year;
+        if (fyStartMonth <= mIndex) {
+          year = fyStart.getFullYear();
+        } else {
+          year = fyEnd.getFullYear();
+        }
+        const start = new Date(year, mIndex, 1);
+        const end = new Date(year, mIndex + 1, 0);
+        const pad = (n: number) => String(n).padStart(2, '0');
+        setFromDate(`${start.getFullYear()}-${pad(start.getMonth() + 1)}-${pad(start.getDate())}`);
+        setToDate(`${end.getFullYear()}-${pad(end.getMonth() + 1)}-${pad(end.getDate())}`);
+      }
+    }
+  }, [location.search, activeFY]);
 
   const getRegisterVoucherTypeTitle = () => {
     const voucherTypeMap: Record<string, string> = {
@@ -960,6 +995,8 @@ export function ReportRunner() {
          <GroupSummaryLayout />
          ):reportType === "ledger-summary" ? (
          <LedgerMonthlySummaryLayout />
+         ):reportType === "ledger" ? (
+         <LedgerVouchersLayout fromDate={fromDate} toDate={toDate} />
          ):reportType === "ratio-analysis" ? (
          <RatioAnalysisLayout />
          ) :(
@@ -976,8 +1013,17 @@ export function ReportRunner() {
             primaryKey="id"
             detailedFormat={config.detailedFormat}
             onRowDrillDown={(row) => {
-              if (row.ledger_name) {
-                navigate(`/reports/accounts/ledger`);
+              if (row.voucher_id) {
+                navigate(`/transactions/voucher/${row.voucher_id}`);
+              } else if (reportType === "daybook" && row.id) {
+                navigate(`/transactions/voucher/${row.id}`);
+              } else if (row.ledger_name) {
+                const ledgerId = row.ledger_id || row.id;
+                if (ledgerId) {
+                  navigate(`/reports/accounts/ledger-summary/${ledgerId}`);
+                } else {
+                  navigate(`/reports/accounts/ledger`);
+                }
               }
             }}
           />

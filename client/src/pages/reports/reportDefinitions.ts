@@ -774,6 +774,7 @@ export const REPORT_DEFINITIONS: Record<string, ReportConfig> = {
     apiMethod: "ledgerReport",
     columns: [
       { header: "Date", field: "date", type: "date" },
+      { header: "Particulars", field: "particulars" },
       { header: "Voucher Type", field: "voucher_type" },
       { header: "Vch No", field: "voucher_number" },
       { header: "Debit", field: "debit", type: "currency", align: "right" },

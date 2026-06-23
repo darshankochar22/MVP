@@ -45,11 +45,49 @@ const ledgerReport = async (company_id, fy_id, ledger_id, from_date, to_date) =>
           ORDER BY v.date ASC`
     );
 
+    const vIds = Array.from(new Set(result.map(r => r.voucher_id)));
+    let entryMap = {};
+    if (vIds.length > 0) {
+      const allEntries = await db.all(
+        sql`SELECT e.voucher_id, e.type, e.amount, e.ledger_id, COALESCE(e.ledger_name, l.name) AS ledger_name
+            FROM ${voucherEntries} e
+            LEFT JOIN ${ledgers} l ON l.ledger_id = e.ledger_id
+            WHERE e.voucher_id IN (${sql.join(vIds, sql`, `)})`
+      );
+      for (const ent of allEntries) {
+        if (!entryMap[ent.voucher_id]) {
+          entryMap[ent.voucher_id] = [];
+        }
+        entryMap[ent.voucher_id].push(ent);
+      }
+    }
+
     let runningBalance = effectiveOpening;
     const rows = result.map(e => {
       runningBalance += e.type === 'Dr' ? e.amount : -e.amount;
+
+      const entries = entryMap[e.voucher_id] || [];
+      const opposingType = e.type === 'Dr' ? 'Cr' : 'Dr';
+      const opposing = entries.filter(ent => ent.type === opposingType);
+
+      let particulars = '';
+      if (opposing.length === 1) {
+        particulars = opposing[0].ledger_name;
+      } else if (opposing.length > 1) {
+        particulars = 'As per Details';
+      } else {
+        const other = entries.filter(ent => ent.ledger_id !== ledger_id);
+        if (other.length === 1) {
+          particulars = other[0].ledger_name;
+        } else {
+          particulars = 'As per Details';
+        }
+      }
+
       return {
+        voucher_id: e.voucher_id,
         date: e.date,
+        particulars,
         voucher_type: e.voucher_type,
         voucher_number: e.voucher_number,
         debit:  e.type === 'Dr' ? e.amount : 0,
@@ -58,6 +96,7 @@ const ledgerReport = async (company_id, fy_id, ledger_id, from_date, to_date) =>
         narration: e.narration || e.voucher_narration,
       };
     });
+
 
     return {
       success: true,

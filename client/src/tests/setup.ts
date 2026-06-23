@@ -80,6 +80,7 @@ window.api = {
     create:  vi.fn().mockResolvedValue({ success: true, ledger: {} }),
     update:  vi.fn().mockResolvedValue({ success: true, ledger: {} }),
     delete:  vi.fn().mockResolvedValue({ success: true }),
+    getTotalOpeningBalance: vi.fn().mockResolvedValue({ success: true, totalDr: 0, totalCr: 0, netBalance: 0, balanceType: "Dr" }),
   },
 
   // ── Vouchers ──────────────────────────────────────────────────────────────
@@ -91,6 +92,26 @@ window.api = {
     delete:         vi.fn().mockResolvedValue({ success: true }),
     cancel:         vi.fn().mockResolvedValue({ success: true }),
     getNextNumber:  vi.fn().mockResolvedValue({ success: true, nextNumber: 'JNL-00001' }),
+  },
+
+  // ── Reports ───────────────────────────────────────────────────────────────
+  report: {
+    trialBalance:          vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    balanceSheet:          vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    profitLoss:            vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    ledgerReport:          vi.fn().mockResolvedValue({ success: true, ledger_name: 'Test Ledger', opening_balance: 0, rows: [], closing_balance: 0 }),
+    cashBook:              vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    bankBook:              vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    daybook:               vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    billsReceivable:       vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    billsPayable:          vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    cashFlow:              vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    fundsFlow:             vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    stockSummary:          vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    stockGroupItems:       vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    stockItemMonthly:      vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    ratioAnalysis:         vi.fn().mockResolvedValue({ success: true, rows: [] }),
+    groupSummaryDrilldown: vi.fn().mockResolvedValue({ success: true, rows: [] }),
   },
 
   // ── Inventory ─────────────────────────────────────────────────────────────
