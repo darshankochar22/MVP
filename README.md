@@ -1,10 +1,4 @@
-# MVP — AI-native accounting ERP ("Cursor for Tally")
-
-A Tally-style desktop accounting/ERP (Electron + React + SQLite) with an **AI copilot**, an
-**auto-generated API**, a **Drizzle dual-DB** layer, a **tamper-evident audit trail**, and a
-**Tally import** connector. Branch `hasan-feature` is the active line — see
-[`HASAN-FEATURE.md`](HASAN-FEATURE.md) for the full feature guide and
-[`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) for the contribution rules.
+# ERP
 
 ## Quick start
 
@@ -131,9 +125,4 @@ flowchart LR
 - [`docs/ROADMAP-tally-parity.md`](docs/ROADMAP-tally-parity.md) — Tally feature-parity roadmap
 - `docs/api/openapi.yaml` — full API spec (renders in Swagger UI / Scalar / Redoc)
 
-## Status of earlier suggestions
 
-The original suggestions (TypeScript/ORM backend, a real ORM with shared query helpers, consolidated
-schema) are largely addressed: **Drizzle ORM** now backs all services with **dual SQLite/Postgres
-schemas**, modules are self-contained (`server/<feature>/{service,controller,init}`), and the schema
-lives in one place per dialect. Remaining items (full TS backend, Koa/HTTP) are tracked in the roadmap.
