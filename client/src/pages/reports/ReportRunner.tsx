@@ -16,6 +16,8 @@ import { BalanceSheetLayout } from "@/components/reports/BalanceSheetLayout";
 import { StockSummaryLayout } from "@/components/reports/StockSummaryLayout";
 import { TrialBalanceLayout } from "@/components/reports/TrialBalanceLayout";
 import { ProfitLossLayout } from "@/components/reports/ProfitnLossLayout";
+import GroupSummaryLayout from "@/components/reports/GroupSummaryLayout";
+import LedgerMonthlySummaryLayout from "@/components/reports/LedgerMonthlySummaryLayout";
 
 export function ReportRunner() {
   const navigate = useNavigate();
@@ -23,7 +25,10 @@ export function ReportRunner() {
   const { selectedCompany, activeFY } = useCompany();
 
   const reportType = React.useMemo(() => {
-    const parts = location.pathname.split("/");
+    const pathname = location.pathname;
+    if (pathname.includes("/group-summary")) return "group-summary";
+    if (pathname.includes("/ledger-summary")) return "ledger-summary";
+    const parts = pathname.split("/");
     return parts[parts.length - 1];
   }, [location.pathname]);
 
@@ -883,20 +888,7 @@ export function ReportRunner() {
     }));
   }, []);
 
-  const totalText = React.useMemo(() => {
-    if (rows.length === 0) return undefined;
-    // Compute total sum of number/currency fields if applicable
-    const currencyCols = definition.columns.filter((c) => c.type === "currency");
-    if (currencyCols.length === 0) return `Total Rows: ${rows.length}`;
 
-    const totals = currencyCols.map((col) => {
-      const sum = rows
-        .filter((r) => !hiddenRowIds.has(r.id))
-        .reduce((acc, r) => acc + (Number(r[col.field]) || 0), 0);
-      return `${col.header}: ${new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR" }).format(sum)}`;
-    });
-    return totals.join(" | ");
-  }, [rows, definition, hiddenRowIds]);
 
   const tableColumns = React.useMemo(() => {
     if (!rows.length) return definition.columns;
@@ -945,7 +937,11 @@ export function ReportRunner() {
       )}
     >
       <div className="flex h-full w-full overflow-hidden">
-        {loading ? (
+        {error ? (
+          <div className="flex-1 flex items-center justify-center text-red-500 font-mono text-xs px-8 text-center animate-fade-in">
+            {error}
+          </div>
+        ) : loading ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500 font-mono text-xs">
             Loading report data...
           </div>
@@ -959,6 +955,10 @@ export function ReportRunner() {
          <ProfitLossLayout />
          ):reportType === "trial-balance" ? (
          <TrialBalanceLayout />
+         ):reportType === "group-summary" ? (
+         <GroupSummaryLayout />
+         ):reportType === "ledger-summary" ? (
+         <LedgerMonthlySummaryLayout />
          ) :(
         <ReportTable
             columns={tableColumns}

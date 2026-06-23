@@ -71,4 +71,4 @@ const ledgerReport = async (company_id, fy_id, ledger_id, from_date, to_date) =>
   }
 };
 
-module.exports = { ledgerReport };
+module.exports = ledgerReport;

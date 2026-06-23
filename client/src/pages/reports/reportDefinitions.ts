@@ -816,6 +816,16 @@ export const REPORT_DEFINITIONS: Record<string, ReportConfig> = {
       { header: "Status", field: "status" },
     ],
   },
+  "ledger-summary": {
+    title: "Ledger Monthly Summary",
+    apiMethod: "ledgerMonthlySummary",
+    columns: [
+      { header: "Particulars", field: "particulars" },
+      { header: "Debit", field: "debit", type: "currency", align: "right" },
+      { header: "Credit", field: "credit", type: "currency", align: "right" },
+      { header: "Closing Balance", field: "closing", type: "currency", align: "right" },
+    ],
+  },
   "group-vouchers": {
     title: "Group Vouchers",
     apiMethod: "run",

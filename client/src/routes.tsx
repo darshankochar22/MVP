@@ -54,7 +54,7 @@ import PurchaseRegister from "./pages/reports/accounts/PurchaseRegister.tsx";
 import JournalRegister from "./pages/reports/accounts/JournalRegister.tsx";
 import DebitNoteRegister from "./pages/reports/accounts/DebitNoteRegister.tsx";
 import CreditNoteRegister from "./pages/reports/accounts/CreditNoteRegister.tsx";
-import TrialBalance from "./pages/reports/accounts/TrialBalance.tsx";
+
 import ProfitLoss from "./pages/reports/accounts/ProfitLoss.tsx";
 import BalanceSheet from "./pages/reports/accounts/BalanceSheet.tsx";
 import CashFlowStatement from "./pages/reports/accounts/CashFlowStatement.tsx";
@@ -217,7 +217,6 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/accounts/journal-register",       element: <JournalRegister /> },
   { path: "/reports/accounts/debit-note-register",    element: <DebitNoteRegister /> },
   { path: "/reports/accounts/credit-note-register",   element: <CreditNoteRegister /> },
-  { path: "/reports/accounts/trial-balance",          element: <TrialBalance /> },
   { path: "/reports/accounts/profit-loss",            element: <ProfitLoss /> },
   { path: "/reports/accounts/balance-sheet",          element: <BalanceSheet /> },
   { path: "/reports/accounts/cash-flow",              element: <CashFlowStatement /> },
@@ -399,10 +398,9 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/alter/employee-category", element: <EmployeeCategoryAlter /> },
   { path: "/company/create", element: <CompanyCreatePage /> },
 
-  // ── 585-report category menu pages ─────────────────────────────────────────
+
   { path: "/reports/gateway", element: <CategoryMenuPage title="Gateway of Business" categorySlug="gateway" description="Central navigation hub for all 585 reports across every category." /> },
   { path: "/reports/financial-statements", element: <CategoryMenuPage title="Financial Statements" categorySlug="financial-statements" description="Profit & Loss, Balance Sheet, Cash Flow, Funds Flow, Ratio Analysis and related financial reports." /> },
-  // /reports/account-books is already registered above in the Sub-menu pages section
   { path: "/reports/receivables-payables", element: <CategoryMenuPage title="Receivables & Payables" categorySlug="receivables-payables" description="Bills receivable, bills payable, outstanding reports, ageing analysis and party-wise summaries." /> },
   { path: "/reports/cash-bank-finance", element: <CategoryMenuPage title="Cash, Bank & Finance" categorySlug="cash-bank-finance" description="Cash book, bank book, day book, bank reconciliation, cheque management and financial analytics." /> },
   { path: "/reports/sales-purchase-party", element: <CategoryMenuPage title="Sales, Purchase & Party" categorySlug="sales-purchase-party" description="Sales register, purchase register, sales/purchase order books, party outstandings and day books." /> },
@@ -415,8 +413,6 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/payroll-hr", element: <CategoryMenuPage title="Payroll & HR" categorySlug="payroll-hr" description="Payslips, salary register, attendance, PF, ESI, professional tax, gratuity and payroll analytics." /> },
   { path: "/reports/legacy-statutory", element: <CategoryMenuPage title="Legacy & Statutory" categorySlug="legacy-statutory" description="VAT, excise, service tax, sales tax and other legacy statutory compliance reports." /> },
   { path: "/reports/audit-security", element: <CategoryMenuPage title="Audit & Security" categorySlug="audit-security" description="Edit log, audit trail, verification, TallyMarks, user access logs and data integrity reports." /> },
-
-  // Dynamic catch-all: handles all 585 reports via URL-driven ReportRunner
   { path: "/reports/:category/:reportSlug", element: <ReportRunner /> },
 ];
 
