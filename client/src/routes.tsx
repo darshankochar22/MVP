@@ -48,6 +48,7 @@ import CashBookReport from "./pages/reports/accounts/CashBookReport.tsx";
 import BankBookReport from "./pages/reports/accounts/BankBookReport.tsx";
 import LedgerReport from "./pages/reports/accounts/LedgerReport.tsx";
 import GroupSummary from "./pages/reports/accounts/GroupSummary.tsx";
+import LedgerMonthlySummary from "./pages/reports/accounts/LedgerMonthlySummary.tsx";
 import SalesRegister from "./pages/reports/accounts/SalesRegister.tsx";
 import PurchaseRegister from "./pages/reports/accounts/PurchaseRegister.tsx";
 import JournalRegister from "./pages/reports/accounts/JournalRegister.tsx";
@@ -209,6 +210,8 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/accounts/bank-book",              element: <BankBookReport /> },
   { path: "/reports/accounts/ledger",                 element: <LedgerReport /> },
   { path: "/reports/accounts/group-summary",          element: <GroupSummary /> },
+  { path: "/reports/accounts/group-summary/:groupId", element: <GroupSummary /> },
+  { path: "/reports/accounts/ledger-summary/:ledgerId",element: <LedgerMonthlySummary /> },
   { path: "/reports/accounts/sales-register",         element: <SalesRegister /> },
   { path: "/reports/accounts/purchase-register",      element: <PurchaseRegister /> },
   { path: "/reports/accounts/journal-register",       element: <JournalRegister /> },

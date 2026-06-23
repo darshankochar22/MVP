@@ -137,6 +137,8 @@ contextBridge.exposeInMainWorld('api', {
         stockGroupItems:  (company_id, fy_id, group_id)                          => invoke('report:stockGroupItems', { company_id, fy_id, group_id }),
         stockItemMonthly: (company_id, fy_id, item_id)                           => invoke('report:stockItemMonthly', { company_id, fy_id, item_id }),
         ratioAnalysis:   (company_id, fy_id)                                     => invoke('report:ratioAnalysis', { company_id, fy_id }),
+        groupSummaryDrilldown: (company_id, fy_id, group_id)                     => invoke('report:groupSummaryDrilldown', { company_id, fy_id, group_id }),
+        ledgerMonthlySummary:  (company_id, fy_id, ledger_id)                    => invoke('report:ledgerMonthlySummary', { company_id, fy_id, ledger_id }),
         run:              (reportId, params)                                     => invoke('report:run', { reportId, params }),
         getSavedViews:    (company_id)                                           => invoke('report:getSavedViews', { company_id }),
         saveView:         (payload)                                              => invoke('report:saveView', payload),

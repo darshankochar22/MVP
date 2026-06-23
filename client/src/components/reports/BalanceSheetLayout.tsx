@@ -2,18 +2,12 @@ import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 
-interface LedgerRow {
-  ledger_id: number;
-  ledger_name: string;
-  balance: number;
-}
-
 interface GroupRow {
   group_id: number;
   group_name: string;
   nature?: string;
   balance: number;
-  ledgers: LedgerRow[];
+  ledgers: { ledger_id: number; ledger_name: string; balance: number }[];
   childGroups: GroupRow[];
   isPnL?: boolean;
 }
@@ -32,38 +26,22 @@ const fmt = (val: number) =>
     maximumFractionDigits: 2,
   }).format(Math.abs(val));
 
-// What is currently focused, kept alongside the key so Enter can act on it.
-type FocusPayload = { key: string; group?: GroupRow; ledger?: LedgerRow };
-
-// ─── group rows ───────────────────────────────────────────────────────────────
+// ─── group rows (flat, top-level only — matches Tally's Balance Sheet) ───────
 
 interface GroupRowsProps {
   groups: GroupRow[];
-  depth: number;
   focusedId: string | null;
-  onFocus: (payload: FocusPayload) => void;
+  onFocus: (key: string, group: GroupRow) => void;
   onOpenGroup: (group: GroupRow) => void;
-  onOpenLedger: (ledger: LedgerRow) => void;
   side: "L" | "A";
 }
 
-function GroupRows({
-  groups,
-  depth,
-  focusedId,
-  onFocus,
-  onOpenGroup,
-  onOpenLedger,
-  side,
-}: GroupRowsProps) {
+function GroupRows({ groups, focusedId, onFocus, onOpenGroup, side }: GroupRowsProps) {
   return (
     <>
       {groups.map((group) => {
-        const key = `${side}-g-${group.group_id}-d${depth}`;
+        const key = `${side}-g-${group.group_id}`;
         const isFocused = focusedId === key;
-        const hasChildren =
-          group.childGroups.length > 0 || group.ledgers.length > 0;
-        const indent = depth * 16;
 
         return (
           <tr
@@ -71,22 +49,12 @@ function GroupRows({
             className={`border-b border-zinc-100 cursor-pointer transition-colors select-none ${
               isFocused
                 ? "bg-[#ffcc00] text-zinc-950 font-bold"
-                : depth === 0
-                ? "hover:bg-zinc-50 text-zinc-800 font-semibold"
-                : "hover:bg-zinc-50 text-zinc-700"
+                : "hover:bg-zinc-50 text-zinc-800 font-semibold"
             }`}
-            onClick={() => onFocus({ key, group })}
+            onClick={() => onFocus(key, group)}
             onDoubleClick={() => onOpenGroup(group)}
           >
-            <td
-              className="px-3 py-1.5 text-left"
-              style={{ paddingLeft: `${12 + indent}px` }}
-            >
-              {hasChildren ? (
-                <span className="mr-1.5 text-zinc-400 text-[9px]">▶</span>
-              ) : (
-                <span className="mr-1.5 text-zinc-300 text-[9px]">–</span>
-              )}
+            <td className="px-3 py-1.5 text-left">
               {group.group_name}
               {group.isPnL && (
                 <span className="ml-2 text-[9px] text-zinc-500 italic font-normal">
@@ -112,9 +80,8 @@ interface PanelProps {
   total: number;
   totalLabel: string;
   focusedId: string | null;
-  onFocus: (payload: FocusPayload) => void;
+  onFocus: (key: string, group: GroupRow) => void;
   onOpenGroup: (group: GroupRow) => void;
-  onOpenLedger: (ledger: LedgerRow) => void;
   side: "L" | "A";
   periodLabel: string;
 }
@@ -127,13 +94,11 @@ function Panel({
   focusedId,
   onFocus,
   onOpenGroup,
-  onOpenLedger,
   side,
   periodLabel,
 }: PanelProps) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden border-r border-zinc-300 last:border-r-0">
-      {/* Panel title + period */}
       <div className="bg-[#e5eff5] border-b border-zinc-200 px-3 py-1 flex justify-between items-center select-none">
         <span className="font-mono text-[11px] font-bold text-zinc-800 tracking-wide uppercase">
           {title}
@@ -141,27 +106,21 @@ function Panel({
         <span className="font-mono text-[10px] text-zinc-500">{periodLabel}</span>
       </div>
 
-      {/* Rows */}
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse font-mono text-[11px]">
           <tbody>
             {groups.length === 0 ? (
               <tr>
-                <td
-                  colSpan={2}
-                  className="px-3 py-8 text-center text-zinc-400 italic text-[11px]"
-                >
+                <td colSpan={2} className="px-3 py-8 text-center text-zinc-400 italic text-[11px]">
                   No entries for this period.
                 </td>
               </tr>
             ) : (
               <GroupRows
                 groups={groups}
-                depth={0}
                 focusedId={focusedId}
                 onFocus={onFocus}
                 onOpenGroup={onOpenGroup}
-                onOpenLedger={onOpenLedger}
                 side={side}
               />
             )}
@@ -169,7 +128,6 @@ function Panel({
         </table>
       </div>
 
-      {/* Total */}
       <div className="border-t-2 border-double border-zinc-400 bg-[#e5eff5] px-3 py-1.5 flex justify-between font-mono text-[11px] font-bold text-zinc-900 select-none">
         <span>{totalLabel}</span>
         <span>₹{fmt(total)}</span>
@@ -189,9 +147,7 @@ export function BalanceSheetLayout() {
   const [error, setError] = React.useState<string | null>(null);
 
   const [focusedId, setFocusedId] = React.useState<string | null>(null);
-  // Holds whichever group/ledger is currently focused, so the Enter key
-  // handler below knows what to drill into.
-  const focusedRef = React.useRef<FocusPayload | null>(null);
+  const focusedGroupRef = React.useRef<GroupRow | null>(null);
 
   React.useEffect(() => {
     if (!selectedCompany?.company_id || !activeFY?.fy_id) {
@@ -217,35 +173,24 @@ export function BalanceSheetLayout() {
     [navigate]
   );
 
-  const openLedger = React.useCallback(
-    (ledger: LedgerRow) => {
-      navigate(`/reports/accounts/ledger-summary/${ledger.ledger_id}`);
-    },
-    [navigate]
-  );
-
-  const handleFocus = React.useCallback((payload: FocusPayload) => {
-    setFocusedId(payload.key);
-    focusedRef.current = payload;
+  const handleFocus = React.useCallback((key: string, group: GroupRow) => {
+    setFocusedId(key);
+    focusedGroupRef.current = group;
   }, []);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!focusedRef.current) return;
+      if (!focusedGroupRef.current) return;
       if (e.key === "Enter") {
         e.preventDefault();
-        const { group, ledger } = focusedRef.current;
-        if (group) openGroup(group);
-        else if (ledger) openLedger(ledger);
+        openGroup(focusedGroupRef.current);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [openGroup, openLedger]);
+  }, [openGroup]);
 
-  const periodLabel = activeFY
-    ? `${activeFY.start_date} to ${activeFY.end_date}`
-    : "";
+  const periodLabel = activeFY ? `as at ${activeFY.start_date}` : "";
 
   if (loading) {
     return (
@@ -280,7 +225,6 @@ export function BalanceSheetLayout() {
           focusedId={focusedId}
           onFocus={handleFocus}
           onOpenGroup={openGroup}
-          onOpenLedger={openLedger}
           side="L"
           periodLabel={periodLabel}
         />
@@ -292,7 +236,6 @@ export function BalanceSheetLayout() {
           focusedId={focusedId}
           onFocus={handleFocus}
           onOpenGroup={openGroup}
-          onOpenLedger={openLedger}
           side="A"
           periodLabel={periodLabel}
         />
