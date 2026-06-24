@@ -26,7 +26,7 @@ export default function AccountBooks() {
       "Cash/Bank Book(s)": "/reports/accounts/cash-bank",
       "Ledger": "/reports/accounts/ledger-select",
       "Group Summary": "/reports/accounts/group-select",
-      "Group Vouchers": "/reports/accounts/group-vouchers",
+      "Group Vouchers": "/reports/accounts/group-vouchers-select",
       "Contra Register": "/reports/accounts/contra-register",
       "Payment Register": "/reports/accounts/payment-register",
       "Receipt Register": "/reports/accounts/receipt-register",

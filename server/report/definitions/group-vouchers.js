@@ -1,6 +1,76 @@
 module.exports = {
   run: async (company_id, fy_id, params = {}) => {
-    const service = require('../universalReportService');
-    return await service.queryVouchers(company_id, fy_id, { reportId: 'R070', viewType: 'group', subType: 'vouchers', ...params });
+    try {
+      const { db } = require('../../db');
+      const group_id = Number(params.group_id);
+      if (!group_id) return { success: false, error: 'group_id is required' };
+
+      const from_date = params.from_date || null;
+      const to_date = params.to_date || null;
+
+      const groupRow = await db.run(
+        `SELECT name FROM groups WHERE group_id = ${group_id} AND company_id = ${company_id}`
+      );
+      const groupName = groupRow?.rows?.[0]?.[0] || '';
+
+      const ledgerRows = await db.run(
+        `WITH RECURSIVE sub_groups AS (
+          SELECT group_id FROM groups WHERE group_id = ${group_id} AND company_id = ${company_id}
+          UNION ALL
+          SELECT g.group_id FROM groups g INNER JOIN sub_groups sg ON g.parent_group_id = sg.group_id WHERE g.company_id = ${company_id}
+        )
+        SELECT l.ledger_id FROM ledgers l
+        WHERE l.group_id IN (SELECT group_id FROM sub_groups) AND l.company_id = ${company_id}`
+      );
+
+      const ledgerIdList = (ledgerRows?.rows || []).map((r) => r[0]).filter(Boolean);
+      if (!ledgerIdList.length) return { success: true, group_name: groupName, rows: [] };
+
+      const placeholders = ledgerIdList.join(',');
+      const dateFilter = [
+        from_date ? `AND v.date >= '${from_date}'` : '',
+        to_date ? `AND v.date <= '${to_date}'` : ''
+      ].join(' ');
+
+      const result = await db.run(
+        `SELECT
+          v.voucher_id,
+          v.voucher_type,
+          v.voucher_number,
+          v.date,
+          v.party_name,
+          v.narration,
+          COALESCE((
+            SELECT GROUP_CONCAT(l2.name, ', ')
+            FROM voucher_entries ve3
+            JOIN ledgers l2 ON l2.ledger_id = ve3.ledger_id
+            WHERE ve3.voucher_id = v.voucher_id
+              AND ve3.ledger_id NOT IN (${placeholders})
+            LIMIT 3
+          ), v.party_name, v.narration, '') AS particulars,
+          COALESCE((SELECT SUM(ve.amount) FROM voucher_entries ve WHERE ve.voucher_id = v.voucher_id AND ve.type = 'Dr'), 0) AS debit_total,
+          COALESCE((SELECT SUM(ve.amount) FROM voucher_entries ve WHERE ve.voucher_id = v.voucher_id AND ve.type = 'Cr'), 0) AS credit_total
+        FROM vouchers v
+        WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id}
+          AND EXISTS (
+            SELECT 1 FROM voucher_entries ve2
+            WHERE ve2.voucher_id = v.voucher_id AND ve2.ledger_id IN (${placeholders})
+          )
+          ${dateFilter}
+        ORDER BY v.date DESC, v.voucher_id DESC`
+      );
+
+      const cols = ['voucher_id','voucher_type','voucher_number','date','party_name','narration','particulars','debit_total','credit_total'];
+      const rows = (result?.rows || []).map(r => {
+        const obj = {};
+        cols.forEach((c, i) => obj[c] = r[i]);
+        return obj;
+      });
+
+      return { success: true, group_name: groupName, rows };
+    } catch (err) {
+      console.error('group-vouchers error:', err);
+      return { success: false, error: err.message };
+    }
   }
 };

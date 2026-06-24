@@ -183,6 +183,7 @@ import Vouchers from "./pages/transactions/Vouchers.tsx";
 import VoucherList from "./pages/transactions/VoucherList.tsx";
 import LedgerSelect from "./pages/reports/accounts/LedgerSelect.tsx";
 import GroupSelect from "./pages/reports/accounts/GroupSelect.tsx";
+import GroupVouchersSelect from "./pages/reports/accounts/GroupVouchersSelect.tsx";
 
 export interface RouteConfig {
   path: string;
@@ -210,6 +211,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/accounts/ledger",                 element: <LedgerReport /> },
   { path: "/reports/accounts/group-summary",          element: <GroupSummary /> },
   { path: "/reports/accounts/group-summary/:groupId", element: <GroupSummary /> },
+  { path: "/reports/accounts/group-vouchers/:groupId", element: <ReportRunner /> },
   { path: "/reports/accounts/ledger-summary/:ledgerId",element: <LedgerMonthlySummary /> },
   { path: "/reports/accounts/sales-register",         element: <SalesRegister /> },
   { path: "/reports/accounts/purchase-register",      element: <PurchaseRegister /> },
@@ -252,6 +254,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/exception/edit-log",                 element: <EditLogSummary /> },
   { path: "/reports/accounts/ledger-select", element: <LedgerSelect /> },
   { path: "/reports/accounts/group-select", element: <GroupSelect /> },
+  { path: "/reports/accounts/group-vouchers-select", element: <GroupVouchersSelect /> },
   { path: "/reports/payroll/payslip",           element: <PayslipReport /> },
   { path: "/reports/payroll/salary-statement",  element: <SalaryStatement /> },
   { path: "/reports/payroll/salary-register",   element: <SalaryRegister /> },

@@ -21,6 +21,7 @@ import LedgerMonthlySummaryLayout from "@/components/reports/LedgerMonthlySummar
 import LedgerVouchersLayout from "@/components/reports/LedgerVouchersLayout";
 import { RatioAnalysisLayout } from "@/components/reports/RatioAnalysisLayout";
 import CashBankSummaryLayout from "@/components/reports/CashBankSummaryLayout";
+import GroupVouchersLayout from "@/components/reports/GroupVouchersLayout";
 
 export function ReportRunner() {
   const navigate = useNavigate();
@@ -30,6 +31,7 @@ export function ReportRunner() {
   const reportType = React.useMemo(() => {
     const pathname = location.pathname;
     if (pathname.includes("/group-summary")) return "group-summary";
+    if (pathname.includes("/group-vouchers")) return "group-vouchers";
     if (pathname.includes("/ledger-summary")) return "ledger-summary";
     const parts = pathname.split("/");
     return parts[parts.length - 1];
@@ -512,7 +514,7 @@ export function ReportRunner() {
     const layoutOnlyReports = [
     "balance-sheet", "stock-summary", "profit-loss", "trial-balance",
     "group-summary", "ledger-summary", "ledger", "ratio-analysis",
-    "cash-book", "bank-book", "cash-bank"
+    "cash-book", "bank-book", "cash-bank", "group-vouchers"
   ];
   if (layoutOnlyReports.includes(reportType)) {
     setLoading(false);
@@ -1009,6 +1011,8 @@ export function ReportRunner() {
          <LedgerVouchersLayout fromDate={fromDate} toDate={toDate} />
          ):reportType === "ratio-analysis" ? (
          <RatioAnalysisLayout />
+         ):reportType === "group-vouchers" ? (
+         <GroupVouchersLayout />
          ):reportType === "cash-bank" ? (
          <CashBankSummaryLayout />
          ) :(
