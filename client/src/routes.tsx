@@ -178,6 +178,10 @@ import { ReportRunner } from "./pages/reports/ReportRunner.tsx";
 import CategoryMenuPage from "./pages/reports/CategoryMenuPage.tsx";
 import  JobWorkReports  from "./pages/menu/reports/JobWorkReports.tsx";
 import AnalysisVerification from "./pages/menu/reports/AnalysisVerification.tsx";
+import VoucherView from "./pages/transactions/VoucherView.tsx";
+import Daybook from "./pages/transactions/Daybook.tsx";
+import Vouchers from "./pages/transactions/Vouchers.tsx";
+import VoucherList from "./pages/transactions/VoucherList.tsx";
 
 export interface RouteConfig {
   path: string;
@@ -358,10 +362,10 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/alter/stock-item", element: <StockItemAlter /> },
   { path: "/master/alter/godown", element: <GodownAlter /> },
 
-  // { path: "/transactions/vouchers", element: <Vouchers /> },
-  // { path: "/transactions/voucher-list", element: <VoucherList /> },
-  // { path: "/transactions/voucher/:id", element: <VoucherView /> },
-  // { path: "/transactions/daybook", element: <Daybook /> },
+  { path: "/transactions/vouchers", element: <Vouchers /> },
+   { path: "/transactions/voucher-list", element: <VoucherList /> },
+   { path: "/transactions/voucher/:id", element: <VoucherView /> },
+   { path: "/transactions/daybook", element: <Daybook /> },
   { path: "/utilities/banking", element: <Banking /> },
   { path: "/utilities/copilot", element: <Copilot /> },
   { path: "/data/:controller", element: <GenericDataView /> },
