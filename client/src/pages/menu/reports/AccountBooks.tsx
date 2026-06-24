@@ -25,7 +25,7 @@ export default function AccountBooks() {
     const routes: Record<string, string> = {
       "Cash/Bank Book(s)": "/reports/accounts/cash-bank",
       "Ledger": "/reports/accounts/ledger-select",
-      "Group Summary": "/reports/accounts/group-summary",
+      "Group Summary": "/reports/accounts/group-select",
       "Group Vouchers": "/reports/accounts/group-vouchers",
       "Contra Register": "/reports/accounts/contra-register",
       "Payment Register": "/reports/accounts/payment-register",

@@ -1,55 +1,53 @@
-// src/pages/reports/accounts/LedgerSelect.tsx
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/card";
 
-export default function LedgerSelect() {
+export default function GroupSelect() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
-  const [ledgers, setLedgers] = useState<any[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!selectedCompany?.company_id) return;
-    (window as any).api.ledger.getAll(selectedCompany.company_id).then((res: any) => {
+    (window as any).api.group.getAll(selectedCompany.company_id).then((res: any) => {
       if (res.success) {
-        const list = res.ledgers || res.data || [];
+        const list = res.groups || res.data || [];
         const sorted = [...list].sort((a: any, b: any) =>
           (a.name || "").localeCompare(b.name || "")
         );
-        setLedgers(sorted);
+        setGroups(sorted);
       }
     }).finally(() => setLoading(false));
   }, [selectedCompany?.company_id]);
 
-  const handleSelect = (ledger: any) => {
-    navigate(`/reports/accounts/ledger?ledger_id=${ledger.ledger_id}`);
+  const handleSelect = (group: any) => {
+    navigate(`/reports/accounts/group-summary/${group.group_id}`);
   };
 
-  // Keyboard nav
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") { navigate(-1); return; }
-      if (ledgers.length === 0) return;
-      const currentIdx = selectedId ? ledgers.findIndex(l => l.ledger_id === selectedId) : -1;
+      if (groups.length === 0) return;
+      const currentIdx = selectedId ? groups.findIndex(g => g.group_id === selectedId) : -1;
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        const next = ledgers[currentIdx + 1];
-        if (next) setSelectedId(next.ledger_id);
+        const next = groups[currentIdx + 1];
+        if (next) setSelectedId(next.group_id);
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        const prev = ledgers[currentIdx - 1];
-        if (prev) setSelectedId(prev.ledger_id);
+        const prev = groups[currentIdx - 1];
+        if (prev) setSelectedId(prev.group_id);
       } else if (e.key === "Enter" && selectedId) {
-        const ledger = ledgers.find(l => l.ledger_id === selectedId);
-        if (ledger) handleSelect(ledger);
+        const group = groups.find(g => g.group_id === selectedId);
+        if (group) handleSelect(group);
       }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [ledgers, selectedId]);
+  }, [groups, selectedId]);
 
   return (
     <Card size="sm" className="w-96 mx-auto mt-10 text-xs">
@@ -61,43 +59,38 @@ export default function LedgerSelect() {
           <span>&gt;</span>
           <Link to="/reports/account-books" className="hover:underline hover:text-zinc-900">Account Books</Link>
         </div>
-        <CardTitle className="text-base font-semibold">Select Ledger</CardTitle>
+        <CardTitle className="text-base font-semibold">Select Group</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-
-
-        {/* Column header */}
         <div className="px-4 py-1.5 bg-zinc-100 border-b border-zinc-200 text-[10px] font-bold uppercase tracking-wider text-zinc-500 select-none">
-          Name of Ledger
+          Name of Group
         </div>
-
         <div
-         onClick={() => navigate("/master/create/ledger")}
-         className="px-4 py-1.5 cursor-pointer text-[12px] font-mono font-bold select-none border-b border-zinc-200 text-right hover:bg-zinc-50 transition-colors"
+          onClick={() => navigate("/master/create/group")}
+          className="px-4 py-1.5 cursor-pointer text-[12px] font-mono font-bold select-none border-b border-zinc-200 text-right hover:bg-zinc-50 transition-colors"
         >
-           Create
-       </div>
-
+          Create
+        </div>
         {loading ? (
           <div className="px-4 py-6 text-zinc-400 text-center font-mono text-[11px]">Loading...</div>
-        ) : ledgers.length === 0 ? (
-          <div className="px-4 py-6 text-zinc-400 text-center font-mono text-[11px]">No ledgers found</div>
+        ) : groups.length === 0 ? (
+          <div className="px-4 py-6 text-zinc-400 text-center font-mono text-[11px]">No groups found</div>
         ) : (
           <div className="max-h-[calc(100vh-220px)] overflow-y-auto">
-            {ledgers.map((ledger) => {
-              const isSelected = ledger.ledger_id === selectedId;
+            {groups.map((group) => {
+              const isSelected = group.group_id === selectedId;
               return (
                 <div
-                  key={ledger.ledger_id}
-                  onClick={() => handleSelect(ledger)}
-                  onMouseEnter={() => setSelectedId(ledger.ledger_id)}
+                  key={group.group_id}
+                  onClick={() => handleSelect(group)}
+                  onMouseEnter={() => setSelectedId(group.group_id)}
                   className={`px-4 py-1 cursor-pointer text-[12px] font-mono select-none border-b border-zinc-50 transition-colors ${
                     isSelected
                       ? "bg-[#ffcc33] text-zinc-950 font-bold"
                       : "text-zinc-700 hover:bg-[#ffcc33] hover:text-zinc-950"
                   }`}
                 >
-                  {ledger.name || ledger.ledger_name}
+                  {group.name}
                 </div>
               );
             })}
