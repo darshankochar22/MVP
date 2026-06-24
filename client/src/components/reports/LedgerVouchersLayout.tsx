@@ -78,32 +78,23 @@ export default function LedgerVouchersLayout({ fromDate, toDate }: LedgerVoucher
   const [error, setError] = React.useState<string | null>(null);
   const [focusedIndex, setFocusedIndex] = React.useState<number>(0);
 
-  const fetchLedgerReport = React.useCallback(async () => {
-    if (!selectedCompany?.company_id || !activeFY?.fy_id) return;
-    setLoading(true);
-    setError(null);
+const companyId = selectedCompany?.company_id;
+const fyId = activeFY?.fy_id;
 
-    try {
-      const res = await (window as any).api.report.ledgerReport(
-        selectedCompany.company_id,
-        activeFY.fy_id,
-        ledgerId,
-        fromDate,
-        toDate
-      );
-
-      if (res.success) {
-        setData(res);
-        setFocusedIndex(0);
-      } else {
-        setError(res.error || "Failed to load ledger vouchers");
-      }
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
-    } finally {
-      setLoading(false);
-    }
-  }, [ledgerId, fromDate, toDate, selectedCompany?.company_id, activeFY?.fy_id]);
+const fetchLedgerReport = React.useCallback(async () => {
+  if (!companyId || !fyId) return;
+  setLoading(true);
+  setError(null);
+  try {
+    const res = await (window as any).api.report.ledgerReport(
+      companyId, fyId, ledgerId, fromDate, toDate
+    );
+    if (res.success) { setData(res); setFocusedIndex(0); }
+    else setError(res.error || "Failed to load ledger vouchers");
+  } catch (err: any) {
+    setError(err.message || "An error occurred");
+  } finally { setLoading(false); }
+}, [ledgerId, fromDate, toDate, companyId, fyId]);
 
   React.useEffect(() => {
     fetchLedgerReport();

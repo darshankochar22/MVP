@@ -13,39 +13,30 @@ export default function AccountBooks() {
     {
       title: "REGISTERS",
       items: [
-        "Contra Register",
-        "Payment Register",
-        "Receipt Register",
-        "Sales Register",
-        "Purchase Register",
-        "Journal Register",
-        "Debit Note Register",
-        "Credit Note Register",
-        "Voucher Clarification",
+        "Contra Register", "Payment Register", "Receipt Register",
+        "Sales Register", "Purchase Register", "Journal Register",
+        "Debit Note Register", "Credit Note Register", "Voucher Clarification",
       ],
     },
-    {
-      title: "",
-      items: ["Quit"],
-    },
+    { title: "", items: ["Quit"] },
   ];
 
   const getRoute = (_section: string, item: string) => {
-const routes: Record<string, string> = {
-  "Cash/Bank Book(s)": "/reports/accounts/cash-bank",
-  "Ledger": "/reports/accounts/ledger-summary",
-  "Group Summary": "/reports/accounts/group-summary",
-  "Group Vouchers": "/reports/accounts/group-vouchers",
-  "Contra Register": "/reports/accounts/contra-register",
-  "Payment Register": "/reports/accounts/payment-register",
-  "Receipt Register": "/reports/accounts/receipt-register",
-  "Sales Register": "/reports/accounts/sales-register",
-  "Purchase Register": "/reports/accounts/purchase-register",
-  "Journal Register": "/reports/accounts/journal-register",
-  "Debit Note Register": "/reports/accounts/debit-note-register",
-  "Credit Note Register": "/reports/accounts/credit-note-register",
-  "Voucher Clarification": "/reports/accounts/voucher-clarification",
-};
+    const routes: Record<string, string> = {
+      "Cash/Bank Book(s)": "/reports/accounts/cash-bank",
+      "Ledger": "/reports/accounts/ledger-select",
+      "Group Summary": "/reports/accounts/group-summary",
+      "Group Vouchers": "/reports/accounts/group-vouchers",
+      "Contra Register": "/reports/accounts/contra-register",
+      "Payment Register": "/reports/accounts/payment-register",
+      "Receipt Register": "/reports/accounts/receipt-register",
+      "Sales Register": "/reports/accounts/sales-register",
+      "Purchase Register": "/reports/accounts/purchase-register",
+      "Journal Register": "/reports/accounts/journal-register",
+      "Debit Note Register": "/reports/accounts/debit-note-register",
+      "Credit Note Register": "/reports/accounts/credit-note-register",
+      "Voucher Clarification": "/reports/accounts/voucher-clarification",
+    };
     return routes[item] ?? null;
   };
 
@@ -59,7 +50,6 @@ const routes: Record<string, string> = {
         </div>
         <CardTitle className="text-base font-semibold">Account Books</CardTitle>
       </CardHeader>
-
       <CardContent className="flex flex-col gap-4">
         {sections.map((section) => (
           <div key={section.title || "misc"} className="flex flex-col gap-1.5">

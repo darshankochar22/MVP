@@ -181,6 +181,7 @@ import VoucherView from "./pages/transactions/VoucherView.tsx";
 import Daybook from "./pages/transactions/Daybook.tsx";
 import Vouchers from "./pages/transactions/Vouchers.tsx";
 import VoucherList from "./pages/transactions/VoucherList.tsx";
+import LedgerSelect from "./pages/reports/accounts/LedgerSelect.tsx";
 
 export interface RouteConfig {
   path: string;
@@ -248,7 +249,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/exception/negative-ledger",          element: <NegativeLedger /> },
   { path: "/reports/analysis-verification",    element: <AnalysisVerification /> },
   { path: "/reports/exception/edit-log",                 element: <EditLogSummary /> },
-  // Payroll reports
+  { path: "/reports/accounts/ledger-select", element: <LedgerSelect /> },
   { path: "/reports/payroll/payslip",           element: <PayslipReport /> },
   { path: "/reports/payroll/salary-statement",  element: <SalaryStatement /> },
   { path: "/reports/payroll/salary-register",   element: <SalaryRegister /> },
