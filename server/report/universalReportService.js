@@ -458,7 +458,8 @@ const resolveOutstandingSide = (arg) => {
 // ---------------------------------------------------------------------------
 const calculateOutstanding = async (company_id, fy_id, type = 'receivable') => {
   try {
-    const groupName = resolveOutstandingSide(type) === 'payable' ? 'Sundry Creditors' : 'Sundry Debtors';
+    const isPayable = resolveOutstandingSide(type) === 'payable';
+    const groupName = isPayable ? 'Sundry Creditors' : 'Sundry Debtors';
 
     const rows = await db.all(
       sql`SELECT
@@ -468,21 +469,33 @@ const calculateOutstanding = async (company_id, fy_id, type = 'receivable') => {
             COALESCE(MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN v.date ELSE NULL END), MAX(v.date)) AS bill_date,
             MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.due_date ELSE NULL END) AS due_date,
             MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.credit_period ELSE NULL END) AS credit_period,
-            SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.amount ELSE -vbr.amount END) AS total_amount
+            SUM(
+              CASE 
+                WHEN ${isPayable ? sql`ve.entry_type = 'Dr'` : sql`ve.entry_type = 'Cr'`} THEN -vbr.amount 
+                ELSE vbr.amount 
+              END
+            ) AS total_amount
           FROM ${voucherBillReferences} vbr
           INNER JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
           INNER JOIN ${ledgers} l ON l.ledger_id = vbr.ledger_id
           INNER JOIN ${groups} g ON g.group_id = l.group_id
+          LEFT JOIN (
+            SELECT voucher_id, ledger_id, MAX(type) AS entry_type
+            FROM ${voucherEntries}
+            GROUP BY voucher_id, ledger_id
+          ) ve ON ve.voucher_id = vbr.voucher_id AND ve.ledger_id = vbr.ledger_id
           WHERE v.company_id = ${company_id}
             AND v.fy_id = ${fy_id}
             AND v.is_cancelled = 0
             AND COALESCE(v.is_optional, 0) = 0
             AND COALESCE(v.is_post_dated, 0) = 0
             AND vbr.bill_type IN ('New Ref', 'Advance', 'Agst Ref')
+            AND l.is_bill_wise = 1
             AND g.company_id = ${company_id}
             AND g.name = ${groupName}
           GROUP BY l.ledger_id, l.name, vbr.bill_name
-          HAVING ABS(total_amount) > 0.01
+          HAVING SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN 1 ELSE 0 END) > 0
+             AND ABS(total_amount) > 0.01
           ORDER BY l.name ASC, MAX(v.date) DESC`
     );
 
@@ -519,7 +532,8 @@ const calculateAgeing = async (company_id, fy_id, type = 'receivable', buckets =
     ];
     const ageingBuckets = buckets && buckets.length > 0 ? buckets : defaultBuckets;
     const asOnDate = new Date().toISOString().slice(0, 10);
-    const groupName = resolveOutstandingSide(type) === 'payable' ? 'Sundry Creditors' : 'Sundry Debtors';
+    const isPayable = resolveOutstandingSide(type) === 'payable';
+    const groupName = isPayable ? 'Sundry Creditors' : 'Sundry Debtors';
 
     const rows = await db.all(
       sql`SELECT
@@ -528,21 +542,33 @@ const calculateAgeing = async (company_id, fy_id, type = 'receivable', buckets =
             vbr.bill_name,
             COALESCE(MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN v.date ELSE NULL END), MAX(v.date)) AS bill_date,
             MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.due_date ELSE NULL END) AS due_date,
-            SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.amount ELSE -vbr.amount END) AS total_amount
+            SUM(
+              CASE 
+                WHEN ${isPayable ? sql`ve.entry_type = 'Dr'` : sql`ve.entry_type = 'Cr'`} THEN -vbr.amount 
+                ELSE vbr.amount 
+              END
+            ) AS total_amount
           FROM ${voucherBillReferences} vbr
           INNER JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
           INNER JOIN ${ledgers} l ON l.ledger_id = vbr.ledger_id
           INNER JOIN ${groups} g ON g.group_id = l.group_id
+          LEFT JOIN (
+            SELECT voucher_id, ledger_id, MAX(type) AS entry_type
+            FROM ${voucherEntries}
+            GROUP BY voucher_id, ledger_id
+          ) ve ON ve.voucher_id = vbr.voucher_id AND ve.ledger_id = vbr.ledger_id
           WHERE v.company_id = ${company_id}
             AND v.fy_id = ${fy_id}
             AND v.is_cancelled = 0
             AND COALESCE(v.is_optional, 0) = 0
             AND COALESCE(v.is_post_dated, 0) = 0
             AND vbr.bill_type IN ('New Ref', 'Advance', 'Agst Ref')
+            AND l.is_bill_wise = 1
             AND g.company_id = ${company_id}
             AND g.name = ${groupName}
           GROUP BY l.ledger_id, l.name, vbr.bill_name
-          HAVING ABS(total_amount) > 0.01
+          HAVING SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN 1 ELSE 0 END) > 0
+             AND ABS(total_amount) > 0.01
           ORDER BY l.name ASC`
     );
 

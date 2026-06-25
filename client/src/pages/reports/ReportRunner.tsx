@@ -538,6 +538,8 @@ export function ReportRunner() {
     "ledger-outstandings", "group-outstandings",
     "interest-receivable", "interest-payable",
     "interest-calculation-ledger-wise", "interest-calculation-bill-wise",
+    "cost-category-summary", "cost-centre-summary", "cost-centre-break-up",
+    "cost-centre-ledger", "cost-centre-wise-p-and-l"
   ];
   if (layoutOnlyReports.includes(reportType)) {
     setLoading(false);

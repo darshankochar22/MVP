@@ -17,9 +17,9 @@ module.exports = {
             LEFT JOIN ${voucherCostCentres} vcc ON vcc.cost_centre_id = cc.cc_id
             LEFT JOIN ${voucherEntries} ve ON ve.entry_id = vcc.entry_id
             LEFT JOIN ${vouchers} v ON v.voucher_id = vcc.voucher_id
+              AND v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+              AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0${dateCond}
             WHERE cc.company_id = ${company_id} AND cc.is_active = 1
-              AND (v.company_id IS NULL OR (v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
-              AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0${dateCond}))
             GROUP BY cc.cc_id, cc.name, cc.category
             ORDER BY cc.name ASC`
       );

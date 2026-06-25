@@ -1,6 +1,6 @@
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
-const { voucherBillReferences, vouchers, ledgers, groups } = require('../db/schema');
+const { voucherBillReferences, vouchers, ledgers, groups, voucherEntries } = require('../db/schema');
 
 // ---------------------------------------------------------------------------
 // Outstanding Report Service  (READ-ONLY)
@@ -51,21 +51,33 @@ const buildOutstanding = async (company_id, fy_id, groupName) => {
         COALESCE(MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN v.date ELSE NULL END), MAX(v.date)) AS bill_date,
         MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.due_date ELSE NULL END) AS due_date,
         MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.credit_period ELSE NULL END) AS credit_period,
-        SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.amount ELSE -vbr.amount END) AS total_amount
+        SUM(
+          CASE 
+            WHEN ${groupName === 'Sundry Creditors' ? sql`ve.entry_type = 'Dr'` : sql`ve.entry_type = 'Cr'`} THEN -vbr.amount 
+            ELSE vbr.amount 
+          END
+        ) AS total_amount
       FROM ${voucherBillReferences} vbr
       JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
       JOIN ${ledgers} l  ON l.ledger_id = vbr.ledger_id
       JOIN ${groups} g   ON g.group_id = l.group_id
+      LEFT JOIN (
+        SELECT voucher_id, ledger_id, MAX(type) AS entry_type
+        FROM ${voucherEntries}
+        GROUP BY voucher_id, ledger_id
+      ) ve ON ve.voucher_id = vbr.voucher_id AND ve.ledger_id = vbr.ledger_id
       WHERE v.company_id = ${company_id}
         AND v.fy_id = ${fy_id}
         AND v.is_cancelled = 0
         AND COALESCE(v.is_optional, 0) = 0
         AND COALESCE(v.is_post_dated, 0) = 0
         AND vbr.bill_type IN ('New Ref', 'Advance', 'Agst Ref')
+        AND l.is_bill_wise = 1
         AND g.company_id = ${company_id}
         AND g.name = ${groupName}
       GROUP BY l.ledger_id, l.name, vbr.bill_name
-      HAVING ABS(total_amount) > 0.01
+      HAVING SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN 1 ELSE 0 END) > 0
+         AND ABS(total_amount) > 0.01
       ORDER BY l.name ASC, MAX(v.date) DESC
     `
   );
@@ -112,10 +124,23 @@ const buildLedgerOutstanding = async (company_id, fy_id, ledger_id) => {
         COALESCE(MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN v.date ELSE NULL END), MAX(v.date)) AS bill_date,
         MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.due_date ELSE NULL END) AS due_date,
         MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.credit_period ELSE NULL END) AS credit_period,
-        SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.amount ELSE -vbr.amount END) AS total_amount
+        SUM(
+          CASE 
+            WHEN (g.name = 'Sundry Creditors' OR l.nature = 'Liabilities') THEN
+              CASE WHEN ve.entry_type = 'Dr' THEN -vbr.amount ELSE vbr.amount END
+            ELSE
+              CASE WHEN ve.entry_type = 'Cr' THEN -vbr.amount ELSE vbr.amount END
+          END
+        ) AS total_amount
       FROM ${voucherBillReferences} vbr
       JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
       JOIN ${ledgers} l  ON l.ledger_id = vbr.ledger_id
+      JOIN ${groups} g   ON g.group_id = l.group_id
+      LEFT JOIN (
+        SELECT voucher_id, ledger_id, MAX(type) AS entry_type
+        FROM ${voucherEntries}
+        GROUP BY voucher_id, ledger_id
+      ) ve ON ve.voucher_id = vbr.voucher_id AND ve.ledger_id = vbr.ledger_id
       WHERE v.company_id = ${company_id}
         AND v.fy_id = ${fy_id}
         AND v.is_cancelled = 0
@@ -123,8 +148,10 @@ const buildLedgerOutstanding = async (company_id, fy_id, ledger_id) => {
         AND COALESCE(v.is_post_dated, 0) = 0
         AND vbr.bill_type IN ('New Ref', 'Advance', 'Agst Ref')
         AND vbr.ledger_id = ${ledger_id}
+        AND l.is_bill_wise = 1
       GROUP BY l.ledger_id, l.name, vbr.bill_name
-      HAVING ABS(total_amount) > 0.01
+      HAVING SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN 1 ELSE 0 END) > 0
+         AND ABS(total_amount) > 0.01
       ORDER BY MAX(v.date) DESC
     `
   );
@@ -162,10 +189,23 @@ const buildGroupOutstanding = async (company_id, fy_id, group_id) => {
         COALESCE(MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN v.date ELSE NULL END), MAX(v.date)) AS bill_date,
         MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.due_date ELSE NULL END) AS due_date,
         MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.credit_period ELSE NULL END) AS credit_period,
-        SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.amount ELSE -vbr.amount END) AS total_amount
+        SUM(
+          CASE 
+            WHEN (g.name = 'Sundry Creditors' OR l.nature = 'Liabilities') THEN
+              CASE WHEN ve.entry_type = 'Dr' THEN -vbr.amount ELSE vbr.amount END
+            ELSE
+              CASE WHEN ve.entry_type = 'Cr' THEN -vbr.amount ELSE vbr.amount END
+          END
+        ) AS total_amount
       FROM ${voucherBillReferences} vbr
       JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
       JOIN ${ledgers} l  ON l.ledger_id = vbr.ledger_id
+      JOIN ${groups} g   ON g.group_id = l.group_id
+      LEFT JOIN (
+        SELECT voucher_id, ledger_id, MAX(type) AS entry_type
+        FROM ${voucherEntries}
+        GROUP BY voucher_id, ledger_id
+      ) ve ON ve.voucher_id = vbr.voucher_id AND ve.ledger_id = vbr.ledger_id
       WHERE v.company_id = ${company_id}
         AND v.fy_id = ${fy_id}
         AND v.is_cancelled = 0
@@ -174,8 +214,10 @@ const buildGroupOutstanding = async (company_id, fy_id, group_id) => {
         AND vbr.bill_type IN ('New Ref', 'Advance', 'Agst Ref')
         AND l.group_id = ${group_id}
         AND l.company_id = ${company_id}
+        AND l.is_bill_wise = 1
       GROUP BY l.ledger_id, l.name, vbr.bill_name
-      HAVING ABS(total_amount) > 0.01
+      HAVING SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN 1 ELSE 0 END) > 0
+         AND ABS(total_amount) > 0.01
       ORDER BY l.name ASC, MAX(v.date) DESC
     `
   );

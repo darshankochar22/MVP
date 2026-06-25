@@ -43,7 +43,7 @@ export default function CostCentreBreakupLayout() {
     if (!cid || costCentreId) return;
     (window as any).api.costCentre.getAll(cid)
       .then((res: any) => {
-        const list = (res?.costCentres || res || [])
+        const list = (res && Array.isArray(res.costCentres) ? res.costCentres : [])
           .map((c: any) => ({ cc_id: c.cc_id, name: c.name }))
           .sort((a: CostCentreMeta, b: CostCentreMeta) => a.name.localeCompare(b.name));
         setCostCentres(list);
