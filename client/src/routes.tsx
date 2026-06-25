@@ -399,7 +399,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/alter/salary-structure", element: <SalaryStructureAlter /> },
   { path: "/master/alter/employee-category", element: <EmployeeCategoryAlter /> },
   { path: "/company/create", element: <CompanyCreatePage /> },
-
+  { path: "/reports/accounts/voucher-clarification", element: <ReportRunner /> },
 
   { path: "/reports/gateway", element: <CategoryMenuPage title="Gateway of Business" categorySlug="gateway" description="Central navigation hub for all 585 reports across every category." /> },
   { path: "/reports/financial-statements", element: <CategoryMenuPage title="Financial Statements" categorySlug="financial-statements" description="Profit & Loss, Balance Sheet, Cash Flow, Funds Flow, Ratio Analysis and related financial reports." /> },

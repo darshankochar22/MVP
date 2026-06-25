@@ -30,6 +30,7 @@ import PurchaseRegisterLayout from "@/components/reports/PurchaseRegisterLayout"
 import CreditNoteRegisterLayout from "@/components/reports/CreditNoteRegisterLayout";
 import DebitNoteRegisterLayout from "@/components/reports/DebitNoteRegisterLayout";
 import JournalRegisterLayout from "@/components/reports/JournalRegisterLayout";
+import VoucherClarificationLayout from "@/components/reports/VoucherClarificationLayout";
 
 export function ReportRunner() {
   const navigate = useNavigate();
@@ -520,7 +521,7 @@ export function ReportRunner() {
     const layoutOnlyReports = [
     "balance-sheet", "stock-summary", "profit-loss", "trial-balance",
     "group-summary", "ledger-summary", "ledger", "ratio-analysis",
-    "cash-book", "bank-book", "cash-bank", "group-vouchers"
+    "cash-book", "bank-book", "cash-bank", "group-vouchers","voucher-clarification",
   ];
   if (layoutOnlyReports.includes(reportType)) {
     setLoading(false);
@@ -1037,6 +1038,8 @@ export function ReportRunner() {
          <DebitNoteRegisterLayout />
          ): reportType === "journal-register"?(
           <JournalRegisterLayout />
+         ):reportType === "voucher-clarification" ?(
+            <VoucherClarificationLayout />
          ):(
         <ReportTable
             columns={tableColumns}
