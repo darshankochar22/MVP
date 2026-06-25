@@ -185,6 +185,8 @@ import LedgerSelect from "./pages/reports/accounts/LedgerSelect.tsx";
 import GroupSelect from "./pages/reports/accounts/GroupSelect.tsx";
 import GroupVouchersSelect from "./pages/reports/accounts/GroupVouchersSelect.tsx";
 import OutStandingsMenu from "./pages/menu/reports/OutStandingsMenu.tsx";
+import CostCentresMenu from "./pages/menu/reports/CostCentresMenu.tsx";
+
 
 export interface RouteConfig {
   path: string;
@@ -267,6 +269,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/payroll/gratuity",          element: <Gratuity /> },
 { path: "/reports/statements-of-accounts/outstandings", element: <OutStandingsMenu /> },
 { path: "/reports/statements-of-accounts/interest-calculations", element: <InterestCalculationsMenu /> },
+{ path: "/reports/statements-of-accounts/cost-centres", element: <CostCentresMenu /> },
 
   { path: "/master/create/tds-details", element: <TDSDetailsCreate /> },
   { path: "/master/alter/tds-details", element: <TDSDetailsAlter /> },

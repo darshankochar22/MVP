@@ -1,6 +1,6 @@
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
-const { costCentres, voucherCostCentres, vouchers } = require('../db/schema');
+const { costCentres, voucherCostCentres, vouchers, voucherEntries } = require('../db/schema');
 
 module.exports = {
   costCentreReport: async (company_id, fy_id, as_on_date) => {
@@ -8,21 +8,26 @@ module.exports = {
       const dateCond = as_on_date ? sql` AND v.date <= ${as_on_date}` : sql``;
       const rows = await db.all(
         sql`SELECT
+              cc.cc_id,
               cc.name AS cost_centre,
-              SUM(CASE WHEN v.type = 'Expense' THEN vcc.amount ELSE 0 END) AS expense,
-              SUM(CASE WHEN v.type = 'Income' THEN vcc.amount ELSE 0 END) AS income
+              cc.category,
+              SUM(CASE WHEN ve.type = 'Dr' THEN vcc.amount ELSE 0 END) AS expense,
+              SUM(CASE WHEN ve.type = 'Cr' THEN vcc.amount ELSE 0 END) AS income
             FROM ${costCentres} cc
             LEFT JOIN ${voucherCostCentres} vcc ON vcc.cost_centre_id = cc.cc_id
+            LEFT JOIN ${voucherEntries} ve ON ve.entry_id = vcc.entry_id
             LEFT JOIN ${vouchers} v ON v.voucher_id = vcc.voucher_id
             WHERE cc.company_id = ${company_id} AND cc.is_active = 1
               AND (v.company_id IS NULL OR (v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
               AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0${dateCond}))
-            GROUP BY cc.cc_id, cc.name
+            GROUP BY cc.cc_id, cc.name, cc.category
             ORDER BY cc.name ASC`
       );
       
       const processed = rows.map(r => ({
+        cc_id: r.cc_id,
         cost_centre: r.cost_centre,
+        category: r.category,
         expense: Math.abs(r.expense || 0),
         income: Math.abs(r.income || 0),
         variance: Math.abs(r.income || 0) - Math.abs(r.expense || 0)

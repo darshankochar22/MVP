@@ -75,20 +75,23 @@ const normalizeType = (arg, defaultType, typeMap = {}) => {
                    arg.statementType, arg.variant, arg.reportType];
     for (const hint of hints) {
       if (hint && typeof hint === 'string') {
+        const normalizedHint = hint.replace(/_/g, '-');
         // Check typeMap for exact or partial match
         for (const [key, val] of Object.entries(typeMap)) {
-          if (hint === key || hint.includes(key) || key.includes(hint)) return val;
+          const normalizedKey = key.replace(/_/g, '-');
+          if (normalizedHint === normalizedKey || normalizedHint.includes(normalizedKey) || normalizedKey.includes(normalizedHint)) return val;
         }
         // Use hint directly as the type
         return hint;
       }
     }
     // Fall back to reportId matching
-    const reportId = arg.reportId || '';
+    const reportId = (arg.reportId || '').replace(/_/g, '-');
     for (const [key, val] of Object.entries(typeMap)) {
-      if (reportId.includes(key)) return val;
+      const normalizedKey = key.replace(/_/g, '-');
+      if (reportId.includes(normalizedKey)) return val;
     }
-    return reportId.replace(/_/g, '-') || defaultType;
+    return reportId || defaultType;
   }
   return defaultType;
 };
@@ -2588,7 +2591,7 @@ const getCostingReport = async (company_id, fy_id, reportTypeArg = 'cost_centre_
     const reportType = normalizeType(reportTypeArg, 'cost_centre_summary', {
       'cost-centre-summary': 'cost_centre_summary', 'cost-centre-break': 'cost_centre_summary',
       'cost-centre-ledger': 'cost_centre_detail', 'cost-category': 'category_summary',
-      'cost-centre-wise': 'cost_centre_summary', 'project-cost': 'project_summary',
+      'cost-centre-wise': 'cost_centre_pl', 'project-cost': 'project_summary',
       'project-profitability': 'project_summary', 'department-cost': 'cost_centre_summary',
       'batch-costing': 'cost_centre_summary', 'order-costing': 'cost_centre_summary',
       'budget-vs-actual': 'budget_vs_actual', 'budget-variance': 'budget_vs_actual',
@@ -2637,7 +2640,7 @@ const getCostingReport = async (company_id, fy_id, reportTypeArg = 'cost_centre_
         const ccCond = params.cost_centre_id
           ? sql` AND cc.cc_id = ${params.cost_centre_id}`
           : sql``;
-        rows = await db.all(
+        const dbRows = await db.all(
           sql`SELECT
                 cc.cc_id,
                 cc.name AS cost_centre,
@@ -2659,6 +2662,50 @@ const getCostingReport = async (company_id, fy_id, reportTypeArg = 'cost_centre_
                 AND COALESCE(v.is_post_dated, 0) = 0${dateCond}
               ORDER BY v.date ASC, cc.name ASC`
         );
+        let runningBal = 0;
+        rows = dbRows.map(r => {
+          const isDr = r.entry_type === 'Dr' || r.entry_type === 'Debit';
+          const amt = Number(r.allocated_amount) || 0;
+          runningBal += isDr ? amt : -amt;
+          return {
+            ...r,
+            debit: isDr ? amt : 0,
+            credit: !isDr ? amt : 0,
+            balance: runningBal
+          };
+        });
+        break;
+      }
+
+      case 'cost_centre_pl': {
+        const dbRows = await db.all(
+          sql`SELECT
+                cc.cc_id,
+                cc.name AS particulars,
+                SUM(CASE WHEN ve.type = 'Dr' THEN vcc.amount ELSE 0 END) AS expense_debit,
+                SUM(CASE WHEN ve.type = 'Cr' THEN vcc.amount ELSE 0 END) AS income_credit
+              FROM ${costCentres} cc
+              INNER JOIN ${voucherCostCentres} vcc ON vcc.cost_centre_id = cc.cc_id
+              INNER JOIN ${voucherEntries} ve ON ve.entry_id = vcc.entry_id
+              INNER JOIN ${vouchers} v ON v.voucher_id = vcc.voucher_id
+              WHERE cc.company_id = ${company_id} AND cc.is_active = 1
+                AND v.company_id = ${company_id} AND v.fy_id = ${fy_id}
+                AND v.is_cancelled = 0
+                AND COALESCE(v.is_optional, 0) = 0
+                AND COALESCE(v.is_post_dated, 0) = 0${dateCond}
+              GROUP BY cc.cc_id, cc.name
+              ORDER BY cc.name ASC`
+        );
+        rows = dbRows.map(r => {
+          const exp = Number(r.expense_debit) || 0;
+          const inc = Number(r.income_credit) || 0;
+          return {
+            ...r,
+            expense_debit: exp,
+            income_credit: inc,
+            current_amount: inc - exp
+          };
+        });
         break;
       }
 

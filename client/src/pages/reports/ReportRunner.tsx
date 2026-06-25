@@ -37,6 +37,12 @@ import GroupOutstandingsLayout from "@/components/reports/GroupOutstandingsLayou
 import InterestBillsLayout from "@/components/reports/InterestBillsLayout";
 import InterestLedgerLayout from "@/components/reports/InterestLedgerLayout";
 import InterestBillWiseLayout from "@/components/reports/InterestBillWiseLayout";
+import CostCategorySummaryLayout from "@/components/reports/CostCategorySummaryLayout";
+import CostCentreSummaryLayout from "@/components/reports/CostCentreSummaryLayout";
+import CostCentreBreakupLayout from "@/components/reports/CostCentreBreakupLayout";
+import CostCentreLedgerLayout from "@/components/reports/CostCentreLedgerLayout";
+import CostCentreWisePLLayout from "@/components/reports/CostCentreWisePLLayout";
+
 
 export function ReportRunner() {
   const navigate = useNavigate();
@@ -1066,6 +1072,16 @@ export function ReportRunner() {
           <JournalRegisterLayout />
          ):reportType === "voucher-clarification" ?(
             <VoucherClarificationLayout />
+         ):reportType === "cost-category-summary" ? (
+            <CostCategorySummaryLayout />
+         ):reportType === "cost-centre-summary" ? (
+            <CostCentreSummaryLayout />
+         ):reportType === "cost-centre-break-up" ? (
+            <CostCentreBreakupLayout />
+         ):reportType === "cost-centre-ledger" ? (
+            <CostCentreLedgerLayout />
+         ):reportType === "cost-centre-wise-p-and-l" ? (
+            <CostCentreWisePLLayout />
          ):(
         <ReportTable
             columns={tableColumns}
