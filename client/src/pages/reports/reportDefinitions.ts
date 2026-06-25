@@ -1,6 +1,3 @@
-// Auto-generated from complete_585_report_configs.json — do not edit by hand
-// 585 report definitions covering all Tally-parity reports
-
 import type { ReportColumn } from "@/components/reports/ReportTable";
 
 export interface ReportConfig {
@@ -918,8 +915,7 @@ export const REPORT_DEFINITIONS: Record<string, ReportConfig> = {
   },
   "payment-register": {
     title: "Payment Register",
-    apiMethod: "run",
-    reportId: "payment_register",
+    apiMethod: "paymentRegister",
     columns: [
       { header: "Date", field: "date", type: "date" },
       { header: "Particulars", field: "particulars" },
@@ -931,7 +927,7 @@ export const REPORT_DEFINITIONS: Record<string, ReportConfig> = {
   },
   "receipt-register": {
     title: "Receipt Register",
-    apiMethod: "run",
+    apiMethod: "receiptRegister",
     reportId: "receipt_register",
     columns: [
       { header: "Date", field: "date", type: "date" },

@@ -35,7 +35,7 @@ interface VoucherRow {
   credit?: number;
 }
 
-export default function ContraRegisterLayout() {
+export default function PaymentRegisterLayout() {
   const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
 
@@ -60,19 +60,22 @@ export default function ContraRegisterLayout() {
     setLoadingMonths(true);
     setError(null);
     (window as any).api.report
-      .contraRegister(companyId, fyId)
+      .paymentRegister(companyId, fyId)
       .then((res: any) => {
         if (res.success) {
           setMonthRows(res.rows || []);
           setFocusedMonthIndex(0);
         } else {
-          setError(res.error || "Failed to load Contra Register");
+          setError(res.error || "Failed to load Payment Register");
         }
       })
       .catch((err: any) => setError(err.message))
       .finally(() => setLoadingMonths(false));
   }, [companyId, fyId]);
 
+  // registerBuilder's monthly rows don't carry from_date/to_date, so derive
+  // the month's date range here from the FY start + month name (same logic
+  // ReportRunner.tsx already uses for the month query-param drilldown).
   const getMonthDateRange = React.useCallback(
     (monthName: string): { from: string; to: string } | null => {
       if (!activeFY?.start_date || !activeFY?.end_date) return null;
@@ -110,12 +113,12 @@ export default function ContraRegisterLayout() {
       setLoadingVouchers(true);
       setFocusedVoucherIndex(0);
       (window as any).api.report
-        .contraRegisterVouchers(companyId, fyId, range.from, range.to)
+        .paymentRegisterVouchers(companyId, fyId, range.from, range.to)
         .then((res: any) => {
           if (res.success) {
             setVoucherRows(res.rows || []);
           } else {
-            setError(res.error || "Failed to load Contra vouchers");
+            setError(res.error || "Failed to load Payment vouchers");
           }
         })
         .catch((err: any) => setError(err.message))
@@ -178,7 +181,7 @@ export default function ContraRegisterLayout() {
   if (loadingMonths) {
     return (
       <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
-        Loading Contra Register...
+        Loading Payment Register...
       </div>
     );
   }
@@ -210,7 +213,7 @@ export default function ContraRegisterLayout() {
               </tr>
               <tr className="bg-[#e5eff5]">
                 <th colSpan={6} className="px-4 py-0.5 text-right font-normal italic text-zinc-500 border-b border-zinc-200">
-                  List of All Contra Vouchers — {selectedCompany?.name} — {selectedMonth.month}
+                  List of All Payment Vouchers — {selectedCompany?.name} — {selectedMonth.month}
                 </th>
               </tr>
             </thead>
@@ -244,7 +247,7 @@ export default function ContraRegisterLayout() {
                     >
                       <td className="px-4 py-1.5 whitespace-nowrap">{formatDate(row.date)}</td>
                       <td className="px-4 py-1.5 truncate max-w-xs">{row.particulars || "—"}</td>
-                      <td className="px-4 py-1.5">{row.voucher_type || "Contra"}</td>
+                      <td className="px-4 py-1.5">{row.voucher_type || "Payment"}</td>
                       <td className="px-4 py-1.5 text-right">{row.voucher_number ?? "—"}</td>
                       <td className="px-4 py-1.5 text-right font-mono">{fmtAmount(Number(row.debit) || 0)}</td>
                       <td className="px-4 py-1.5 text-right font-mono">{fmtAmount(Number(row.credit) || 0)}</td>
@@ -280,7 +283,7 @@ export default function ContraRegisterLayout() {
                 Particulars
               </th>
               <th colSpan={2} className="px-3 py-0.5 text-right font-normal italic">
-                Contra
+                Payment
               </th>
             </tr>
             <tr className="bg-[#e5eff5]">

@@ -23,6 +23,13 @@ import { RatioAnalysisLayout } from "@/components/reports/RatioAnalysisLayout";
 import CashBankSummaryLayout from "@/components/reports/CashBankSummaryLayout";
 import GroupVouchersLayout from "@/components/reports/GroupVouchersLayout";
 import ContraRegisterLayout from "@/components/reports/ContraRegisterLayout";
+import PaymentRegisterLayout from "@/components/reports/PaymentRegisterLayout";
+import ReceiptRegisterLayout from "@/components/reports/ReceiptRegisterLayout";
+import SalesRegisterLayout from "@/components/reports/SalesRegisterLayout";
+import PurchaseRegisterLayout from "@/components/reports/PurchaseRegisterLayout";
+import CreditNoteRegisterLayout from "@/components/reports/CreditNoteRegisterLayout";
+import DebitNoteRegisterLayout from "@/components/reports/DebitNoteRegisterLayout";
+import JournalRegisterLayout from "@/components/reports/JournalRegisterLayout";
 
 export function ReportRunner() {
   const navigate = useNavigate();
@@ -53,13 +60,7 @@ export function ReportRunner() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  const isRegister = [
-    "sales-register",
-    "purchase-register",
-    "journal-register",
-    "debit-note-register",
-    "credit-note-register"
-  ].includes(reportType);
+  const isRegister = [].includes(reportType);
 
   const [focusedIndex, setFocusedIndex] = React.useState<number>(0);
 
@@ -75,7 +76,9 @@ export function ReportRunner() {
       "purchase-register": "Purchase",
       "journal-register": "Journal",
       "debit-note-register": "Debit Note",
-      "credit-note-register": "Credit Note"
+      "credit-note-register": "Credit Note",
+      "payment-register": "Payment",
+      "receipt-register": "Receipt"
     };
     const vchType = voucherTypeMap[reportType];
     navigate(`/transactions/voucher-list?type=${vchType}&month=${row.month}`);
@@ -189,7 +192,7 @@ export function ReportRunner() {
                 const y = padding.top + plotHeight - h;
                 
                 return (
-                  <g key={row.month} className="group">
+                  <g key={row.month || idx} className="group">
                     <rect
                       x={x}
                       y={y}
@@ -309,7 +312,9 @@ export function ReportRunner() {
       "purchase-register": "Purchase",
       "journal-register": "Journal",
       "debit-note-register": "Debit Note",
-      "credit-note-register": "Credit Note"
+      "credit-note-register": "Credit Note",
+      "payment-register": "Payment",
+      "receipt-register": "Receipt"
     };
     return voucherTypeMap[reportType] || "";
   };
@@ -441,7 +446,7 @@ export function ReportRunner() {
                 const isFocused = idx === focusedIndex;
                 return (
                   <tr
-                    key={row.month}
+                    key={row.month || idx}
                     onClick={() => setFocusedIndex(idx)}
                     onDoubleClick={() => handleRegisterRowDrilldown(row)}
                     className={`border-b border-zinc-100 hover:bg-zinc-50 transition-colors cursor-pointer ${
@@ -1016,8 +1021,22 @@ export function ReportRunner() {
          <GroupVouchersLayout />
          ):reportType === "cash-bank" ? (
          <CashBankSummaryLayout />
-         ) :reportType === "contra-register" ?(
-          <ContraRegisterLayout />
+        ):reportType === "contra-register" ? (
+         <ContraRegisterLayout />
+         ):reportType === "payment-register" ? (
+         <PaymentRegisterLayout />
+         ):reportType === "receipt-register" ? (
+         <ReceiptRegisterLayout />
+         ):reportType === "sales-register" ? (
+         <SalesRegisterLayout />
+         ):reportType === "purchase-register" ?(
+          <PurchaseRegisterLayout />
+         ): reportType === "credit-note-register" ?(
+          <CreditNoteRegisterLayout />
+         ): reportType === "debit-note-register" ?(
+         <DebitNoteRegisterLayout />
+         ): reportType === "journal-register"?(
+          <JournalRegisterLayout />
          ):(
         <ReportTable
             columns={tableColumns}

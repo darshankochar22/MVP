@@ -35,7 +35,7 @@ interface VoucherRow {
   credit?: number;
 }
 
-export default function ContraRegisterLayout() {
+export default function SalesRegisterLayout() {
   const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
 
@@ -43,13 +43,11 @@ export default function ContraRegisterLayout() {
   const fyId = activeFY?.fy_id;
   const periodLabel = activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "";
 
-  // Level 1: monthly summary
   const [monthRows, setMonthRows] = React.useState<MonthRow[]>([]);
   const [loadingMonths, setLoadingMonths] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [focusedMonthIndex, setFocusedMonthIndex] = React.useState(0);
 
-  // Level 2: voucher list for selected month
   const [selectedMonth, setSelectedMonth] = React.useState<MonthRow | null>(null);
   const [voucherRows, setVoucherRows] = React.useState<VoucherRow[]>([]);
   const [loadingVouchers, setLoadingVouchers] = React.useState(false);
@@ -60,13 +58,13 @@ export default function ContraRegisterLayout() {
     setLoadingMonths(true);
     setError(null);
     (window as any).api.report
-      .contraRegister(companyId, fyId)
+      .salesRegister(companyId, fyId)
       .then((res: any) => {
         if (res.success) {
           setMonthRows(res.rows || []);
           setFocusedMonthIndex(0);
         } else {
-          setError(res.error || "Failed to load Contra Register");
+          setError(res.error || "Failed to load Sales Register");
         }
       })
       .catch((err: any) => setError(err.message))
@@ -85,8 +83,7 @@ export default function ContraRegisterLayout() {
 
       const fyStart = new Date(activeFY.start_date);
       const fyEnd = new Date(activeFY.end_date);
-      const fyStartMonth = fyStart.getMonth(); // 0-indexed
-      // months array above is FY-ordered (Apr..Mar); convert back to calendar month (0-indexed)
+      const fyStartMonth = fyStart.getMonth();
       const calendarMonth = (fyStartMonth + mIndex) % 12;
       const year = calendarMonth >= fyStartMonth ? fyStart.getFullYear() : fyEnd.getFullYear();
 
@@ -110,12 +107,12 @@ export default function ContraRegisterLayout() {
       setLoadingVouchers(true);
       setFocusedVoucherIndex(0);
       (window as any).api.report
-        .contraRegisterVouchers(companyId, fyId, range.from, range.to)
+        .salesRegisterVouchers(companyId, fyId, range.from, range.to)
         .then((res: any) => {
           if (res.success) {
             setVoucherRows(res.rows || []);
           } else {
-            setError(res.error || "Failed to load Contra vouchers");
+            setError(res.error || "Failed to load Sales vouchers");
           }
         })
         .catch((err: any) => setError(err.message))
@@ -129,7 +126,6 @@ export default function ContraRegisterLayout() {
     setVoucherRows([]);
   }, []);
 
-  // Keyboard nav — month level
   React.useEffect(() => {
     if (selectedMonth || !monthRows.length) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -150,7 +146,6 @@ export default function ContraRegisterLayout() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedMonth, monthRows, focusedMonthIndex, loadVouchersForMonth]);
 
-  // Keyboard nav — voucher level
   React.useEffect(() => {
     if (!selectedMonth || !voucherRows.length) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -178,7 +173,7 @@ export default function ContraRegisterLayout() {
   if (loadingMonths) {
     return (
       <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
-        Loading Contra Register...
+        Loading Sales Register...
       </div>
     );
   }
@@ -190,7 +185,6 @@ export default function ContraRegisterLayout() {
     );
   }
 
-  // ─── Level 2: Voucher list for the selected month ───
   if (selectedMonth) {
     const totalDebit = voucherRows.reduce((s, r) => s + (Number(r.debit) || 0), 0);
     const totalCredit = voucherRows.reduce((s, r) => s + (Number(r.credit) || 0), 0);
@@ -210,7 +204,7 @@ export default function ContraRegisterLayout() {
               </tr>
               <tr className="bg-[#e5eff5]">
                 <th colSpan={6} className="px-4 py-0.5 text-right font-normal italic text-zinc-500 border-b border-zinc-200">
-                  List of All Contra Vouchers — {selectedCompany?.name} — {selectedMonth.month}
+                  List of All Sales Vouchers — {selectedCompany?.name} — {selectedMonth.month}
                 </th>
               </tr>
             </thead>
@@ -244,7 +238,7 @@ export default function ContraRegisterLayout() {
                     >
                       <td className="px-4 py-1.5 whitespace-nowrap">{formatDate(row.date)}</td>
                       <td className="px-4 py-1.5 truncate max-w-xs">{row.particulars || "—"}</td>
-                      <td className="px-4 py-1.5">{row.voucher_type || "Contra"}</td>
+                      <td className="px-4 py-1.5">{row.voucher_type || "Sales"}</td>
                       <td className="px-4 py-1.5 text-right">{row.voucher_number ?? "—"}</td>
                       <td className="px-4 py-1.5 text-right font-mono">{fmtAmount(Number(row.debit) || 0)}</td>
                       <td className="px-4 py-1.5 text-right font-mono">{fmtAmount(Number(row.credit) || 0)}</td>
@@ -256,7 +250,6 @@ export default function ContraRegisterLayout() {
           </table>
         </div>
 
-        {/* Grand Total */}
         <div className="border-t-2 border-zinc-300 bg-[#e5eff5] px-4 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 select-none shrink-0">
           <span className="flex-1">Total:</span>
           <span className="w-32 text-right pr-2">{fmtAmount(totalDebit)}</span>
@@ -266,7 +259,6 @@ export default function ContraRegisterLayout() {
     );
   }
 
-  // ─── Level 1: Monthly summary ───
   const totalVouchersSum = monthRows.reduce((s, r) => s + (Number(r.total_vouchers) || 0), 0);
   const totalCancelledSum = monthRows.reduce((s, r) => s + (Number(r.cancelled) || 0), 0);
 
@@ -280,7 +272,7 @@ export default function ContraRegisterLayout() {
                 Particulars
               </th>
               <th colSpan={2} className="px-3 py-0.5 text-right font-normal italic">
-                Contra
+                Sales
               </th>
             </tr>
             <tr className="bg-[#e5eff5]">
@@ -334,7 +326,6 @@ export default function ContraRegisterLayout() {
               })
             )}
 
-            {/* Grand Total Row */}
             <tr className="border-t-2 border-b-2 border-zinc-300 bg-zinc-50 font-bold text-zinc-900">
               <td className="border-r border-zinc-300 px-3 py-2 text-left">Grand Total</td>
               <td className="border-r border-zinc-300 px-3 py-2 text-right font-mono">

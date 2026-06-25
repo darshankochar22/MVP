@@ -13,11 +13,11 @@ const costCategorySummary = require('./financial/costCategorySummary');
 const stockItemSummary = require('./inventory/stockItemSummary');
 const stockGroupSummary = require('./inventory/stockGroupSummary');
 const stockCategorySummary = require('./inventory/stockCategorySummary');
-const journalRegister = require('./registers/journalRegister');
-const debitNoteRegister = require('./registers/debitNoteRegister');
-const creditNoteRegister = require('./registers/creditNoteRegister');
-const purchaseRegister = require('./registers/purchaseRegister');
-const salesRegister = require('./registers/salesRegister');
+const { journalRegister } = require('./registers/journalRegister');
+const { debitNoteRegister } = require('./registers/debitNoteRegister');
+const { creditNoteRegister } = require('./registers/creditNoteRegister');
+const { purchaseRegister } = require('./registers/purchaseRegister');
+const { salesRegister } = require('./registers/salesRegister');
 const outstandingReportService = require('./outstandingReportService');
 const advancedInventoryReportService = require('./advancedInventoryReportService');
 const advancedAccountingReportService = require('./advancedAccountingReportService');
@@ -29,7 +29,16 @@ const payrollReportService = require('./payrollReportService');
 const reportRuntime = require('./reportRuntime');
 const { contraRegister } = require('./registers/contraRegister');
 const { contraRegisterVouchers } = require('./registers/contraRegisterVouchers');
+const { salesRegisterVouchers } = require('./registers/salesRegisterVouchers');
+const { purchaseRegisterVouchers } = require('./registers/purchaseRegisterVouchers');
+const { journalRegisterVouchers } = require('./registers/journalRegisterVouchers');
+const { debitNoteRegisterVouchers } = require('./registers/debitNoteRegisterVouchers');
+const { creditNoteRegisterVouchers } = require('./registers/creditNoteRegisterVouchers');
 
+const { paymentRegisterVouchers } = require("./registers/paymentRegisterVouchers");
+const { receiptRegisterVouchers } = require("./registers/receiptRegisterVouchers");
+const { paymentRegister } = require('./registers/paymentRegister');
+const { receiptRegister } = require('./registers/receiptRegister');
 module.exports = {
   trialBalance: async (event, { company_id, fy_id }) => {
     return await trialBalance.trialBalance(company_id, fy_id);
@@ -78,6 +87,21 @@ module.exports = {
   },
   contraRegister: async (event, { company_id, fy_id }) => {
   return await contraRegister(company_id, fy_id);
+  },
+  journalRegister: async (event, { company_id, fy_id, from_date, to_date }) => {
+    return await journalRegister(company_id, fy_id, from_date, to_date);
+  },
+  debitNoteRegister: async (event, { company_id, fy_id, from_date, to_date }) => {
+    return await debitNoteRegister(company_id, fy_id, from_date, to_date);
+  },
+  creditNoteRegister: async (event, { company_id, fy_id, from_date, to_date }) => {
+    return await creditNoteRegister(company_id, fy_id, from_date, to_date);
+  },
+  purchaseRegister: async (event, { company_id, fy_id, from_date, to_date }) => {
+    return await purchaseRegister(company_id, fy_id, from_date, to_date);
+  },
+  salesRegister: async (event, { company_id, fy_id, from_date, to_date }) => {
+    return await salesRegister(company_id, fy_id, from_date, to_date);
   },
   contraRegisterVouchers: async (event, { company_id, fy_id, from_date, to_date }) => {
   return await contraRegisterVouchers(company_id, fy_id, from_date, to_date);
@@ -172,19 +196,32 @@ module.exports = {
   gratuity: async (event, { company_id, fy_id }) => {
     return await payrollReportService.gratuity(company_id, fy_id);
   },
-  journalRegister: async (event, { company_id, fy_id }) => {
-    return await journalRegister(company_id, fy_id);
+
+  paymentRegister: async (event, { company_id, fy_id }) => {
+    return await paymentRegister(company_id, fy_id);
   },
-  debitNoteRegister: async (event, { company_id, fy_id }) => {
-    return await debitNoteRegister(company_id, fy_id);
+  receiptRegister: async (event, { company_id, fy_id }) => {
+    return await receiptRegister(company_id, fy_id);
   },
-  creditNoteRegister: async (event, { company_id, fy_id }) => {
-    return await creditNoteRegister(company_id, fy_id);
+  paymentRegisterVouchers: async (event, { company_id, fy_id, from_date, to_date }) => {
+    return await paymentRegisterVouchers(company_id, fy_id, from_date, to_date);
   },
-  purchaseRegister: async (event, { company_id, fy_id }) => {
-    return await purchaseRegister(company_id, fy_id);
+  receiptRegisterVouchers: async (event, { company_id, fy_id, from_date, to_date }) => {
+    return await receiptRegisterVouchers(company_id, fy_id, from_date, to_date);
   },
-  salesRegister: async (event, { company_id, fy_id }) => {
-    return await salesRegister(company_id, fy_id);
+  salesRegisterVouchers: async (event, { company_id, fy_id, from_date, to_date }) => {
+    return await salesRegisterVouchers(company_id, fy_id, from_date, to_date);
+  },
+  purchaseRegisterVouchers: async (event, { company_id, fy_id, from_date, to_date }) => {
+    return await purchaseRegisterVouchers(company_id, fy_id, from_date, to_date);
+  },
+  journalRegisterVouchers: async (event, { company_id, fy_id, from_date, to_date }) => {
+    return await journalRegisterVouchers(company_id, fy_id, from_date, to_date);
+  },
+  debitNoteRegisterVouchers: async (event, { company_id, fy_id, from_date, to_date }) => {
+    return await debitNoteRegisterVouchers(company_id, fy_id, from_date, to_date);
+  },
+  creditNoteRegisterVouchers: async (event, { company_id, fy_id, from_date, to_date }) => {
+    return await creditNoteRegisterVouchers(company_id, fy_id, from_date, to_date);
   },
 };
