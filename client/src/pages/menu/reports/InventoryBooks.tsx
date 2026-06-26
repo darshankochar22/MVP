@@ -22,12 +22,12 @@ export default function InventoryBooks() {
 
   const getRoute = (_section: string, item: string) => {
     const routes: Record<string, string> = {
-      "Stock Item": "/reports/inventory-books/stock-item",
-      "Batch": "/reports/inventory-books/batch",
-      "Godowns / Excise Units": "/reports/inventory-books/godowns",
-      "Stock Group Summary": "/reports/inventory-books/stock-group-summary",
-      "Stock Category Summary": "/reports/inventory-books/stock-category-summary",
-      "Stock Transfer Journal Register": "/reports/inventory-books/stock-transfer-journal",
+      "Stock Item":"/reports/inventory-books/stock-item",
+      "Batch": "/reports/inventory-books/stock-summary-batch-wise",
+      "Godowns / Excise Units": "/reports/inventory-books/stock-summary-godown-wise",
+      "Stock Group Summary": "/reports/inventory-books/stock-summary-group-wise",
+      "Stock Category Summary": "/reports/inventory-books/stock-summary-category-wise",
+      "Stock Transfer Journal Register": "/reports/inventory-books/stock-transfer-register",
       "Physical Stock Register": "/reports/inventory-books/physical-stock-register",
     };
     return routes[item] ?? null;

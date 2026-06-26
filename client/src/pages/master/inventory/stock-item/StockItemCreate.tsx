@@ -21,7 +21,12 @@ import {
 import { calculateGstDetails } from "./utils";
 import { useStockItemBom } from "./hooks/useStockItemBom";
 
-export default function StockItemCreate() {
+interface StockItemCreateProps {
+  onDone?: () => void;
+  onCancel?: () => void;
+}
+
+export default function StockItemCreate({ onDone, onCancel }: StockItemCreateProps = {}) {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
@@ -43,37 +48,21 @@ export default function StockItemCreate() {
   }, []);
 
   const {
-    boms,
-    setBoms,
-    showBomList,
-    setShowBomList,
-    showBomComponents,
-    setShowBomComponents,
-    currentBomName,
-    savePendingRef,
-    handleBomToggle,
-    handleBomSelect,
-    handleBomAccept,
-    handleBomListClose,
-    handleBomComponentsClose,
+    boms, setBoms,
+    showBomList, setShowBomList,
+    showBomComponents, setShowBomComponents,
+    currentBomName, savePendingRef,
+    handleBomToggle, handleBomSelect, handleBomAccept,
+    handleBomListClose, handleBomComponentsClose,
   } = useStockItemBom(updateFormFields);
 
-  // Fetch lists on company change
   useEffect(() => {
     const cid = selectedCompany?.company_id;
     if (!cid) return;
-    window.api.stockGroup.getAll(cid).then(r => {
-      if (r.success) setStockGroups(r.stockGroups ?? []);
-    });
-    window.api.unit.getAll(cid).then(r => {
-      if (r.success) setUnits(r.units ?? []);
-    });
-    window.api.godown.getAll(cid).then(r => {
-      if (r.success) setGodowns(r.godowns ?? []);
-    });
-    window.api.gstClassification.getAll(cid).then(r => {
-      if (r.success) setGstClassifications(r.gstClassifications ?? []);
-    });
+    window.api.stockGroup.getAll(cid).then(r => { if (r.success) setStockGroups(r.stockGroups ?? []); });
+    window.api.unit.getAll(cid).then(r => { if (r.success) setUnits(r.units ?? []); });
+    window.api.godown.getAll(cid).then(r => { if (r.success) setGodowns(r.godowns ?? []); });
+    window.api.gstClassification.getAll(cid).then(r => { if (r.success) setGstClassifications(r.gstClassifications ?? []); });
   }, [selectedCompany]);
 
   const setVal = useCallback((key: keyof FormData, value: any) => {
@@ -88,9 +77,14 @@ export default function StockItemCreate() {
     ? (units.find(u => String(u.unit_id) === form.unit_id)?.symbol ?? "Not Applicable")
     : "Not Applicable";
 
-  const openingQty = parseFloat(form.opening_quantity) || 0;
-  const openingRate = parseFloat(form.opening_rate) || 0;
+  const openingQty   = parseFloat(form.opening_quantity) || 0;
+  const openingRate  = parseFloat(form.opening_rate)     || 0;
   const openingValue = openingQty * openingRate;
+
+  const handleQuit = () => {
+    if (onCancel) { onCancel(); return; }
+    navigate("/master/create");
+  };
 
   const executeSave = async (bomsToSave: BomEntry[] = boms) => {
     if (!companyId) return;
@@ -148,7 +142,10 @@ export default function StockItemCreate() {
         setSuccess(`"${form.name}" created.`);
         setForm(INITIAL_FORM_STATE);
         setBoms([]);
-        setTimeout(() => setSuccess(null), 3000);
+        setTimeout(() => {
+          setSuccess(null);
+          if (onDone) onDone();
+        }, 1500);
       } else {
         setError(result.error || "Failed to create stock item.");
       }
@@ -162,19 +159,16 @@ export default function StockItemCreate() {
   const handleSubmit = useCallback(() => {
     if (!form.name.trim()) { setError("Name is required."); return; }
     if (!companyId) { setError("No company selected."); return; }
-
     if (form.has_bom && boms.length === 0) {
       savePendingRef.current = true;
       setShowBomList(true);
       return;
     }
-
     if (openingQty > 0 && form.allocations.length === 0 && (form.track_batches || godowns.length > 0)) {
       setError("Please allocate the opening balance quantity to godowns/batches.");
       setShowAllocationModal(true);
       return;
     }
-
     executeSave(boms);
   }, [form, companyId, boms, gstClassifications, openingQty, godowns]);
 
@@ -185,7 +179,7 @@ export default function StockItemCreate() {
         if (showBomList) { setShowBomList(false); savePendingRef.current = false; return; }
         if (showBomComponents) { setShowBomComponents(false); savePendingRef.current = false; return; }
         if (activePanel) { setActivePanel(null); return; }
-        navigate("/master/create");
+        handleQuit();
         return;
       }
       const tag = (e.target as HTMLElement).tagName;
@@ -196,18 +190,16 @@ export default function StockItemCreate() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, activePanel, showBomList, showBomComponents, navigate]);
+  }, [handleSubmit, activePanel, showBomList, showBomComponents]);
 
   const inp = "w-full bg-transparent text-sm outline-none border-b border-zinc-300 focus:border-zinc-600 py-0 px-0 placeholder-zinc-300 transition-colors";
 
   return (
     <div className="flex flex-col h-full bg-white select-none overflow-hidden" style={{ fontFamily: "system-ui, sans-serif" }}>
-      {/* Title bar */}
       <div className="shrink-0 bg-zinc-900 text-white text-xs font-bold px-4 py-2 tracking-widest uppercase">
         Stock Item Creation
       </div>
 
-      {/* Alerts */}
       {error && (
         <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
           <span>{error}</span>
@@ -221,13 +213,9 @@ export default function StockItemCreate() {
         </div>
       )}
 
-      {/* Body */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* MAIN FORM */}
         <div className="flex flex-col flex-1 min-w-0">
-          {/* Top Section: Name and Alias */}
           <div className="px-6 py-4 border-b border-zinc-200 flex flex-col gap-1 shrink-0">
-            {/* Name */}
             <div className="flex items-center min-h-[26px]">
               <span className="w-24 shrink-0 text-sm text-zinc-700 font-sans">Name</span>
               <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
@@ -235,8 +223,6 @@ export default function StockItemCreate() {
                 <input autoFocus className={inp} value={form.name} onChange={e => setVal("name", e.target.value)} placeholder="Enter item name" />
               </div>
             </div>
-
-            {/* alias */}
             <div className="flex items-center min-h-[26px]">
               <span className="w-24 shrink-0 text-sm text-zinc-400 font-sans">(alias)</span>
               <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
@@ -246,78 +232,43 @@ export default function StockItemCreate() {
             </div>
           </div>
 
-          {/* Two-column content */}
           <div className="flex flex-1 min-h-0 overflow-hidden">
-            {/* LEFT PANEL */}
             <div className="flex-1 min-w-0 px-6 pt-4 pb-2 overflow-y-auto flex flex-col gap-0 border-r border-zinc-200">
-              {/* Under */}
-              <div
-                className="flex items-center min-h-[26px] cursor-pointer group"
-                onClick={() => setActivePanel(p => p === "group" ? null : "group")}
-              >
+              <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setActivePanel(p => p === "group" ? null : "group")}>
                 <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Under</span>
                 <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                <div className="flex-1">
-                  <span className="text-sm text-zinc-900 group-hover:underline">{selectedGroupLabel}</span>
-                </div>
+                <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{selectedGroupLabel}</span></div>
               </div>
-
-              {/* Units */}
-              <div
-                className="flex items-center min-h-[26px] cursor-pointer group"
-                onClick={() => setActivePanel(p => p === "unit" ? null : "unit")}
-              >
+              <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setActivePanel(p => p === "unit" ? null : "unit")}>
                 <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Units</span>
                 <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                <div className="flex-1">
-                  <span className="text-sm text-zinc-900 group-hover:underline">{selectedUnitLabel}</span>
-                </div>
+                <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{selectedUnitLabel}</span></div>
               </div>
 
-              {/* ── Additional Details ── */}
               <div className="text-sm font-bold text-zinc-900 mt-4 mb-1 font-sans">Additional Details</div>
 
-              {/* Maintain in batches */}
-              <div
-                className="flex items-center min-h-[26px] cursor-pointer group"
-                onClick={() => setActivePanel(p => p === "maintain_in_batches" ? null : "maintain_in_batches")}
-              >
+              <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setActivePanel(p => p === "maintain_in_batches" ? null : "maintain_in_batches")}>
                 <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans">Maintain in batches</span>
                 <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                <div className="flex-1">
-                  <span className="text-sm text-zinc-900 group-hover:underline">{form.maintain_in_batches}</span>
-                </div>
+                <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{form.maintain_in_batches}</span></div>
               </div>
 
-              {/* Track date of manufacturing */}
               {form.maintain_in_batches === "Yes" && (
-                <div
-                  className="flex items-center min-h-[26px] cursor-pointer group"
-                  onClick={() => setActivePanel(p => p === "track_date_of_manufacturing" ? null : "track_date_of_manufacturing")}
-                >
+                <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setActivePanel(p => p === "track_date_of_manufacturing" ? null : "track_date_of_manufacturing")}>
                   <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans pl-4">Track date of manufacturing</span>
                   <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                  <div className="flex-1">
-                    <span className="text-sm text-zinc-900 group-hover:underline">{form.track_date_of_manufacturing}</span>
-                  </div>
+                  <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{form.track_date_of_manufacturing}</span></div>
                 </div>
               )}
 
-              {/* Use expiry dates */}
               {form.maintain_in_batches === "Yes" && (
-                <div
-                  className="flex items-center min-h-[26px] cursor-pointer group"
-                  onClick={() => setActivePanel(p => p === "use_expiry_dates" ? null : "use_expiry_dates")}
-                >
+                <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setActivePanel(p => p === "use_expiry_dates" ? null : "use_expiry_dates")}>
                   <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans pl-4">Use expiry dates</span>
                   <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                  <div className="flex-1">
-                    <span className="text-sm text-zinc-900 group-hover:underline">{form.use_expiry_dates}</span>
-                  </div>
+                  <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{form.use_expiry_dates}</span></div>
                 </div>
               )}
 
-              {/* Set components (BOM) */}
               {form.unit_id && (
                 <div className="flex items-center min-h-[26px] mt-0">
                   <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans">Set components (BOM)</span>
@@ -338,20 +289,13 @@ export default function StockItemCreate() {
                 </div>
               )}
 
-              {/* Enable cost tracking */}
-              <div
-                className="flex items-center min-h-[26px] cursor-pointer group"
-                onClick={() => setActivePanel(p => p === "enable_cost_tracking" ? null : "enable_cost_tracking")}
-              >
+              <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setActivePanel(p => p === "enable_cost_tracking" ? null : "enable_cost_tracking")}>
                 <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans">Enable cost tracking</span>
                 <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                <div className="flex-1">
-                  <span className="text-sm text-zinc-900 group-hover:underline">{form.enable_cost_tracking}</span>
-                </div>
+                <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{form.enable_cost_tracking}</span></div>
               </div>
             </div>
 
-            {/* RIGHT PANEL: Statutory Details */}
             <GSTStatutoryDetails
               form={form}
               setVal={setVal}
@@ -360,9 +304,7 @@ export default function StockItemCreate() {
             />
           </div>
 
-          {/* Opening Balance */}
           <div className="shrink-0 border-t border-zinc-300">
-            {/* Column headers */}
             <div className="flex items-center px-6 pt-1 pb-0 border-b border-zinc-100">
               <span className="w-32 shrink-0" />
               <span className="w-4 shrink-0" />
@@ -373,12 +315,10 @@ export default function StockItemCreate() {
                 <span className="w-28 text-right text-[10px] uppercase tracking-widest text-zinc-500 font-semibold font-sans">Value</span>
               </div>
             </div>
-            {/* Data row */}
             <div className="flex items-center px-6 py-2">
               <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Opening Balance</span>
               <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
               <div className="flex-1 flex items-center justify-end">
-                {/* Quantity */}
                 <div className="w-36 flex items-center justify-end gap-1 border-b border-zinc-400 focus-within:border-zinc-700 pr-1">
                   <input
                     className="w-24 bg-transparent text-sm outline-none py-0.5 text-right tabular-nums font-mono"
@@ -387,11 +327,8 @@ export default function StockItemCreate() {
                     onChange={e => setVal("opening_quantity", e.target.value)}
                     placeholder="0"
                   />
-                  {form.unit_id && (
-                    <span className="text-xs text-zinc-500 shrink-0 font-sans">{selectedUnitLabel}</span>
-                  )}
+                  {form.unit_id && <span className="text-xs text-zinc-500 shrink-0 font-sans">{selectedUnitLabel}</span>}
                 </div>
-                {/* Allocation button */}
                 {openingQty > 0 && (form.track_batches || godowns.length > 0) && (
                   <button
                     type="button"
@@ -401,7 +338,6 @@ export default function StockItemCreate() {
                     {form.allocations.length > 0 ? `Allocated (${form.allocations.length})` : "Allocate"}
                   </button>
                 )}
-                {/* Rate */}
                 <div className="w-24 ml-4 border-b border-zinc-400 focus-within:border-zinc-700">
                   <input
                     className="w-full bg-transparent text-sm outline-none py-0.5 text-right tabular-nums pr-1 font-mono"
@@ -411,22 +347,15 @@ export default function StockItemCreate() {
                     placeholder="0.00"
                   />
                 </div>
-                {/* per */}
-                <span className="w-10 text-center text-xs text-zinc-500 ml-2 shrink-0 font-sans">
-                  {form.unit_id ? selectedUnitLabel : ""}
-                </span>
-                {/* Value */}
+                <span className="w-10 text-center text-xs text-zinc-500 ml-2 shrink-0 font-sans">{form.unit_id ? selectedUnitLabel : ""}</span>
                 <span className="w-28 text-right text-sm tabular-nums text-zinc-800 font-mono">
-                  {openingValue > 0
-                    ? openingValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })
-                    : ""}
+                  {openingValue > 0 ? openingValue.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : ""}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Side selection panels */}
         {activePanel === "group" && (
           <ListSidePanel
             title="List of Groups"
@@ -460,7 +389,6 @@ export default function StockItemCreate() {
               setForm(f => ({
                 ...f,
                 gst_applicable: val || "Not Applicable",
-                // Reset child state if not applicable
                 ...(val !== "Applicable" ? {
                   hsn_sac_details: "as_per_company",
                   hsn_sac: "",
@@ -492,10 +420,7 @@ export default function StockItemCreate() {
             title="GST Classifications"
             items={gstClassifications.map(c => ({ id: String(c.gc_id), label: c.name }))}
             selected={form.hsn_classification_id}
-            onSelect={val => {
-              setVal("hsn_classification_id", val);
-              setActivePanel(null);
-            }}
+            onSelect={val => { setVal("hsn_classification_id", val); setActivePanel(null); }}
             onClose={() => setActivePanel(null)}
             showCreate
             onCreateNew={() => navigate("/master/create/gst-classification")}
@@ -515,10 +440,7 @@ export default function StockItemCreate() {
             title="GST Classifications"
             items={gstClassifications.map(c => ({ id: String(c.gc_id), label: c.name }))}
             selected={form.rate_classification_id}
-            onSelect={val => {
-              setVal("rate_classification_id", val);
-              setActivePanel(null);
-            }}
+            onSelect={val => { setVal("rate_classification_id", val); setActivePanel(null); }}
             onClose={() => setActivePanel(null)}
             showCreate
             onCreateNew={() => navigate("/master/create/gst-classification")}
@@ -577,11 +499,7 @@ export default function StockItemCreate() {
             items={YES_NO_OPTIONS}
             selected={form.use_expiry_dates}
             onSelect={val => {
-              setForm(f => ({
-                ...f,
-                use_expiry_dates: val || "No",
-                track_expiry: val === "Yes"
-              }));
+              setForm(f => ({ ...f, use_expiry_dates: val || "No", track_expiry: val === "Yes" }));
               setActivePanel(null);
             }}
             onClose={() => setActivePanel(null)}
@@ -603,19 +521,14 @@ export default function StockItemCreate() {
             selected={form.set_alter_statutory}
             onSelect={val => {
               setVal("set_alter_statutory", val || "No");
-              if (val === "Yes") {
-                setActivePanel(null);
-                setShowOtherStatutory(true);
-              } else {
-                setActivePanel(null);
-              }
+              if (val === "Yes") { setActivePanel(null); setShowOtherStatutory(true); }
+              else setActivePanel(null);
             }}
             onClose={() => setActivePanel(null)}
           />
         )}
       </div>
 
-      {/* Other Statutory Details modal */}
       {showOtherStatutory && (
         <OtherStatutoryDetails
           stockItemName={form.name}
@@ -640,19 +553,11 @@ export default function StockItemCreate() {
         />
       )}
 
-      {/* Footer bar */}
       <div className="border-t border-zinc-200 px-4 py-2.5 flex justify-between items-center shrink-0 bg-zinc-50">
-        <button
-          onClick={() => navigate("/master/create")}
-          className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium font-sans"
-        >
+        <button onClick={handleQuit} className="text-xs text-zinc-500 hover:text-zinc-800 transition-colors font-medium font-sans">
           <span className="font-bold">Q</span>: Quit
         </button>
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium font-sans"
-        >
+        <button onClick={handleSubmit} disabled={loading} className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium font-sans">
           {loading ? "Saving…" : "Accept"}
         </button>
       </div>
@@ -682,10 +587,7 @@ export default function StockItemCreate() {
           trackExpiry={form.track_expiry}
           godowns={godowns}
           initialAllocations={form.allocations}
-          onAccept={(allocs) => {
-            setForm(f => ({ ...f, allocations: allocs }));
-            setShowAllocationModal(false);
-          }}
+          onAccept={(allocs) => { setForm(f => ({ ...f, allocations: allocs })); setShowAllocationModal(false); }}
           onClose={() => setShowAllocationModal(false)}
         />
       )}

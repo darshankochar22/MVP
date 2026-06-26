@@ -14,6 +14,7 @@ import { Input } from "@/components/shadcn/input";
 import { REPORT_DEFINITIONS, REPORT_CATEGORIES, type ReportConfig } from "./reportDefinitions";
 import { BalanceSheetLayout } from "@/components/reports/BalanceSheetLayout";
 import { StockSummaryLayout } from "@/components/reports/StockSummaryLayout";
+import StockItemSelectionLayout from "@/components/reports/StockSelectionLayout";
 import { TrialBalanceLayout } from "@/components/reports/TrialBalanceLayout";
 import { ProfitLossLayout } from "@/components/reports/ProfitnLossLayout";
 import GroupSummaryLayout from "@/components/reports/GroupSummaryLayout";
@@ -74,10 +75,7 @@ export function ReportRunner() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
-  const isRegister = [
-    "sales-register", "purchase-register", "journal-register",
-    "debit-note-register", "credit-note-register", "payment-register", "receipt-register"
-  ].includes(reportType);
+  const isRegister = [].includes(reportType);
 
   const [focusedIndex, setFocusedIndex] = React.useState<number>(0);
 
@@ -544,8 +542,7 @@ export function ReportRunner() {
     "interest-receivable", "interest-payable",
     "interest-calculation-ledger-wise", "interest-calculation-bill-wise",
     "cost-category-summary", "cost-centre-summary", "cost-centre-break-up",
-    "cost-centre-ledger", "cost-centre-wise-p-and-l",
-    "statistics"
+    "cost-centre-ledger", "cost-centre-wise-p-and-l", "stock-item"
   ];
   if (layoutOnlyReports.includes(reportType)) {
     setLoading(false);
@@ -1030,6 +1027,8 @@ export function ReportRunner() {
         <BalanceSheetLayout />
          ):reportType === "stock-summary" ?(
         <StockSummaryLayout />
+        ):reportType === "stock-item" ?(
+        <StockItemSelectionLayout />
         ):reportType === "profit-loss" ?(
          <ProfitLossLayout />
          ):reportType === "trial-balance" ? (

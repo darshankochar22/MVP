@@ -30,7 +30,12 @@ const inputCls =
   "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent " +
   "focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
 
-// ── Selection panel ──────────────────────────────────────────────────────────
+interface StockItemAlterProps {
+  initialItemId?: number;
+  onDone?: () => void;
+  onCancel?: () => void;
+}
+
 function SelectionPanel({
   items,
   onSelect,
@@ -110,8 +115,7 @@ function SelectionPanel({
   );
 }
 
-// ── Main alter component ─────────────────────────────────────────────────────
-export default function StockItemAlter() {
+export default function StockItemAlter({ initialItemId, onDone, onCancel }: StockItemAlterProps = {}) {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
 
@@ -120,48 +124,29 @@ export default function StockItemAlter() {
   const [units,       setUnits]       = useState<UnitType[]>([]);
   const [godowns,     setGodowns]     = useState<GodownType[]>([]);
   const [gstClassifications, setGstClassifications] = useState<any[]>([]);
-  const [selectedItem,setSelectedItem]= useState<StockItemType | null>(null);
-  const [form,        setForm]        = useState<FormData | null>(null);
-  const [loading,     setLoading]     = useState(false);
-  const [error,       setError]       = useState<string | null>(null);
-  const [success,     setSuccess]     = useState<string | null>(null);
-  const [showPanel,   setShowPanel]   = useState<PanelType>(null);
+  const [selectedItem, setSelectedItem] = useState<StockItemType | null>(null);
+  const [form,         setForm]         = useState<FormData | null>(null);
+  const [loading,      setLoading]      = useState(false);
+  const [error,        setError]        = useState<string | null>(null);
+  const [success,      setSuccess]      = useState<string | null>(null);
+  const [showPanel,    setShowPanel]    = useState<PanelType>(null);
   const [showAllocationModal, setShowAllocationModal] = useState(false);
-  const [showOtherStatutory, setShowOtherStatutory] = useState(false);
+  const [showOtherStatutory,  setShowOtherStatutory]  = useState(false);
 
   const updateFormFields = useCallback((updater: (prev: FormData) => Partial<FormData>) => {
     setForm(f => f ? ({ ...f, ...updater(f) }) : null);
   }, []);
 
   const {
-    boms,
-    setBoms,
-    showBomList,
-    setShowBomList,
-    showBomComponents,
-    setShowBomComponents,
-    currentBomName,
-    savePendingRef,
-    handleBomToggle,
-    handleBomSelect,
-    handleBomAccept,
-    handleBomListClose,
-    handleBomComponentsClose,
+    boms, setBoms,
+    showBomList, setShowBomList,
+    showBomComponents, setShowBomComponents,
+    currentBomName, savePendingRef,
+    handleBomToggle, handleBomSelect, handleBomAccept,
+    handleBomListClose, handleBomComponentsClose,
   } = useStockItemBom(updateFormFields);
 
-  // Load lists
-  useEffect(() => {
-    const company_id = selectedCompany?.company_id;
-    if (!company_id) return;
-    window.api.stockItem .getAll(company_id).then(r => { if (r.success) setStockItems(r.stockItems ?? []); });
-    window.api.stockGroup.getAll(company_id).then(r => { if (r.success) setStockGroups(r.stockGroups ?? []); });
-    window.api.unit      .getAll(company_id).then(r => { if (r.success) setUnits(r.units ?? []); });
-    window.api.godown    .getAll(company_id).then(r => { if (r.success) setGodowns(r.godowns ?? []); });
-    window.api.gstClassification.getAll(company_id).then(r => { if (r.success) setGstClassifications(r.gstClassifications ?? []); });
-  }, [selectedCompany]);
-
-  // Populate form when item is selected
-  const handleSelectItem = async (item: any) => {
+  const handleSelectItem = useCallback(async (item: any) => {
     setLoading(true);
     setError(null);
     try {
@@ -174,7 +159,7 @@ export default function StockItemAlter() {
           alias: fullItem.alias ?? "",
           group_id: fullItem.group_id ? String(fullItem.group_id) : "",
           unit_id:  fullItem.unit_id  ? String(fullItem.unit_id)  : "",
-          rate_of_duty:   String(fullItem.rate_of_duty ?? 0),
+          rate_of_duty: String(fullItem.rate_of_duty ?? 0),
           has_bom:  Boolean(fullItem.has_bom),
           bom_name: fullItem.bom_name ?? "",
           opening_quantity: String(fullItem.opening_quantity ?? 0),
@@ -190,7 +175,7 @@ export default function StockItemAlter() {
           gst_rate: String(fullItem.gst_rate ?? 0),
           type_of_supply: fullItem.type_of_supply ?? "Goods",
           track_batches: Boolean(fullItem.track_batches),
-          track_expiry: Boolean(fullItem.track_expiry),
+          track_expiry:  Boolean(fullItem.track_expiry),
           allocations: (fullItem.allocations ?? []).map((a: any) => ({
             allocation_id: a.allocation_id,
             godown_id: String(a.godown_id ?? ""),
@@ -227,15 +212,30 @@ export default function StockItemAlter() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const company_id = selectedCompany?.company_id;
+    if (!company_id) return;
+    window.api.stockItem.getAll(company_id).then(r => {
+      if (r.success) {
+        setStockItems(r.stockItems ?? []);
+        if (initialItemId) {
+          const found = (r.stockItems ?? []).find((i: StockItemType) => i.item_id === initialItemId);
+          if (found) handleSelectItem(found);
+        }
+      }
+    });
+    window.api.stockGroup.getAll(company_id).then(r => { if (r.success) setStockGroups(r.stockGroups ?? []); });
+    window.api.unit.getAll(company_id).then(r => { if (r.success) setUnits(r.units ?? []); });
+    window.api.godown.getAll(company_id).then(r => { if (r.success) setGodowns(r.godowns ?? []); });
+    window.api.gstClassification.getAll(company_id).then(r => { if (r.success) setGstClassifications(r.gstClassifications ?? []); });
+  }, [selectedCompany]);
 
   const setVal = useCallback((key: keyof FormData, value: any) => {
     setForm(f => f ? ({ ...f, [key]: value }) : null);
   }, []);
 
-  // BOM handlers (managed by hook)
-
-  // Derived labels
   const selectedGroupLabel = form?.group_id
     ? stockGroups.find(g => String(g.sg_id) === form.group_id)?.name ?? "Primary"
     : "Primary";
@@ -244,17 +244,16 @@ export default function StockItemAlter() {
     ? units.find(u => String(u.unit_id) === form.unit_id)?.symbol ?? "Not Applicable"
     : "Not Applicable";
 
-  const openingQty = parseFloat(form?.opening_quantity ?? "0") || 0;
-  const openingRate = parseFloat(form?.opening_rate ?? "0") || 0;
+  const openingQty   = parseFloat(form?.opening_quantity ?? "0") || 0;
+  const openingRate  = parseFloat(form?.opening_rate     ?? "0") || 0;
   const openingValue = openingQty * openingRate;
 
-  // Back
   const handleBack = useCallback(() => {
+    if (onDone) { onDone(); return; }
     setSelectedItem(null);
     setForm(null);
-  }, []);
+  }, [onDone]);
 
-  // Save
   const executeSave = async (bomsToSave: BomEntry[] = boms) => {
     if (!form || !selectedItem) return;
     if (!selectedCompany?.company_id) { setError("No company selected."); return; }
@@ -292,7 +291,7 @@ export default function StockItemAlter() {
         hsn_classification_id: gst.hsn_classification_id,
         reorder_level: 0, reorder_quantity: 0,
         track_batches: form.track_batches ? 1 : 0,
-        track_expiry: form.track_expiry ? 1 : 0,
+        track_expiry:  form.track_expiry  ? 1 : 0,
         allocations: form.allocations,
         track_date_of_manufacturing: form.track_date_of_manufacturing === "Yes" ? 1 : 0,
         enable_cost_tracking: form.enable_cost_tracking === "Yes" ? 1 : 0,
@@ -323,28 +322,23 @@ export default function StockItemAlter() {
     }
   };
 
-  // Submit
   const handleSubmit = useCallback(() => {
     if (!form || !selectedItem) return;
     if (!form.name.trim()) { setError("Name is required."); return; }
     if (!selectedCompany?.company_id) { setError("No company selected."); return; }
-
     if (form.has_bom && boms.length === 0) {
       savePendingRef.current = true;
       setShowBomList(true);
       return;
     }
-
     if (openingQty > 0 && form.allocations.length === 0 && (form.track_batches || godowns.length > 0)) {
       setError("Please allocate the opening balance quantity to godowns/batches.");
       setShowAllocationModal(true);
       return;
     }
-
     executeSave(boms);
   }, [form, selectedItem, selectedCompany, boms, gstClassifications, openingQty, godowns]);
 
-  // Delete
   const handleDelete = useCallback(async () => {
     if (!selectedItem) return;
     if (!window.confirm(`Delete stock item "${selectedItem.name}"? This cannot be undone.`)) return;
@@ -365,7 +359,6 @@ export default function StockItemAlter() {
     }
   }, [selectedItem, selectedCompany, handleBack]);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -374,6 +367,7 @@ export default function StockItemAlter() {
         if (showBomComponents) { setShowBomComponents(false); savePendingRef.current = false; return; }
         if (showPanel) { setShowPanel(null); return; }
         if (selectedItem) { handleBack(); return; }
+        if (onCancel) { onCancel(); return; }
         navigate("/master/alter");
       }
       if (e.altKey && e.key.toLowerCase() === "g") { e.preventDefault(); if (selectedItem) setShowPanel(p => p === "group" ? null : "group"); }
@@ -383,15 +377,14 @@ export default function StockItemAlter() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, handleDelete, handleBack, navigate, showPanel, selectedItem, showBomList, showBomComponents]);
+  }, [handleSubmit, handleDelete, handleBack, navigate, showPanel, selectedItem, showBomList, showBomComponents, onCancel]);
 
-  // Selection screen
   if (!selectedItem || !form) {
     return (
       <SelectionPanel
         items={stockItems}
         onSelect={handleSelectItem}
-        onCancel={() => navigate("/master/alter")}
+        onCancel={onCancel ?? (() => navigate("/master/alter"))}
         onCreate={() => navigate("/master/create/stock-item")}
       />
     );
@@ -405,7 +398,6 @@ export default function StockItemAlter() {
     { key: "Esc",   label: "Back",         onClick: handleBack   },
   ];
 
-  // Edit screen
   return (
     <div className="flex flex-col h-full bg-white select-none overflow-hidden">
       <PageTitleBar
@@ -413,7 +405,6 @@ export default function StockItemAlter() {
         subtitle={selectedCompany?.name}
       />
 
-      {/* Alerts */}
       {error && (
         <div className="px-3 py-1 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
           <span>• {error}</span>
@@ -427,13 +418,9 @@ export default function StockItemAlter() {
         </div>
       )}
 
-      {/* Body */}
       <div className="flex flex-1 min-h-0 overflow-hidden">
         <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
-
-          {/* Top Section: Name and Alias */}
           <div className="px-6 py-4 border-b border-zinc-200 flex flex-col gap-1 shrink-0">
-            {/* Name */}
             <div className="flex items-center min-h-[26px]">
               <span className="w-24 shrink-0 text-sm text-zinc-700 font-sans">Name</span>
               <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
@@ -441,8 +428,6 @@ export default function StockItemAlter() {
                 <input autoFocus className={inputCls} value={form.name} onChange={e => setVal("name", e.target.value)} placeholder="Enter item name" />
               </div>
             </div>
-
-            {/* alias */}
             <div className="flex items-center min-h-[26px]">
               <span className="w-24 shrink-0 text-sm text-zinc-400 font-sans">(alias)</span>
               <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
@@ -452,79 +437,43 @@ export default function StockItemAlter() {
             </div>
           </div>
 
-          {/* Two-column form area */}
           <div className="flex flex-1 min-h-0 overflow-hidden">
-
-            {/* LEFT PANEL */}
             <div className="flex-1 min-w-0 border-r border-zinc-200 px-6 pt-4 pb-2 flex flex-col gap-0 overflow-y-auto">
-              {/* Under */}
-              <div
-                className="flex items-center min-h-[26px] cursor-pointer group"
-                onClick={() => setShowPanel(p => p === "group" ? null : "group")}
-              >
+              <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setShowPanel(p => p === "group" ? null : "group")}>
                 <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Under</span>
                 <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                <div className="flex-1">
-                  <span className="text-sm text-zinc-900 group-hover:underline">{selectedGroupLabel}</span>
-                </div>
+                <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{selectedGroupLabel}</span></div>
               </div>
-
-              {/* Units */}
-              <div
-                className="flex items-center min-h-[26px] cursor-pointer group"
-                onClick={() => setShowPanel(p => p === "unit" ? null : "unit")}
-              >
+              <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setShowPanel(p => p === "unit" ? null : "unit")}>
                 <span className="w-32 shrink-0 text-sm text-zinc-700 font-sans">Units</span>
                 <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                <div className="flex-1">
-                  <span className="text-sm text-zinc-900 group-hover:underline">{selectedUnitLabel}</span>
-                </div>
+                <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{selectedUnitLabel}</span></div>
               </div>
 
-              {/* ── Additional Details ── */}
               <div className="text-sm font-bold text-zinc-900 mt-4 mb-1 font-sans">Additional Details</div>
 
-              {/* Maintain in batches */}
-              <div
-                className="flex items-center min-h-[26px] cursor-pointer group"
-                onClick={() => setShowPanel(p => p === "maintain_in_batches" ? null : "maintain_in_batches")}
-              >
+              <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setShowPanel(p => p === "maintain_in_batches" ? null : "maintain_in_batches")}>
                 <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans">Maintain in batches</span>
                 <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                <div className="flex-1">
-                  <span className="text-sm text-zinc-900 group-hover:underline">{form.maintain_in_batches}</span>
-                </div>
+                <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{form.maintain_in_batches}</span></div>
               </div>
 
-              {/* Track date of manufacturing */}
               {form.maintain_in_batches === "Yes" && (
-                <div
-                  className="flex items-center min-h-[26px] cursor-pointer group"
-                  onClick={() => setShowPanel(p => p === "track_date_of_manufacturing" ? null : "track_date_of_manufacturing")}
-                >
+                <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setShowPanel(p => p === "track_date_of_manufacturing" ? null : "track_date_of_manufacturing")}>
                   <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans pl-4">Track date of manufacturing</span>
                   <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                  <div className="flex-1">
-                    <span className="text-sm text-zinc-900 group-hover:underline">{form.track_date_of_manufacturing}</span>
-                  </div>
+                  <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{form.track_date_of_manufacturing}</span></div>
                 </div>
               )}
 
-              {/* Use expiry dates */}
               {form.maintain_in_batches === "Yes" && (
-                <div
-                  className="flex items-center min-h-[26px] cursor-pointer group"
-                  onClick={() => setShowPanel(p => p === "use_expiry_dates" ? null : "use_expiry_dates")}
-                >
+                <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setShowPanel(p => p === "use_expiry_dates" ? null : "use_expiry_dates")}>
                   <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans pl-4">Use expiry dates</span>
                   <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                  <div className="flex-1">
-                    <span className="text-sm text-zinc-900 group-hover:underline">{form.use_expiry_dates}</span>
-                  </div>
+                  <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{form.use_expiry_dates}</span></div>
                 </div>
               )}
 
-              {/* Set components (BOM) */}
               {form.unit_id && (
                 <div className="flex items-center min-h-[26px] mt-0">
                   <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans">Set components (BOM)</span>
@@ -545,20 +494,13 @@ export default function StockItemAlter() {
                 </div>
               )}
 
-              {/* Enable cost tracking */}
-              <div
-                className="flex items-center min-h-[26px] cursor-pointer group"
-                onClick={() => setShowPanel(p => p === "enable_cost_tracking" ? null : "enable_cost_tracking")}
-              >
+              <div className="flex items-center min-h-[26px] cursor-pointer group" onClick={() => setShowPanel(p => p === "enable_cost_tracking" ? null : "enable_cost_tracking")}>
                 <span className="w-44 shrink-0 text-sm text-zinc-700 font-sans">Enable cost tracking</span>
                 <span className="w-4 shrink-0 text-zinc-400 text-sm text-center">:</span>
-                <div className="flex-1">
-                  <span className="text-sm text-zinc-900 group-hover:underline">{form.enable_cost_tracking}</span>
-                </div>
+                <div className="flex-1"><span className="text-sm text-zinc-900 group-hover:underline">{form.enable_cost_tracking}</span></div>
               </div>
             </div>
 
-            {/* RIGHT PANEL: Statutory Details */}
             <GSTStatutoryDetails
               form={form}
               setVal={setVal}
@@ -567,9 +509,7 @@ export default function StockItemAlter() {
             />
           </div>
 
-          {/* Opening Balance footer */}
           <div className="shrink-0 border-t border-zinc-200">
-            {/* Column headers */}
             <div className="flex items-center px-6 pt-1.5 pb-0.5 border-b border-zinc-100 font-sans">
               <span className="w-32 shrink-0" />
               <span className="w-4 shrink-0" />
@@ -580,14 +520,10 @@ export default function StockItemAlter() {
                 <span className="w-36 text-right text-[10px] uppercase tracking-widest text-zinc-400 font-semibold">Value</span>
               </div>
             </div>
-
-            {/* Opening balance row */}
             <div className="flex items-center px-6 py-2">
               <span className="w-32 text-sm text-zinc-700 shrink-0 font-sans">Opening Balance</span>
               <span className="w-4 text-zinc-400 shrink-0 text-center">:</span>
-
               <div className="flex-1 flex items-center justify-end">
-                {/* Quantity */}
                 <div className="w-32 flex items-center gap-1 border-b border-zinc-300 focus-within:border-zinc-600">
                   <input
                     className="w-20 bg-transparent text-sm outline-none py-0.5 text-right tabular-nums font-mono"
@@ -596,11 +532,8 @@ export default function StockItemAlter() {
                     onChange={e => setVal("opening_quantity", e.target.value)}
                     placeholder="0"
                   />
-                  <span className="text-sm text-zinc-600 shrink-0 font-sans">
-                    {form.unit_id ? selectedUnitLabel : ""}
-                  </span>
+                  <span className="text-sm text-zinc-600 shrink-0 font-sans">{form.unit_id ? selectedUnitLabel : ""}</span>
                 </div>
-                {/* Allocation button */}
                 {openingQty > 0 && (form.track_batches || godowns.length > 0) && (
                   <button
                     type="button"
@@ -610,8 +543,6 @@ export default function StockItemAlter() {
                     {form.allocations.length > 0 ? `Allocated (${form.allocations.length})` : "Allocate"}
                   </button>
                 )}
-
-                {/* Rate */}
                 <div className="w-28 ml-4 border-b border-zinc-300 focus-within:border-zinc-600">
                   <input
                     className="w-full bg-transparent text-sm outline-none py-0.5 text-right tabular-nums pr-1 font-mono"
@@ -621,30 +552,19 @@ export default function StockItemAlter() {
                     placeholder="0.00"
                   />
                 </div>
-
-                {/* per */}
-                <span className="w-16 text-center text-sm text-zinc-600 ml-2 shrink-0 font-sans">
-                  {form.unit_id ? selectedUnitLabel : ""}
-                </span>
-
-                {/* Value */}
+                <span className="w-16 text-center text-sm text-zinc-600 ml-2 shrink-0 font-sans">{form.unit_id ? selectedUnitLabel : ""}</span>
                 <span className="w-36 text-right text-sm font-mono text-zinc-800 tabular-nums">
-                  {openingValue > 0
-                    ? openingValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })
-                    : ""}
+                  {openingValue > 0 ? openingValue.toLocaleString("en-IN", { minimumFractionDigits: 2 }) : ""}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Side selection panels */}
         {showPanel === "group" && (
           <ListSidePanel
             title="List of Groups"
-            items={stockGroups
-              .filter(g => g.name.toLowerCase() !== "primary")
-              .map(g => ({ id: String(g.sg_id), label: g.name }))}
+            items={stockGroups.filter(g => g.name.toLowerCase() !== "primary").map(g => ({ id: String(g.sg_id), label: g.name }))}
             selected={form.group_id}
             onSelect={val => { setVal("group_id", val); setShowPanel(null); }}
             onClose={() => setShowPanel(null)}
@@ -676,7 +596,6 @@ export default function StockItemAlter() {
                 return {
                   ...f,
                   gst_applicable: val || "Not Applicable",
-                  // Reset child state if not applicable
                   ...(val !== "Applicable" ? {
                     hsn_sac_details: "as_per_company",
                     hsn_sac: "",
@@ -709,10 +628,7 @@ export default function StockItemAlter() {
             title="GST Classifications"
             items={gstClassifications.map(c => ({ id: String(c.gc_id), label: c.name }))}
             selected={form.hsn_classification_id}
-            onSelect={val => {
-              setVal("hsn_classification_id", val);
-              setShowPanel(null);
-            }}
+            onSelect={val => { setVal("hsn_classification_id", val); setShowPanel(null); }}
             onClose={() => setShowPanel(null)}
             showCreate
             onCreateNew={() => navigate("/master/create/gst-classification")}
@@ -732,10 +648,7 @@ export default function StockItemAlter() {
             title="GST Classifications"
             items={gstClassifications.map(c => ({ id: String(c.gc_id), label: c.name }))}
             selected={form.rate_classification_id}
-            onSelect={val => {
-              setVal("rate_classification_id", val);
-              setShowPanel(null);
-            }}
+            onSelect={val => { setVal("rate_classification_id", val); setShowPanel(null); }}
             onClose={() => setShowPanel(null)}
             showCreate
             onCreateNew={() => navigate("/master/create/gst-classification")}
@@ -794,11 +707,7 @@ export default function StockItemAlter() {
             items={YES_NO_OPTIONS}
             selected={form.use_expiry_dates}
             onSelect={val => {
-              setForm(f => f ? {
-                ...f,
-                use_expiry_dates: val || "No",
-                track_expiry: val === "Yes"
-              } : null);
+              setForm(f => f ? { ...f, use_expiry_dates: val || "No", track_expiry: val === "Yes" } : null);
               setShowPanel(null);
             }}
             onClose={() => setShowPanel(null)}
@@ -820,12 +729,8 @@ export default function StockItemAlter() {
             selected={form.set_alter_statutory}
             onSelect={val => {
               setVal("set_alter_statutory", val || "No");
-              if (val === "Yes") {
-                setShowPanel(null);
-                setShowOtherStatutory(true);
-              } else {
-                setShowPanel(null);
-              }
+              if (val === "Yes") { setShowPanel(null); setShowOtherStatutory(true); }
+              else setShowPanel(null);
             }}
             onClose={() => setShowPanel(null)}
           />
@@ -834,30 +739,20 @@ export default function StockItemAlter() {
         <RightActionPanel actions={alterActions} />
       </div>
 
-      {/* Footer bar */}
       <div className="border-t border-zinc-200 px-4 py-2.5 flex justify-between items-center shrink-0">
-        <button
-          onClick={handleDelete}
-          disabled={loading}
-          className="text-xs px-4 py-1.5 rounded border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 disabled:opacity-50 transition-colors font-medium font-sans"
-        >
+        <button onClick={handleDelete} disabled={loading} className="text-xs px-4 py-1.5 rounded border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 disabled:opacity-50 transition-colors font-medium font-sans">
           Delete
         </button>
         <div className="flex gap-3">
           <button onClick={handleBack} className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 transition-colors font-sans">
             Back
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium font-sans"
-          >
+          <button onClick={handleSubmit} disabled={loading} className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium font-sans">
             {loading ? "Saving…" : "Accept"}
           </button>
         </div>
       </div>
 
-      {/* BOM modals */}
       {showBomList && (
         <BomListModal
           stockItemName={form.name}
@@ -883,10 +778,7 @@ export default function StockItemAlter() {
           trackExpiry={form.track_expiry}
           godowns={godowns}
           initialAllocations={form.allocations}
-          onAccept={(allocs) => {
-            setForm(f => f ? ({ ...f, allocations: allocs }) : null);
-            setShowAllocationModal(false);
-          }}
+          onAccept={(allocs) => { setForm(f => f ? ({ ...f, allocations: allocs }) : null); setShowAllocationModal(false); }}
           onClose={() => setShowAllocationModal(false)}
         />
       )}
