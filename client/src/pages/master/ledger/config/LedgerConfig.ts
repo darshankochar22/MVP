@@ -11,6 +11,8 @@ export interface LedgerConfigOptions {
   serviceTaxDetails?: boolean;
   vatDetails?: boolean;
   gstinDetails?: boolean;
+  /** Registration Type + Set/Alter additional GST details block. */
+  registrationTypeFields?: boolean;
   paymentGateway?: boolean;
   gstApplicabilitySection?: boolean;
 }
@@ -46,6 +48,9 @@ export const LEDGER_CONFIG: Record<string, LedgerConfigOptions> = {
   vatDetails: false,                
 },
   "Capital Account": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false, vatDetails: true },
+  // Reserves & Surplus / Retained Earnings → Tax Registration shows PAN/IT + Set/Alter service tax + Set/Alter VAT only.
+  "Reserves & Surplus": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false, vatDetails: true, gstinDetails: false, registrationTypeFields: false },
+  "Retained Earnings": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false, vatDetails: true, gstinDetails: false, registrationTypeFields: false },
 "Loans (Liability)": {
   taxRegistration: "full",
   mailingDetails: true,

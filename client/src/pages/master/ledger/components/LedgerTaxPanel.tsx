@@ -62,7 +62,7 @@ function useTaxPanelVisibility(
     dutyTaxSection: (config.dutyTaxDetails || groupLineage.isTax) && !groupLineage.isTax,
     taxRegistrationSection: config.taxRegistration !== "none",
     panField: isPanOnly || isFull || isGstinServiceTaxOnly,
-    fullRegistrationFields: isFull && !assessableGstSelected,
+    fullRegistrationFields: isFull && !assessableGstSelected && config.registrationTypeFields !== false,
     gstinField: ((isFull && !assessableGstSelected && registrationKnown) || isGstinServiceTaxOnly) && config.gstinDetails !== false,
     serviceTaxField: (isFull || isGstinServiceTaxOnly) && config.serviceTaxDetails !== false,
     vatField: (isFull || isGstinServiceTaxOnly) && config.vatDetails === true,
