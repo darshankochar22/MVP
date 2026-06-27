@@ -480,7 +480,26 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
 
       const hasBankDetails = !!l.bank_details;
       setProvideBank(hasBankDetails ? "Yes" : "No");
-      setBankForm(hasBankDetails ? { ...EMPTY_BANK_DETAILS, ...l.bank_details } : EMPTY_BANK_DETAILS);
+      if (hasBankDetails) {
+        const bd: any = l.bank_details;
+        const parseJSON = (v: any) => {
+          if (!v) return undefined;
+          try { return typeof v === "string" ? JSON.parse(v) : v; } catch { return undefined; }
+        };
+        const ranges = parseJSON(bd.cheque_ranges) ?? [];
+        const printingCfg = parseJSON(bd.cheque_printing_configuration);
+        setBankForm({
+          ...EMPTY_BANK_DETAILS,
+          ...bd,
+          cheque_ranges: ranges,
+          cheque_printing_config: printingCfg,
+          enable_cheque_printing: bd.enable_cheque_printing ? "Yes" : "No",
+          set_alter_cheque_books: ranges.length > 0 ? "Yes" : "No",
+          set_alter_cheque_printing: printingCfg ? "Yes" : "No",
+        });
+      } else {
+        setBankForm(EMPTY_BANK_DETAILS);
+      }
 
       const hasStatutory = !!l.statutory_details;
       setStatutoryForm(hasStatutory ? { ...EMPTY_STATUTORY, ...l.statutory_details } : EMPTY_STATUTORY);
@@ -882,8 +901,15 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
           branch: bankForm.branch?.trim() || undefined,
           bsr_code: bankForm.bsr_code?.trim() || undefined,
           set_alter_cheque_books: bankForm.set_alter_cheque_books || undefined,
-          enable_cheque_printing: bankForm.enable_cheque_printing || undefined,
+          cheque_ranges:
+            bankForm.cheque_ranges && bankForm.cheque_ranges.length > 0
+              ? JSON.stringify(bankForm.cheque_ranges)
+              : undefined,
+          enable_cheque_printing: bankForm.enable_cheque_printing === "Yes" ? "Yes" : undefined,
           set_alter_cheque_printing: bankForm.set_alter_cheque_printing || undefined,
+          cheque_printing_configuration: bankForm.cheque_printing_config
+            ? JSON.stringify(bankForm.cheque_printing_config)
+            : undefined,
           transaction_type: bankForm.transaction_type?.trim() || undefined,
           cross_using: bankForm.cross_using?.trim() || undefined,
           company_bank: bankForm.company_bank?.trim() || undefined,

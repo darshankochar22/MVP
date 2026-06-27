@@ -124,8 +124,11 @@ export default function LedgerCreate() {
   const groupName = selectedGroup?.name || groupLineage.primaryGroupName || "";
   const currentConfig = getLedgerConfig(groupName, groupLineage.primaryGroupName);
 
+  // Bank groups have no assessable-value fields, so the section would only carry
+  // the "Set/Alter other Statutory details" toggle — hidden entirely for banks.
   const showLeftStatutorySection =
     !form.behave_as_payment_gateway &&
+    !groupLineage.isBank &&
     (currentConfig.assessableValueCalc || true);
 
   const isOtherStatutoryActive =
@@ -701,8 +704,10 @@ export default function LedgerCreate() {
           {/* Bank details form (inline fields when group is bank) — hidden when ledger behaves as payment gateway */}
           {!form.behave_as_payment_gateway && (
             <LedgerBankDetailsForm
+              ledgerName={form.name || ""}
               bankForm={bankForm}
               setBankField={setBankField}
+              setBankForm={setBankForm}
               groupLineage={groupLineage}
             />
           )}

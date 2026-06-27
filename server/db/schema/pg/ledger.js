@@ -99,6 +99,8 @@ const ledgerBankDetails = pgTable('ledger_bank_details', {
   transactionType: text('transaction_type'),
   crossUsing: text('cross_using').default('A/c Payee'),
   companyBank: text('company_bank'),
+  // JSON array of { from_number, to_number, name }; added via ALTER in source init().
+  chequeRanges: text('cheque_ranges'),
 });
 
 // include_in_assessable_value_calculation, appropriate_to, method_of_calculation

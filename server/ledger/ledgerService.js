@@ -224,6 +224,7 @@ module.exports = {
           transactionType: data.bank_details.transaction_type || null,
           crossUsing: data.bank_details.cross_using || null,
           companyBank: data.bank_details.company_bank || null,
+          chequeRanges: data.bank_details.cheque_ranges || null,
         });
       }
 
@@ -553,6 +554,7 @@ module.exports = {
           transactionType: data.bank_details.transaction_type || null,
           crossUsing: data.bank_details.cross_using || null,
           companyBank: data.bank_details.company_bank || null,
+          chequeRanges: data.bank_details.cheque_ranges || null,
         });
       }
 

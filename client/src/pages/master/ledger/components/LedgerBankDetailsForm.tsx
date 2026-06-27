@@ -1,25 +1,65 @@
+import { useState } from "react";
 import { FormRow } from "@/components/ui";
-import type { BankDetails } from "./BankDetailsPopup";
+import type { BankDetails, ChequeRange, ChequePrintingConfig } from "./BankDetailsPopup";
+import ChequeRangePopup from "./ChequeRangePopup";
+import ChequePrintingConfigPopup from "./ChequePrintingConfigPopup";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 
 interface LedgerBankDetailsFormProps {
+  ledgerName: string;
   bankForm: BankDetails;
   setBankField: (key: keyof BankDetails) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+  setBankForm: React.Dispatch<React.SetStateAction<BankDetails>>;
   groupLineage: {
     isBank: boolean;
   };
 }
 
 export default function LedgerBankDetailsForm({
+  ledgerName,
   bankForm,
   setBankField,
+  setBankForm,
   groupLineage,
 }: LedgerBankDetailsFormProps) {
+  const [showChequeRangePopup, setShowChequeRangePopup] = useState(false);
+  const [showChequePrintingPopup, setShowChequePrintingPopup] = useState(false);
+
   if (!groupLineage.isBank) return null;
 
   const bsrNotApplicable = !bankForm.bsr_code;
+  const chequeRanges = bankForm.cheque_ranges ?? [];
+
+  const handleChequeBooksChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setBankField("set_alter_cheque_books")(e);
+    if (e.target.value === "Yes") setShowChequeRangePopup(true);
+  };
+
+  const acceptChequeRanges = (ranges: ChequeRange[]) => {
+    setBankForm((f) => ({
+      ...f,
+      cheque_ranges: ranges,
+      set_alter_cheque_books: ranges.length > 0 ? "Yes" : "No",
+    }));
+    setShowChequeRangePopup(false);
+  };
+
+  const closeChequeRanges = () => {
+    if (chequeRanges.length === 0) setBankForm((f) => ({ ...f, set_alter_cheque_books: "No" }));
+    setShowChequeRangePopup(false);
+  };
+
+  const handleChequePrintingChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setBankField("set_alter_cheque_printing")(e);
+    if (e.target.value === "Yes") setShowChequePrintingPopup(true);
+  };
+
+  const acceptChequePrinting = (cfg: ChequePrintingConfig) => {
+    setBankForm((f) => ({ ...f, cheque_printing_config: cfg, set_alter_cheque_printing: "Yes" }));
+    setShowChequePrintingPopup(false);
+  };
 
   return (
     <div className="border-t border-zinc-100 bg-white">
@@ -63,11 +103,20 @@ export default function LedgerBankDetailsForm({
           <select
             className={selectCls}
             value={bankForm.set_alter_cheque_books || "No"}
-            onChange={setBankField("set_alter_cheque_books")}
+            onChange={handleChequeBooksChange}
           >
             <option value="No">No</option>
             <option value="Yes">Yes</option>
           </select>
+          {bankForm.set_alter_cheque_books === "Yes" && (
+            <button
+              type="button"
+              onClick={() => setShowChequeRangePopup(true)}
+              className="ml-2 text-xs text-zinc-500 underline hover:text-zinc-900"
+            >
+              {chequeRanges.length > 0 ? `${chequeRanges.length} range${chequeRanges.length > 1 ? "s" : ""}` : "Set range"}
+            </button>
+          )}
         </FormRow>
         <FormRow label="Enable Cheque Printing" labelWidth="w-52" className="flex items-center min-h-[26px]">
           <select
@@ -84,14 +133,41 @@ export default function LedgerBankDetailsForm({
             <select
               className={selectCls}
               value={bankForm.set_alter_cheque_printing || "No"}
-              onChange={setBankField("set_alter_cheque_printing")}
+              onChange={handleChequePrintingChange}
             >
               <option value="No">No</option>
               <option value="Yes">Yes</option>
             </select>
+            {bankForm.set_alter_cheque_printing === "Yes" && (
+              <button
+                type="button"
+                onClick={() => setShowChequePrintingPopup(true)}
+                className="ml-2 text-xs text-zinc-500 underline hover:text-zinc-900"
+              >
+                Configure
+              </button>
+            )}
           </FormRow>
         )}
       </div>
+
+      {showChequeRangePopup && (
+        <ChequeRangePopup
+          ledgerName={ledgerName}
+          ranges={chequeRanges}
+          onClose={closeChequeRanges}
+          onAccept={acceptChequeRanges}
+        />
+      )}
+
+      {showChequePrintingPopup && (
+        <ChequePrintingConfigPopup
+          ledgerName={ledgerName}
+          config={bankForm.cheque_printing_config}
+          onClose={() => setShowChequePrintingPopup(false)}
+          onAccept={acceptChequePrinting}
+        />
+      )}
     </div>
   );
 }

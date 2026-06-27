@@ -1,5 +1,68 @@
 import { useState, useEffect, useMemo } from "react";
 
+export interface ChequeRange {
+  from_number: string;
+  to_number: string;
+  name: string;
+}
+
+/** Cheque Printing Configuration — all dimensions in mm (stored as strings). */
+export interface ChequePrintingConfig {
+  // Cheque Dimension
+  width_of_cheque: string;
+  height_of_cheque: string;
+  // Cross Cheque
+  cross_start_left: string;
+  cross_start_top: string;
+  // Cheque Date
+  date_distance_top: string;
+  date_start_left: string;
+  style_of_date: string;
+  date_separator: string;
+  date_separator_width: string;
+  date_char_distance: string;
+  // Party's / Payee Name
+  payee_distance_top: string;
+  payee_start_left: string;
+  payee_width: string;
+  // Amount in Words
+  words_a_dist_2nd_top: string; // (A) Distance of 2nd Line from Top Edge
+  words_b_gap: string;          // (B) Height (gap) between 2nd and 1st Line
+  words_1st_start_left: string;
+  words_2nd_start_left: string;
+  words_width: string;
+  print_currency_formal_name: string; // Yes/No
+  // Amount in Figures
+  figures_distance_top: string;
+  figures_start_left: string;
+  figures_width: string;
+  print_currency_symbol: string; // Yes/No
+  // Company Signatory Details
+  company_name_on_cheque: string;
+  print_company_name: string; // Yes/No
+  salutation_1st: string;
+  salutation_2nd: string;
+  sign_distance_top: string;
+  sign_start_left: string;
+  sign_width: string;
+  sign_height: string;
+}
+
+export const EMPTY_CHEQUE_PRINTING_CONFIG: ChequePrintingConfig = {
+  width_of_cheque: "", height_of_cheque: "",
+  cross_start_left: "", cross_start_top: "",
+  date_distance_top: "", date_start_left: "", style_of_date: "dd-mmm-yyyy",
+  date_separator: "", date_separator_width: "", date_char_distance: "",
+  payee_distance_top: "", payee_start_left: "", payee_width: "",
+  words_a_dist_2nd_top: "", words_b_gap: "", words_1st_start_left: "",
+  words_2nd_start_left: "", words_width: "", print_currency_formal_name: "Yes",
+  figures_distance_top: "", figures_start_left: "", figures_width: "",
+  print_currency_symbol: "Yes",
+  company_name_on_cheque: "", print_company_name: "Yes",
+  salutation_1st: "", salutation_2nd: "",
+  sign_distance_top: "", sign_start_left: "", sign_width: "", sign_height: "",
+};
+
 export interface BankDetails {
   account_holder_name?: string;
   account_number?: string;
@@ -9,8 +72,10 @@ export interface BankDetails {
   branch?: string;
   bsr_code?: string;
   set_alter_cheque_books?: string;
+  cheque_ranges?: ChequeRange[];
   enable_cheque_printing?: string;
   set_alter_cheque_printing?: string;
+  cheque_printing_config?: ChequePrintingConfig;
   transaction_type?: string;
   cross_using?: string;
   company_bank?: string;
@@ -26,6 +91,7 @@ export const EMPTY_BANK_DETAILS: BankDetails = {
   branch: "",
   bsr_code: "",
   set_alter_cheque_books: "No",
+  cheque_ranges: [],
   enable_cheque_printing: "No",
   set_alter_cheque_printing: "No",
   transaction_type: "",

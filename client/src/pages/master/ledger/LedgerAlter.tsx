@@ -137,6 +137,7 @@ export default function LedgerAlter() {
   // present for the "Set/Alter other Statutory details" toggle.
   const showLeftStatutorySection =
     !form.behave_as_payment_gateway &&
+    !groupLineage.isBank &&
     (currentConfig.assessableValueCalc || true);
 
   const isOtherStatutoryActive =
@@ -756,8 +757,10 @@ export default function LedgerAlter() {
 
           {selectedLedgerId && !form.behave_as_payment_gateway && (
             <LedgerBankDetailsForm
+              ledgerName={form.name || ""}
               bankForm={bankForm}
               setBankField={setBankField}
+              setBankForm={setBankForm}
               groupLineage={groupLineage}
             />
           )}
