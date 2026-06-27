@@ -5,7 +5,7 @@ import SelectionPopup from "./SelectionPopup";
 import MovementAnalysisTable, { type MovRow } from "./MovementAnalysisTable";
 import ItemVoucherAnalysis, { type VoucherRow } from "./ItemVoucherAnalysis";
 
-interface Group { group_id: number; name: string; }
+interface Ledger { ledger_id: number; name: string; }
 interface ItemRow {
   item_id: number; item_name: string; unit_name: string;
   purchase_qty: number; purchase_value: number;
@@ -14,8 +14,8 @@ interface ItemRow {
 
 type Level =
   | { step: "select" }
-  | { step: "report"; group: Group }
-  | { step: "vouchers"; group: Group; item: ItemRow };
+  | { step: "report"; ledger: Ledger }
+  | { step: "vouchers"; ledger: Ledger; item: ItemRow };
 
 const FooterBar = ({ children }: { children: React.ReactNode }) => (
   <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
@@ -23,7 +23,7 @@ const FooterBar = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-export default function GroupAnalysis() {
+export default function LedgerAnalysis() {
   const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
   const companyId = selectedCompany?.company_id;
@@ -32,25 +32,25 @@ export default function GroupAnalysis() {
 
   const [level, setLevel] = React.useState<Level>({ step: "select" });
 
-  // Ledger groups for selection
-  const [groups, setGroups] = React.useState<Group[]>([]);
-  const [groupsLoading, setGroupsLoading] = React.useState(true);
+  // Ledgers for selection
+  const [ledgers, setLedgers] = React.useState<Ledger[]>([]);
+  const [ledgersLoading, setLedgersLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
   const [selectIdx, setSelectIdx] = React.useState(0);
 
   React.useEffect(() => {
-    if (!companyId) { setGroupsLoading(false); return; }
-    setGroupsLoading(true);
-    (window as any).api.group.getAll(companyId).then((res: any) => {
-      const list: Group[] = [...(res.groups ?? [])].sort((a: Group, b: Group) => a.name.localeCompare(b.name));
-      setGroups(list);
-      setGroupsLoading(false);
+    if (!companyId) { setLedgersLoading(false); return; }
+    setLedgersLoading(true);
+    (window as any).api.ledger.getAll(companyId).then((res: any) => {
+      const list: Ledger[] = [...(res.ledgers ?? [])].sort((a: Ledger, b: Ledger) => a.name.localeCompare(b.name));
+      setLedgers(list);
+      setLedgersLoading(false);
     });
   }, [companyId]);
 
   const filtered = React.useMemo(() =>
-    search.trim() === "" ? groups : groups.filter(g => g.name.toLowerCase().includes(search.toLowerCase())),
-    [groups, search]
+    search.trim() === "" ? ledgers : ledgers.filter(l => l.name.toLowerCase().includes(search.toLowerCase())),
+    [ledgers, search]
   );
   React.useEffect(() => { setSelectIdx(0); }, [search]);
 
@@ -60,11 +60,11 @@ export default function GroupAnalysis() {
   const [err, setErr] = React.useState<string | null>(null);
   const [rowIdx, setRowIdx] = React.useState(0);
 
-  const loadReport = React.useCallback((group: Group) => {
+  const loadReport = React.useCallback((ledger: Ledger) => {
     if (!companyId || !fyId) return;
-    setLevel({ step: "report", group });
+    setLevel({ step: "report", ledger });
     setLoading(true); setErr(null); setRowIdx(0);
-    (window as any).api.report.groupAnalysis(companyId, fyId, group.group_id).then((res: any) => {
+    (window as any).api.report.ledgerAnalysis(companyId, fyId, ledger.ledger_id).then((res: any) => {
       if (res.success) setItems(res.items ?? []);
       else setErr(res.error || "Failed to load");
       setLoading(false);
@@ -77,9 +77,9 @@ export default function GroupAnalysis() {
   const [vErr, setVErr] = React.useState<string | null>(null);
   const [vIdx, setVIdx] = React.useState(0);
 
-  const loadVouchers = React.useCallback((group: Group, item: ItemRow) => {
+  const loadVouchers = React.useCallback((ledger: Ledger, item: ItemRow) => {
     if (!companyId || !fyId) return;
-    setLevel({ step: "vouchers", group, item });
+    setLevel({ step: "vouchers", ledger, item });
     setLoadingV(true); setVErr(null); setVIdx(0);
     (window as any).api.report.stockItemVouchers(companyId, fyId, item.item_id, activeFY?.start_date, activeFY?.end_date).then((res: any) => {
       if (res.success) setVouchers(res.rows ?? []);
@@ -89,7 +89,7 @@ export default function GroupAnalysis() {
   }, [companyId, fyId, activeFY]);
 
   const backToSelect = React.useCallback(() => { setLevel({ step: "select" }); setItems([]); setSearch(""); }, []);
-  const backToReport = React.useCallback((group: Group) => { setLevel({ step: "report", group }); setVouchers([]); }, []);
+  const backToReport = React.useCallback((ledger: Ledger) => { setLevel({ step: "report", ledger }); setVouchers([]); }, []);
 
   // Keyboard nav — selection popup
   React.useEffect(() => {
@@ -97,7 +97,7 @@ export default function GroupAnalysis() {
     const h = (e: KeyboardEvent) => {
       if (e.key === "ArrowDown") { e.preventDefault(); setSelectIdx(p => Math.min(filtered.length - 1, p + 1)); }
       else if (e.key === "ArrowUp") { e.preventDefault(); setSelectIdx(p => Math.max(0, p - 1)); }
-      else if (e.key === "Enter") { e.preventDefault(); const g = filtered[selectIdx]; if (g) loadReport(g); }
+      else if (e.key === "Enter") { e.preventDefault(); const l = filtered[selectIdx]; if (l) loadReport(l); }
       else if (e.key === "Escape") { e.preventDefault(); navigate(-1); }
     };
     window.addEventListener("keydown", h);
@@ -109,7 +109,7 @@ export default function GroupAnalysis() {
       const h = (e: KeyboardEvent) => {
         if (e.key === "ArrowDown") { e.preventDefault(); setRowIdx(p => Math.min(items.length - 1, p + 1)); }
         else if (e.key === "ArrowUp") { e.preventDefault(); setRowIdx(p => Math.max(0, p - 1)); }
-        else if (e.key === "Enter") { e.preventDefault(); const it = items[rowIdx]; if (it) loadVouchers(level.group, it); }
+        else if (e.key === "Enter") { e.preventDefault(); const it = items[rowIdx]; if (it) loadVouchers(level.ledger, it); }
         else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToSelect(); }
       };
       window.addEventListener("keydown", h);
@@ -120,7 +120,7 @@ export default function GroupAnalysis() {
         if (e.key === "ArrowDown") { e.preventDefault(); setVIdx(p => Math.min(vouchers.length - 1, p + 1)); }
         else if (e.key === "ArrowUp") { e.preventDefault(); setVIdx(p => Math.max(0, p - 1)); }
         else if (e.key === "Enter") { e.preventDefault(); const r = vouchers[vIdx]; if (r?.voucher_id) navigate(`/transactions/voucher/${r.voucher_id}`); }
-        else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToReport(level.group); }
+        else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToReport(level.ledger); }
       };
       window.addEventListener("keydown", h);
       return () => window.removeEventListener("keydown", h);
@@ -131,17 +131,17 @@ export default function GroupAnalysis() {
     return (
       <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
         <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
-          <span className="font-bold text-sm tracking-wide">Group Analysis</span>
+          <span className="font-bold text-sm tracking-wide">Ledger Analysis</span>
           <span className="font-bold text-sm">{selectedCompany?.name || "Company"}</span>
           <span />
         </div>
         <SelectionPopup
-          title="Group Analysis" fieldLabel="Name of Group" listLabel="List of Groups"
+          title="Ledger Analysis" fieldLabel="Name of Ledger" listLabel="List of Ledgers"
           companyName={selectedCompany?.name}
-          items={filtered.map(g => ({ id: g.group_id, name: g.name }))}
-          index={selectIdx} loading={groupsLoading} search={search}
+          items={filtered.map(l => ({ id: l.ledger_id, name: l.name }))}
+          index={selectIdx} loading={ledgersLoading} search={search}
           onSearchChange={setSearch} onIndexChange={setSelectIdx}
-          onAccept={(i) => { const g = filtered[i]; if (g) loadReport(g); }}
+          onAccept={(i) => { const l = filtered[i]; if (l) loadReport(l); }}
           onCancel={() => navigate(-1)}
         />
       </div>
@@ -149,28 +149,28 @@ export default function GroupAnalysis() {
   }
 
   if (level.step === "report") {
-    const g = level.group;
+    const l = level.ledger;
     const rows: MovRow[] = items.map(it => ({ id: it.item_id, name: it.item_name, unit: it.unit_name, leftQty: it.purchase_qty, leftValue: it.purchase_value, rightQty: it.sales_qty, rightValue: it.sales_value }));
     return (
       <MovementAnalysisTable
-        title="Group Analysis" companyName={selectedCompany?.name} subtitle={g.name}
+        title="Ledger Analysis" companyName={selectedCompany?.name} subtitle={l.name}
         periodLabel={periodLabel} leftLabel="Purchases" rightLabel="Sales" rows={rows}
-        loading={loading} error={err} emptyText="No inventory movement found for this group."
+        loading={loading} error={err} emptyText="No inventory movement found for this ledger."
         selectedIndex={rowIdx} onSelectIndex={setRowIdx}
-        onActivate={(r, i) => loadVouchers(g, items[i])}
-        footer={<FooterBar><button onClick={backToSelect} className="hover:underline hover:text-zinc-900">Q: Back to Group Selection</button><span className="text-zinc-400">Enter: Item voucher analysis</span></FooterBar>}
+        onActivate={(r, i) => loadVouchers(l, items[i])}
+        footer={<FooterBar><button onClick={backToSelect} className="hover:underline hover:text-zinc-900">Q: Back to Ledger Selection</button><span className="text-zinc-400">Enter: Item voucher analysis</span></FooterBar>}
       />
     );
   }
 
-  const { group: g, item: it } = level;
+  const { ledger: l, item: it } = level;
   return (
     <ItemVoucherAnalysis
       itemName={it.item_name} companyName={selectedCompany?.name} periodLabel={periodLabel}
       rows={vouchers} loading={loadingV} error={vErr}
       selectedIndex={vIdx} onSelectIndex={setVIdx}
       onOpenVoucher={(r) => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
-      footer={<FooterBar><button onClick={() => backToReport(g)} className="hover:underline hover:text-zinc-900">Q: Back to Group</button><span className="text-zinc-400">Enter: Open voucher</span></FooterBar>}
+      footer={<FooterBar><button onClick={() => backToReport(l)} className="hover:underline hover:text-zinc-900">Q: Back to Ledger</button><span className="text-zinc-400">Enter: Open voucher</span></FooterBar>}
     />
   );
 }

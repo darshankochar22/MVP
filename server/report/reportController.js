@@ -17,7 +17,8 @@ const { stockCategorySummary } = require('./inventory/stockCategorySummary');
 const { stockGroupAnalysis, stockGroupAnalysisItems } = require('./inventory/stockGroupAnalysis');
 const { stockCategoryAnalysis, stockCategoryAnalysisItems } = require('./inventory/stockCategoryAnalysis');
 const { stockItemAnalysis } = require('./inventory/stockItemAnalysis');
-const { groupAnalysis } = require('./inventory/groupAnalysis');
+const { groupAnalysis, ledgerAnalysis } = require('./inventory/groupAnalysis');
+const { transferAnalysis } = require('./inventory/transferAnalysis');
 const { journalRegister } = require('./registers/journalRegister');
 const { debitNoteRegister } = require('./registers/debitNoteRegister');
 const { creditNoteRegister } = require('./registers/creditNoteRegister');
@@ -229,6 +230,12 @@ module.exports = {
   },
   groupAnalysis: async (event, { company_id, fy_id, group_id }) => {
     return await groupAnalysis(company_id, fy_id, group_id);
+  },
+  ledgerAnalysis: async (event, { company_id, fy_id, ledger_id }) => {
+    return await ledgerAnalysis(company_id, fy_id, ledger_id);
+  },
+  transferAnalysis: async (event, { company_id, fy_id, voucher_type }) => {
+    return await transferAnalysis(company_id, fy_id, voucher_type);
   },
 
   costCentreReport: async (event, { company_id, fy_id, as_on_date }) => {

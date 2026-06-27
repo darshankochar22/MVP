@@ -5,19 +5,19 @@ import { Button } from "@/components/shadcn/button";
 const ROUTES: Record<string, string> = {
   "Stock Group Analysis":    "/reports/inventory/stock-group-analysis",
   "Stock Category Analysis": "/reports/inventory/stock-category-analysis",
-  "Stock Item-wise":         "/reports/inventory/stock-item-analysis",
+  "Stock Item Analysis":     "/reports/inventory/stock-item-analysis",
   "Group Analysis":          "/reports/inventory/group-analysis",
+  "Ledger Analysis":         "/reports/inventory/ledger-analysis",
+  "Transfer Analysis":       "/reports/inventory/transfer-analysis",
 };
 
 const ITEMS = [
   "Stock Group Analysis",
   "Stock Category Analysis",
+  "Stock Item Analysis",
   "Group Analysis",
-  "Stock Item-wise",
-  "Party-wise",
-  "Supplier-wise",
-  "Buyer-wise",
-  "Consumption-wise",
+  "Ledger Analysis",
+  "Transfer Analysis",
 ];
 
 export default function MovementAnalysisMenu() {

@@ -84,6 +84,8 @@ import StockGroupAnalysis from "./pages/reports/inventory/StockGroupAnalysis.tsx
 import StockCategoryAnalysis from "./pages/reports/inventory/StockCategoryAnalysis.tsx";
 import StockItemAnalysis from "./pages/reports/inventory/StockItemAnalysis.tsx";
 import GroupAnalysis from "./pages/reports/inventory/GroupAnalysis.tsx";
+import LedgerAnalysis from "./pages/reports/inventory/LedgerAnalysis.tsx";
+import TransferAnalysis from "./pages/reports/inventory/TransferAnalysis.tsx";
 import SalesOrderBook from "./pages/reports/inventory/SalesOrderBook.tsx";
 import PurchaseOrderBook from "./pages/reports/inventory/PurchaseOrderBook.tsx";
 import AgeingAnalysis from "./pages/reports/inventory/AgeingAnalysis.tsx";
@@ -273,6 +275,8 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/inventory/stock-category-analysis",       element: <StockCategoryAnalysis /> },
   { path: "/reports/inventory/stock-item-analysis",           element: <StockItemAnalysis /> },
   { path: "/reports/inventory/group-analysis",               element: <GroupAnalysis /> },
+  { path: "/reports/inventory/ledger-analysis",              element: <LedgerAnalysis /> },
+  { path: "/reports/inventory/transfer-analysis",            element: <TransferAnalysis /> },
   { path: "/reports/inventory/sales-order-book",         element: <SalesOrderBook /> },
   { path: "/reports/inventory/purchase-order-book",      element: <PurchaseOrderBook /> },
   { path: "/reports/inventory/ageing-analysis",          element: <AgeingAnalysis /> },
