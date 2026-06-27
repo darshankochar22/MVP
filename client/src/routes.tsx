@@ -30,6 +30,12 @@ import ExciseRDAlter from "./pages/master/statutory-details/ExciseRegistrationDe
 import ExciseRDCOA from "./pages/master/statutory-details/ExciseRegistrationDetails/ExciseRDCOA.tsx";
 import CostCentreAlter from "./pages/master/cost-centre/cost-centreAlter.tsx";
 import CostCentreCOA from "./pages/master/cost-centre/cost-centreCOA.tsx";
+import BudgetCreate from "./pages/master/budget/BudgetCreate.tsx";
+import BudgetAlter from "./pages/master/budget/BudgetAlter.tsx";
+import BudgetCOA from "./pages/master/budget/BudgetCOA.tsx";
+import ScenarioCreate from "./pages/master/scenario/ScenarioCreate.tsx";
+import ScenarioAlter from "./pages/master/scenario/ScenarioAlter.tsx";
+import ScenarioCOA from "./pages/master/scenario/ScenarioCOA.tsx";
 import GenericDataView from './pages/GenericDataView.tsx';
 import Company from "./pages/company/Company.tsx";
 import CompanyCreate from "./pages/company/CompanyCreate.tsx";
@@ -58,7 +64,6 @@ import PurchaseRegister from "./pages/reports/accounts/PurchaseRegister.tsx";
 import JournalRegister from "./pages/reports/accounts/JournalRegister.tsx";
 import DebitNoteRegister from "./pages/reports/accounts/DebitNoteRegister.tsx";
 import CreditNoteRegister from "./pages/reports/accounts/CreditNoteRegister.tsx";
-
 import ProfitLoss from "./pages/reports/accounts/ProfitLoss.tsx";
 import BalanceSheet from "./pages/reports/accounts/BalanceSheet.tsx";
 import CashFlowStatement from "./pages/reports/accounts/CashFlowStatement.tsx";
@@ -121,7 +126,6 @@ import GroupCreate from "./pages/master/group/GroupCreate.tsx";
 import GroupAlter from "./pages/master/group/GroupAlter.tsx";
 import GroupAlterEdit from "./pages/master/group/GroupAlterEdit.tsx";
 import GroupCOA from "./pages/master/group/GroupCOA.tsx";
-
 import Banking from './pages/utilities/Banking';
 import Copilot from './pages/utilities/Copilot';
 import UnitCreate from "./pages/master/inventory/unit/UnitCreate.tsx";
@@ -298,7 +302,6 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/inventory/stock-query",              element: <StockQuery /> },
   { path: "/reports/inventory/reorder-status",           element: <ReorderStatus /> },
   { path: "/reports/job-work",                           element: <JobWorkReports /> },
-  // Job Work Reports (#124)
   { path: "/reports/job-work/orders",                    element: <JobWorkOrderSummary kind="orders" /> },
   { path: "/reports/job-work/components",                element: <JobWorkOrderSummary kind="components" /> },
   { path: "/reports/job-work/in-orders-book",            element: <InventoryVoucherRegister voucherType="Job Work In Order" title="Job Work In Orders Register" variant="order" subtitle="Job Work In Order" /> },
@@ -327,79 +330,66 @@ export const APP_ROUTES: RouteConfig[] = [
 { path: "/reports/statements-of-accounts/cost-centres", element: <CostCentresMenu /> },
 { path: "/reports/statements-of-accounts/statistics", element: <Statistics /> },
 { path: "/reports/statements-of-accounts/statistics/voucher/:voucherType", element: <StatisticsVoucherRegister /> },
-
   { path: "/master/create/tds-details", element: <TDSDetailsCreate /> },
   { path: "/master/alter/tds-details", element: <TDSDetailsAlter /> },
   { path: "/master/coa/tds-details", element: <TDSDetailsCOA /> },
-
   { path: "/master/create/tcs-details", element: <TCSDetailsCreate /> },
   { path: "/master/alter/tcs-details", element: <TCSDetailsAlter /> },
   { path: "/master/coa/tcs-details", element: <TCSDetailsCOA /> },
-
   { path: "/master/create/pan-cin-details", element: <PANDetailsCreate /> },
   { path: "/master/alter/pan-cin-details", element: <PANDetailsAlter /> },
   { path: "/master/coa/pan-cin-details", element: <PANDetailsCOA /> },
-
   { path: "/master/create/vat-registration-details", element: <VATRDCreate /> },
   { path: "/master/alter/vat-registration-details", element: <VATRDAlter /> },
   { path: "/master/coa/vat-registration-details", element: <VATRDCOA /> },
-
   { path: "/master/create/excise-registration-details", element: <ExciseRDCreate /> },
   { path: "/master/alter/excise-registration-details", element: <ExciseRDAlter /> },
   { path: "/master/coa/excise-registration-details", element: <ExciseRDCOA /> },
-
   { path: "/master/create/price-levels", element: <PricelevelsCreate /> },
   { path: "/master/alter/price-levels", element: <PricelevelsAlter /> },
   { path: "/master/coa/price-levels", element: <PricelevelsCOA /> },
-
   { path: "/master/create/price-lists-sg", element: <PriceListSGCreate /> },
   { path: "/master/alter/price-lists-sg", element: <PriceListSGAlter /> },
   { path: "/master/coa/price-lists-sg", element: <PriceListSGCOA /> },
-
   { path: "/master/create/price-lists-sc", element: <PricelistscCreate /> },
   { path: "/master/alter/price-lists-sc", element: <PricelistscAlter /> },
   { path: "/master/coa/price-lists-sc", element: <PricelistscCOA /> },
-
   { path: "/master/create/payroll-voucher-type", element: <PayrollvtCreate /> },
   { path: "/master/alter/payroll-voucher-type", element: <PayrollvtAlter /> },
   { path: "/master/coa/payroll-voucher-type", element: <PayrollvtCOA /> },
-
   { path: "/master/create/cost-centre", element: <CostCentreCreate /> },
   { path: "/master/alter/cost-centre", element: <CostCentreAlter /> },
   { path: "/master/coa/cost-centre", element: <CostCentreCOA /> },
-
+  { path: "/master/create/budget", element: <BudgetCreate /> },
+  { path: "/master/alter/budget", element: <BudgetAlter /> },
+  { path: "/master/coa/budget", element: <BudgetCOA /> },
+  { path: "/master/create/scenario", element: <ScenarioCreate /> },
+  { path: "/master/alter/scenario", element: <ScenarioAlter /> },
+  { path: "/master/coa/scenario", element: <ScenarioCOA /> },
   { path: "/master/create/cost-category", element: <CostCategoryCreate /> },
   { path: "/master/alter/cost-category", element: <CostCategoryAlter /> },
   { path: "/master/coa/cost-category", element: <CostCategoryCOA /> },
-
   { path: "/master/create/ledger", element: <LedgerCreate /> },
   { path: "/master/alter/ledger", element: <LedgerAlter /> },
   { path: "/master/coa/ledger", element: <LedgerCOA /> },
-
   { path: "/master/create/currency", element: <CurrencyCreate /> },
   { path: "/master/alter/currency", element: <CurrencyAlter /> },
   { path: "/master/coa/currency", element: <CurrencyCOA /> },
-
   { path: "/master/create/voucher-type", element: <VoucherTypeCreate /> },
   { path: "/master/alter/voucher-type", element: <VoucherTypeAlter /> },
   { path: "/master/coa/voucher-type", element: <VoucherTypeCOA /> },
-
   { path: "/master/create/gst-registration", element: <GSTRegistrationCreate /> },
   { path: "/master/alter/gst-registration", element: <GSTRegistrationAlter /> },
   { path: "/master/coa/gst-registration", element: <GSTRegistrationCOA /> },
-
   { path: "/master/create/gst-classification", element: <GSTClassificationCreate /> },
   { path: "/master/alter/gst-classification", element: <GSTClassificationAlter /> },
   { path: "/master/coa/gst-classification", element: <GSTClassificationCOA /> },
-
   { path: "/master/create/tcs-nature-of-goods", element: <TCSNatureOfGoodsCreate /> },
   { path: "/master/alter/tcs-nature-of-goods", element: <TCSNatureOfGoodsAlter /> },
   { path: "/master/coa/tcs-nature-of-goods", element: <TCSNatureOfGoodsCOA /> },
-
   { path: "/master/create/tds-nature-of-payment", element: <TDSNatureOfPaymentCreate /> },
   { path: "/master/alter/tds-nature-of-payment", element: <TDSNatureOfPaymentAlter /> },
   { path: "/master/coa/tds-nature-of-payment", element: <TDSNatureOfPaymentCOA /> },
-
   { path: "/master/statutory/gst/track-activities", element: <TrackGSTReturnActivities /> },
   { path: "/master/statutory/gstr1", element: <GSTR1View /> },
   { path: "/master/statutory/gstr1/reconciliation", element: <GSTR1Reconciliation /> },
@@ -409,16 +399,13 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/statutory/gstr2b/reconciliation", element: <GSTR2BReconciliation /> },
   { path: "/master/statutory/challan/reconciliation", element: <ChallanReconciliation /> },
   { path: "/master/statutory/ims", element: <IMSInwardSupplies /> },
-
   { path: "/master/create/tax-units", element: <TaxCreate /> },
   { path: "/master/alter/tax-units", element: <TaxAlter /> },
   { path: "/master/coa/tax-units", element: <TaxCOA /> },
-
   { path: "/master/create/group", element: <GroupCreate /> },
   { path: "/master/alter/group", element: <GroupAlter /> },
   { path: "/master/alter/group/:id", element: <GroupAlterEdit /> },
   { path: "/master/coa/group", element: <GroupCOA /> },
-
   { path: "/master/create/unit", element: <UnitCreate /> },
   { path: "/master/create/stock-group", element: <StockGroupCreate /> },
   { path: "/master/create/stock-category", element: <StockCategoryCreate /> },
@@ -429,7 +416,6 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/alter/stock-category", element: <StockCategoryAlter /> },
   { path: "/master/alter/stock-item", element: <StockItemAlter /> },
   { path: "/master/alter/godown", element: <GodownAlter /> },
-
   { path: "/transactions/vouchers", element: <Vouchers /> },
    { path: "/transactions/voucher-list", element: <VoucherList /> },
    { path: "/transactions/voucher/:id", element: <VoucherView /> },
@@ -437,7 +423,6 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/utilities/banking", element: <Banking /> },
   { path: "/utilities/copilot", element: <Copilot /> },
   { path: "/data/:controller", element: <GenericDataView /> },
-
   { path: "/master/coa/stock-group", element: <StockGroupCOA /> },
   { path: "/master/coa/stock-category", element: <StockCategoryCOA /> },
   { path: "/master/coa/godown", element: <GodownCOA /> },
@@ -449,7 +434,6 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/coa/pay-head", element: <PayHeadCOA /> },
   { path: "/master/coa/salary-structure", element: <SalaryStructureCOA /> },
   { path: "/master/coa/employee-category", element: <EmployeeCategoryCOA /> },
-
   { path: "/master/create/employee-group", element: <EmployeeGroupCreate /> },
   { path: "/master/create/employee", element: <EmployeeCreate /> },
   { path: "/master/create/payroll-unit", element: <PayrollUnitCreate /> },
@@ -457,7 +441,6 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/create/pay-head", element: <PayHeadCreate /> },
   { path: "/master/create/salary-structure", element: <SalaryStructureCreate /> },
   { path: "/master/create/employee-category", element: <EmployeeCategoryCreate /> },
-
   { path: "/master/alter/employee-group", element: <EmployeeGroupAlter /> },
   { path: "/master/alter/employee", element: <EmployeeAlter /> },
   { path: "/master/alter/payroll-unit", element: <PayrollUnitAlter /> },
@@ -467,7 +450,6 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/alter/employee-category", element: <EmployeeCategoryAlter /> },
   { path: "/company/create", element: <CompanyCreatePage /> },
   { path: "/reports/accounts/voucher-clarification", element: <ReportRunner /> },
-
   { path: "/reports/gateway", element: <CategoryMenuPage title="Gateway of Business" categorySlug="gateway" description="Central navigation hub for all 585 reports across every category." /> },
   { path: "/reports/financial-statements", element: <CategoryMenuPage title="Financial Statements" categorySlug="financial-statements" description="Profit & Loss, Balance Sheet, Cash Flow, Funds Flow, Ratio Analysis and related financial reports." /> },
   { path: "/reports/receivables-payables", element: <CategoryMenuPage title="Receivables & Payables" categorySlug="receivables-payables" description="Bills receivable, bills payable, outstanding reports, ageing analysis and party-wise summaries." /> },

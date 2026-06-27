@@ -8,6 +8,14 @@ import * as React from "react";
 export interface SelectionItem {
   id: React.Key;
   name: string;
+  /** Extra column values, aligned 1:1 with `columns` (after the name column). */
+  cols?: string[];
+}
+
+export interface SelectionColumn {
+  label: string;
+  width?: string;                 // tailwind width class, e.g. "w-24"
+  align?: "left" | "right";
 }
 
 export interface SelectionPopupProps {
@@ -16,6 +24,12 @@ export interface SelectionPopupProps {
   listLabel: string;    // "List of Stock Groups"
   companyName?: string;
   subtitle?: React.ReactNode;   // e.g. the already-chosen item, shown under company
+  /** When set, the list renders as a multi-column table (Name + these columns). */
+  columns?: SelectionColumn[];
+  /** Header for the name column when `columns` is set (default "Name"). */
+  nameColLabel?: string;
+  /** Widen the popup — useful for multi-column lists. Default 420px. */
+  width?: number;
   items: SelectionItem[];
   index: number;
   loading?: boolean;
@@ -35,6 +49,9 @@ export default function SelectionPopup({
   listLabel,
   companyName,
   subtitle,
+  columns,
+  nameColLabel = "Name",
+  width,
   items,
   index,
   loading,
@@ -53,7 +70,10 @@ export default function SelectionPopup({
 
   return (
     <div className="fixed inset-0 z-40 flex items-start justify-center bg-zinc-900/30 pt-16 select-none">
-      <div className="w-[420px] bg-white border border-zinc-400 shadow-xl flex flex-col max-h-[72vh]">
+      <div
+        style={{ width: width ?? 420 }}
+        className="bg-white border border-zinc-400 shadow-xl flex flex-col max-h-[72vh]"
+      >
         <div className="px-3 py-1.5 bg-zinc-900 text-white text-xs font-semibold text-center">{title}</div>
 
         {companyName && (
@@ -92,6 +112,17 @@ export default function SelectionPopup({
           )}
         </div>
 
+        {columns && columns.length > 0 && (
+          <div className="flex px-3 py-1 border-b border-zinc-300 bg-zinc-50 text-[10px] font-bold text-zinc-600">
+            <span className="flex-1">{nameColLabel}</span>
+            {columns.map((c, i) => (
+              <span key={i} className={`${c.width ?? "w-24"} ${c.align === "right" ? "text-right" : "text-left"}`}>
+                {c.label}
+              </span>
+            ))}
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto min-h-0">
           {loading ? (
             <div className="px-3 py-4 text-xs text-zinc-400 italic">Loading…</div>
@@ -104,11 +135,22 @@ export default function SelectionPopup({
                 ref={idx === index ? activeRef : undefined}
                 onClick={() => onIndexChange(idx)}
                 onDoubleClick={() => onAccept(idx)}
-                className={`px-3 py-1 text-xs cursor-pointer ${
+                className={`flex px-3 py-1 text-xs cursor-pointer ${
                   idx === index ? "bg-zinc-200 text-zinc-950 font-bold" : "hover:bg-zinc-100 text-zinc-800"
                 }`}
               >
-                {it.name}
+                {columns && columns.length > 0 ? (
+                  <>
+                    <span className="flex-1 truncate">{it.name}</span>
+                    {columns.map((c, i) => (
+                      <span key={i} className={`${c.width ?? "w-24"} ${c.align === "right" ? "text-right" : "text-left"}`}>
+                        {it.cols?.[i] ?? ""}
+                      </span>
+                    ))}
+                  </>
+                ) : (
+                  it.name
+                )}
               </div>
             ))
           )}

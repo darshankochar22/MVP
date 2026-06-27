@@ -3,6 +3,13 @@ export type { FYType } from './FinancialYear';
 export type { GroupType, SlabBasedRate } from './Group';
 export type { LedgerType } from './Ledger';
 export type { CostCentreType } from './CostCentre';
+export type {
+  BudgetType,
+  BudgetGroupAllocation,
+  BudgetLedgerAllocation,
+  BudgetCostCentreAllocation,
+} from './Budget';
+export type { ScenarioType, ScenarioVoucher } from './Scenario';
 export type { CostCategoryType } from './CostCategory';
 export type { UnitType } from './Unit';
 export type { StockGroupType, StockGroupTreeNode } from './StockGroup';

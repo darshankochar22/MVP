@@ -93,6 +93,12 @@ Before creating any new shared component, check if something close already exist
 ## Full-screen panel pattern (applies to ALL panels — reports, vouchers, ledger, daybook)
 Every report, voucher entry screen, and ledger view must open as a full-screen panel replacing the current view — matching TallyPrime's actual interaction pattern, not a small centered modal/popup. One shared `FullScreenPanel` component handles this everywhere. No screen should implement its own panel-opening logic.
 
+## Issue #107 — Stock Item (Inventory Books)
+Full implementation spec → `issue107-stock-item.md` (45 screenshots analysed).
+Entry: Gateway → Inventory Books → Stock Item.
+Default view: Stock Item Monthly Summary (period rows, bar chart, F7 Show Profit, Change View for Daily/Weekly/StockQuery/MovementAnalysis/VouchersDetail/CostAnalysis, drill to Vouchers then to Voucher Alteration).
+Three-layer drill chain: Monthly Summary → Stock Item Vouchers (monthly) → Accounting Voucher Alteration.
+
 ## Inventory Books — issues #108–#112 verification + completion
 Treat existing 108–112 work as unverified, not done. For each issue, in order, one at a time:
 1. Re-read the issue via `gh issue view <N> --repo darshankochar22/MVP` only if this file has no notes on it yet — otherwise trust this file's last status.

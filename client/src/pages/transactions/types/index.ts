@@ -14,6 +14,14 @@ export interface ParticularRow {
   }[];
 }
 
+export interface BatchAllocation {
+  batch_number: string;
+  mfg_date?: string;       // ISO yyyy-mm-dd
+  expiry_date?: string;    // ISO yyyy-mm-dd
+  quantity: number;
+  rate: number;
+}
+
 export interface StockEntryRow {
   id: string;
   stockItem: import("../../../types/api").StockItemType | null;
@@ -28,6 +36,8 @@ export interface StockEntryRow {
   lotNo?: string;
   mfgDate?: string;
   expiryDate?: string;
+  /** Multi-batch split for a batch-tracked item (Stock Item Allocations sub-screen). */
+  batchAllocations?: BatchAllocation[];
 }
 
 export type ActiveField =
@@ -91,6 +101,19 @@ export type ActiveAllocation =
       ledgerName: string;
       amount: number;
       initialDetails?: any;
+    }
+  | {
+      type: "batch";
+      rowId: string;
+      itemId: number;
+      itemName: string;
+      quantity: number;
+      rate: number;
+      unitSymbol?: string;
+      trackMfg: boolean;
+      trackExpiry: boolean;
+      isInward: boolean;
+      initialAllocations?: BatchAllocation[];
     }
   | null;
 

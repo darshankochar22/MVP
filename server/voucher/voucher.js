@@ -69,11 +69,15 @@ const init = async (db) => {
       voucher_id      INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
       stock_entry_id  INTEGER NOT NULL REFERENCES voucher_stock_entries(stock_entry_id) ON DELETE CASCADE,
       batch_number    TEXT,
+      mfg_date        TEXT,
       expiry_date     TEXT,
       quantity        REAL DEFAULT 0,
       rate            REAL DEFAULT 0
     )
   `);
+
+  // mfg_date added later — ALTER for DBs created before the column existed.
+  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN mfg_date TEXT`); } catch (err) {}
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS voucher_bill_references (

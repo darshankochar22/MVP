@@ -85,6 +85,8 @@ const initDB = async () => {
   await require("../currency/currency").init(rawDb);
   await require("../costCategory/costCategory").init(rawDb);
   await require("../costCentre/costCentre").init(rawDb);
+  await require("../budget/budget").init(rawDb);
+  await require("../scenario/scenario").init(rawDb);
   await require("../gstRegistration/gstRegistration").init(rawDb);
   await require("../gstClassification/gstClassification").init(rawDb);
   await require("../tcsNatureOfGoods/tcsNatureOfGoods").init(rawDb);

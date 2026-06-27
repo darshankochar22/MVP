@@ -60,6 +60,8 @@ export default function Alter() {
       "Salary Structure": "/master/alter/salary-structure",
       "Cost Category": "/master/alter/cost-category",
       "Cost Centre": "/master/alter/cost-centre",
+      "Budget": "/master/alter/budget",
+      "Scenario": "/master/alter/scenario",
     };
     return map[item] ?? null;
   };

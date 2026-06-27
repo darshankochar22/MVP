@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "../../context/CompanyContext";
 
 import { useVoucherForm } from "./hooks/useVoucherForm";
+import type { BatchAllocation } from "./types";
 import { AlertBanner } from "../../components/ui";
 import { Button } from "@/components/shadcn/button";
 import { cn } from "@/lib/utils";
 import CompanyTaxRegistrationPopup from "./components/popups/CompanyTaxRegistrationPopup";
 import BillWiseAllocationPopup from "./components/popups/BillWiseAllocationPopup";
 import CostCentreAllocationPopup from "./components/popups/CostCentreAllocationPopup";
+import BatchAllocationPopup from "./components/popups/BatchAllocationPopup";
 import BankAllocationPopup from "./components/popups/BankAllocationPopup";
 import DenominationPopup from "./components/popups/DenominationPopup";
 import DispatchDetailsPopup from "./components/popups/DispatchDetailsPopup";
@@ -735,7 +737,7 @@ export default function Vouchers() {
     }, 50);
   }, []);
 
-  const proceedToNextStockRow = useCallback(
+  const advanceStockRow = useCallback(
     (idx: number) => {
       if (idx === form.stockEntries.length - 1) {
         form.handleAddStockRow();
@@ -745,6 +747,51 @@ export default function Vouchers() {
       }, 50);
     },
     [form.stockEntries.length, form.handleAddStockRow]
+  );
+
+  // Inward voucher types — mirrors the backend INWARD_TYPES; determines whether
+  // the batch popup label reads Inward (new lots) or Outward (consume balances).
+  const INWARD_VOUCHER_TYPES = ["Purchase", "Receipt Note", "Rejection In", "Material In"];
+
+  const proceedToNextStockRow = useCallback(
+    (idx: number) => {
+      const row = form.stockEntries[idx];
+      const item = row?.stockItem;
+      const qty = Number(row?.quantityRaw) || 0;
+      // Batch-tracked item → open the Stock Item Allocations sub-screen first.
+      if (item && Number((item as any).track_batches) === 1 && qty > 0 && item.item_id) {
+        form.setActiveAllocation({
+          type: "batch",
+          rowId: row.id,
+          itemId: item.item_id,
+          itemName: item.name,
+          quantity: qty,
+          rate: Number(row.rateRaw) || 0,
+          unitSymbol: row.unit?.symbol,
+          trackMfg: Number((item as any).track_date_of_manufacturing) === 1,
+          trackExpiry: Number((item as any).track_expiry) === 1,
+          isInward: INWARD_VOUCHER_TYPES.includes(effectiveVoucherType),
+          initialAllocations: row.batchAllocations,
+        });
+        return; // advance happens after the popup is accepted
+      }
+      advanceStockRow(idx);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [form.stockEntries, form.setActiveAllocation, effectiveVoucherType, advanceStockRow]
+  );
+
+  const handleSaveBatchAllocations = useCallback(
+    (allocations: BatchAllocation[]) => {
+      const alloc = form.activeAllocation;
+      if (alloc?.type !== "batch") return;
+      const rowId = alloc.rowId;
+      form.handleUpdateStockRow(rowId, { batchAllocations: allocations });
+      form.setActiveAllocation(null);
+      const idx = form.stockEntries.findIndex((e) => e.id === rowId);
+      if (idx >= 0) advanceStockRow(idx);
+    },
+    [form.activeAllocation, form.handleUpdateStockRow, form.setActiveAllocation, form.stockEntries, advanceStockRow]
   );
 
   // ─── handleAmountConfirm ─────────────────────────────────────────────
@@ -970,7 +1017,7 @@ export default function Vouchers() {
           type: "cashDenomination",
           rowId: alloc && "rowId" in alloc ? alloc.rowId : "",
           ledgerId: details.ledger_id,
-          ledgerName: details.bank_name || form.activeAllocation?.ledgerName || "Cash",
+          ledgerName: details.bank_name || (form.activeAllocation && "ledgerName" in form.activeAllocation ? form.activeAllocation.ledgerName : "") || "Cash",
           amount: details.amount,
           initialDetails: form.cashDenominations,
         });
@@ -1811,6 +1858,24 @@ const handleSaveExciseDetails = useCallback(
           initialAllocations={form.partyBillReferences}
           onClose={() => form.setActiveAllocation(null)}
           onSave={handleSaveBillWise}
+        />
+      )}
+
+      {form.activeAllocation?.type === "batch" && (
+        <BatchAllocationPopup
+          companyId={selectedCompany!.company_id}
+          itemId={form.activeAllocation.itemId}
+          itemName={form.activeAllocation.itemName}
+          totalQuantity={form.activeAllocation.quantity}
+          rate={form.activeAllocation.rate}
+          unitSymbol={form.activeAllocation.unitSymbol}
+          voucherDate={form.date}
+          trackMfg={form.activeAllocation.trackMfg}
+          trackExpiry={form.activeAllocation.trackExpiry}
+          isInward={form.activeAllocation.isInward}
+          initialAllocations={form.activeAllocation.initialAllocations}
+          onClose={() => form.setActiveAllocation(null)}
+          onSave={handleSaveBatchAllocations}
         />
       )}
 

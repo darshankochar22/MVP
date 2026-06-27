@@ -333,7 +333,7 @@ export function useVoucherForm(
       } else if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType)) {
         const filledItems = rows.stockEntries.filter((r) => r.stockItem && Number(r.quantityRaw) > 0 && Number(r.rateRaw) > 0);
         const stockSubtotal = filledItems.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
-        stock_entries = filledItems.map((r) => ({ stock_item_id: r.stockItem!.item_id ?? null, item_name: r.stockItem!.name, godown_id: r.godown?.godown_id ?? null, unit_id: r.unit?.unit_id ?? null, quantity: Number(r.quantityRaw), rate: Number(r.rateRaw), amount: Number(r.amountRaw) }));
+        stock_entries = filledItems.map((r) => ({ stock_item_id: r.stockItem!.item_id ?? null, item_name: r.stockItem!.name, godown_id: r.godown?.godown_id ?? null, unit_id: r.unit?.unit_id ?? null, quantity: Number(r.quantityRaw), rate: Number(r.rateRaw), amount: Number(r.amountRaw), batches: r.batchAllocations && r.batchAllocations.length ? r.batchAllocations : undefined }));
         const isInventoryOnly = ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType);
         if (!isInventoryOnly) {
           const isPurchaseLike = effectiveVoucherType === "Purchase";

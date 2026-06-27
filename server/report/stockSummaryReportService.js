@@ -226,12 +226,54 @@ module.exports = {
     }
   },
 
-  // Distinct batch numbers recorded against a stock item (for Batch Vouchers picker).
-  batchesForItem: async (company_id, item_id) => {
+  // Stock items that maintain batches (Level-1 "List of Items" for the Batch
+  // report). An item qualifies if it is flagged "Maintain in batches" OR it has
+  // any batch allocation (transactional or opening). Matches TallyPrime, which
+  // only lists batch-bearing items here.
+  batchItems: async (company_id) => {
     try {
-      const { voucherBatches } = require('../db/schema');
+      const { voucherBatches, stockItemOpeningAllocations } = require('../db/schema');
       const rows = await db.all(
-        sql`SELECT DISTINCT COALESCE(vb.batch_number, 'Primary Batch') AS batch_number
+        sql`SELECT si.item_id AS item_id, si.name AS name, si.alias AS alias
+            FROM ${stockItems} si
+            WHERE si.company_id = ${company_id}
+              AND COALESCE(si.is_active, 1) = 1
+              AND (
+                COALESCE(si.track_batches, 0) = 1
+                OR EXISTS (
+                  SELECT 1 FROM ${voucherBatches} vb
+                  INNER JOIN ${voucherStockEntries} vse ON vse.stock_entry_id = vb.stock_entry_id
+                  INNER JOIN ${vouchers} v ON v.voucher_id = vb.voucher_id
+                  WHERE vse.stock_item_id = si.item_id
+                    AND v.company_id = ${company_id}
+                    AND v.is_cancelled = 0
+                )
+                OR EXISTS (
+                  SELECT 1 FROM ${stockItemOpeningAllocations} oa
+                  WHERE oa.item_id = si.item_id
+                    AND oa.batch_number IS NOT NULL AND oa.batch_number <> ''
+                )
+              )
+            ORDER BY si.name ASC`
+      );
+      return { success: true, items: rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Active batches for a stock item with their on-hand balance — feeds the
+  // "List of Active Batches" (Name | Expiry | Balance) shown while allocating a
+  // batch during voucher entry (img 27). Balance = inwards − outwards (+ opening).
+  batchBalances: async (company_id, item_id) => {
+    try {
+      const { voucherBatches, stockItemOpeningAllocations } = require('../db/schema');
+      const txRows = await db.all(
+        sql`SELECT COALESCE(vb.batch_number, 'Primary Batch') AS name,
+                   MAX(vb.mfg_date)    AS mfg_date,
+                   MAX(vb.expiry_date) AS expiry_date,
+                   SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
+                            THEN COALESCE(vb.quantity, 0) ELSE -COALESCE(vb.quantity, 0) END) AS balance
             FROM ${voucherBatches} vb
             INNER JOIN ${voucherStockEntries} vse ON vse.stock_entry_id = vb.stock_entry_id
             INNER JOIN ${vouchers} v ON v.voucher_id = vb.voucher_id
@@ -240,10 +282,78 @@ module.exports = {
               AND v.is_cancelled = 0
               AND COALESCE(v.is_optional, 0) = 0
               AND COALESCE(v.is_post_dated, 0) = 0
-            ORDER BY batch_number ASC`
+            GROUP BY name`
       );
-      const batches = rows.map(r => r.batch_number);
-      return { success: true, batches: batches.length ? batches : ['Primary Batch'] };
+      const openRows = await db.all(
+        sql`SELECT COALESCE(oa.batch_number, 'Primary Batch') AS name,
+                   MAX(oa.mfg_date)    AS mfg_date,
+                   MAX(oa.expiry_date) AS expiry_date,
+                   SUM(COALESCE(oa.quantity, 0)) AS balance
+            FROM ${stockItemOpeningAllocations} oa
+            WHERE oa.item_id = ${item_id}
+              AND oa.batch_number IS NOT NULL AND oa.batch_number <> ''
+            GROUP BY name`
+      );
+      const byName = new Map();
+      for (const r of [...openRows, ...txRows]) {
+        const prev = byName.get(r.name) || { name: r.name, mfg_date: null, expiry_date: null, balance: 0 };
+        byName.set(r.name, {
+          name: r.name,
+          mfg_date: r.mfg_date ?? prev.mfg_date,
+          expiry_date: r.expiry_date ?? prev.expiry_date,
+          balance: (Number(prev.balance) || 0) + (Number(r.balance) || 0),
+        });
+      }
+      const batches = [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+      return { success: true, batches };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Distinct batches recorded against a stock item, each with its manufacturing
+  // and expiry dates (Level-2 "List of Batches": Name | Mfg Date | Expiry Date).
+  batchesForItem: async (company_id, item_id) => {
+    try {
+      const { voucherBatches, stockItemOpeningAllocations } = require('../db/schema');
+      // Transactional batches.
+      const txRows = await db.all(
+        sql`SELECT COALESCE(vb.batch_number, 'Primary Batch') AS name,
+                   MAX(vb.mfg_date)    AS mfg_date,
+                   MAX(vb.expiry_date) AS expiry_date
+            FROM ${voucherBatches} vb
+            INNER JOIN ${voucherStockEntries} vse ON vse.stock_entry_id = vb.stock_entry_id
+            INNER JOIN ${vouchers} v ON v.voucher_id = vb.voucher_id
+            WHERE v.company_id = ${company_id}
+              AND vse.stock_item_id = ${item_id}
+              AND v.is_cancelled = 0
+              AND COALESCE(v.is_optional, 0) = 0
+              AND COALESCE(v.is_post_dated, 0) = 0
+            GROUP BY name`
+      );
+      // Opening-balance batches (carry mfg/expiry on the master allocation).
+      const openRows = await db.all(
+        sql`SELECT COALESCE(oa.batch_number, 'Primary Batch') AS name,
+                   MAX(oa.mfg_date)    AS mfg_date,
+                   MAX(oa.expiry_date) AS expiry_date
+            FROM ${stockItemOpeningAllocations} oa
+            WHERE oa.item_id = ${item_id}
+              AND oa.batch_number IS NOT NULL AND oa.batch_number <> ''
+            GROUP BY name`
+      );
+
+      // Merge by name; transactional dates win, opening fills any gaps.
+      const byName = new Map();
+      for (const r of [...openRows, ...txRows]) {
+        const prev = byName.get(r.name) || { name: r.name, mfg_date: null, expiry_date: null };
+        byName.set(r.name, {
+          name: r.name,
+          mfg_date: r.mfg_date ?? prev.mfg_date,
+          expiry_date: r.expiry_date ?? prev.expiry_date,
+        });
+      }
+      const batches = [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+      return { success: true, batches: batches.length ? batches : [{ name: 'Primary Batch', mfg_date: null, expiry_date: null }] };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -280,8 +390,12 @@ module.exports = {
             ORDER BY v.date ASC, v.voucher_id ASC`
       );
 
+      // Closing stock is valued at weighted-average cost (inwards only), the way
+      // TallyPrime shows it — e.g. 5 Box left of a 750-cost batch → 3,750, not
+      // (inward value − sale value). Outward value still shows the sale amount.
       let runningQty = 0;
-      let runningValue = 0;
+      let inwardQty = 0;
+      let inwardValue = 0;
       const result = rows.map(r => {
         const isInward = INWARD_TYPES.includes(r.voucher_type);
         const qty = Number(r.qty) || 0;
@@ -290,8 +404,9 @@ module.exports = {
         const inwards_value = isInward ? value : null;
         const outwards_qty   = isInward ? null : qty;
         const outwards_value = isInward ? null : value;
-        runningQty   += (inwards_qty || 0) - (outwards_qty || 0);
-        runningValue += (inwards_value || 0) - (outwards_value || 0);
+        if (isInward) { inwardQty += qty; inwardValue += value; }
+        runningQty += (inwards_qty || 0) - (outwards_qty || 0);
+        const avgCost = inwardQty > 0 ? inwardValue / inwardQty : 0;
         return {
           voucher_id: r.voucher_id,
           date: r.date,
@@ -301,7 +416,7 @@ module.exports = {
           inwards_qty, inwards_value,
           outwards_qty, outwards_value,
           closing_qty: runningQty,
-          closing_value: runningValue,
+          closing_value: runningQty * avgCost,
         };
       });
 

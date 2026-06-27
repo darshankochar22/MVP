@@ -80,6 +80,7 @@ const voucherBatches = sqliteTable('voucher_batches', {
   // FK -> voucher_stock_entries(stock_entry_id) ON DELETE CASCADE.
   stockEntryId: integer('stock_entry_id').notNull().references(() => voucherStockEntries.stockEntryId),
   batchNumber: text('batch_number'),
+  mfgDate: text('mfg_date'),
   expiryDate: text('expiry_date'),
   quantity: real('quantity').default(0),
   rate: real('rate').default(0),

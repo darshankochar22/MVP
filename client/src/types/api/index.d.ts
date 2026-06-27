@@ -4,6 +4,8 @@ import type { GroupAPI } from './Group';
 import type { LedgerAPI } from './Ledger';
 import type { CostCentreAPI } from './CostCentre';
 import type { CostCategoryAPI } from './CostCategory';
+import type { BudgetAPI } from './Budget';
+import type { ScenarioAPI } from './Scenario';
 import type { UnitAPI } from './Unit';
 import type { InventoryAPI } from './Inventory';
 import type { GodownAPI } from './Godown';
@@ -28,6 +30,12 @@ export type {
   LedgerType,
   CostCentreType,
   CostCategoryType,
+  BudgetType,
+  BudgetGroupAllocation,
+  BudgetLedgerAllocation,
+  BudgetCostCentreAllocation,
+  ScenarioType,
+  ScenarioVoucher,
   UnitType,
   StockGroupType,
   StockGroupTreeNode,
@@ -62,6 +70,8 @@ export type WindowAPI =
   & LedgerAPI
   & CostCentreAPI
   & CostCategoryAPI
+  & BudgetAPI
+  & ScenarioAPI
   & UnitAPI
   & InventoryAPI
   & GodownAPI

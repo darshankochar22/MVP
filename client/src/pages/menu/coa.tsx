@@ -31,6 +31,8 @@ export default function COA() {
       "Voucher Type": "/master/coa/voucher-type",
       "Cost Category": "/master/coa/cost-category",
       "Cost Centre": "/master/coa/cost-centre",
+      "Budget": "/master/coa/budget",
+      "Scenario": "/master/coa/scenario",
       "Stock Group": "/master/coa/stock-group",
       "Stock Category": "/master/coa/stock-category",
        "TDS Details": "/master/coa/tds-details",

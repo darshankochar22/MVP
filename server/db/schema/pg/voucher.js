@@ -95,6 +95,7 @@ const voucherBatches = pgTable('voucher_batches', {
   // FK -> voucher_stock_entries.stock_entry_id ON DELETE CASCADE.
   stockEntryId: bigint('stock_entry_id', { mode: 'number' }).notNull().references(() => voucherStockEntries.stockEntryId, { onDelete: 'cascade' }),
   batchNumber: text('batch_number'),
+  mfgDate: date('mfg_date'),
   expiryDate: date('expiry_date'),
   quantity: numeric('quantity', { precision: 18, scale: 4 }).default('0'),
   rate: numeric('rate', { precision: 18, scale: 4 }).default('0'),

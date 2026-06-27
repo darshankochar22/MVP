@@ -30,6 +30,12 @@ interface StockItemRow {
   alias?: string;
 }
 
+interface BatchRow {
+  name: string;
+  mfg_date: string | null;
+  expiry_date: string | null;
+}
+
 interface VoucherRow {
   voucher_id: number;
   date: string;
@@ -44,7 +50,10 @@ interface VoucherRow {
   closing_value: number;
 }
 
-type Level = { step: "item" } | { step: "batch"; item: StockItemRow } | { step: "vouchers"; item: StockItemRow; batch: string };
+type Level =
+  | { step: "item" }
+  | { step: "batch"; item: StockItemRow }
+  | { step: "vouchers"; item: StockItemRow; batch: string; mfgDate: string | null; expiryDate: string | null };
 
 export default function BatchVouchers() {
   const navigate = useNavigate();
@@ -64,8 +73,9 @@ export default function BatchVouchers() {
   React.useEffect(() => {
     if (!companyId) { setLoadingItems(false); return; }
     setLoadingItems(true);
-    (window as any).api.stockItem.getAll(companyId).then((res: any) => {
-      if (res.success) setItems(res.stockItems ?? []);
+    // Only items that maintain batches / have batch data (matches TallyPrime).
+    (window as any).api.report.batchItems(companyId).then((res: any) => {
+      if (res.success) setItems(res.items ?? []);
       setLoadingItems(false);
     });
   }, [companyId]);
@@ -80,7 +90,7 @@ export default function BatchVouchers() {
   React.useEffect(() => { setItemIndex(0); }, [itemSearch]);
 
   // ── Level 2: Batch picker (for selected item) ───────────────────────────
-  const [batches, setBatches] = React.useState<string[]>([]);
+  const [batches, setBatches] = React.useState<BatchRow[]>([]);
   const [loadingBatches, setLoadingBatches] = React.useState(false);
   const [batchError, setBatchError] = React.useState<string | null>(null);
   const [batchIndex, setBatchIndex] = React.useState(0);
@@ -107,14 +117,14 @@ export default function BatchVouchers() {
   const [voucherError, setVoucherError] = React.useState<string | null>(null);
   const [voucherIndex, setVoucherIndex] = React.useState(0);
 
-  const loadVouchers = React.useCallback((item: StockItemRow, batch: string) => {
+  const loadVouchers = React.useCallback((item: StockItemRow, batch: BatchRow) => {
     if (!companyId || !fyId) return;
-    setLevel({ step: "vouchers", item, batch });
+    setLevel({ step: "vouchers", item, batch: batch.name, mfgDate: batch.mfg_date, expiryDate: batch.expiry_date });
     setLoadingVouchers(true);
     setVoucherError(null);
     setVoucherIndex(0);
     (window as any).api.report
-      .batchVouchers(companyId, fyId, item.item_id, batch, activeFY?.start_date, activeFY?.end_date)
+      .batchVouchers(companyId, fyId, item.item_id, batch.name, activeFY?.start_date, activeFY?.end_date)
       .then((res: any) => {
         if (res.success) {
           setVoucherRows(res.rows ?? []);
@@ -227,7 +237,17 @@ export default function BatchVouchers() {
         listLabel="List of Batches"
         companyName={selectedCompany?.name}
         subtitle={<>Name of Item: <span className="font-bold">{level.item.name}</span></>}
-        items={batches.map((b) => ({ id: b, name: b }))}
+        width={460}
+        nameColLabel="Name"
+        columns={[
+          { label: "Mfg Date", width: "w-24", align: "left" },
+          { label: "Expiry Date", width: "w-24", align: "left" },
+        ]}
+        items={batches.map((b) => ({
+          id: b.name,
+          name: b.name,
+          cols: [formatDate(b.mfg_date ?? undefined), formatDate(b.expiry_date ?? undefined)],
+        }))}
         index={batchIndex}
         loading={loadingBatches}
         emptyText={batchError ?? "No batches found for this item."}
@@ -261,7 +281,11 @@ export default function BatchVouchers() {
       <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono">
         <div className="flex flex-col gap-0.5">
           <span>Stock Item: <span className="font-bold">{level.item.name}</span></span>
-          <span>Batch Name: <span className="font-bold">{level.batch}</span></span>
+          <span className="flex gap-8">
+            <span>Batch Name: <span className="font-bold">{level.batch}</span></span>
+            {level.mfgDate && <span>Mfg Date: <span className="font-bold">{formatDate(level.mfgDate)}</span></span>}
+            {level.expiryDate && <span>Expiry Date: <span className="font-bold">{formatDate(level.expiryDate)}</span></span>}
+          </span>
         </div>
         <span>{periodLabel}</span>
       </div>

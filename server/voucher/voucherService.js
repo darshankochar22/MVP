@@ -444,14 +444,22 @@ module.exports = {
               })
               .returning({ id: voucherStockEntries.stockEntryId });
 
-            if (item.batch && item.batch.batch_number) {
+            // Batch allocations: accept a single `item.batch` (legacy) or an
+            // `item.batches` array (one stock line split across many batches —
+            // matches the TallyPrime Stock Item Allocations sub-screen).
+            const batchList = Array.isArray(item.batches)
+              ? item.batches
+              : (item.batch ? [item.batch] : []);
+            for (const b of batchList) {
+              if (!b || !b.batch_number) continue;
               await db.insert(voucherBatches).values({
                 voucherId: voucher_id,
                 stockEntryId: Number(insertedStock[0].id),
-                batchNumber: item.batch.batch_number,
-                expiryDate: nullify(item.batch.expiry_date) || null,
-                quantity: item.batch.quantity || item.quantity,
-                rate: item.batch.rate || item.rate,
+                batchNumber: b.batch_number,
+                mfgDate: nullify(b.mfg_date) || null,
+                expiryDate: nullify(b.expiry_date) || null,
+                quantity: b.quantity || item.quantity,
+                rate: b.rate || item.rate,
               });
             }
           }

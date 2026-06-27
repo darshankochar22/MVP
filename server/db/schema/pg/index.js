@@ -8,6 +8,8 @@ module.exports = {
   ...require('./auditTrail'),
   ...require('./balanceSheetReport'),
   ...require('./banking'),
+  ...require('./budget'),
+  ...require('./scenario'),
   ...require('./company'),
   ...require('./companyCreationSuccess'),
   ...require('./companyFeatureValues'),
