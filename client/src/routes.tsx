@@ -154,6 +154,9 @@ import GSTRegistrationCOA from "./pages/master/statutory/gst-registration/GSTReg
 import GSTClassificationCreate from "./pages/master/statutory/gst-classification/GSTClassificationCreate.tsx";
 import GSTClassificationAlter from "./pages/master/statutory/gst-classification/GSTClassificationAlter.tsx";
 import GSTClassificationCOA from "./pages/master/statutory/gst-classification/GSTClassificationCOA.tsx";
+import ExciseDutyClassificationCreate from "./pages/master/statutory/excise-duty-classification/ExciseDutyClassificationCreate.tsx";
+import ExciseDutyClassificationAlter from "./pages/master/statutory/excise-duty-classification/ExciseDutyClassificationAlter.tsx";
+import ExciseDutyClassificationCOA from "./pages/master/statutory/excise-duty-classification/ExciseDutyClassificationCOA.tsx";
 import TCSNatureOfGoodsCreate from "./pages/master/statutory/tcs-nature-of-goods/TCSNatureOfGoodsCreate.tsx";
 import TCSNatureOfGoodsAlter from "./pages/master/statutory/tcs-nature-of-goods/TCSNatureOfGoodsAlter.tsx";
 import TCSNatureOfGoodsCOA from "./pages/master/statutory/tcs-nature-of-goods/TCSNatureOfGoodsCOA.tsx";
@@ -384,6 +387,9 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/create/gst-classification", element: <GSTClassificationCreate /> },
   { path: "/master/alter/gst-classification", element: <GSTClassificationAlter /> },
   { path: "/master/coa/gst-classification", element: <GSTClassificationCOA /> },
+  { path: "/master/create/excise-duty-classification", element: <ExciseDutyClassificationCreate /> },
+  { path: "/master/alter/excise-duty-classification", element: <ExciseDutyClassificationAlter /> },
+  { path: "/master/coa/excise-duty-classification", element: <ExciseDutyClassificationCOA /> },
   { path: "/master/create/tcs-nature-of-goods", element: <TCSNatureOfGoodsCreate /> },
   { path: "/master/alter/tcs-nature-of-goods", element: <TCSNatureOfGoodsAlter /> },
   { path: "/master/coa/tcs-nature-of-goods", element: <TCSNatureOfGoodsCOA /> },

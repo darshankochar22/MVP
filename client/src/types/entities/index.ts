@@ -10,6 +10,7 @@ export type {
   BudgetCostCentreAllocation,
 } from './Budget';
 export type { ScenarioType, ScenarioVoucher } from './Scenario';
+export type { ExciseDutyClassificationType } from './ExciseDutyClassification';
 export type { CostCategoryType } from './CostCategory';
 export type { UnitType } from './Unit';
 export type { StockGroupType, StockGroupTreeNode } from './StockGroup';

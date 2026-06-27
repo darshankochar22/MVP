@@ -48,6 +48,7 @@ export default function COA() {
       Location: "/master/coa/godown",
       "GST Registration": "/master/coa/gst-registration",
       "GST Classification": "/master/coa/gst-classification",
+      "Excise Duty Classification": "/master/coa/excise-duty-classification",
       "TCS Nature of Goods": "/master/coa/tcs-nature-of-goods",
       "Tax Units": "/master/coa/tax-units",
       "Employee Category": "/master/coa/employee-category",

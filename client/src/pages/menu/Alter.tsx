@@ -38,6 +38,7 @@ export default function Alter() {
       "Location": "/master/alter/godown",
       "GST Registration": "/master/alter/gst-registration",
       "GST Classification": "/master/alter/gst-classification",
+      "Excise Duty Classification": "/master/alter/excise-duty-classification",
        "TDS Details": "/master/alter/tds-details",
        "TCS Details": "/master/alter/tcs-details",
        "VAT registration Details": "/master/alter/vat-registration-details",

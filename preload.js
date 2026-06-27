@@ -86,6 +86,13 @@ contextBridge.exposeInMainWorld('api', {
         update:  (data)       => invoke('scenario:update', data),
         delete:  (id)         => invoke('scenario:delete', id),
     },
+    exciseDutyClassification: {
+        create:  (data)       => invoke('exciseDutyClassification:create', data),
+        getAll:  (company_id) => invoke('exciseDutyClassification:getAll', company_id),
+        getById: (id)         => invoke('exciseDutyClassification:getById', id),
+        update:  (data)       => invoke('exciseDutyClassification:update', data),
+        delete:  (id)         => invoke('exciseDutyClassification:delete', id),
+    },
     unit: {
         create:       (data)       => invoke('unit:create', data),
         getAll:       (company_id) => invoke('unit:getAll', company_id),

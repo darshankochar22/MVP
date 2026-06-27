@@ -43,6 +43,7 @@ export default function Create() {
       "Location": "/master/create/godown",
       "GST Registration": "/master/create/gst-registration",
       "GST Classification": "/master/create/gst-classification",
+      "Excise Duty Classification": "/master/create/excise-duty-classification",
       "Company GST Details": "modal",
       "TCS Nature of Goods": "/master/create/tcs-nature-of-goods",
       "TDS Nature of Payment": "/master/create/tds-nature-of-payment",

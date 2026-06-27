@@ -8,6 +8,7 @@ const costCentreController = require('./costCentre/costCentreController');
 const costCategoryController = require('./costCategory/costCategoryController');
 const budgetController = require('./budget/budgetController');
 const scenarioController = require('./scenario/scenarioController');
+const exciseDutyClassificationController = require('./exciseDutyClassification/exciseDutyClassificationController');
 const unitController = require('./unit/unitController');
 const stockGroupController = require('./stockGroup/stockGroupController');
 const stockCategoryController = require('./stockCategory/stockCategoryController');
@@ -125,6 +126,12 @@ ipcMain.handle('scenario:getAll', scenarioController.getAll);
 ipcMain.handle('scenario:getById', scenarioController.getById);
 ipcMain.handle('scenario:update', scenarioController.update);
 ipcMain.handle('scenario:delete', scenarioController.delete);
+
+ipcMain.handle('exciseDutyClassification:create', exciseDutyClassificationController.create);
+ipcMain.handle('exciseDutyClassification:getAll', exciseDutyClassificationController.getAll);
+ipcMain.handle('exciseDutyClassification:getById', exciseDutyClassificationController.getById);
+ipcMain.handle('exciseDutyClassification:update', exciseDutyClassificationController.update);
+ipcMain.handle('exciseDutyClassification:delete', exciseDutyClassificationController.delete);
 
 ipcMain.handle('unit:create', unitController.create);
 ipcMain.handle('unit:getAll', unitController.getAll);

@@ -6,6 +6,7 @@ import type { CostCentreAPI } from './CostCentre';
 import type { CostCategoryAPI } from './CostCategory';
 import type { BudgetAPI } from './Budget';
 import type { ScenarioAPI } from './Scenario';
+import type { ExciseDutyClassificationAPI } from './ExciseDutyClassification';
 import type { UnitAPI } from './Unit';
 import type { InventoryAPI } from './Inventory';
 import type { GodownAPI } from './Godown';
@@ -36,6 +37,7 @@ export type {
   BudgetCostCentreAllocation,
   ScenarioType,
   ScenarioVoucher,
+  ExciseDutyClassificationType,
   UnitType,
   StockGroupType,
   StockGroupTreeNode,
@@ -72,6 +74,7 @@ export type WindowAPI =
   & CostCategoryAPI
   & BudgetAPI
   & ScenarioAPI
+  & ExciseDutyClassificationAPI
   & UnitAPI
   & InventoryAPI
   & GodownAPI

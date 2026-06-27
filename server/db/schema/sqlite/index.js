@@ -22,6 +22,7 @@ module.exports = {
   ...require('./currency'),
   ...require('./dayBookReport'),
   ...require('./eInvoice'),
+  ...require('./exciseDutyClassification'),
   ...require('./employee'),
   ...require('./employeeCategory'),
   ...require('./employeeGroup'),
