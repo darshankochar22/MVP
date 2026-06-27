@@ -9,8 +9,9 @@ export interface LedgerConfigOptions {
   dutyTaxDetails: boolean;
   assessableValueCalc: boolean;
   serviceTaxDetails?: boolean;
-  vatDetails?: boolean;     
-  paymentGateway?: boolean; 
+  vatDetails?: boolean;
+  gstinDetails?: boolean;
+  paymentGateway?: boolean;
   gstApplicabilitySection?: boolean;
 }
 
@@ -78,7 +79,7 @@ export const LEDGER_CONFIG: Record<string, LedgerConfigOptions> = {
   "Sundry Creditors": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: true, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
 
   "Duties & Taxes": { taxRegistration: "panOnly", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: true, assessableValueCalc: true },
-  "Provisions": { taxRegistration: "gstinServiceTaxOnly", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: true, vatDetails: false },
+  "Provisions": { taxRegistration: "gstinServiceTaxOnly", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: true, vatDetails: false, gstinDetails: false },
 
 "Direct Expenses": { taxRegistration: "panOnly", mailingDetails: false, bankingDetails: false, billwise: false, interestCalculation: false, dutyTaxDetails: false, assessableValueCalc: true, gstApplicabilitySection: true },
 "Indirect Expenses": { taxRegistration: "panOnly", mailingDetails: false, bankingDetails: false, billwise: false, interestCalculation: false, dutyTaxDetails: false, assessableValueCalc: true, gstApplicabilitySection: true },
