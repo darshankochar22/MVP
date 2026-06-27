@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   ModalTitleBar,
   ModalFooter,
@@ -9,6 +10,8 @@ import {
   useEscapeClose,
 } from "./shared";
 import ApplicabilityDropdown from "./ApplicabilityDropdown";
+import NatureOfPaymentFlatList from "./NatureofPaymentFlatlist";
+import { useTdsNatureOfPayments } from "../../hooks/usetdsnatureofpayments";
 import { TDS_DEDUCTEE_TYPES, TDS_PAN_STATUSES, type TdsFormState } from "./TDSDetailsModal";
 import { TCS_BUYER_LESSEE_TYPES, type TcsFormState } from "./TCSDetailsModal";
 import type { ServiceTaxFormState, ExciseFormState, VATFormState } from "./SimpleTaxModals";
@@ -36,6 +39,10 @@ interface OtherStatutoryModalProps {
   ledgerName?: string;
   visibleSections: OtherStatutorySectionKey[];
   value: OtherStatutoryForm;
+  companyId?: number;
+  /** Expense/income groups: the TDS section only asks Nature of Payment
+   *  (not the deductee-party details shown for balance-sheet groups). */
+  tdsNatureOfPaymentOnly?: boolean;
   /** Persist current edits to the parent without closing (used before delegating
    *  to a Service Tax / Excise / VAT detail sub-modal so inline TDS/TCS edits survive). */
   onCommit: (state: OtherStatutoryForm) => void;
@@ -50,11 +57,16 @@ export default function OtherStatutoryModal({
   ledgerName,
   visibleSections,
   value,
+  companyId,
+  tdsNatureOfPaymentOnly,
   onCommit,
   onTriggerSubModal,
   onResetSubModal,
 }: OtherStatutoryModalProps) {
   const [form, setForm] = useState<OtherStatutoryForm>(value);
+  const [nopOpen, setNopOpen] = useState(false);
+  const navigate = useNavigate();
+  const { items: nopItems, loading: nopLoading } = useTdsNatureOfPayments(companyId ?? 0);
 
   // Re-sync from parent each time the modal (re)mounts/opens.
   useEffect(() => {
@@ -70,10 +82,49 @@ export default function OtherStatutoryModal({
   const setTcs = <K extends keyof TcsFormState>(k: K, v: TcsFormState[K]) =>
     setForm((f) => ({ ...f, tcs: { ...f.tcs, [k]: v } }));
 
+  // Nature of Payment selector (shared by both TDS variants).
+  const natureOfPaymentRow = (
+    <ModalFormRow label="Nature of Payment" labelWidth="w-56">
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setNopOpen((v) => !v)}
+          className={selectCls + " max-w-[240px] text-left flex items-center justify-between"}
+        >
+          <span className="truncate">{form.tds.nature_of_payment}</span>
+          <span className="text-zinc-400 ml-1">▾</span>
+        </button>
+        {nopOpen && (
+          <div className="absolute z-50 top-full left-0 mt-1 w-[300px] h-[260px] border border-zinc-300 shadow-lg rounded-sm overflow-hidden bg-white">
+            <NatureOfPaymentFlatList
+              items={nopItems}
+              loading={nopLoading}
+              selectedValue={form.tds.nature_of_payment}
+              onSelect={(v) => { setTds("nature_of_payment", v); setNopOpen(false); }}
+              onCreate={() => { setNopOpen(false); navigate("/master/create/tds-nature-of-payment"); }}
+              onClose={() => setNopOpen(false)}
+            />
+          </div>
+        )}
+      </div>
+    </ModalFormRow>
+  );
+
   // ── TDS ──────────────────────────────────────────────────────────────────
   const renderTDS = () => {
     const tds = form.tds;
     const showForeign = FOREIGN_PAN_STATUSES.has(tds.tds_pan_status);
+
+    // Expense/income groups: only Nature of Payment under TDS.
+    if (tdsNatureOfPaymentOnly) {
+      return (
+        <section key="tds" className="space-y-1.5">
+          <SectionHeading>TDS</SectionHeading>
+          {natureOfPaymentRow}
+        </section>
+      );
+    }
+
     return (
       <section key="tds" className="space-y-1.5">
         <SectionHeading>TDS</SectionHeading>

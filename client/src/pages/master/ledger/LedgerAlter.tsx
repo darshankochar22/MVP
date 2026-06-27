@@ -289,6 +289,8 @@ export default function LedgerAlter() {
           ledgerName={form.name || ""}
           visibleSections={getOtherStatutoryConfig(groupLineage.primaryGroupName, groupName).sections}
           value={otherStatutory}
+          companyId={selectedCompany?.company_id}
+          tdsNatureOfPaymentOnly={groupLineage.isInventory}
           onClose={closeAllStatutory}
           onAccept={(state) => {
             setOtherStatutory(state);
@@ -298,14 +300,13 @@ export default function LedgerAlter() {
           onTriggerSubModal={(kind) => {
             setOtherStatutory((prev) => {
               const next = { ...prev };
-              if (kind === "tds") next.tds.is_tds_deductable = 1;
-              if (kind === "tcs") next.tcs.is_tcs_applicable = 1;
               if (kind === "serviceTax") next.serviceTax.set_alter_service_tax_details = 1;
               if (kind === "excise") next.excise.set_alter_excise_details = 1;
               if (kind === "vat") next.vat.set_alter_vat_details = 1;
               return next;
             });
-            setActiveStatutoryModal(kind === "tds" ? "tds" : kind === "tcs" ? "tcs" : `${kind}Tier2` as any);
+            // Skip the intermediate applicability/Yes-No popup — open the detail directly.
+            setActiveStatutoryModal(`${kind}Tier3` as any);
           }}
           onResetSubModal={(kind) => {
             setOtherStatutory((prev) => {
