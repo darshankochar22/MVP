@@ -319,6 +319,7 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
       isDebtorCreditor: false,
       isInventory: false,
       isIncomeExpense: false,
+      isMiscExpense: false,
       primaryGroupName: null as string | null,
       hideMailingExtras: false,
     };
@@ -363,6 +364,13 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         ].includes(name)
       ) {
         lineage.isIncomeExpense = true;
+      }
+      if (
+        name === "misc. expenses(asset)" ||
+        name === "misc.expenses(asset)" ||
+        name === "misc. expenses (asset)"
+      ) {
+        lineage.isMiscExpense = true;
       }
       if (
         [

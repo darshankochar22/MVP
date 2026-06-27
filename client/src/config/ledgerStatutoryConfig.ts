@@ -80,6 +80,10 @@ const BY_PRIMARY_GROUP: Record<string, OtherStatutoryConfig> = {
   // Cash-in-Hand — simple cash ledger, no TDS/TCS statutory section.
   "Cash-in-Hand": { sections: [] },
 
+  // Misc. Expenses (Asset) → Service Tax + TDS (Nature of Payment)
+  "Misc. Expenses (Asset)": { sections: ["serviceTax", "tds"] },
+  "Misc.Expenses(Asset)": { sections: ["serviceTax", "tds"] },
+
   // Suspense A/c → only TDS
   "Suspense A/c": { sections: ["tds"] },
 };
