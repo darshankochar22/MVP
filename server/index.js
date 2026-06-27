@@ -49,6 +49,7 @@ const whatsappController = require('./whatsapp/whatsappController');
 const physicalStockController = require('./physicalStock/physicalStockController');
 const attendanceController = require('./attendance/attendanceController');
 const companyGstDetailsController = require('./companyGstDetails/companyGstDetailsController');
+const payrollStatutoryDetailsController = require('./payrollStatutoryDetails/payrollStatutoryDetailsController');
 const companyTdsDetailsController = require('./companyTdsDetails/companyTdsDetailsController');
 const companyTcsDetailsController = require('./companyTcsDetails/companyTcsDetailsController');
 const companyPanCinDetailsController = require('./companyPanCinDetails/companyPanCinDetailsController');
@@ -502,6 +503,9 @@ ipcMain.handle('whatsapp:verifyWebhook',       whatsappController.verifyWebhook)
 
 ipcMain.handle('companyGstDetails:get', companyGstDetailsController.get);
 ipcMain.handle('companyGstDetails:save', companyGstDetailsController.save);
+
+ipcMain.handle('payrollStatutoryDetails:get', payrollStatutoryDetailsController.get);
+ipcMain.handle('payrollStatutoryDetails:save', payrollStatutoryDetailsController.save);
 
 ipcMain.handle('companyTdsDetails:get', companyTdsDetailsController.get);
 ipcMain.handle('companyTdsDetails:save', companyTdsDetailsController.save);

@@ -438,6 +438,10 @@ contextBridge.exposeInMainWorld('api', {
         get:  (company_id) => invoke('companyGstDetails:get', company_id),
         save: (data)       => invoke('companyGstDetails:save', data),
     },
+    payrollStatutoryDetails: {
+        get:  (company_id) => invoke('payrollStatutoryDetails:get', company_id),
+        save: (data)       => invoke('payrollStatutoryDetails:save', data),
+    },
     companyTdsDetails: {
         get:  (company_id) => invoke('companyTdsDetails:get', company_id),
         save: (data)       => invoke('companyTdsDetails:save', data),

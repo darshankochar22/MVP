@@ -6,6 +6,7 @@ import type { CompanyGSTDetails } from '../entities/CompanyGSTDetails';
 import type { CompanyTDSDetails } from '../entities/CompanyTDSDetails';
 import type { CompanyTCSDetails } from '../entities/CompanyTCSDetails';
 import type { CompanyPanCinDetails } from '../entities/CompanyPanCinDetails';
+import type { PayrollStatutoryDetails } from '../entities/PayrollStatutoryDetails';
 import type { TCSNatureOfGoodsType } from '../entities/TCSNatureOfGoods';
 import type { TDSNatureOfPaymentType } from '../entities/TDSNatureOfPayment';
 
@@ -13,6 +14,11 @@ export interface MasterDataAPI {
   companyGstDetails: {
     get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: CompanyGSTDetails | null; error?: string }>;
     save: (data: CompanyGSTDetails & { company_id: number }) => Promise<{ success: boolean; record?: any; error?: string }>;
+  };
+
+  payrollStatutoryDetails: {
+    get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: PayrollStatutoryDetails | null; error?: string }>;
+    save: (data: PayrollStatutoryDetails & { company_id: number }) => Promise<{ success: boolean; error?: string }>;
   };
 
   companyTdsDetails: {

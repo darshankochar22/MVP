@@ -36,6 +36,7 @@ module.exports = {
   ...require('./ledger'),
   ...require('./master'),
   ...require('./payHead'),
+  ...require('./payrollStatutoryDetails'),
   ...require('./payrollUnit'),
   ...require('./physicalStock'),
   ...require('./priceLevels'),

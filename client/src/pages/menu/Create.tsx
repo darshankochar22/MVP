@@ -56,6 +56,7 @@ export default function Create() {
       "Price list (Stock Group)": "/master/create/price-lists-sg",
       "Price list (Stock Category)": "/master/create/price-lists-sc",      
       "PAN / CIN Details": "/master/create/pan-cin-details",
+      "Payroll Statutory Details": "/master/create/payroll-statutory-details",
       "Employee Category": "/master/create/employee-category",
       "Employee Group": "/master/create/employee-group",
       "Employee": "/master/create/employee",

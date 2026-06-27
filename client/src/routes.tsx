@@ -22,6 +22,7 @@ import TCSDetailsCOA from "./pages/master/statutory-details/TCSDetails/TCSDetail
 import PANDetailsCreate from "./pages/master/statutory-details/PANDetails/PANDetailsCreate.tsx";
 import PANDetailsAlter from "./pages/master/statutory-details/PANDetails/PANDetailsAlter.tsx";
 import PANDetailsCOA from "./pages/master/statutory-details/PANDetails/PANDetailsCOA.tsx";
+import PayrollStatutoryDetailsCreate from "./pages/master/statutory-details/PayrollStatutoryDetails/PayrollStatutoryDetailsCreate.tsx";
 import VATRDCreate from "./pages/master/statutory-details/VATRegistrationDetails/VATRDCreate.tsx";
 import VATRDAlter from "./pages/master/statutory-details/VATRegistrationDetails/VATRDAlter.tsx";
 import VATRDCOA from "./pages/master/statutory-details/VATRegistrationDetails/VATRDCOA.tsx";
@@ -340,6 +341,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/alter/tcs-details", element: <TCSDetailsAlter /> },
   { path: "/master/coa/tcs-details", element: <TCSDetailsCOA /> },
   { path: "/master/create/pan-cin-details", element: <PANDetailsCreate /> },
+  { path: "/master/create/payroll-statutory-details", element: <PayrollStatutoryDetailsCreate /> },
   { path: "/master/alter/pan-cin-details", element: <PANDetailsAlter /> },
   { path: "/master/coa/pan-cin-details", element: <PANDetailsCOA /> },
   { path: "/master/create/vat-registration-details", element: <VATRDCreate /> },
