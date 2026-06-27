@@ -16,68 +16,23 @@ const fmtQty = (val: number | null | undefined, unit?: string) => {
   return unit ? `${s} ${unit}` : s;
 };
 
-const fmtDate = (d?: string | null) => {
-  if (!d) return "";
-  try { return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" }); }
-  catch { return d; }
-};
+interface Group { group_id: number; name: string; }
 
-interface Group { sg_id: number; name: string; }
 interface ItemRow {
   item_id: number;
   item_name: string;
   unit_name: string;
-  opening_qty: number; opening_value: number;
-  in_qty: number; in_value: number;
-  out_qty: number; out_value: number;
-  closing_qty: number; closing_value: number;
-}
-interface MonthRow {
-  month: string;
-  in_qty: number; in_value: number;
-  out_qty: number; out_value: number;
-  closing_qty: number; closing_value: number;
-}
-interface VoucherRow {
-  voucher_id: number | null;
-  date: string | null;
-  particulars: string;
-  voucher_type: string;
-  voucher_number: string | number;
-  inwards_qty: number | null; inwards_value: number | null;
-  outwards_qty: number | null; outwards_value: number | null;
-  closing_qty: number; closing_value: number;
+  purchase_qty: number;
+  purchase_rate: number;
+  purchase_value: number;
+  sales_qty: number;
+  sales_rate: number;
+  sales_value: number;
 }
 
 type Level =
   | { step: "select" }
-  | { step: "items"; group: Group }
-  | { step: "monthly"; group: Group; item: ItemRow }
-  | { step: "vouchers"; group: Group; item: ItemRow };
-
-function MovHeader() {
-  return (
-    <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
-      <tr>
-        <th rowSpan={2} className="px-3 py-1 text-left font-bold align-bottom border-b border-zinc-300">Particulars</th>
-        <th colSpan={2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Opening Balance</th>
-        <th colSpan={2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Inwards</th>
-        <th colSpan={2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Outwards</th>
-        <th colSpan={2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Closing Balance</th>
-      </tr>
-      <tr>
-        <th className="px-2 py-1 text-right font-bold w-24 border-l border-zinc-200">Quantity</th>
-        <th className="px-2 py-1 text-right font-bold w-28">Value</th>
-        <th className="px-2 py-1 text-right font-bold w-24 border-l border-zinc-200">Quantity</th>
-        <th className="px-2 py-1 text-right font-bold w-28">Value</th>
-        <th className="px-2 py-1 text-right font-bold w-24 border-l border-zinc-200">Quantity</th>
-        <th className="px-2 py-1 text-right font-bold w-28">Value</th>
-        <th className="px-2 py-1 text-right font-bold w-24 border-l border-zinc-200">Quantity</th>
-        <th className="px-2 py-1 text-right font-bold w-28">Value</th>
-      </tr>
-    </thead>
-  );
-}
+  | { step: "report"; group: Group };
 
 export default function GroupAnalysis() {
   const navigate = useNavigate();
@@ -88,7 +43,7 @@ export default function GroupAnalysis() {
 
   const [level, setLevel] = React.useState<Level>({ step: "select" });
 
-  // Groups for selection popup
+  // Ledger groups for selection
   const [groups, setGroups] = React.useState<Group[]>([]);
   const [groupsLoading, setGroupsLoading] = React.useState(true);
   const [search, setSearch] = React.useState("");
@@ -97,14 +52,14 @@ export default function GroupAnalysis() {
   React.useEffect(() => {
     if (!companyId) { setGroupsLoading(false); return; }
     setGroupsLoading(true);
-    (window as any).api.stockGroup.getAll(companyId).then((res: any) => {
-      const list: Group[] = [...(res.stockGroups ?? [])].sort((a: Group, b: Group) => a.name.localeCompare(b.name));
+    (window as any).api.group.getAll(companyId).then((res: any) => {
+      const list: Group[] = [...(res.groups ?? [])].sort((a: Group, b: Group) => a.name.localeCompare(b.name));
       setGroups(list);
       setGroupsLoading(false);
     });
   }, [companyId]);
 
-  const filteredGroups = React.useMemo(() =>
+  const filtered = React.useMemo(() =>
     search.trim() === ""
       ? groups
       : groups.filter(g => g.name.toLowerCase().includes(search.toLowerCase())),
@@ -113,354 +68,147 @@ export default function GroupAnalysis() {
 
   React.useEffect(() => { setSelectIdx(0); }, [search]);
 
-  // Items level
+  // Report data
   const [items, setItems] = React.useState<ItemRow[]>([]);
-  const [loadingItems, setLoadingItems] = React.useState(false);
-  const [itemErr, setItemErr] = React.useState<string | null>(null);
-  const [itemIdx, setItemIdx] = React.useState(0);
+  const [loading, setLoading] = React.useState(false);
+  const [err, setErr] = React.useState<string | null>(null);
+  const [rowIdx, setRowIdx] = React.useState(0);
 
-  const loadItems = React.useCallback((group: Group) => {
+  const loadReport = React.useCallback((group: Group) => {
     if (!companyId || !fyId) return;
-    setLevel({ step: "items", group });
-    setLoadingItems(true);
-    setItemErr(null);
-    setItemIdx(0);
-    (window as any).api.report.stockGroupAnalysisItems(companyId, fyId, group.sg_id).then((res: any) => {
+    setLevel({ step: "report", group });
+    setLoading(true);
+    setErr(null);
+    setRowIdx(0);
+    (window as any).api.report.groupAnalysis(companyId, fyId, group.group_id).then((res: any) => {
       if (res.success) setItems(res.items ?? []);
-      else setItemErr(res.error || "Failed to load items");
-      setLoadingItems(false);
+      else setErr(res.error || "Failed to load");
+      setLoading(false);
     });
   }, [companyId, fyId]);
 
-  // Monthly level
-  const [months, setMonths] = React.useState<MonthRow[]>([]);
-  const [loadingMonths, setLoadingMonths] = React.useState(false);
-  const [monthErr, setMonthErr] = React.useState<string | null>(null);
-  const [monthIdx, setMonthIdx] = React.useState(0);
+  const backToSelect = React.useCallback(() => {
+    setLevel({ step: "select" });
+    setItems([]);
+    setSearch("");
+  }, []);
 
-  const loadMonths = React.useCallback((group: Group, item: ItemRow) => {
-    if (!companyId || !fyId) return;
-    setLevel({ step: "monthly", group, item });
-    setLoadingMonths(true);
-    setMonthErr(null);
-    setMonthIdx(0);
-    (window as any).api.report.stockItemMonthly(companyId, fyId, item.item_id).then((res: any) => {
-      if (res.success) setMonths(res.months ?? []);
-      else setMonthErr(res.error || "Failed to load monthly");
-      setLoadingMonths(false);
-    });
-  }, [companyId, fyId]);
-
-  // Vouchers level
-  const [vouchers, setVouchers] = React.useState<VoucherRow[]>([]);
-  const [loadingVouchers, setLoadingVouchers] = React.useState(false);
-  const [voucherErr, setVoucherErr] = React.useState<string | null>(null);
-  const [voucherIdx, setVoucherIdx] = React.useState(0);
-
-  const loadVouchers = React.useCallback((group: Group, item: ItemRow) => {
-    if (!companyId || !fyId) return;
-    setLevel({ step: "vouchers", group, item });
-    setLoadingVouchers(true);
-    setVoucherErr(null);
-    setVoucherIdx(0);
-    (window as any).api.report.stockItemVouchers(companyId, fyId, item.item_id, activeFY?.start_date, activeFY?.end_date).then((res: any) => {
-      if (res.success) setVouchers(res.rows ?? []);
-      else setVoucherErr(res.error || "Failed to load vouchers");
-      setLoadingVouchers(false);
-    });
-  }, [companyId, fyId, activeFY]);
-
-  const backToSelect  = React.useCallback(() => { setLevel({ step: "select" }); setItems([]); setSearch(""); }, []);
-  const backToItems   = React.useCallback((group: Group) => { setLevel({ step: "items", group }); setMonths([]); }, []);
-  const backToMonths  = React.useCallback((group: Group, item: ItemRow) => { setLevel({ step: "monthly", group, item }); setVouchers([]); }, []);
-
-  // Keyboard nav — items level
+  // Keyboard nav — report level
   React.useEffect(() => {
-    if (level.step !== "items") return;
+    if (level.step !== "report") return;
     const h = (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown") { e.preventDefault(); setItemIdx(p => Math.min(items.length - 1, p + 1)); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); setItemIdx(p => Math.max(0, p - 1)); }
-      else if (e.key === "Enter") { e.preventDefault(); const it = items[itemIdx]; if (it) loadMonths(level.group, it); }
+      if (e.key === "ArrowDown") { e.preventDefault(); setRowIdx(p => Math.min(items.length - 1, p + 1)); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); setRowIdx(p => Math.max(0, p - 1)); }
       else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToSelect(); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [level, items, itemIdx, loadMonths, backToSelect]);
+  }, [level, items, rowIdx, backToSelect]);
 
-  // Keyboard nav — monthly level
-  React.useEffect(() => {
-    if (level.step !== "monthly") return;
-    const h = (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown") { e.preventDefault(); setMonthIdx(p => Math.min(months.length - 1, p + 1)); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); setMonthIdx(p => Math.max(0, p - 1)); }
-      else if (e.key === "Enter") { e.preventDefault(); loadVouchers(level.group, level.item); }
-      else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToItems(level.group); }
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [level, months, monthIdx, loadVouchers, backToItems]);
-
-  // Keyboard nav — vouchers level
-  React.useEffect(() => {
-    if (level.step !== "vouchers") return;
-    const h = (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown") { e.preventDefault(); setVoucherIdx(p => Math.min(vouchers.length - 1, p + 1)); }
-      else if (e.key === "ArrowUp") { e.preventDefault(); setVoucherIdx(p => Math.max(0, p - 1)); }
-      else if (e.key === "Enter") { e.preventDefault(); const r = vouchers[voucherIdx]; if (r?.voucher_id) navigate(`/transactions/voucher/${r.voucher_id}`); }
-      else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); backToMonths(level.group, level.item); }
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [level, vouchers, voucherIdx, navigate, backToMonths]);
-
-  const reportHeader = (title: string, subtitle?: string) => (
-    <>
-      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
-        <span className="font-bold text-sm tracking-wide">{title}</span>
-        <span className="font-bold text-sm">{selectedCompany?.name || "Company"}</span>
-        <span />
-      </div>
-      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
-        <span>{subtitle}</span>
-        <span>{periodLabel}</span>
-      </div>
-    </>
-  );
-
-  // ── Level 0: Select Group popup ──────────────────────────────────────────
+  // ── Level 0: Select Ledger Group ─────────────────────────────────────────
   if (level.step === "select") {
     return (
       <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-        {reportHeader("Group Analysis", "Movement Analysis — Select a Stock Group")}
+        <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+          <span className="font-bold text-sm tracking-wide">Group Analysis</span>
+          <span className="font-bold text-sm">{selectedCompany?.name || "Company"}</span>
+          <span />
+        </div>
         <SelectionPopup
           title="Group Analysis"
           fieldLabel="Name of Group"
-          listLabel="List of Stock Groups"
+          listLabel="List of Groups"
           companyName={selectedCompany?.name}
-          items={filteredGroups.map(g => ({ id: g.sg_id, name: g.name }))}
+          items={filtered.map(g => ({ id: g.group_id, name: g.name }))}
           index={selectIdx}
           loading={groupsLoading}
           search={search}
           onSearchChange={setSearch}
           onIndexChange={setSelectIdx}
-          onAccept={(i) => { const g = filteredGroups[i]; if (g) loadItems(g); }}
+          onAccept={(i) => { const g = filtered[i]; if (g) loadReport(g); }}
           onCancel={() => navigate(-1)}
         />
       </div>
     );
   }
 
-  // ── Level 1: Items in selected group ─────────────────────────────────────
-  if (level.step === "items") {
-    const g = level.group;
-    const totals = items.reduce((acc, it) => ({
-      oQty: acc.oQty + it.opening_qty, oVal: acc.oVal + it.opening_value,
-      iQty: acc.iQty + it.in_qty,      iVal: acc.iVal + it.in_value,
-      outQty: acc.outQty + it.out_qty, outVal: acc.outVal + it.out_value,
-      cQty: acc.cQty + it.closing_qty, cVal: acc.cVal + it.closing_value,
-    }), { oQty: 0, oVal: 0, iQty: 0, iVal: 0, outQty: 0, outVal: 0, cQty: 0, cVal: 0 });
+  // ── Level 1: Group Analysis Report ───────────────────────────────────────
+  const { group } = level;
 
-    return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-        {reportHeader("Group Analysis", `Group: ${g.name}`)}
-        <div className="flex-1 overflow-y-auto">
-          <table className="w-full border-collapse text-[11px] font-mono select-none">
-            <MovHeader />
-            <tbody>
-              {loadingItems ? (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-zinc-400 italic">Loading...</td></tr>
-              ) : itemErr ? (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-zinc-600">{itemErr}</td></tr>
-              ) : items.length === 0 ? (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-zinc-400 italic">No items in this group.</td></tr>
-              ) : items.map((it, idx) => (
-                <tr
-                  key={it.item_id}
-                  onClick={() => setItemIdx(idx)}
-                  onDoubleClick={() => loadMonths(g, it)}
-                  className={`border-b border-zinc-100 cursor-pointer ${idx === itemIdx ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
-                >
-                  <td className="px-3 py-1">{it.item_name}</td>
-                  <td className="px-2 py-1 text-right border-l border-zinc-100">{fmtQty(it.opening_qty, it.unit_name)}</td>
-                  <td className="px-2 py-1 text-right">{fmt(it.opening_value)}</td>
-                  <td className="px-2 py-1 text-right border-l border-zinc-100">{fmtQty(it.in_qty, it.unit_name)}</td>
-                  <td className="px-2 py-1 text-right">{fmt(it.in_value)}</td>
-                  <td className="px-2 py-1 text-right border-l border-zinc-100">{fmtQty(it.out_qty, it.unit_name)}</td>
-                  <td className="px-2 py-1 text-right">{fmt(it.out_value)}</td>
-                  <td className="px-2 py-1 text-right border-l border-zinc-100">{fmtQty(it.closing_qty, it.unit_name)}</td>
-                  <td className="px-2 py-1 text-right">{fmt(it.closing_value)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
-          <span className="flex-1">Grand Total</span>
-          <span className="w-24 text-right border-l border-zinc-300 pr-1">{fmtQty(totals.oQty)}</span>
-          <span className="w-28 text-right pr-1">{fmt(totals.oVal)}</span>
-          <span className="w-24 text-right border-l border-zinc-300 pr-1">{fmtQty(totals.iQty)}</span>
-          <span className="w-28 text-right pr-1">{fmt(totals.iVal)}</span>
-          <span className="w-24 text-right border-l border-zinc-300 pr-1">{fmtQty(totals.outQty)}</span>
-          <span className="w-28 text-right pr-1">{fmt(totals.outVal)}</span>
-          <span className="w-24 text-right border-l border-zinc-300 pr-1">{fmtQty(totals.cQty)}</span>
-          <span className="w-28 text-right pr-1">{fmt(totals.cVal)}</span>
-        </div>
-        <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
-          <button onClick={backToSelect} className="hover:underline hover:text-zinc-900">Q: Back to Group Selection</button>
-          <span className="text-zinc-400">Enter: Monthly breakdown</span>
-        </div>
-      </div>
-    );
-  }
+  const totPurchQty  = items.reduce((s, r) => s + r.purchase_qty,   0);
+  const totPurchVal  = items.reduce((s, r) => s + r.purchase_value, 0);
+  const totSalesQty  = items.reduce((s, r) => s + r.sales_qty,      0);
+  const totSalesVal  = items.reduce((s, r) => s + r.sales_value,    0);
 
-  // ── Level 2: Monthly breakdown ───────────────────────────────────────────
-  if (level.step === "monthly") {
-    const { group: g, item: it } = level;
-    const totIn   = months.reduce((s, r) => s + (r.in_qty    || 0), 0);
-    const totInV  = months.reduce((s, r) => s + (r.in_value  || 0), 0);
-    const totOut  = months.reduce((s, r) => s + (r.out_qty   || 0), 0);
-    const totOutV = months.reduce((s, r) => s + (r.out_value || 0), 0);
-    const lastCQty = months.length ? months[months.length - 1].closing_qty : 0;
-    const lastCVal = months.length ? months[months.length - 1].closing_value : 0;
-
-    return (
-      <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-        {reportHeader("Group Analysis — Monthly", `Item: ${it.item_name}`)}
-        <div className="flex-1 overflow-y-auto">
-          <table className="w-full border-collapse text-[11px] font-mono select-none">
-            <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
-              <tr>
-                <th rowSpan={2} className="px-3 py-1 text-left font-bold align-bottom border-b border-zinc-300">Particulars</th>
-                <th colSpan={2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Inwards</th>
-                <th colSpan={2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Outwards</th>
-                <th colSpan={2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Closing Balance</th>
-              </tr>
-              <tr>
-                <th className="px-2 py-1 text-right font-bold w-24 border-l border-zinc-200">Quantity</th>
-                <th className="px-2 py-1 text-right font-bold w-28">Value</th>
-                <th className="px-2 py-1 text-right font-bold w-24 border-l border-zinc-200">Quantity</th>
-                <th className="px-2 py-1 text-right font-bold w-28">Value</th>
-                <th className="px-2 py-1 text-right font-bold w-24 border-l border-zinc-200">Quantity</th>
-                <th className="px-2 py-1 text-right font-bold w-28">Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loadingMonths ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">Loading...</td></tr>
-              ) : monthErr ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-600">{monthErr}</td></tr>
-              ) : months.length === 0 ? (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">No monthly data found.</td></tr>
-              ) : months.map((row, idx) => (
-                <tr
-                  key={row.month}
-                  onClick={() => setMonthIdx(idx)}
-                  onDoubleClick={() => loadVouchers(g, it)}
-                  className={`border-b border-zinc-100 cursor-pointer ${idx === monthIdx ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
-                >
-                  <td className="px-3 py-1">{row.month}</td>
-                  <td className="px-2 py-1 text-right border-l border-zinc-100">{fmtQty(row.in_qty)}</td>
-                  <td className="px-2 py-1 text-right">{fmt(row.in_value)}</td>
-                  <td className="px-2 py-1 text-right border-l border-zinc-100">{fmtQty(row.out_qty)}</td>
-                  <td className="px-2 py-1 text-right">{fmt(row.out_value)}</td>
-                  <td className="px-2 py-1 text-right border-l border-zinc-100">{fmtQty(row.closing_qty)}</td>
-                  <td className="px-2 py-1 text-right">{fmt(row.closing_value)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
-          <span className="flex-1">Grand Total</span>
-          <span className="w-24 text-right border-l border-zinc-300 pr-1">{fmtQty(totIn)}</span>
-          <span className="w-28 text-right pr-1">{fmt(totInV)}</span>
-          <span className="w-24 text-right border-l border-zinc-300 pr-1">{fmtQty(totOut)}</span>
-          <span className="w-28 text-right pr-1">{fmt(totOutV)}</span>
-          <span className="w-24 text-right border-l border-zinc-300 pr-1">{fmtQty(lastCQty)}</span>
-          <span className="w-28 text-right pr-1">{fmt(lastCVal)}</span>
-        </div>
-        <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
-          <button onClick={() => backToItems(g)} className="hover:underline hover:text-zinc-900">Q: Back to Items</button>
-          <button onClick={() => loadVouchers(g, it)} className="hover:underline hover:text-zinc-900">Enter: View Vouchers</button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Level 3: Vouchers ────────────────────────────────────────────────────
-  const { group: g, item: it } = level;
-  const totInQty  = vouchers.reduce((s, r) => s + (Number(r.inwards_qty)    || 0), 0);
-  const totInVal  = vouchers.reduce((s, r) => s + (Number(r.inwards_value)  || 0), 0);
-  const totOutQty = vouchers.reduce((s, r) => s + (Number(r.outwards_qty)   || 0), 0);
-  const totOutVal = vouchers.reduce((s, r) => s + (Number(r.outwards_value) || 0), 0);
-  const finalCQty = vouchers.length ? vouchers[vouchers.length - 1].closing_qty   : 0;
-  const finalCVal = vouchers.length ? vouchers[vouchers.length - 1].closing_value : 0;
+  const avgRate = (val: number, qty: number) => {
+    if (!qty || !val) return "";
+    return new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val / qty);
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
-      {reportHeader("Group Analysis — Vouchers", `Item: ${it.item_name}`)}
+      <div className="flex items-center justify-between px-3 py-1.5 bg-white border-b-2 border-zinc-900">
+        <span className="font-bold text-sm tracking-wide">Group Analysis</span>
+        <span className="font-bold text-sm">{selectedCompany?.name || "Company"}</span>
+        <span />
+      </div>
+      <div className="flex justify-between items-center px-3 py-1.5 bg-white border-b border-zinc-300 font-mono text-[11px]">
+        <span className="font-semibold">{group.name}</span>
+        <span>{periodLabel}</span>
+      </div>
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
           <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
             <tr>
-              <th rowSpan={2} className="px-2 py-1 text-left font-bold w-20 border-b border-zinc-300 align-bottom">Date</th>
-              <th rowSpan={2} className="px-2 py-1 text-left font-bold border-b border-zinc-300 align-bottom">Particulars</th>
-              <th rowSpan={2} className="px-2 py-1 text-left font-bold w-28 border-b border-zinc-300 align-bottom">Vch Type</th>
-              <th rowSpan={2} className="px-2 py-1 text-right font-bold w-16 border-b border-zinc-300 align-bottom">Vch No.</th>
-              <th colSpan={2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Inwards</th>
-              <th colSpan={2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Outwards</th>
-              <th colSpan={2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Closing</th>
+              <th rowSpan={2} className="px-3 py-1 text-left font-bold align-bottom border-b border-zinc-300">Particulars</th>
+              <th colSpan={3} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Purchases</th>
+              <th colSpan={3} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Sales</th>
             </tr>
             <tr>
-              <th className="px-2 py-1 text-right font-bold w-20 border-l border-zinc-200">Qty</th>
-              <th className="px-2 py-1 text-right font-bold w-24">Value</th>
-              <th className="px-2 py-1 text-right font-bold w-20 border-l border-zinc-200">Qty</th>
-              <th className="px-2 py-1 text-right font-bold w-24">Value</th>
-              <th className="px-2 py-1 text-right font-bold w-20 border-l border-zinc-200">Qty</th>
-              <th className="px-2 py-1 text-right font-bold w-24">Value</th>
+              <th className="px-2 py-1 text-right font-bold w-24 border-l border-zinc-200">Quantity</th>
+              <th className="px-2 py-1 text-right font-bold w-28">EP Rate</th>
+              <th className="px-2 py-1 text-right font-bold w-28">Value</th>
+              <th className="px-2 py-1 text-right font-bold w-24 border-l border-zinc-200">Quantity</th>
+              <th className="px-2 py-1 text-right font-bold w-28">EP Rate</th>
+              <th className="px-2 py-1 text-right font-bold w-28">Value</th>
             </tr>
           </thead>
           <tbody>
-            {loadingVouchers ? (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-400 italic">Loading vouchers...</td></tr>
-            ) : voucherErr ? (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-600">{voucherErr}</td></tr>
-            ) : vouchers.length === 0 ? (
-              <tr><td colSpan={10} className="px-4 py-8 text-center text-zinc-400 italic">No records found.</td></tr>
-            ) : vouchers.map((row, idx) => (
+            {loading ? (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">Loading...</td></tr>
+            ) : err ? (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-600">{err}</td></tr>
+            ) : items.length === 0 ? (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">No inventory movement found for this group.</td></tr>
+            ) : items.map((row, idx) => (
               <tr
-                key={row.voucher_id ?? `row-${idx}`}
-                onClick={() => setVoucherIdx(idx)}
-                onDoubleClick={() => row.voucher_id && navigate(`/transactions/voucher/${row.voucher_id}`)}
-                className={`border-b border-zinc-100 cursor-pointer ${idx === voucherIdx ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                key={row.item_id}
+                onClick={() => setRowIdx(idx)}
+                className={`border-b border-zinc-100 cursor-pointer ${idx === rowIdx ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
               >
-                <td className="px-2 py-1 whitespace-nowrap">{fmtDate(row.date)}</td>
-                <td className="px-2 py-1 truncate max-w-xs">{row.particulars}</td>
-                <td className="px-2 py-1">{row.voucher_type}</td>
-                <td className="px-2 py-1 text-right">{row.voucher_number || ""}</td>
-                <td className="px-2 py-1 text-right border-l border-zinc-100">{fmtQty(row.inwards_qty)}</td>
-                <td className="px-2 py-1 text-right">{fmt(row.inwards_value)}</td>
-                <td className="px-2 py-1 text-right border-l border-zinc-100">{fmtQty(row.outwards_qty)}</td>
-                <td className="px-2 py-1 text-right">{fmt(row.outwards_value)}</td>
-                <td className="px-2 py-1 text-right border-l border-zinc-100">{fmtQty(row.closing_qty)}</td>
-                <td className="px-2 py-1 text-right">{fmt(row.closing_value)}</td>
+                <td className="px-3 py-1">{row.item_name}</td>
+                <td className="px-2 py-1 text-right border-l border-zinc-100">{fmtQty(row.purchase_qty, row.unit_name)}</td>
+                <td className="px-2 py-1 text-right">{fmt(row.purchase_rate)}</td>
+                <td className="px-2 py-1 text-right">{fmt(row.purchase_value)}</td>
+                <td className="px-2 py-1 text-right border-l border-zinc-100">{fmtQty(row.sales_qty, row.unit_name)}</td>
+                <td className="px-2 py-1 text-right">{fmt(row.sales_rate)}</td>
+                <td className="px-2 py-1 text-right">{fmt(row.sales_value)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 shrink-0">
-        <span className="w-20" /><span className="flex-1" /><span className="w-28" /><span className="w-16" />
-        <span className="w-20 text-right pr-1 border-l border-zinc-300">{fmtQty(totInQty)}</span>
-        <span className="w-24 text-right pr-1">{fmt(totInVal)}</span>
-        <span className="w-20 text-right pr-1 border-l border-zinc-300">{fmtQty(totOutQty)}</span>
-        <span className="w-24 text-right pr-1">{fmt(totOutVal)}</span>
-        <span className="w-20 text-right pr-1 border-l border-zinc-300">{fmtQty(finalCQty)}</span>
-        <span className="w-24 text-right pr-1">{fmt(finalCVal)}</span>
+        <span className="flex-1">Grand Total</span>
+        <span className="w-24 text-right border-l border-zinc-300 pr-1">{fmtQty(totPurchQty)}</span>
+        <span className="w-28 text-right pr-1">{avgRate(totPurchVal, totPurchQty)}</span>
+        <span className="w-28 text-right pr-1">{fmt(totPurchVal)}</span>
+        <span className="w-24 text-right border-l border-zinc-300 pr-1">{fmtQty(totSalesQty)}</span>
+        <span className="w-28 text-right pr-1">{avgRate(totSalesVal, totSalesQty)}</span>
+        <span className="w-28 text-right pr-1">{fmt(totSalesVal)}</span>
       </div>
       <div className="flex items-center gap-4 px-3 py-1 border-t border-zinc-300 bg-zinc-50 text-[10px] font-semibold text-zinc-600 shrink-0">
-        <button onClick={() => backToMonths(g, it)} className="hover:underline hover:text-zinc-900">Q: Back to Monthly</button>
-        <span className="text-zinc-400">Enter: Open voucher</span>
+        <button onClick={backToSelect} className="hover:underline hover:text-zinc-900">Q: Back to Group Selection</button>
       </div>
     </div>
   );

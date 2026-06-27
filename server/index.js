@@ -216,6 +216,7 @@ ipcMain.handle('report:stockGroupAnalysisItems', reportController.stockGroupAnal
 ipcMain.handle('report:stockCategoryAnalysis',      reportController.stockCategoryAnalysis);
 ipcMain.handle('report:stockCategoryAnalysisItems', reportController.stockCategoryAnalysisItems);
 ipcMain.handle('report:stockItemAnalysis',          reportController.stockItemAnalysis);
+ipcMain.handle('report:groupAnalysis',              reportController.groupAnalysis);
 ipcMain.handle('report:stockQuery',           reportController.stockQuery);
 
 // Payroll Reports
