@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -140,10 +141,12 @@ function ItemPicker({
   items,
   onSelect,
   onCancel,
+  onCreate,
 }: {
   items: StockItemEntry[];
   onSelect: (item: StockItemEntry) => void;
   onCancel: () => void;
+  onCreate: () => void;
 }) {
   const [search, setSearch] = React.useState("");
   const [focused, setFocused] = React.useState(0);
@@ -157,6 +160,7 @@ function ItemPicker({
 
   React.useEffect(() => {
     const h = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === "c" || e.key === "C")) { e.preventDefault(); onCreate(); return; }
       if (e.key === "ArrowDown") { e.preventDefault(); setFocused(p => Math.min(p + 1, filtered.length - 1)); }
       if (e.key === "ArrowUp")   { e.preventDefault(); setFocused(p => Math.max(p - 1, 0)); }
       if (e.key === "Enter")     { e.preventDefault(); if (filtered[focused]) onSelect(filtered[focused]); }
@@ -164,7 +168,7 @@ function ItemPicker({
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [focused, filtered, onSelect, onCancel]);
+  }, [focused, filtered, onSelect, onCancel, onCreate]);
 
   return (
     <div className="flex h-full w-full items-start justify-center bg-gray-100 select-none" style={{ fontFamily: "system-ui, sans-serif" }}>
@@ -180,8 +184,15 @@ function ItemPicker({
           />
         </div>
 
-        <div className="bg-zinc-800 text-white text-sm font-semibold px-3 py-1">
-          List of Stock Items
+        <div className="bg-zinc-800 text-white text-sm font-semibold px-3 py-1 flex items-center justify-between">
+          <span>List of Stock Items</span>
+          <button
+            onClick={onCreate}
+            className="text-xs font-semibold underline-offset-2 hover:underline"
+            title="Create a new stock item (Alt+C)"
+          >
+            Create
+          </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -205,7 +216,7 @@ function ItemPicker({
 
         <div className="border-t border-zinc-300 px-3 py-1 flex justify-between text-xs text-zinc-500">
           <span>↑↓ Navigate</span>
-          <span>Enter: Select · Esc: Back</span>
+          <span>Enter: Select · Alt+C: Create · Esc: Back</span>
         </div>
       </div>
     </div>
@@ -215,6 +226,7 @@ function ItemPicker({
 // ── StockQueryLayout ─────────────────────────────────────────────────────────
 
 export function StockQueryLayout() {
+  const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
 
   const companyId = selectedCompany?.company_id;
@@ -268,6 +280,7 @@ export function StockQueryLayout() {
       <ItemPicker
         items={allItems}
         onSelect={loadQuery}
+        onCreate={() => navigate("/master/create/stock-item")}
         onCancel={() => {
           if (result) setShowPicker(false);
           // if no result yet, let TallyReportLayout's Escape handle navigation
