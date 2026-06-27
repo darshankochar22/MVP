@@ -82,13 +82,13 @@ export default function CostAnalysisTable({
               <th colSpan={2} className="px-2 py-0.5 text-center font-bold border-b border-l border-zinc-200">Profit/(Loss)<br/><span className="font-normal">B − (A − C)</span></th>
             </tr>
             <tr>
-              <th className="px-2 py-1 text-right font-bold w-20 border-l border-zinc-200">Inward Qty</th>
+              <th className="px-2 py-1 text-right font-bold w-20 border-l border-zinc-200">Inward Quantity</th>
               <th className="px-2 py-1 text-right font-bold w-16">Rate</th>
               <th className="px-2 py-1 text-right font-bold w-24">Value</th>
-              <th className="px-2 py-1 text-right font-bold w-20 border-l border-zinc-200">Outward Qty</th>
+              <th className="px-2 py-1 text-right font-bold w-20 border-l border-zinc-200">Outward Quantity</th>
               <th className="px-2 py-1 text-right font-bold w-16">Rate</th>
               <th className="px-2 py-1 text-right font-bold w-24">Value</th>
-              <th className="px-2 py-1 text-right font-bold w-20 border-l border-zinc-200">Nett Qty</th>
+              <th className="px-2 py-1 text-right font-bold w-20 border-l border-zinc-200">Nett Quantity</th>
               <th className="px-2 py-1 text-right font-bold w-16">Rate</th>
               <th className="px-2 py-1 text-right font-bold w-24">Value</th>
               <th className="px-2 py-1 text-right font-bold w-24 border-l border-zinc-200">Value</th>
