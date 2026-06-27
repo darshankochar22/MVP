@@ -31,6 +31,8 @@ interface ApplicabilityDropdownProps {
   labelWidth?: string;
   /** When true, the label and value text are bolded (used inside section headings). */
   emphasized?: boolean;
+  /** Heading shown on the right-side selection panel. Defaults to "Applicability". */
+  title?: string;
 }
 
 export default function ApplicabilityDropdown({
@@ -41,6 +43,7 @@ export default function ApplicabilityDropdown({
   helper,
   labelWidth = "w-56",
   emphasized = false,
+  title = "Applicability",
 }: ApplicabilityDropdownProps) {
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState<string>(value);
@@ -122,7 +125,7 @@ export default function ApplicabilityDropdown({
             className="fixed top-1/2 right-6 -translate-y-1/2 z-[66] w-72 bg-white border border-zinc-400 shadow-2xl flex flex-col"
           >
             <div className="px-3 py-1.5 border-b border-zinc-300 bg-zinc-700 text-white text-[12px] font-bold tracking-wide">
-              Applicability
+              {title}
             </div>
             <ul className="flex-1 overflow-y-auto max-h-80">
               {options.map((opt) => {

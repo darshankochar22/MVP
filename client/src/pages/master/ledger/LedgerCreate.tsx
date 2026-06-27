@@ -113,6 +113,7 @@ export default function LedgerCreate() {
     handleServiceTaxClose,
     handleServiceTaxAccept,
     showVATDetailsModal,
+    handleVATDetailsOpen,
     handleVATDetailsClose,
     handleVATDetailsAccept,
     exciseDetails,
@@ -259,11 +260,13 @@ export default function LedgerCreate() {
           ledgerName={form.name || ""}
           visibleSections={getOtherStatutoryConfig(groupLineage.primaryGroupName).sections}
           value={otherStatutory}
+          companyId={selectedCompany?.company_id}
           onClose={closeAllStatutory}
           onAccept={(state) => {
             setOtherStatutory(state);
             closeAllStatutory();
           }}
+          onCommit={(state) => setOtherStatutory(state)}
           onTriggerSubModal={(kind) => {
             setOtherStatutory((prev) => {
               const next = { ...prev };
@@ -779,6 +782,7 @@ export default function LedgerCreate() {
             setStatutoryForm={setStatutoryForm}
             groupLineage={groupLineage}
             config={currentConfig}
+            vatActive={otherStatutory.vat.set_alter_vat_details === 1}
             onGSTDetailsChange={(val) => {
               if (val === "Yes") handleGSTDetailsOpen();
               else handleGSTDetailsClose();
@@ -786,6 +790,10 @@ export default function LedgerCreate() {
             onServiceTaxDetailsChange={(val) => {
               if (val === "Yes") handleServiceTaxOpen();
               else handleServiceTaxClose();
+            }}
+            onVATDetailsChange={(val) => {
+              if (val === "Yes") handleVATDetailsOpen();
+              else handleVATDetailsClose();
             }}
           />
 

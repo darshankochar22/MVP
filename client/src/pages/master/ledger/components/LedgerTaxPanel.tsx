@@ -19,8 +19,10 @@ interface LedgerTaxPanelProps {
     isTax: boolean;
   };
   config: LedgerConfigOptions;
+  vatActive: boolean;
   onGSTDetailsChange: (val: "Yes" | "No") => void;
   onServiceTaxDetailsChange: (val: "Yes" | "No") => void;
+  onVATDetailsChange: (val: "Yes" | "No") => void;
 }
 
 function useTaxPanelVisibility(
@@ -38,6 +40,7 @@ function useTaxPanelVisibility(
       fullRegistrationFields: false,
       gstinField: true,
       serviceTaxField: false,
+      vatField: false,
     };
   }
 
@@ -62,6 +65,7 @@ function useTaxPanelVisibility(
     fullRegistrationFields: isFull && !assessableGstSelected,
     gstinField: (isFull && !assessableGstSelected && registrationKnown) || isGstinServiceTaxOnly,
     serviceTaxField: (isFull || isGstinServiceTaxOnly) && config.serviceTaxDetails !== false,
+    vatField: (isFull || isGstinServiceTaxOnly) && config.vatDetails === true,
   };
 }
 
@@ -74,8 +78,10 @@ export default function LedgerTaxPanel({
   setStatutoryForm,
   groupLineage,
   config,
+  vatActive,
   onGSTDetailsChange,
   onServiceTaxDetailsChange,
+  onVATDetailsChange,
 }: LedgerTaxPanelProps) {
   const visibility = useTaxPanelVisibility(config, groupLineage, statutoryForm, form);
 
@@ -146,6 +152,19 @@ export default function LedgerTaxPanel({
                 className={selectCls}
                 value={form.service_tax_details ? "Yes" : "No"}
                 onChange={(e) => onServiceTaxDetailsChange(e.target.value as "Yes" | "No")}
+              >
+                <option value="No">No</option>
+                <option value="Yes">Yes</option>
+              </select>
+            </FormRow>
+          )}
+
+          {visibility.vatField && (
+            <FormRow label="Set/Alter VAT Details" labelWidth="w-44" className="flex items-center min-h-[26px]">
+              <select
+                className={selectCls}
+                value={vatActive ? "Yes" : "No"}
+                onChange={(e) => onVATDetailsChange(e.target.value as "Yes" | "No")}
               >
                 <option value="No">No</option>
                 <option value="Yes">Yes</option>
