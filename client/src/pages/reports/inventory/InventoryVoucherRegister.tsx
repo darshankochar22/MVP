@@ -224,6 +224,7 @@ export default function InventoryVoucherRegister({ voucherType, title, variant =
   const totalIn = voucherRows.reduce((s, r) => s + (Number(r.inwards_qty) || 0), 0);
   const totalOut = voucherRows.reduce((s, r) => s + (Number(r.outwards_qty) || 0), 0);
   const totalAmt = voucherRows.reduce((s, r) => s + (Number(r.order_amount) || 0), 0);
+  const totalDrCr = voucherRows.reduce((s, r) => s + (Number(r.debit) || 0) + (Number(r.credit) || 0), 0);
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
@@ -245,7 +246,12 @@ export default function InventoryVoucherRegister({ voucherType, title, variant =
               <th className="px-3 py-1 text-left font-bold">Particulars</th>
               <th className="px-3 py-1 text-left font-bold w-28">Vch Type</th>
               <th className="px-3 py-1 text-right font-bold w-20">Vch No.</th>
-              {isOrder ? (
+              {isAccounting ? (
+                <>
+                  <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">Debit<br />Amount</th>
+                  <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">Credit<br />Amount</th>
+                </>
+              ) : isOrder ? (
                 <>
                   <th className="px-3 py-1 text-right font-bold w-28 border-l border-zinc-200">Order<br />Ref No.</th>
                   <th className="px-3 py-1 text-right font-bold w-32 border-l border-zinc-200">Order<br />Amount</th>
@@ -279,7 +285,12 @@ export default function InventoryVoucherRegister({ voucherType, title, variant =
                     <td className="px-3 py-1 truncate max-w-xs">{row.particulars}</td>
                     <td className="px-3 py-1">{row.voucher_type}</td>
                     <td className="px-3 py-1 text-right">{row.voucher_number || ""}</td>
-                    {isOrder ? (
+                    {isAccounting ? (
+                      <>
+                        <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtAmt(row.debit)}</td>
+                        <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtAmt(row.credit)}</td>
+                      </>
+                    ) : isOrder ? (
                       <>
                         <td className="px-3 py-1 text-right border-l border-zinc-100">{row.order_ref || ""}</td>
                         <td className="px-3 py-1 text-right border-l border-zinc-100">{fmtAmt(row.order_amount)}</td>
@@ -303,7 +314,9 @@ export default function InventoryVoucherRegister({ voucherType, title, variant =
         <span className="flex-1" />
         <span className="w-28" />
         <span className="w-20" />
-        {isOrder ? (
+        {isAccounting ? (
+          <span className="w-64 text-right pr-2 border-l border-zinc-300">Total:&nbsp;&nbsp;{fmtAmt(totalDrCr)}</span>
+        ) : isOrder ? (
           <>
             <span className="w-28 text-right pr-2 border-l border-zinc-300" />
             <span className="w-32 text-right pr-2 border-l border-zinc-300">{fmtAmt(totalAmt)}</span>

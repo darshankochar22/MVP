@@ -58,4 +58,25 @@ describe("Statistics Service Tests", () => {
     const sortedNames = [...names].sort((a, b) => a.localeCompare(b));
     expect(names).toEqual(sortedNames);
   });
+
+  it("voucher monthly register returns 12 months with counts for a type", async () => {
+    const res = await reportController.statisticsVoucherMonthly(null, { company_id: companyId, fy_id: fyId, voucher_type: 'Sales' });
+    expect(res.success).toBe(true);
+    expect(Array.isArray(res.rows)).toBe(true);
+    expect(res.rows.length).toBe(12);
+    const total = res.rows.reduce((s, r) => s + r.total_vouchers, 0);
+    expect(total).toBe(2); // 2 Sales vouchers inserted above
+  });
+
+  it("voucher day list returns rows with debit/credit for a type", async () => {
+    const res = await reportController.statisticsVoucherDayList(null, { company_id: companyId, fy_id: fyId, voucher_type: 'Sales' });
+    expect(res.success).toBe(true);
+    expect(Array.isArray(res.rows)).toBe(true);
+    expect(res.rows.length).toBe(2);
+    for (const r of res.rows) {
+      expect(r).toHaveProperty('debit');
+      expect(r).toHaveProperty('credit');
+      expect(r).toHaveProperty('voucher_id');
+    }
+  });
 });

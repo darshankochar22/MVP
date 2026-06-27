@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 
 const ColHeader = ({ title, companyName, periodText }: { title: string; companyName: string; periodText: string }) => (
-  <div className="bg-[#f4f4f5] sticky top-0 px-3 py-1 border-b border-zinc-300 select-none text-[10px]">
-    <div className="font-bold text-zinc-800">{title}</div>
-    <div className="text-zinc-600">{companyName}</div>
-    <div className="text-zinc-500">{periodText}</div>
+  <div className="bg-white sticky top-0 px-3 py-1 border-b border-zinc-300 select-none flex items-start justify-between gap-2 text-[11px]">
+    <div className="font-bold text-zinc-900">{title}</div>
+    <div className="text-right leading-tight">
+      <div className="font-bold text-zinc-800">{companyName}</div>
+      <div className="text-zinc-500 text-[10px]">{periodText}</div>
+    </div>
   </div>
 );
 
@@ -68,18 +70,9 @@ export default function StatisticsLayout() {
     [vouchersRows]
   );
 
-  const getVoucherRegisterUrl = (vchType: string) => {
-    const lower = vchType.toLowerCase();
-    if (lower === "sales")       return "/reports/accounts/sales-register";
-    if (lower === "purchase")    return "/reports/accounts/purchase-register";
-    if (lower === "journal")     return "/reports/accounts/journal-register";
-    if (lower === "debit note")  return "/reports/accounts/debit-note-register";
-    if (lower === "credit note") return "/reports/accounts/credit-note-register";
-    if (lower === "payment")     return "/reports/accounts/payment-register";
-    if (lower === "receipt")     return "/reports/accounts/receipt-register";
-    if (lower === "contra")      return "/reports/accounts/contra-register";
-    return `/transactions/voucher-list?type=${encodeURIComponent(vchType)}`;
-  };
+  // Every voucher type drills to its Voucher Monthly Register (month-wise counts → day list → voucher).
+  const getVoucherRegisterUrl = (vchType: string) =>
+    `/reports/statements-of-accounts/statistics/voucher/${encodeURIComponent(vchType)}`;
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
