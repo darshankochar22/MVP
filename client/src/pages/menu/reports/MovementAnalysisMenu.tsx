@@ -6,11 +6,13 @@ const ROUTES: Record<string, string> = {
   "Stock Group Analysis":    "/reports/inventory/stock-group-analysis",
   "Stock Category Analysis": "/reports/inventory/stock-category-analysis",
   "Stock Item-wise":         "/reports/inventory/stock-item-analysis",
+  "Group Analysis":          "/reports/inventory/group-analysis",
 };
 
 const ITEMS = [
   "Stock Group Analysis",
   "Stock Category Analysis",
+  "Group Analysis",
   "Stock Item-wise",
   "Party-wise",
   "Supplier-wise",
