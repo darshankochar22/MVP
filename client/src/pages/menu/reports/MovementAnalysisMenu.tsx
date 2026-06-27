@@ -3,11 +3,13 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/shadcn/ca
 import { Button } from "@/components/shadcn/button";
 
 const ROUTES: Record<string, string> = {
-  "Stock Group Analysis": "/reports/inventory/stock-group-analysis",
+  "Stock Group Analysis":    "/reports/inventory/stock-group-analysis",
+  "Stock Category Analysis": "/reports/inventory/stock-category-analysis",
 };
 
 const ITEMS = [
   "Stock Group Analysis",
+  "Stock Category Analysis",
   "Stock Item-wise",
   "Party-wise",
   "Supplier-wise",
