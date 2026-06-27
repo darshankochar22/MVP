@@ -57,7 +57,8 @@ function useTaxPanelVisibility(
     form.registration_type !== "Unregistered/Consumer";
 
   return {
-    dutyTaxSection: config.dutyTaxDetails || groupLineage.isTax,
+    // For isTax groups, DutyTaxSection is rendered in left panel by LedgerCreate/Alter
+    dutyTaxSection: (config.dutyTaxDetails || groupLineage.isTax) && !groupLineage.isTax,
     taxRegistrationSection: config.taxRegistration !== "none",
     panField: isPanOnly || isFull,
     fullRegistrationFields: isFull && !assessableGstSelected,
@@ -174,93 +175,89 @@ export default function LedgerTaxPanel({
   );
 }
 
-function DutyTaxSection({
+const DUTY_TAX_TYPES = ["CENVAT", "GST", "Krishi Kalyan Cess", "Others", "Service Tax", "Swachh Bharat Cess", "TCS", "TDS", "VAT"];
+const TYPES_NO_PERCENTAGE = new Set(["GST", "Krishi Kalyan Cess", "Service Tax", "Swachh Bharat Cess", "TCS", "TDS"]);
+
+export function DutyTaxSection({
   statutoryForm,
   setStatutoryField,
   setStatutoryNumber,
-  setStatutoryForm,
 }: {
   statutoryForm: StatutoryDetails;
   setStatutoryField: (key: keyof StatutoryDetails) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   setStatutoryNumber: (key: keyof StatutoryDetails) => (e: React.ChangeEvent<HTMLInputElement>) => void;
-  setStatutoryForm: React.Dispatch<React.SetStateAction<StatutoryDetails>>;
+  setStatutoryForm?: React.Dispatch<React.SetStateAction<StatutoryDetails>>;
 }) {
+  const dutyType = statutoryForm.type_of_duty_tax || "Others";
+  const showPercentage = !TYPES_NO_PERCENTAGE.has(dutyType);
+
   return (
     <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
-      <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Statutory / Duty Details</div>
-
-      <FormRow label="Type of Duty/Tax" labelWidth="w-44" className="flex items-center min-h-[26px]">
-        <select className={selectCls} value={statutoryForm.type_of_duty_tax || "GST"} onChange={setStatutoryField("type_of_duty_tax")}>
-          <option value="GST">GST</option>
-          <option value="Others">Others</option>
+      <FormRow label="Type of Duty/Tax" labelWidth="w-52" className="flex items-center min-h-[26px]">
+        <select className={selectCls} value={dutyType} onChange={setStatutoryField("type_of_duty_tax")}>
+          {DUTY_TAX_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
       </FormRow>
 
-      <FormRow label="Percentage of Calculation" labelWidth="w-44" className="flex items-center min-h-[26px]">
-        <input
-          type="number"
-          step="0.01"
-          className={`${inputCls} text-right max-w-[100px]`}
-          value={statutoryForm.percentage_of_calculation ?? 0}
-          onChange={setStatutoryNumber("percentage_of_calculation")}
-        />
-      </FormRow>
+      {dutyType === "CENVAT" && (
+        <FormRow label="Duty Head" labelWidth="w-52" className="flex items-center min-h-[26px]">
+          <input className={inputCls} value={statutoryForm.duty_head || ""} onChange={setStatutoryField("duty_head")} />
+        </FormRow>
+      )}
 
-      <FormRow label="Rounding Method" labelWidth="w-44" className="flex items-center min-h-[26px]">
-        <select className={selectCls} value={statutoryForm.statutory_details || "Not Applicable"} onChange={setStatutoryField("statutory_details")}>
-          <option value="Not Applicable">Not Applicable</option>
+      {dutyType === "GST" && (
+        <FormRow label="Tax type" labelWidth="w-52" className="flex items-center min-h-[26px]">
+          <select className={selectCls} value={statutoryForm.gst_tax_type || "IGST"} onChange={setStatutoryField("gst_tax_type")}>
+            <option value="IGST">IGST</option>
+            <option value="GST">GST</option>
+            <option value="SGST/UTGST">SGST/UTGST</option>
+            <option value="Cess">Cess</option>
+          </select>
+        </FormRow>
+      )}
+
+      {dutyType === "Service Tax" && (
+        <FormRow label="Tax head" labelWidth="w-52" className="flex items-center min-h-[26px]">
+          <select className={selectCls} value={statutoryForm.service_tax_head || "Any"} onChange={setStatutoryField("service_tax_head")}>
+            <option value="Any">Any</option>
+            <option value="Education Cess">Education Cess</option>
+            <option value="Secondary Education Cess">Secondary Education Cess</option>
+            <option value="Service Tax">Service Tax</option>
+          </select>
+        </FormRow>
+      )}
+
+      {(dutyType === "TCS" || dutyType === "TDS") && (
+        <FormRow label="Nature of goods/contract/license/lease" labelWidth="w-52" className="flex items-center min-h-[26px]">
+          <input className={inputCls} value={statutoryForm.nature_of_goods || ""} onChange={setStatutoryField("nature_of_goods")} />
+        </FormRow>
+      )}
+
+      {showPercentage && (
+        <FormRow label="Percentage of calculation" labelWidth="w-52" className="flex items-center min-h-[26px]">
+          <div className="flex flex-col gap-0.5">
+            <input
+              type="number"
+              step="0.01"
+              className={`${inputCls} text-right max-w-[100px]`}
+              value={statutoryForm.percentage_of_calculation ?? 0}
+              onChange={setStatutoryNumber("percentage_of_calculation")}
+            />
+            {(statutoryForm.percentage_of_calculation ?? 0) === 0 && (
+              <span className="text-[10px] text-zinc-400 px-1">(To use as common ledger, set as 0%)</span>
+            )}
+          </div>
+        </FormRow>
+      )}
+
+      <FormRow label="Rounding method" labelWidth="w-52" className="flex items-center min-h-[26px]">
+        <select className={selectCls} value={statutoryForm.statutory_details || ""} onChange={setStatutoryField("statutory_details")}>
+          <option value=""></option>
           <option value="Downward Rounding">Downward Rounding</option>
           <option value="Normal Rounding">Normal Rounding</option>
           <option value="Upward Rounding">Upward Rounding</option>
         </select>
       </FormRow>
-
-      {statutoryForm.type_of_duty_tax === "GST" && (
-        <div className="mt-3 pt-3 border-t border-zinc-100 space-y-1.5">
-          <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">GST Rate Config</div>
-
-          <FormRow label="GST Applicability" labelWidth="w-44" className="flex items-center min-h-[26px]">
-            <select className={selectCls} value={statutoryForm.gst_applicability || "Applicable"} onChange={setStatutoryField("gst_applicability")}>
-              <option value="Applicable">Applicable</option>
-              <option value="Not Applicable">Not Applicable</option>
-              <option value="Undefined">Undefined</option>
-            </select>
-          </FormRow>
-
-          {statutoryForm.gst_applicability === "Applicable" && (
-            <div className="pl-3 border-l-2 border-zinc-200 space-y-1.5 py-1">
-              <FormRow label="HSN/SAC Code" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={statutoryForm.hsn_sac_code || ""} onChange={setStatutoryField("hsn_sac_code")} />
-              </FormRow>
-              <FormRow label="HSN/SAC Description" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={statutoryForm.hsn_sac_description || ""} onChange={setStatutoryField("hsn_sac_description")} />
-              </FormRow>
-              <FormRow label="IGST Rate (%)" labelWidth="w-40" className="flex items-center min-h-[26px]">
-                <input
-                  type="number"
-                  step="0.01"
-                  className={`${inputCls} text-right max-w-[100px]`}
-                  value={statutoryForm.igst_rate ?? 0}
-                  onChange={(e) => {
-                    const val = e.target.value === "" ? 0 : Number(e.target.value);
-                    setStatutoryForm((f) => ({
-                      ...f,
-                      igst_rate: val,
-                      gst_rate: val,
-                      cgst_rate: val / 2,
-                      sgst_rate: val / 2,
-                    }));
-                  }}
-                />
-              </FormRow>
-              <div className="flex items-center text-[10px] text-zinc-500 pl-44 gap-4">
-                <span>CGST: {(statutoryForm.cgst_rate ?? 0).toFixed(2)}%</span>
-                <span>SGST: {(statutoryForm.sgst_rate ?? 0).toFixed(2)}%</span>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

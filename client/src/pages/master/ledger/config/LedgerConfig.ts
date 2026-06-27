@@ -28,9 +28,10 @@ export const LEDGER_CONFIG: Record<string, LedgerConfigOptions> = {
  "Bank Accounts": { taxRegistration: "gstinServiceTaxOnly", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
   "Bank OCC A/c": { taxRegistration: "gstinServiceTaxOnly", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
   "Bank OD A/c": { taxRegistration: "gstinServiceTaxOnly", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
-  "Cash-in-Hand": { taxRegistration: "none", mailingDetails: true, bankingDetails: false, billwise: false, interestCalculation: false, dutyTaxDetails: false, assessableValueCalc: false },
+  "Cash-in-Hand": { taxRegistration: "panOnly", mailingDetails: true, bankingDetails: false, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
   "Branch/Divisions": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: true, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false, serviceTaxDetails: false },
 "Current Assets": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: true, vatDetails: false, paymentGateway: true },
+  "Deposits (Asset)": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false, paymentGateway: false },
 "Current Liabilities": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: true, vatDetails: false },
 "Fixed Assets": { 
   taxRegistration: "full", 
@@ -74,7 +75,7 @@ export const LEDGER_CONFIG: Record<string, LedgerConfigOptions> = {
   "Sundry Debtors": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: true, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
   "Sundry Creditors": { taxRegistration: "full", mailingDetails: true, bankingDetails: true, billwise: true, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
 
-  "Duties & Taxes": { taxRegistration: "panOnly", mailingDetails: false, bankingDetails: false, billwise: false, interestCalculation: false, dutyTaxDetails: true, assessableValueCalc: false },
+  "Duties & Taxes": { taxRegistration: "panOnly", mailingDetails: true, bankingDetails: true, billwise: false, interestCalculation: true, dutyTaxDetails: true, assessableValueCalc: true },
 
 "Direct Expenses": { taxRegistration: "panOnly", mailingDetails: false, bankingDetails: false, billwise: false, interestCalculation: false, dutyTaxDetails: false, assessableValueCalc: true, gstApplicabilitySection: true },
 "Indirect Expenses": { taxRegistration: "panOnly", mailingDetails: false, bankingDetails: false, billwise: false, interestCalculation: false, dutyTaxDetails: false, assessableValueCalc: true, gstApplicabilitySection: true },
@@ -121,11 +122,18 @@ export const LEDGER_CONFIG: Record<string, LedgerConfigOptions> = {
 
   "Misc. Expenses (Asset)": { taxRegistration: "panOnly", mailingDetails: true, bankingDetails: false, billwise: false, interestCalculation: false, dutyTaxDetails: false, assessableValueCalc: true },
   "Misc.Expenses(Asset)": { taxRegistration: "panOnly", mailingDetails: true, bankingDetails: false, billwise: false, interestCalculation: false, dutyTaxDetails: false, assessableValueCalc: true },
+  "Suspense A/c": { taxRegistration: "panOnly", mailingDetails: true, bankingDetails: false, billwise: false, interestCalculation: true, dutyTaxDetails: false, assessableValueCalc: false },
 };
 
-export const getLedgerConfig = (groupName: string | null): LedgerConfigOptions => {
+export const getLedgerConfig = (groupName: string | null, fallbackGroupName?: string | null): LedgerConfigOptions => {
   if (!groupName) return DEFAULT_LEDGER_CONFIG;
   const config = LEDGER_CONFIG[groupName];
-  if (!config) console.warn(`NO MATCH: "${groupName}"`); 
-  return config || DEFAULT_LEDGER_CONFIG;
+  if (config) return config;
+  // Fall back to primary group when sub-group has no explicit config
+  if (fallbackGroupName && fallbackGroupName !== groupName) {
+    const fallback = LEDGER_CONFIG[fallbackGroupName];
+    if (fallback) return fallback;
+  }
+  console.warn(`NO MATCH: "${groupName}"`);
+  return DEFAULT_LEDGER_CONFIG;
 };

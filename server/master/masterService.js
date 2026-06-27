@@ -7,11 +7,7 @@ const getMenu = async (company_id = 1) => {
 
     const menu = [];
 
-    const accountingItems = ["Group", "Ledger", "Currency", "Voucher Type"];
-    if (features.enable_cost_centres !== 0) {
-      accountingItems.push("Cost Category");
-      accountingItems.push("Cost Centre");
-    }
+    const accountingItems = ["Group", "Ledger", "Currency", "Voucher Type", "Cost Category", "Cost Centre"];
     menu.push({ title: "Accounting Masters", items: accountingItems });
      
     if(features.enable_payment_request_qr) {

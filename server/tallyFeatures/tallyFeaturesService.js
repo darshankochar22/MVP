@@ -16,7 +16,7 @@ const seedDefaultFeatures = async (company_id) => {
     companyId: company_id,
     maintainAccounts: 1,
     enableBillWiseEntry: 0,
-    enableCostCentres: 0,
+    enableCostCentres: 1,
     maintainInventory: 1,
     integrateAccountsWithInventory: 1,
     enableMultiplePriceLevels: 0,
@@ -116,7 +116,7 @@ module.exports = {
         .set({
           maintainAccounts: 1,
           enableBillWiseEntry: 0,
-          enableCostCentres: 0,
+          enableCostCentres: 1,
           maintainInventory: 1,
           integrateAccountsWithInventory: 1,
           enableMultiplePriceLevels: 0,

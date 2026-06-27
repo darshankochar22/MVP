@@ -75,6 +75,9 @@ const BY_PRIMARY_GROUP: Record<string, OtherStatutoryConfig> = {
   // Duties & Taxes — keep the modal hidden (this group is itself a tax group
   // and uses the duty-tax section in the right column instead).
   "Duties & Taxes": { sections: [] },
+
+  // Suspense A/c → only TDS
+  "Suspense A/c": { sections: ["tds"] },
 };
 
 const DEFAULT_CONFIG: OtherStatutoryConfig = {

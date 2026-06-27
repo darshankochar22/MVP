@@ -14,7 +14,7 @@ import {
   EMPTY_VAT,
 } from "./hooks/useLedgerForm";
 import LedgerMailingPanel from "./components/LedgerMailingPanel";
-import LedgerTaxPanel from "./components/LedgerTaxPanel";
+import LedgerTaxPanel, { DutyTaxSection } from "./components/LedgerTaxPanel";
 import LedgerRoundingPanel from "./components/LedgerRoundingPanel";
 import LedgerBillwisePanel from "./components/LedgerBillwisePanel";
 import LedgerBankingPanel from "./components/LedgerBankingPanel";
@@ -131,7 +131,7 @@ export default function LedgerAlter() {
   } = useLedgerForm({ mode: "alter" });
 
   const groupName = selectedGroup?.name || groupLineage.primaryGroupName || "";
-  const currentConfig = getLedgerConfig(groupName);
+  const currentConfig = getLedgerConfig(groupName, groupLineage.primaryGroupName);
 
   // Whether to show the "Statutory Details" block on the LEFT panel.
   // Matches Tally: shown for Current Assets (assessableValueCalc) and always
@@ -247,6 +247,7 @@ export default function LedgerAlter() {
           interestForm={interestForm}
           setInterestForm={setInterestForm}
           onClose={handleInterestClose}
+          isBank={groupLineage.isBank}
         />
       )}
 
@@ -498,6 +499,20 @@ export default function LedgerAlter() {
             </div>
           )}
 
+          {/* Type of Ledger (Purchase / Sales / Direct / Indirect groups) */}
+          {selectedLedgerId && (
+            <LedgerRoundingPanel form={form} setForm={setForm} setField={setField} setNumber={setNumber} groupLineage={groupLineage} />
+          )}
+
+          {/* Duty Tax fields for Duties & Taxes groups */}
+          {selectedLedgerId && groupLineage.isTax && (
+            <DutyTaxSection
+              statutoryForm={statutoryForm}
+              setStatutoryField={setStatutoryField}
+              setStatutoryNumber={setStatutoryNumber}
+            />
+          )}
+
           {/* Behave as Payment Gateway */}
           {selectedLedgerId && currentConfig.paymentGateway && (
             <div className="p-3 border-t border-zinc-100 bg-white space-y-1">
@@ -520,7 +535,7 @@ export default function LedgerAlter() {
           )}
 
           {selectedLedgerId && (
-            <div className="p-3 border-t border-zinc-100 bg-white">
+            <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
               <FormRow label="Activate interest calculation" labelWidth="w-52" className="flex items-center min-h-[26px]">
                 <select
                   className={selectCls}
@@ -531,6 +546,18 @@ export default function LedgerAlter() {
                   <option value="Yes">Yes</option>
                 </select>
               </FormRow>
+              {groupLineage.isOD && (
+                <FormRow label="Set OD limit" labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <input
+                    type="number"
+                    step="0.01"
+                    className={`${inputCls} max-w-[140px] text-right`}
+                    value={form.od_limit ?? ""}
+                    onChange={setNumber("od_limit")}
+                    placeholder="0.00"
+                  />
+                </FormRow>
+              )}
             </div>
           )}
 
@@ -783,14 +810,6 @@ export default function LedgerAlter() {
                   </div>
                 </div>
               </div>
-
-              <LedgerRoundingPanel
-                form={form}
-                setForm={setForm}
-                setField={setField}
-                setNumber={setNumber}
-                groupLineage={groupLineage}
-              />
 
               <LedgerMailingPanel
                 form={form}

@@ -41,6 +41,10 @@ export interface StatutoryDetails {
   sgst_rate?: number;
   igst_rate?: number;
   type_of_duty_tax?: string;
+  duty_head?: string;
+  gst_tax_type?: string;
+  service_tax_head?: string;
+  nature_of_goods?: string;
   percentage_of_calculation?: number;
   statutory_details?: string;
   additional_gst_details: number;
@@ -52,6 +56,7 @@ export interface StatutoryDetails {
 
 export interface InterestDetails {
   activate_interest: number;
+  calculate_interest_based_on?: string;
   interest_include_added: number;
   interest_include_deducted: number;
   interest_rate: number;
@@ -61,6 +66,7 @@ export interface InterestDetails {
 
 export const EMPTY_INTEREST: InterestDetails = {
   activate_interest: 0,
+  calculate_interest_based_on: "Voucher Date",
   interest_include_added: 0,
   interest_include_deducted: 0,
   interest_rate: 0,
@@ -868,9 +874,16 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
       const hasBankData = provideBank === "Yes" || groupLineage.isBank;
       if (hasBankData) {
         payload.bank_details = {
+          account_holder_name: bankForm.account_holder_name?.trim() || undefined,
           account_number: bankForm.account_number?.trim() || undefined,
           ifsc_code: bankForm.ifsc_code?.trim() || undefined,
+          swift_code: bankForm.swift_code?.trim() || undefined,
           bank_name: bankForm.bank_name?.trim() || undefined,
+          branch: bankForm.branch?.trim() || undefined,
+          bsr_code: bankForm.bsr_code?.trim() || undefined,
+          set_alter_cheque_books: bankForm.set_alter_cheque_books || undefined,
+          enable_cheque_printing: bankForm.enable_cheque_printing || undefined,
+          set_alter_cheque_printing: bankForm.set_alter_cheque_printing || undefined,
           transaction_type: bankForm.transaction_type?.trim() || undefined,
           cross_using: bankForm.cross_using?.trim() || undefined,
           company_bank: bankForm.company_bank?.trim() || undefined,

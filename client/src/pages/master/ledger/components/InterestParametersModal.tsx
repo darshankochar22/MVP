@@ -26,6 +26,7 @@ interface InterestParametersModalProps {
   ledgerName?: string;
   interestForm: InterestDetails;
   setInterestForm: React.Dispatch<React.SetStateAction<InterestDetails>>;
+  isBank?: boolean;
 }
 
 export default function InterestParametersModal({
@@ -34,6 +35,7 @@ export default function InterestParametersModal({
   ledgerName,
   interestForm,
   setInterestForm,
+  isBank = false,
 }: InterestParametersModalProps) {
   const rateRef = useRef<HTMLInputElement>(null);
 
@@ -80,6 +82,18 @@ export default function InterestParametersModal({
         </div>
 
         <div className="px-6 py-4 bg-white space-y-1.5">
+          {isBank && (
+            <FormRow label="Calculate Interest Based on" labelWidth="w-56" className="flex items-center min-h-[26px] mb-2">
+              <select
+                className={selectCls}
+                value={interestForm.calculate_interest_based_on || "Voucher Date"}
+                onChange={(e) => setField("calculate_interest_based_on", e.target.value)}
+              >
+                <option value="Bank/Reco Date">Bank/Reco Date</option>
+                <option value="Voucher Date">Voucher Date</option>
+              </select>
+            </FormRow>
+          )}
           <div className="text-[12px] text-zinc-700 font-medium mb-1">
             Include transaction date for interest calculation:
           </div>

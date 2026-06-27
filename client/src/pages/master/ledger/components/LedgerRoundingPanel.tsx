@@ -35,7 +35,6 @@ export default function LedgerRoundingPanel({
 
   return (
     <div className="p-3 border-t border-zinc-100 bg-white space-y-1.5">
-      <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Ledger Type</div>
       <FormRow label="Type of ledger" labelWidth="w-52" className="flex items-center min-h-[26px]">
         <select
           className={selectCls}

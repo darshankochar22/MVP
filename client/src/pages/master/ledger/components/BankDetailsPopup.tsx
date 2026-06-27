@@ -1,9 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
 
 export interface BankDetails {
+  account_holder_name?: string;
   account_number?: string;
   ifsc_code?: string;
+  swift_code?: string;
   bank_name?: string;
+  branch?: string;
+  bsr_code?: string;
+  set_alter_cheque_books?: string;
+  enable_cheque_printing?: string;
+  set_alter_cheque_printing?: string;
   transaction_type?: string;
   cross_using?: string;
   company_bank?: string;
@@ -11,9 +18,16 @@ export interface BankDetails {
 }
 
 export const EMPTY_BANK_DETAILS: BankDetails = {
+  account_holder_name: "",
   account_number: "",
   ifsc_code: "",
+  swift_code: "",
   bank_name: "",
+  branch: "",
+  bsr_code: "",
+  set_alter_cheque_books: "No",
+  enable_cheque_printing: "No",
+  set_alter_cheque_printing: "No",
   transaction_type: "",
   cross_using: "A/c Payee",
   company_bank: "",

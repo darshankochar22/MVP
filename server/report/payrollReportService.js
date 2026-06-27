@@ -312,6 +312,197 @@ module.exports = {
     }
   },
 
+  /** Pay Slip — per-employee, per-pay-head detail rows (earnings & deductions). */
+  paySlip: async (company_id, fy_id) => {
+    try {
+      const salaryData = await getSalaryData(company_id);
+      const rows = salaryData.map((r, idx) => ({
+        id: idx + 1,
+        emp_name: r.emp_name,
+        pay_head_name: r.pay_head_name,
+        pay_type: isDeductionHead(r) ? 'Deduction' : 'Earning',
+        amount: Number(r.amount) || 0,
+      }));
+      return { success: true, rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  /** Pay Sheet — employee summary: gross, deductions, net. */
+  paySheet: async (company_id, fy_id) => {
+    try {
+      const salaryData = await getSalaryData(company_id);
+      const empMap = {};
+      for (const row of salaryData) {
+        if (!empMap[row.employee_id]) {
+          empMap[row.employee_id] = { emp_name: row.emp_name, gross: 0, deductions: 0 };
+        }
+        const amt = Number(row.amount) || 0;
+        if (isDeductionHead(row)) empMap[row.employee_id].deductions += amt;
+        else empMap[row.employee_id].gross += amt;
+      }
+      const rows = Object.values(empMap).map((e, idx) => ({
+        id: idx + 1,
+        emp_name: e.emp_name,
+        gross: e.gross,
+        deductions: e.deductions,
+        net_pay: e.gross - e.deductions,
+      }));
+      return { success: true, rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  /** Attendance Sheet — per-employee attendance breakdown. */
+  attendanceSheet: async (company_id, fy_id) => {
+    try {
+      const empRows = await getEmployees(company_id);
+      const avRows = await db.all(sql`
+        SELECT ave.employee_id, SUM(ave.value) AS total_value, at.name AS at_name
+        FROM ${attendanceVouchers} av
+        INNER JOIN ${attendanceVoucherEntries} ave ON ave.attendance_voucher_id = av.attendance_voucher_id
+        LEFT JOIN (SELECT attendance_type_id, name FROM attendance_types WHERE company_id = ${company_id}) at
+          ON at.attendance_type_id = ave.attendance_type_id
+        WHERE av.company_id = ${company_id}
+        GROUP BY ave.employee_id, ave.attendance_type_id
+      `).catch(() => []);
+
+      const attMap = {};
+      for (const r of avRows) {
+        if (!attMap[r.employee_id]) attMap[r.employee_id] = { present: 0, absent: 0, leave: 0 };
+        const nm = (r.at_name || '').toLowerCase();
+        const val = Number(r.total_value) || 0;
+        if (nm.includes('present') || nm.includes('work')) attMap[r.employee_id].present += val;
+        else if (nm.includes('absent') || nm.includes('lop')) attMap[r.employee_id].absent += val;
+        else if (nm.includes('leave') || nm.includes('holiday')) attMap[r.employee_id].leave += val;
+        else attMap[r.employee_id].present += val;
+      }
+
+      const rows = empRows.map((e, idx) => {
+        const a = attMap[e.employee_id] || { present: 0, absent: 0, leave: 0 };
+        return {
+          id: idx + 1,
+          emp_name: e.name,
+          present: a.present,
+          absent: a.absent,
+          leave: a.leave,
+          total_days: a.present + a.absent + a.leave,
+        };
+      });
+      return { success: true, rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  /** Payment Advice — bank transfer details + net pay per employee. */
+  paymentAdvice: async (company_id, fy_id) => {
+    try {
+      const salaryData = await getSalaryData(company_id);
+      const empRows = await getEmployees(company_id);
+
+      const empNetMap = {};
+      for (const r of salaryData) {
+        if (!empNetMap[r.employee_id]) empNetMap[r.employee_id] = { gross: 0, deductions: 0 };
+        const amt = Number(r.amount) || 0;
+        if (isDeductionHead(r)) empNetMap[r.employee_id].deductions += amt;
+        else empNetMap[r.employee_id].gross += amt;
+      }
+
+      const rows = empRows.map((e, idx) => {
+        const net = empNetMap[e.employee_id] || { gross: 0, deductions: 0 };
+        return {
+          id: idx + 1,
+          emp_name: e.name,
+          bank_name: e.bank_name || '—',
+          account_number: e.bank_account_number || '—',
+          ifsc_code: e.ifsc_code || '—',
+          net_pay: net.gross - net.deductions,
+        };
+      });
+      return { success: true, rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  /** Employees Without Email — employees with no email address on record. */
+  employeesWithoutEmail: async (company_id, fy_id) => {
+    try {
+      const empRows = await getEmployees(company_id);
+      const filtered = empRows.filter(e => !e.email || e.email.trim() === '');
+      const rows = filtered.map((e, idx) => ({
+        id: idx + 1,
+        emp_name: e.name,
+        emp_code: e.employee_code || '—',
+        designation: e.designation || '—',
+        department: e.department || '—',
+      }));
+      return { success: true, rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  /** Payroll Statement — pay head totals across all employees. */
+  payrollStatement: async (company_id, fy_id) => {
+    try {
+      const salaryData = await getSalaryData(company_id);
+      const phMap = {};
+      for (const r of salaryData) {
+        const key = r.pay_head_id;
+        if (!phMap[key]) {
+          phMap[key] = {
+            pay_head_name: r.pay_head_name,
+            pay_type: isDeductionHead(r) ? 'Deduction' : 'Earning',
+            total_amount: 0,
+          };
+        }
+        phMap[key].total_amount += Number(r.amount) || 0;
+      }
+      const rows = Object.values(phMap).map((r, idx) => ({ id: idx + 1, ...r }));
+      return { success: true, rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  /** Employee Pay Head Breakup — per employee, each pay head listed. */
+  employeePayHeadBreakup: async (company_id, fy_id) => {
+    try {
+      const salaryData = await getSalaryData(company_id);
+      const rows = salaryData.map((r, idx) => ({
+        id: idx + 1,
+        emp_name: r.emp_name,
+        pay_head_name: r.pay_head_name,
+        pay_type: isDeductionHead(r) ? 'Deduction' : 'Earning',
+        amount: Number(r.amount) || 0,
+      }));
+      return { success: true, rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  /** Pay Head Employee Breakup — per pay head, each employee listed. */
+  payHeadEmployeeBreakup: async (company_id, fy_id) => {
+    try {
+      const salaryData = await getSalaryData(company_id);
+      const rows = salaryData.map((r, idx) => ({
+        id: idx + 1,
+        pay_head_name: r.pay_head_name,
+        pay_type: isDeductionHead(r) ? 'Deduction' : 'Earning',
+        emp_name: r.emp_name,
+        amount: Number(r.amount) || 0,
+      }));
+      return { success: true, rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
   /**
    * Gratuity — estimated gratuity accrued per employee.
    * Formula (Indian Payment of Gratuity Act): 15 days' last drawn salary per year of service.

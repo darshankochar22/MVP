@@ -322,6 +322,30 @@ module.exports = {
   gratuity: async (event, { company_id, fy_id }) => {
     return await payrollReportService.gratuity(company_id, fy_id);
   },
+  paySlip: async (event, { company_id, fy_id }) => {
+    return await payrollReportService.paySlip(company_id, fy_id);
+  },
+  paySheet: async (event, { company_id, fy_id }) => {
+    return await payrollReportService.paySheet(company_id, fy_id);
+  },
+  attendanceSheet: async (event, { company_id, fy_id }) => {
+    return await payrollReportService.attendanceSheet(company_id, fy_id);
+  },
+  paymentAdvice: async (event, { company_id, fy_id }) => {
+    return await payrollReportService.paymentAdvice(company_id, fy_id);
+  },
+  employeesWithoutEmail: async (event, { company_id, fy_id }) => {
+    return await payrollReportService.employeesWithoutEmail(company_id, fy_id);
+  },
+  payrollStatement: async (event, { company_id, fy_id }) => {
+    return await payrollReportService.payrollStatement(company_id, fy_id);
+  },
+  employeePayHeadBreakup: async (event, { company_id, fy_id }) => {
+    return await payrollReportService.employeePayHeadBreakup(company_id, fy_id);
+  },
+  payHeadEmployeeBreakup: async (event, { company_id, fy_id }) => {
+    return await payrollReportService.payHeadEmployeeBreakup(company_id, fy_id);
+  },
 
   paymentRegister: async (event, { company_id, fy_id }) => {
     return await paymentRegister(company_id, fy_id);
