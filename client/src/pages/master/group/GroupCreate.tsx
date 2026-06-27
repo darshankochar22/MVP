@@ -217,6 +217,7 @@ export default function GroupCreate() {
           : undefined,
         slab_based_rates: form.slab_based_rates || "[]",
         vat_nature_of_transaction: form.vat_nature_of_transaction || undefined,
+        vat_party_entity_type: form.vat_party_entity_type || undefined,
         vat_tax_rate: form.vat_tax_rate ?? 0,
         vat_tax_type: form.vat_tax_type || undefined,
         vat_revised_applicability: form.vat_revised_applicability || undefined,

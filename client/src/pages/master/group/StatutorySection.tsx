@@ -290,6 +290,7 @@ export default function StatutorySection({
         onClose={() => setActiveSubModal(null)}
         initialData={{
           vat_nature_of_transaction: form.vat_nature_of_transaction,
+          vat_party_entity_type: form.vat_party_entity_type,
           vat_tax_rate: form.vat_tax_rate,
           vat_tax_type: form.vat_tax_type,
           vat_revised_applicability: form.vat_revised_applicability,

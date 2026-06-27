@@ -37,6 +37,7 @@ const groups = sqliteTable('groups', {
   gstClassificationId: integer('gst_classification_id'),
   slabBasedRates: text('slab_based_rates'),
   vatNatureOfTransaction: text('vat_nature_of_transaction'),
+  vatPartyEntityType: text('vat_party_entity_type'),
   vatTaxRate: real('vat_tax_rate').default(0),
   vatTaxType: text('vat_tax_type'),
   vatRevisedApplicability: text('vat_revised_applicability'),

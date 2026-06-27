@@ -61,6 +61,7 @@ const init = async (db) => {
   await addCol("gst_classification_id", "INTEGER");
   await addCol("slab_based_rates", "TEXT");
   await addCol("vat_nature_of_transaction", "TEXT");
+  await addCol("vat_party_entity_type", "TEXT DEFAULT 'Not Applicable'");
   await addCol("vat_tax_rate", "REAL DEFAULT 0");
   await addCol("vat_tax_type", "TEXT");
   await addCol("vat_revised_applicability", "TEXT");

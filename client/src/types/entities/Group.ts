@@ -38,6 +38,7 @@ export interface GroupType {
   gst_classification_id?: number;
   slab_based_rates?: string;
   vat_nature_of_transaction?: string;
+  vat_party_entity_type?: string;
   vat_tax_rate?: number;
   vat_tax_type?: string;
   vat_revised_applicability?: string;
