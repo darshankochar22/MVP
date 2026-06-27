@@ -15,6 +15,7 @@ import { REPORT_DEFINITIONS, REPORT_CATEGORIES, type ReportConfig } from "./repo
 import { BalanceSheetLayout } from "@/components/reports/BalanceSheetLayout";
 import { StockSummaryLayout } from "@/components/reports/StockSummaryLayout";
 import StockItemSelectionLayout from "@/components/reports/StockSelectionLayout";
+import { StockQueryLayout } from "@/components/reports/StockQueryLayout";
 import { TrialBalanceLayout } from "@/components/reports/TrialBalanceLayout";
 import { ProfitLossLayout } from "@/components/reports/ProfitnLossLayout";
 import GroupSummaryLayout from "@/components/reports/GroupSummaryLayout";
@@ -151,7 +152,7 @@ export function ReportRunner() {
     "interest-receivable", "interest-payable",
     "interest-calculation-ledger-wise", "interest-calculation-bill-wise",
     "cost-category-summary", "cost-centre-summary", "cost-centre-break-up",
-    "cost-centre-ledger", "cost-centre-wise-p-and-l", "stock-item"
+    "cost-centre-ledger", "cost-centre-wise-p-and-l", "stock-item", "stock-query"
   ];
   if (layoutOnlyReports.includes(reportType)) {
     setLoading(false);
@@ -634,6 +635,8 @@ export function ReportRunner() {
         <BalanceSheetLayout />
          ):reportType === "stock-summary" ?(
         <StockSummaryLayout />
+        ):reportType === "stock-query" ?(
+        <StockQueryLayout />
         ):reportType === "stock-item" ?(
         <StockItemSelectionLayout />
         ):reportType === "profit-loss" ?(

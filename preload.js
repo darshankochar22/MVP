@@ -173,6 +173,7 @@ contextBridge.exposeInMainWorld('api', {
         stockItemSummary:     (company_id, fy_id) => invoke('report:stockItemSummary',     { company_id, fy_id }),
         stockGroupSummary:    (company_id, fy_id) => invoke('report:stockGroupSummary',    { company_id, fy_id }),
         stockCategorySummary: (company_id, fy_id) => invoke('report:stockCategorySummary', { company_id, fy_id }),
+        stockQuery:           (company_id, fy_id, item_id) => invoke('report:stockQuery', { company_id, fy_id, item_id }),
         // Payroll reports
         payslipReport:    (company_id, fy_id) => invoke('report:payslipReport',    { company_id, fy_id }),
         salaryStatement:  (company_id, fy_id) => invoke('report:salaryStatement',  { company_id, fy_id }),

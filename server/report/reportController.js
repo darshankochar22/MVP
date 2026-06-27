@@ -11,6 +11,7 @@ const { groupSummary } = require('./financial/groupSummary');
 const { statistics } = require('./financial/statistics');
 const { costCategorySummary } = require('./financial/costCategorySummary');
 const { stockItemSummary } = require('./inventory/stockItemSummary');
+const { stockQuery } = require('./stockQueryService');
 const { stockGroupSummary } = require('./inventory/stockGroupSummary');
 const { stockCategorySummary } = require('./inventory/stockCategorySummary');
 const { journalRegister } = require('./registers/journalRegister');
@@ -269,5 +270,8 @@ module.exports = {
   },
   creditNoteRegisterVouchers: async (event, { company_id, fy_id, from_date, to_date }) => {
     return await creditNoteRegisterVouchers(company_id, fy_id, from_date, to_date);
+  },
+  stockQuery: async (event, { company_id, fy_id, item_id }) => {
+    return await stockQuery(company_id, fy_id, item_id);
   },
 };

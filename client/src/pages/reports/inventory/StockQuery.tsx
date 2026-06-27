@@ -1,5 +1,5 @@
-import { ReportStub } from "../ReportStub";
+import { ReportRunner } from "../ReportRunner";
 
 export default function StockQuery() {
-  return <ReportStub title="tock uery" />;
+  return <ReportRunner />;
 }

@@ -211,6 +211,7 @@ ipcMain.handle('report:costCategorySummary', reportController.costCategorySummar
 ipcMain.handle('report:stockItemSummary',     reportController.stockItemSummary);
 ipcMain.handle('report:stockGroupSummary',    reportController.stockGroupSummary);
 ipcMain.handle('report:stockCategorySummary', reportController.stockCategorySummary);
+ipcMain.handle('report:stockQuery',           reportController.stockQuery);
 
 // Payroll Reports
 ipcMain.handle('report:payslipReport',    reportController.payslipReport);
