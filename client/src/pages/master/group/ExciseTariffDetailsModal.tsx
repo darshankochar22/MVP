@@ -29,9 +29,20 @@ const EXCISE_UOMS = [
 
 const VALUATION_TYPES = ["Undefined", "Ad Quantum", "Ad Valorem", "Valorem + Quantum"];
 
+export interface ExciseData {
+  excise_tariff_name: string;
+  excise_hsn_code: string;
+  excise_reporting_uom: string;
+  excise_valuation_type: string;
+  excise_rate: number;
+  excise_rate_per_unit: number;
+}
+
 interface ExciseTariffDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialData?: Partial<ExciseData>;
+  onSave?: (data: ExciseData) => void;
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
@@ -44,7 +55,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-export default function ExciseTariffDetailsModal({ isOpen, onClose }: ExciseTariffDetailsModalProps) {
+export default function ExciseTariffDetailsModal({ isOpen, onClose, initialData, onSave }: ExciseTariffDetailsModalProps) {
   const [tariffName, setTariffName] = useState("");
   const [hsnCode, setHsnCode] = useState("");
   const [reportingUom, setReportingUom] = useState("Undefined");
@@ -53,13 +64,13 @@ export default function ExciseTariffDetailsModal({ isOpen, onClose }: ExciseTari
   const [ratePerUnit, setRatePerUnit] = useState("0");
 
   useEffect(() => {
-    if (!isOpen) {
-      setTariffName("");
-      setHsnCode("");
-      setReportingUom("Undefined");
-      setValuationType("Ad Valorem");
-      setRate("0");
-      setRatePerUnit("0");
+    if (isOpen) {
+      setTariffName(initialData?.excise_tariff_name || "");
+      setHsnCode(initialData?.excise_hsn_code || "");
+      setReportingUom(initialData?.excise_reporting_uom || "Undefined");
+      setValuationType(initialData?.excise_valuation_type || "Undefined");
+      setRate(String(initialData?.excise_rate ?? 0));
+      setRatePerUnit(String(initialData?.excise_rate_per_unit ?? 0));
     }
   }, [isOpen]);
 
@@ -162,7 +173,17 @@ export default function ExciseTariffDetailsModal({ isOpen, onClose }: ExciseTari
             Cancel
           </button>
           <button
-            onClick={onClose}
+            onClick={() => {
+              onSave?.({
+                excise_tariff_name: tariffName,
+                excise_hsn_code: hsnCode,
+                excise_reporting_uom: reportingUom,
+                excise_valuation_type: valuationType,
+                excise_rate: Number(rate) || 0,
+                excise_rate_per_unit: Number(ratePerUnit) || 0,
+              });
+              onClose();
+            }}
             className="text-xs px-6 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium"
           >
             Accept

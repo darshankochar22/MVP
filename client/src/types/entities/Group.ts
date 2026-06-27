@@ -37,6 +37,16 @@ export interface GroupType {
   hsn_sac_classification_id?: number;
   gst_classification_id?: number;
   slab_based_rates?: string;
+  vat_nature_of_transaction?: string;
+  vat_tax_rate?: number;
+  vat_tax_type?: string;
+  vat_revised_applicability?: string;
+  excise_tariff_name?: string;
+  excise_hsn_code?: string;
+  excise_reporting_uom?: string;
+  excise_valuation_type?: string;
+  excise_rate?: number;
+  excise_rate_per_unit?: number;
   sort_order?: number;
   group_type?: string;
   display_order?: number;

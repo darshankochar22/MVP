@@ -60,6 +60,16 @@ const init = async (db) => {
   await addCol("hsn_sac_classification_id", "INTEGER");
   await addCol("gst_classification_id", "INTEGER");
   await addCol("slab_based_rates", "TEXT");
+  await addCol("vat_nature_of_transaction", "TEXT");
+  await addCol("vat_tax_rate", "REAL DEFAULT 0");
+  await addCol("vat_tax_type", "TEXT");
+  await addCol("vat_revised_applicability", "TEXT");
+  await addCol("excise_tariff_name", "TEXT");
+  await addCol("excise_hsn_code", "TEXT");
+  await addCol("excise_reporting_uom", "TEXT DEFAULT 'Undefined'");
+  await addCol("excise_valuation_type", "TEXT DEFAULT 'Undefined'");
+  await addCol("excise_rate", "REAL DEFAULT 0");
+  await addCol("excise_rate_per_unit", "REAL DEFAULT 0");
 };
 
 module.exports = { init };

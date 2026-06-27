@@ -26,23 +26,38 @@ const NATURE_OF_TRANSACTIONS = [
 
 const TAX_TYPES = ["Unknown", "Exempt", "Tax Free"];
 
+export interface VATData {
+  vat_nature_of_transaction: string;
+  vat_tax_rate: number;
+  vat_tax_type: string;
+  vat_revised_applicability: string;
+}
+
 interface VATDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialData?: Partial<VATData>;
+  onSave?: (data: VATData) => void;
 }
 
-export default function VATDetailsModal({ isOpen, onClose }: VATDetailsModalProps) {
+export default function VATDetailsModal({ isOpen, onClose, initialData, onSave }: VATDetailsModalProps) {
   const [natureOfTransaction, setNatureOfTransaction] = useState("Undefined");
   const [taxRate, setTaxRate] = useState("0");
   const [taxType, setTaxType] = useState("Unknown");
   const [highlightedTaxType, setHighlightedTaxType] = useState<string>("Unknown");
+  const [revisedApplicability, setRevisedApplicability] = useState("");
+  const [showDatePopup, setShowDatePopup] = useState(false);
+  const [pendingNature, setPendingNature] = useState("");
 
   useEffect(() => {
-    if (!isOpen) {
-      setNatureOfTransaction("Undefined");
-      setTaxRate("0");
-      setTaxType("Unknown");
-      setHighlightedTaxType("Unknown");
+    if (isOpen) {
+      setNatureOfTransaction(initialData?.vat_nature_of_transaction || "Undefined");
+      setTaxRate(String(initialData?.vat_tax_rate ?? 0));
+      setTaxType(initialData?.vat_tax_type || "Unknown");
+      setHighlightedTaxType(initialData?.vat_tax_type || "Unknown");
+      setRevisedApplicability(initialData?.vat_revised_applicability || "");
+      setShowDatePopup(false);
+      setPendingNature("");
     }
   }, [isOpen]);
 
@@ -50,31 +65,63 @@ export default function VATDetailsModal({ isOpen, onClose }: VATDetailsModalProp
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
         e.preventDefault();
-        onClose();
+        if (showDatePopup) {
+          setShowDatePopup(false);
+        } else {
+          onClose();
+        }
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, showDatePopup]);
 
   if (!isOpen) return null;
+
+  const handleNatureChange = (val: string) => {
+    if (val !== "Undefined") {
+      setPendingNature(val);
+      setShowDatePopup(true);
+    } else {
+      setNatureOfTransaction("Undefined");
+      setRevisedApplicability("");
+    }
+  };
+
+  const handleDateConfirm = () => {
+    setNatureOfTransaction(pendingNature);
+    setShowDatePopup(false);
+    setPendingNature("");
+  };
+
+  const handleDateCancel = () => {
+    setShowDatePopup(false);
+    setPendingNature("");
+  };
 
   const handleTaxTypeClick = (t: string) => {
     setHighlightedTaxType(t);
     setTaxType(t);
   };
 
+  const handleAccept = () => {
+    onSave?.({
+      vat_nature_of_transaction: natureOfTransaction,
+      vat_tax_rate: Number(taxRate) || 0,
+      vat_tax_type: taxType,
+      vat_revised_applicability: revisedApplicability,
+    });
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 z-[60] bg-black/30">
-      {/* Main modal - centered horizontally, with right padding to leave room for the panel */}
       <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pr-72">
         <div className="bg-white border border-zinc-300 shadow-2xl w-[480px] flex flex-col">
-          {/* Tally-style title bar */}
           <div className="px-4 py-2 border-b border-zinc-300 bg-zinc-50 text-center">
             <span className="text-[13px] font-semibold text-zinc-900">Tax/Rate details</span>
           </div>
 
-          {/* Body */}
           <div className="flex-1 overflow-y-auto px-5 py-4 bg-white">
             <div className="mb-5">
               <div className="text-[13px] font-semibold text-zinc-800 mb-2">Transaction Info</div>
@@ -84,7 +131,7 @@ export default function VATDetailsModal({ isOpen, onClose }: VATDetailsModalProp
                 <select
                   className={selectCls}
                   value={natureOfTransaction}
-                  onChange={(e) => setNatureOfTransaction(e.target.value)}
+                  onChange={(e) => handleNatureChange(e.target.value)}
                 >
                   <option value="Undefined">Undefined</option>
                   {NATURE_OF_TRANSACTIONS.map((n) => (
@@ -92,6 +139,18 @@ export default function VATDetailsModal({ isOpen, onClose }: VATDetailsModalProp
                   ))}
                 </select>
               </div>
+              {revisedApplicability && (
+                <div className="flex items-center gap-2 ml-4 mt-2">
+                  <span className="text-[13px] text-zinc-700 w-44 shrink-0">Revised Applicability</span>
+                  <span className="text-zinc-400 mr-2">:</span>
+                  <input
+                    className={inputCls}
+                    type="date"
+                    value={revisedApplicability}
+                    onChange={(e) => setRevisedApplicability(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
             <div>
               <div className="text-[13px] font-semibold text-zinc-800 mb-2">VAT Rate</div>
@@ -123,7 +182,6 @@ export default function VATDetailsModal({ isOpen, onClose }: VATDetailsModalProp
             </div>
           </div>
 
-          {/* Footer */}
           <div className="px-4 py-3 border-t border-zinc-300 flex justify-end gap-2 bg-zinc-50">
             <button
               onClick={onClose}
@@ -132,7 +190,7 @@ export default function VATDetailsModal({ isOpen, onClose }: VATDetailsModalProp
               Cancel
             </button>
             <button
-              onClick={onClose}
+              onClick={handleAccept}
               className="text-xs px-6 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium"
             >
               Accept
@@ -141,12 +199,11 @@ export default function VATDetailsModal({ isOpen, onClose }: VATDetailsModalProp
         </div>
       </div>
 
-      {/* Right panel: sticks to extreme right edge */}
+      {/* Right panel */}
       <div className="absolute top-0 right-0 bottom-0 w-72 bg-white border-l border-zinc-300 flex flex-col shadow-2xl">
         <div className="px-3 py-2 border-b border-zinc-300 bg-zinc-50">
           <span className="text-[13px] font-semibold text-zinc-900">List of Taxability</span>
         </div>
-
         <div className="flex-1 overflow-y-auto">
           {TAX_TYPES.map((t) => (
             <div
@@ -161,6 +218,45 @@ export default function VATDetailsModal({ isOpen, onClose }: VATDetailsModalProp
           ))}
         </div>
       </div>
+
+      {/* Revised Applicability date popup */}
+      {showDatePopup && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40">
+          <div className="bg-white border border-zinc-300 shadow-2xl w-80 flex flex-col">
+            <div className="px-4 py-2 border-b border-zinc-300 bg-zinc-50 text-center">
+              <span className="text-[13px] font-semibold text-zinc-900">Revised Applicability</span>
+            </div>
+            <div className="px-5 py-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[13px] text-zinc-700 w-32 shrink-0">Applicable from</span>
+                <span className="text-zinc-400 mr-2">:</span>
+                <input
+                  autoFocus
+                  className="w-full bg-transparent text-[13px] outline-none py-1 px-1 border-b border-zinc-300 focus:border-zinc-500"
+                  type="date"
+                  value={revisedApplicability}
+                  onChange={(e) => setRevisedApplicability(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleDateConfirm(); }}
+                />
+              </div>
+            </div>
+            <div className="px-4 py-3 border-t border-zinc-300 flex justify-end gap-2 bg-zinc-50">
+              <button
+                onClick={handleDateCancel}
+                className="text-xs px-4 py-1.5 border border-zinc-300 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDateConfirm}
+                className="text-xs px-6 py-1.5 bg-black text-white hover:bg-zinc-800 font-medium"
+              >
+                Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

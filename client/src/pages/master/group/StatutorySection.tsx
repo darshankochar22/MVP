@@ -288,10 +288,26 @@ export default function StatutorySection({
       <VATDetailsModal
         isOpen={activeSubModal === "vat"}
         onClose={() => setActiveSubModal(null)}
+        initialData={{
+          vat_nature_of_transaction: form.vat_nature_of_transaction,
+          vat_tax_rate: form.vat_tax_rate,
+          vat_tax_type: form.vat_tax_type,
+          vat_revised_applicability: form.vat_revised_applicability,
+        }}
+        onSave={(data) => setForm((f) => ({ ...f, ...data }))}
       />
       <ExciseTariffDetailsModal
         isOpen={activeSubModal === "excise"}
         onClose={() => setActiveSubModal(null)}
+        initialData={{
+          excise_tariff_name: form.excise_tariff_name,
+          excise_hsn_code: form.excise_hsn_code,
+          excise_reporting_uom: form.excise_reporting_uom,
+          excise_valuation_type: form.excise_valuation_type,
+          excise_rate: form.excise_rate,
+          excise_rate_per_unit: form.excise_rate_per_unit,
+        }}
+        onSave={(data) => setForm((f) => ({ ...f, ...data }))}
       />
       <TDSNatureOfPaymentCreation
         isOpen={showTdsCreate}
