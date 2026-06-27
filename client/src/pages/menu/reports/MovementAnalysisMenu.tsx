@@ -5,6 +5,7 @@ import { Button } from "@/components/shadcn/button";
 const ROUTES: Record<string, string> = {
   "Stock Group Analysis":    "/reports/inventory/stock-group-analysis",
   "Stock Category Analysis": "/reports/inventory/stock-category-analysis",
+  "Stock Item-wise":         "/reports/inventory/stock-item-analysis",
 };
 
 const ITEMS = [

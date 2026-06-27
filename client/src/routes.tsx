@@ -82,6 +82,7 @@ import PhysicalStockRegister from "./pages/reports/inventory/PhysicalStockRegist
 import MovementAnalysis from "./pages/reports/inventory/MovementAnalysis.tsx";
 import StockGroupAnalysis from "./pages/reports/inventory/StockGroupAnalysis.tsx";
 import StockCategoryAnalysis from "./pages/reports/inventory/StockCategoryAnalysis.tsx";
+import StockItemAnalysis from "./pages/reports/inventory/StockItemAnalysis.tsx";
 import SalesOrderBook from "./pages/reports/inventory/SalesOrderBook.tsx";
 import PurchaseOrderBook from "./pages/reports/inventory/PurchaseOrderBook.tsx";
 import AgeingAnalysis from "./pages/reports/inventory/AgeingAnalysis.tsx";
@@ -269,6 +270,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/inventory/movement-analysis",             element: <MovementAnalysis /> },
   { path: "/reports/inventory/stock-group-analysis",          element: <StockGroupAnalysis /> },
   { path: "/reports/inventory/stock-category-analysis",       element: <StockCategoryAnalysis /> },
+  { path: "/reports/inventory/stock-item-analysis",           element: <StockItemAnalysis /> },
   { path: "/reports/inventory/sales-order-book",         element: <SalesOrderBook /> },
   { path: "/reports/inventory/purchase-order-book",      element: <PurchaseOrderBook /> },
   { path: "/reports/inventory/ageing-analysis",          element: <AgeingAnalysis /> },
