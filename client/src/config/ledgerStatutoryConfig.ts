@@ -50,8 +50,8 @@ const BY_PRIMARY_GROUP: Record<string, OtherStatutoryConfig> = {
   "Current Liabilities": { sections: ["tds", "tcs"] },
   "Provisions": { sections: ["serviceTax", "tds"] },
 
-  // Fixed Assets → TDS + Service Tax + Excise + VAT
-  "Fixed Assets": { sections: ["serviceTax", "tds", "excise", "vat"] },
+  // Fixed Assets → TDS + Excise + VAT
+  "Fixed Assets": { sections: ["tds", "excise", "vat"] },
 
   // Branch / Divisions → TDS + TCS
   "Branch/Divisions": { sections: ["tds", "tcs"] },
