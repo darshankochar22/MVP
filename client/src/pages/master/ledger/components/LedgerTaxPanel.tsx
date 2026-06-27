@@ -21,7 +21,6 @@ interface LedgerTaxPanelProps {
   config: LedgerConfigOptions;
   onGSTDetailsChange: (val: "Yes" | "No") => void;
   onServiceTaxDetailsChange: (val: "Yes" | "No") => void;
-  onVATDetailsChange: (val: "Yes" | "No") => void;
 }
 
 function useTaxPanelVisibility(
@@ -30,16 +29,15 @@ function useTaxPanelVisibility(
   statutoryForm: StatutoryDetails,
   form: Partial<LedgerType>
 ) {
-  // Hide everything when behave as payment gateway is Yes
+  // Payment gateway ledger: only GSTIN/UIN under Tax Registration Details
   if (form.behave_as_payment_gateway) {
     return {
       dutyTaxSection: false,
-      taxRegistrationSection: false,
+      taxRegistrationSection: true,
       panField: false,
       fullRegistrationFields: false,
-      gstinField: false,
+      gstinField: true,
       serviceTaxField: false,
-      vatField: false,
     };
   }
 
@@ -64,7 +62,6 @@ function useTaxPanelVisibility(
     fullRegistrationFields: isFull && !assessableGstSelected,
     gstinField: (isFull && !assessableGstSelected && registrationKnown) || isGstinServiceTaxOnly,
     serviceTaxField: (isFull || isGstinServiceTaxOnly) && config.serviceTaxDetails !== false,
-    vatField: (isFull || isGstinServiceTaxOnly) && config.vatDetails !== false,
   };
 }
 
@@ -79,7 +76,6 @@ export default function LedgerTaxPanel({
   config,
   onGSTDetailsChange,
   onServiceTaxDetailsChange,
-  onVATDetailsChange,
 }: LedgerTaxPanelProps) {
   const visibility = useTaxPanelVisibility(config, groupLineage, statutoryForm, form);
 
@@ -157,18 +153,6 @@ export default function LedgerTaxPanel({
             </FormRow>
           )}
 
-          {visibility.vatField && (
-            <FormRow label="Set/Alter VAT Details" labelWidth="w-44" className="flex items-center min-h-[26px]">
-              <select
-                className={selectCls}
-                value={form.service_tax_details ? "Yes" : "No"}
-                onChange={(e) => onVATDetailsChange(e.target.value as "Yes" | "No")}
-              >
-                <option value="No">No</option>
-                <option value="Yes">Yes</option>
-              </select>
-            </FormRow>
-          )}
         </div>
       )}
     </>

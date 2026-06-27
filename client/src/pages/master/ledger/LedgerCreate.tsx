@@ -113,7 +113,6 @@ export default function LedgerCreate() {
     handleServiceTaxClose,
     handleServiceTaxAccept,
     showVATDetailsModal,
-    handleVATDetailsOpen,
     handleVATDetailsClose,
     handleVATDetailsAccept,
     exciseDetails,
@@ -475,7 +474,7 @@ export default function LedgerCreate() {
               </FormRow>
               {!!form.behave_as_payment_gateway && (
                 <FormRow label="Payment Gateway Name" labelWidth="w-60" className="flex items-center min-h-[26px]">
-                  <span className="text-sm text-zinc-500 italic px-1.5">Not Applicable</span>
+                  <span className="text-sm text-zinc-700 px-1.5">&#9670; Not Applicable</span>
                 </FormRow>
               )}
             </div>
@@ -699,12 +698,14 @@ export default function LedgerCreate() {
             </div>
           )}
 
-          {/* Bank details form (inline fields when group is bank) */}
-          <LedgerBankDetailsForm
-            bankForm={bankForm}
-            setBankField={setBankField}
-            groupLineage={groupLineage}
-          />
+          {/* Bank details form (inline fields when group is bank) — hidden when ledger behaves as payment gateway */}
+          {!form.behave_as_payment_gateway && (
+            <LedgerBankDetailsForm
+              bankForm={bankForm}
+              setBankField={setBankField}
+              groupLineage={groupLineage}
+            />
+          )}
 
           <div className="flex-1" />
 
@@ -780,10 +781,6 @@ export default function LedgerCreate() {
             onServiceTaxDetailsChange={(val) => {
               if (val === "Yes") handleServiceTaxOpen();
               else handleServiceTaxClose();
-            }}
-            onVATDetailsChange={(val) => {
-              if (val === "Yes") handleVATDetailsOpen();
-              else handleVATDetailsClose();
             }}
           />
 

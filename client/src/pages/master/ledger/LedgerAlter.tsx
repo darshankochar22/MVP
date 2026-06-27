@@ -120,7 +120,6 @@ export default function LedgerAlter() {
     handleServiceTaxClose,
     handleServiceTaxAccept,
     showVATDetailsModal,
-    handleVATDetailsOpen,
     handleVATDetailsClose,
     handleVATDetailsAccept,
     exciseDetails,
@@ -528,7 +527,7 @@ export default function LedgerAlter() {
               </FormRow>
               {!!form.behave_as_payment_gateway && (
                 <FormRow label="Payment Gateway Name" labelWidth="w-60" className="flex items-center min-h-[26px]">
-                  <span className="text-sm text-zinc-500 italic px-1.5">Not Applicable</span>
+                  <span className="text-sm text-zinc-700 px-1.5">&#9670; Not Applicable</span>
                 </FormRow>
               )}
             </div>
@@ -755,7 +754,7 @@ export default function LedgerAlter() {
             </div>
           )}
 
-          {selectedLedgerId && (
+          {selectedLedgerId && !form.behave_as_payment_gateway && (
             <LedgerBankDetailsForm
               bankForm={bankForm}
               setBankField={setBankField}
@@ -846,10 +845,6 @@ export default function LedgerAlter() {
                 onServiceTaxDetailsChange={(val) => {
                   if (val === "Yes") handleServiceTaxOpen();
                   else handleServiceTaxClose();
-                }}
-                onVATDetailsChange={(val) => {
-                  if (val === "Yes") handleVATDetailsOpen();
-                  else handleVATDetailsClose();
                 }}
               />
 
