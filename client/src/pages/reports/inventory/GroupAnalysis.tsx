@@ -157,7 +157,7 @@ export default function GroupAnalysis() {
         periodLabel={periodLabel} leftLabel="Purchases" rightLabel="Sales" rows={rows}
         loading={loading} error={err} emptyText="No inventory movement found for this group."
         selectedIndex={rowIdx} onSelectIndex={setRowIdx}
-        onActivate={(r, i) => loadVouchers(g, items[i])}
+        onActivate={(_r, i) => loadVouchers(g, items[i])}
         footer={<FooterBar><button onClick={backToSelect} className="hover:underline hover:text-zinc-900">Q: Back to Group Selection</button><span className="text-zinc-400">Enter: Item voucher analysis</span></FooterBar>}
       />
     );

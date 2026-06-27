@@ -157,7 +157,7 @@ export default function LedgerAnalysis() {
         periodLabel={periodLabel} leftLabel="Purchases" rightLabel="Sales" rows={rows}
         loading={loading} error={err} emptyText="No inventory movement found for this ledger."
         selectedIndex={rowIdx} onSelectIndex={setRowIdx}
-        onActivate={(r, i) => loadVouchers(l, items[i])}
+        onActivate={(_r, i) => loadVouchers(l, items[i])}
         footer={<FooterBar><button onClick={backToSelect} className="hover:underline hover:text-zinc-900">Q: Back to Ledger Selection</button><span className="text-zinc-400">Enter: Item voucher analysis</span></FooterBar>}
       />
     );

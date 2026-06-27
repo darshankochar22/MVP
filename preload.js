@@ -175,6 +175,7 @@ contextBridge.exposeInMainWorld('api', {
         stockCategorySummary:     (company_id, fy_id) => invoke('report:stockCategorySummary', { company_id, fy_id }),
         stockGroupAnalysis:       (company_id, fy_id) => invoke('report:stockGroupAnalysis', { company_id, fy_id }),
         stockGroupAnalysisItems:      (company_id, fy_id, group_id)    => invoke('report:stockGroupAnalysisItems', { company_id, fy_id, group_id }),
+        stockAgeingAnalysis:          (company_id, fy_id, group_id, as_at, fy_start, periods) => invoke('report:stockAgeingAnalysis', { company_id, fy_id, group_id, as_at, fy_start, periods }),
         stockCategoryAnalysis:        (company_id, fy_id)               => invoke('report:stockCategoryAnalysis', { company_id, fy_id }),
         stockCategoryAnalysisItems:   (company_id, fy_id, category_id) => invoke('report:stockCategoryAnalysisItems', { company_id, fy_id, category_id }),
         stockItemAnalysis:            (company_id, fy_id)               => invoke('report:stockItemAnalysis', { company_id, fy_id }),

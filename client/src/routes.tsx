@@ -225,6 +225,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/reports/statements-of-inventory",               element: <StatementsOfInventory /> },
   { path: "/reports/statements-of-inventory/stock-query",          element: <StockQuery /> },
   { path: "/reports/statements-of-inventory/movement-analysis",    element: <MovementAnalysisMenu /> },
+  { path: "/reports/statements-of-inventory/ageing-analysis",      element: <AgeingAnalysis /> },
   { path: "/reports/inventory-stock/movement-analysis-stock-group-wise", element: <StockGroupAnalysis /> },
   { path: "/reports/exception",               element: <ExceptionReports /> },
   { path: "/reports/payroll-hr",                 element: <PayrollReports /> },

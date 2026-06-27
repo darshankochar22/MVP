@@ -475,6 +475,30 @@ module.exports = {
       );
       const item = itemRows.length ? itemRows[0] : { name: '', opening_quantity: 0, opening_value: 0 };
 
+      // Opening Balance = FY opening + net movement strictly BEFORE from_date, so a
+      // month-scoped drill (e.g. March) opens with the running balance carried in,
+      // not the FY-start opening. With no from_date it stays at the FY opening.
+      let openingQty   = Number(item.opening_quantity) || 0;
+      let openingValue = Number(item.opening_value) || 0;
+      if (from_date) {
+        const priorRows = await db.all(
+          sql`SELECT
+                COALESCE(SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)}) THEN vse.quantity ELSE -vse.quantity END), 0) AS net_qty,
+                COALESCE(SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)}) THEN vse.amount   ELSE -vse.amount   END), 0) AS net_value
+              FROM ${voucherStockEntries} vse
+              INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
+              WHERE v.company_id = ${company_id}
+                AND v.fy_id = ${fy_id}
+                AND vse.stock_item_id = ${item_id}
+                AND v.is_cancelled = 0
+                AND COALESCE(v.is_optional, 0) = 0
+                AND COALESCE(v.is_post_dated, 0) = 0
+                AND v.date < ${from_date}`
+        );
+        openingQty   += Number(priorRows[0]?.net_qty)   || 0;
+        openingValue += Number(priorRows[0]?.net_value) || 0;
+      }
+
       const dateFrom = from_date ? sql` AND v.date >= ${from_date}` : sql``;
       const dateTo   = to_date   ? sql` AND v.date <= ${to_date}`   : sql``;
       const rows = await db.all(
@@ -499,8 +523,8 @@ module.exports = {
             ORDER BY v.date ASC, v.voucher_id ASC`
       );
 
-      let runningQty = Number(item.opening_quantity) || 0;
-      let runningValue = Number(item.opening_value) || 0;
+      let runningQty = openingQty;
+      let runningValue = openingValue;
       const result = [];
 
       // Opening Balance row (inwards side, mirrors TallyPrime).

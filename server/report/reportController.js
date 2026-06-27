@@ -15,6 +15,7 @@ const { stockQuery } = require('./stockQueryService');
 const { stockGroupSummary } = require('./inventory/stockGroupSummary');
 const { stockCategorySummary } = require('./inventory/stockCategorySummary');
 const { stockGroupAnalysis, stockGroupAnalysisItems } = require('./inventory/stockGroupAnalysis');
+const { stockAgeingAnalysis } = require('./inventory/ageingAnalysis');
 const { stockCategoryAnalysis, stockCategoryAnalysisItems } = require('./inventory/stockCategoryAnalysis');
 const { stockItemAnalysis } = require('./inventory/stockItemAnalysis');
 const { groupAnalysis, ledgerAnalysis } = require('./inventory/groupAnalysis');
@@ -227,6 +228,9 @@ module.exports = {
   },
   stockItemAnalysis: async (event, { company_id, fy_id }) => {
     return await stockItemAnalysis(company_id, fy_id);
+  },
+  stockAgeingAnalysis: async (event, { company_id, fy_id, group_id, as_at, fy_start, periods }) => {
+    return await stockAgeingAnalysis(company_id, fy_id, group_id, as_at, fy_start, periods);
   },
   groupAnalysis: async (event, { company_id, fy_id, group_id }) => {
     return await groupAnalysis(company_id, fy_id, group_id);

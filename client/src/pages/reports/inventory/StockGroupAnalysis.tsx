@@ -177,7 +177,7 @@ export default function StockGroupAnalysis() {
         periodLabel={periodLabel} leftLabel="Inward" rightLabel="Outward" rows={rows}
         loading={loadingGroups} error={groupErr} emptyText="No stock groups found."
         selectedIndex={groupIdx} onSelectIndex={setGroupIdx}
-        onActivate={(r, i) => loadItems({ group_id: groups[i].group_id, group_name: groups[i].group_name }, "groups")}
+        onActivate={(_r, i) => loadItems({ group_id: groups[i].group_id, group_name: groups[i].group_name }, "groups")}
         footer={<FooterBar><button onClick={backToSelect} className="hover:underline hover:text-zinc-900">Q: Back to Group Selection</button><span className="text-zinc-400">Enter: Drill into group</span></FooterBar>}
       />
     );
@@ -193,7 +193,7 @@ export default function StockGroupAnalysis() {
         periodLabel={periodLabel} leftLabel="Inward" rightLabel="Outward" rows={rows}
         loading={loadingItems} error={itemErr} emptyText="No items in this group."
         selectedIndex={itemIdx} onSelectIndex={setItemIdx}
-        onActivate={(r, i) => loadVouchers(g, items[i], level.from)}
+        onActivate={(_r, i) => loadVouchers(g, items[i], level.from)}
         footer={<FooterBar><button onClick={() => level.from === "groups" ? backToGroups() : backToSelect()} className="hover:underline hover:text-zinc-900">Q: Back</button><span className="text-zinc-400">Enter: Item voucher analysis</span></FooterBar>}
       />
     );

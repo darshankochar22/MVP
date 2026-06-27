@@ -54,10 +54,10 @@ export default function ConfirmModal({
         </div>
         <div className="flex gap-2 px-4 py-3 justify-end">
           <Button variant="primary" size="sm" onClick={onConfirm}>
-            <u>Y</u>es
+            <u>{confirmLabel.charAt(0)}</u>{confirmLabel.slice(1)}
           </Button>
           <Button variant="secondary" size="sm" onClick={onCancel}>
-            <u>N</u>o
+            <u>{cancelLabel.charAt(0)}</u>{cancelLabel.slice(1)}
           </Button>
         </div>
       </div>

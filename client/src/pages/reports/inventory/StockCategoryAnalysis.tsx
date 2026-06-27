@@ -151,7 +151,7 @@ export default function StockCategoryAnalysis() {
         periodLabel={periodLabel} leftLabel="Inward" rightLabel="Outward" rows={rows}
         loading={loadingItems} error={itemErr} emptyText="No items found."
         selectedIndex={itemIdx} onSelectIndex={setItemIdx}
-        onActivate={(r, i) => loadVouchers(c, items[i])}
+        onActivate={(_r, i) => loadVouchers(c, items[i])}
         footer={<FooterBar><button onClick={backToSelect} className="hover:underline hover:text-zinc-900">Q: Back to Category Selection</button><span className="text-zinc-400">Enter: Item voucher analysis</span></FooterBar>}
       />
     );
