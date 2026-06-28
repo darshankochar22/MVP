@@ -1,4 +1,4 @@
-# MVP — TallyPrime Clone
+# ERP
 
 Full-featured desktop ERP for Indian businesses. Accounting · Inventory · Payroll · Statutory compliance — all offline, all in one app.
 
@@ -12,7 +12,6 @@ Full-featured desktop ERP for Indian businesses. Accounting · Inventory · Payr
 | Frontend | React 19 + TypeScript + Tailwind CSS v4 |
 | Database | SQLite via Drizzle ORM (`startup.db`) |
 | IPC | `preload.js` contextBridge (~270 channels) |
-| AI | Anthropic Claude / any OpenAI-compatible LLM (BYOK) |
 
 ---
 
@@ -265,17 +264,6 @@ Every voucher save writes a tamper-evident log entry:
 - **Edit Log Summary** report shows all changes across the company in one view.
 
 Compliant with Rule 11g (IT audit trail) requirements.
-
----
-
-## AI Copilot
-
-- Powered by **Anthropic Claude** or any OpenAI-compatible endpoint (DeepSeek, etc.).
-- **BYOK** — bring your own API key; stored in main process only, never sent to renderer.
-- Natural language queries over live accounting data.
-- Three tools: `query` (run Drizzle query), `lookup` (search masters), `propose` (draft a document).
-- Query suggestions, lookup helpers, document proposal generation.
-- Also available as a **FastMCP server** for Claude Desktop / Cursor (`npm run mcp`).
 
 ---
 
