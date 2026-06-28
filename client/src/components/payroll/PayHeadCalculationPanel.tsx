@@ -13,7 +13,12 @@ export interface CalculationConfig {
   rounding_method: string;
   rounding_limit: number;
   compute_method: string;
+  leave_without_pay: string;
+  production_type: string;
 }
+
+const LEAVE_TYPES = ["Not Applicable", "Casual Leave", "Sick Leave", "Earned Leave", "Loss of Pay"];
+const PRODUCTION_TYPES = ["Not Applicable", "Piece Production", "Hours Worked", "Units Produced"];
 
 interface Props {
   config: CalculationConfig;
@@ -41,11 +46,28 @@ export default function PayHeadCalculationPanel({
 
       <FormRow label="Calculation Period" labelWidth="w-44" className="flex items-center min-h-[26px]">
         <select className={selectCls} value={config.calculation_period} onChange={onConfigChange("calculation_period")}>
-          <option value="Months">Months</option>
           <option value="Days">Days</option>
+          <option value="Fortnights">Fortnights</option>
+          <option value="Months">Months</option>
           <option value="Weeks">Weeks</option>
         </select>
       </FormRow>
+
+      {config.calculation_type === "On Attendance" && (
+        <FormRow label="Leave without pay" labelWidth="w-44" className="flex items-center min-h-[26px]">
+          <select className={selectCls} value={config.leave_without_pay} onChange={onConfigChange("leave_without_pay")}>
+            {LEAVE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </FormRow>
+      )}
+
+      {config.calculation_type === "On Production" && (
+        <FormRow label="Production type" labelWidth="w-44" className="flex items-center min-h-[26px]">
+          <select className={selectCls} value={config.production_type} onChange={onConfigChange("production_type")}>
+            {PRODUCTION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </FormRow>
+      )}
 
       {(config.calculation_type === "As User Defined Value" || config.calculation_type === "Flat Rate") && (
         <FormRow label="Value" labelWidth="w-44" className="flex items-center min-h-[26px]">
@@ -66,6 +88,7 @@ export default function PayHeadCalculationPanel({
               <option value="On Current Earnings Total">On Current Earnings Total</option>
               <option value="On Current Deductions Total">On Current Deductions Total</option>
               <option value="On Current SubTotal">On Current SubTotal</option>
+              <option value="On PF Gross">On PF Gross</option>
               <option value="On Specified Formula">On Specified Formula</option>
             </select>
           </FormRow>

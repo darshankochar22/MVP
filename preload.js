@@ -395,6 +395,9 @@ contextBridge.exposeInMainWorld('api', {
         getFormulas:    (pay_head_id) => invoke('payHead:getFormulas', pay_head_id),
         createFormula:  (data)       => invoke('payHead:createFormula', data),
         deleteFormula:  (id)         => invoke('payHead:deleteFormula', id),
+        getGratuitySlabs:    (pay_head_id) => invoke('payHead:getGratuitySlabs', pay_head_id),
+        createGratuitySlab:  (data)        => invoke('payHead:createGratuitySlab', data),
+        deleteGratuitySlab:  (id)          => invoke('payHead:deleteGratuitySlab', id),
     },
     salaryStructure: {
         create:        (data)                                    => invoke('salaryStructure:create', data),

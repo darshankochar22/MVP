@@ -33,10 +33,30 @@ export interface PayHeadType {
   rounding_limit?: number;
   statutory_component?: string;
   percentage_or_amount?: number;
+  statutory_pay_type?: string;
+  compute_method?: string;
+  registration_number?: string;
+  contribute_min_rs2?: number;
+  leave_without_pay?: string;
+  production_type?: string;
+  opening_balance?: number;
+  it_component?: string;
+  it_calculation_basis?: string;
+  it_deduct_tds_across_periods?: number;
+  gratuity_days_per_month?: number;
   is_active?: number;
   is_predefined?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface PayHeadGratuitySlabType {
+  gratuity_slab_id?: number;
+  pay_head_id?: number;
+  months_from?: number;
+  months_to?: number;
+  eligibility_days?: number;
+  created_at?: string;
 }
 
 export interface PayHeadSlabLineType {

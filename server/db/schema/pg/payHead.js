@@ -29,10 +29,33 @@ const payHeads = pgTable('pay_heads', {
   roundingLimit: numeric('rounding_limit', { precision: 18, scale: 4 }).default('0'),
   statutoryComponent: text('statutory_component'),
   percentageOrAmount: numeric('percentage_or_amount', { precision: 18, scale: 4 }).default('0'),
+  statutoryPayType: text('statutory_pay_type'),
+  computeMethod: text('compute_method').default('On Current Earnings Total'),
+  registrationNumber: text('registration_number'),
+  contributeMinRs2: boolean('contribute_min_rs2').default(false),
+  leaveWithoutPay: text('leave_without_pay'),
+  productionType: text('production_type'),
+  openingBalance: numeric('opening_balance', { precision: 18, scale: 4 }).default('0'),
+  itComponent: text('it_component'),
+  itCalculationBasis: text('it_calculation_basis'),
+  itDeductTdsAcrossPeriods: boolean('it_deduct_tds_across_periods').default(false),
+  gratuityDaysPerMonth: numeric('gratuity_days_per_month', { precision: 18, scale: 4 }).default('0'),
   isActive: boolean('is_active').default(true),
   isPredefined: boolean('is_predefined').default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
+});
+
+// pay_head_gratuity_slabs
+const payHeadGratuitySlabs = pgTable('pay_head_gratuity_slabs', {
+  gratuitySlabId: bigint('gratuity_slab_id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+  payHeadId: bigint('pay_head_id', { mode: 'number' })
+    .notNull()
+    .references(() => payHeads.payHeadId, { onDelete: 'cascade' }),
+  monthsFrom: integer('months_from'),
+  monthsTo: integer('months_to'),
+  eligibilityDays: numeric('eligibility_days', { precision: 18, scale: 4 }).default('0'),
+  createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
 });
 
 // pay_head_slab_lines
@@ -67,4 +90,5 @@ module.exports = {
   payHeads,
   payHeadSlabLines,
   payHeadFormulaLines,
+  payHeadGratuitySlabs,
 };

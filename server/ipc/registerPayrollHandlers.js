@@ -53,6 +53,9 @@ function register() {
   ipcMain.handle('payHead:getFormulas', payHeadController.getFormulas);
   ipcMain.handle('payHead:createFormula', payHeadController.createFormula);
   ipcMain.handle('payHead:deleteFormula', payHeadController.deleteFormula);
+  ipcMain.handle('payHead:getGratuitySlabs', payHeadController.getGratuitySlabs);
+  ipcMain.handle('payHead:createGratuitySlab', payHeadController.createGratuitySlab);
+  ipcMain.handle('payHead:deleteGratuitySlab', payHeadController.deleteGratuitySlab);
 
   ipcMain.handle('salaryStructure:create', salaryStructureController.create);
   ipcMain.handle('salaryStructure:getAll', salaryStructureController.getAll);

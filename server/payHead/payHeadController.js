@@ -12,4 +12,7 @@ module.exports = {
   getFormulas: async (event, pay_head_id) => payHeadService.getFormulas(pay_head_id),
   createFormula: async (event, data) => payHeadService.createFormula(data),
   deleteFormula: async (event, id) => payHeadService.deleteFormula(id),
+  getGratuitySlabs: async (event, pay_head_id) => payHeadService.getGratuitySlabs(pay_head_id),
+  createGratuitySlab: async (event, data) => payHeadService.createGratuitySlab(data),
+  deleteGratuitySlab: async (event, id) => payHeadService.deleteGratuitySlab(id),
 };

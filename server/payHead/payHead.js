@@ -30,6 +30,35 @@ const init = async (db) => {
     try { await db.execute(`ALTER TABLE pay_heads ADD COLUMN ${col} TEXT`); } catch (_) {}
   }
 
+  // Issue #153 — additional TallyPrime pay-head fields.
+  const newCols = [
+    ['statutory_pay_type', 'TEXT'],
+    ['compute_method', "TEXT DEFAULT 'On Current Earnings Total'"],
+    ['registration_number', 'TEXT'],
+    ['contribute_min_rs2', 'INTEGER DEFAULT 0'],
+    ['leave_without_pay', 'TEXT'],
+    ['production_type', 'TEXT'],
+    ['opening_balance', 'REAL DEFAULT 0'],
+    ['it_component', 'TEXT'],
+    ['it_calculation_basis', 'TEXT'],
+    ['it_deduct_tds_across_periods', 'INTEGER DEFAULT 0'],
+    ['gratuity_days_per_month', 'REAL DEFAULT 0'],
+  ];
+  for (const [col, type] of newCols) {
+    try { await db.execute(`ALTER TABLE pay_heads ADD COLUMN ${col} ${type}`); } catch (_) {}
+  }
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS pay_head_gratuity_slabs (
+      gratuity_slab_id  INTEGER PRIMARY KEY AUTOINCREMENT,
+      pay_head_id       INTEGER NOT NULL REFERENCES pay_heads(pay_head_id) ON DELETE CASCADE,
+      months_from       INTEGER,
+      months_to         INTEGER,
+      eligibility_days  REAL DEFAULT 0,
+      created_at        TEXT DEFAULT (datetime('now'))
+    )
+  `);
+
   await db.execute(`
     CREATE TABLE IF NOT EXISTS pay_head_slab_lines (
       slab_line_id      INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -20,10 +20,31 @@ const payHeads = sqliteTable('pay_heads', {
   roundingLimit: real('rounding_limit').default(0),
   statutoryComponent: text('statutory_component'),
   percentageOrAmount: real('percentage_or_amount').default(0),
+  statutoryPayType: text('statutory_pay_type'),
+  computeMethod: text('compute_method').default('On Current Earnings Total'),
+  registrationNumber: text('registration_number'),
+  contributeMinRs2: integer('contribute_min_rs2').default(0),
+  leaveWithoutPay: text('leave_without_pay'),
+  productionType: text('production_type'),
+  openingBalance: real('opening_balance').default(0),
+  itComponent: text('it_component'),
+  itCalculationBasis: text('it_calculation_basis'),
+  itDeductTdsAcrossPeriods: integer('it_deduct_tds_across_periods').default(0),
+  gratuityDaysPerMonth: real('gratuity_days_per_month').default(0),
   isActive: integer('is_active').default(1),
   isPredefined: integer('is_predefined').default(0),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').default(sql`(datetime('now'))`),
+});
+
+// pay_head_gratuity_slabs
+const payHeadGratuitySlabs = sqliteTable('pay_head_gratuity_slabs', {
+  gratuitySlabId: integer('gratuity_slab_id').primaryKey({ autoIncrement: true }),
+  payHeadId: integer('pay_head_id').notNull().references(() => payHeads.payHeadId),
+  monthsFrom: integer('months_from'),
+  monthsTo: integer('months_to'),
+  eligibilityDays: real('eligibility_days').default(0),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
 });
 
 // pay_head_slab_lines
@@ -53,4 +74,5 @@ module.exports = {
   payHeads,
   payHeadSlabLines,
   payHeadFormulaLines,
+  payHeadGratuitySlabs,
 };

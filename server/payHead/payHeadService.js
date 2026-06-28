@@ -1,6 +1,6 @@
 const { db } = require('../db/index');
 const { sql, eq } = require('drizzle-orm');
-const { payHeads, payHeadSlabLines, payHeadFormulaLines } = require('../db/schema');
+const { payHeads, payHeadSlabLines, payHeadFormulaLines, payHeadGratuitySlabs } = require('../db/schema');
 
 // Fetch a single pay_head row in the legacy snake_case shape (or undefined).
 const findPayHead = async (id) => {
@@ -72,6 +72,17 @@ module.exports = {
           roundingLimit: data.rounding_limit || 0,
           statutoryComponent: data.statutory_component || null,
           percentageOrAmount: data.percentage_or_amount || 0,
+          statutoryPayType: data.statutory_pay_type || null,
+          computeMethod: data.compute_method || 'On Current Earnings Total',
+          registrationNumber: data.registration_number || null,
+          contributeMinRs2: data.contribute_min_rs2 ?? 0,
+          leaveWithoutPay: data.leave_without_pay || null,
+          productionType: data.production_type || null,
+          openingBalance: data.opening_balance || 0,
+          itComponent: data.it_component || null,
+          itCalculationBasis: data.it_calculation_basis || null,
+          itDeductTdsAcrossPeriods: data.it_deduct_tds_across_periods ?? 0,
+          gratuityDaysPerMonth: data.gratuity_days_per_month || 0,
           isActive: 1,
           isPredefined: 0,
         })
@@ -131,6 +142,17 @@ module.exports = {
           roundingLimit: data.rounding_limit ?? current.rounding_limit,
           statutoryComponent: data.statutory_component ?? current.statutory_component,
           percentageOrAmount: data.percentage_or_amount ?? current.percentage_or_amount,
+          statutoryPayType: data.statutory_pay_type ?? current.statutory_pay_type,
+          computeMethod: data.compute_method ?? current.compute_method,
+          registrationNumber: data.registration_number ?? current.registration_number,
+          contributeMinRs2: data.contribute_min_rs2 ?? current.contribute_min_rs2,
+          leaveWithoutPay: data.leave_without_pay ?? current.leave_without_pay,
+          productionType: data.production_type ?? current.production_type,
+          openingBalance: data.opening_balance ?? current.opening_balance,
+          itComponent: data.it_component ?? current.it_component,
+          itCalculationBasis: data.it_calculation_basis ?? current.it_calculation_basis,
+          itDeductTdsAcrossPeriods: data.it_deduct_tds_across_periods ?? current.it_deduct_tds_across_periods,
+          gratuityDaysPerMonth: data.gratuity_days_per_month ?? current.gratuity_days_per_month,
           updatedAt: sql`datetime('now')`,
         })
         .where(eq(payHeads.payHeadId, data.pay_head_id));
@@ -241,6 +263,49 @@ module.exports = {
   deleteFormula: async (id) => {
     try {
       await db.delete(payHeadFormulaLines).where(eq(payHeadFormulaLines.formulaLineId, id));
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  getGratuitySlabs: async (pay_head_id) => {
+    try {
+      const rows = await db.all(
+        sql`SELECT * FROM ${payHeadGratuitySlabs}
+            WHERE ${payHeadGratuitySlabs.payHeadId} = ${pay_head_id}
+            ORDER BY ${payHeadGratuitySlabs.monthsFrom}`
+      );
+      return { success: true, gratuitySlabs: rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  createGratuitySlab: async (data) => {
+    try {
+      const inserted = await db
+        .insert(payHeadGratuitySlabs)
+        .values({
+          payHeadId: data.pay_head_id,
+          monthsFrom: data.months_from ?? null,
+          monthsTo: data.months_to ?? null,
+          eligibilityDays: data.eligibility_days || 0,
+        })
+        .returning({ id: payHeadGratuitySlabs.gratuitySlabId });
+
+      const rows = await db.all(
+        sql`SELECT * FROM ${payHeadGratuitySlabs} WHERE ${payHeadGratuitySlabs.gratuitySlabId} = ${inserted[0].id}`
+      );
+      return { success: true, gratuitySlab: rows[0] };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  deleteGratuitySlab: async (id) => {
+    try {
+      await db.delete(payHeadGratuitySlabs).where(eq(payHeadGratuitySlabs.gratuitySlabId, id));
       return { success: true };
     } catch (err) {
       return { success: false, error: err.message };
