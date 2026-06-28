@@ -63,7 +63,7 @@ export default function ExciseAdditionalInfoModal({
 
   useEffect(() => {
     if (!companyId) return;
-    window.api.taxUnit.getAll(companyId).then((r: any) => {
+    (window as any).api.taxUnits.getAll(companyId).then((r: any) => {
       if (r.success) setTaxUnits(r.taxUnits ?? []);
     });
   }, [companyId]);

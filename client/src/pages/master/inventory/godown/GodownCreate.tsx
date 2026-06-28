@@ -43,7 +43,7 @@ export default function GodownCreate() {
     window.api.godown.getAll(companyId).then(r => {
       if (r.success) setGodowns(r.godowns ?? []);
     });
-    window.api.taxUnit.getAll(companyId).then((r: any) => {
+    (window.api as any).taxUnits.getAll(companyId).then((r: any) => {
       if (r.success) setTaxUnits(r.taxUnits ?? []);
     });
   }, [companyId]);
@@ -169,12 +169,6 @@ export default function GodownCreate() {
               </button>
             </FormRow>
 
-            <FormRow label="Allow Storage of Materials" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={form.allow_storage_of_materials} onChange={setField("allow_storage_of_materials")}>
-                <option value="1">Yes</option>
-                <option value="0">No</option>
-              </select>
-            </FormRow>
           </div>
         </div>
 
@@ -197,7 +191,7 @@ export default function GodownCreate() {
                 className={[
                   "px-3 py-1.5 text-sm cursor-pointer border-b border-zinc-50",
                   form.excise_tax_unit === "Not Applicable"
-                    ? "bg-amber-400 text-zinc-900 font-semibold"
+                    ? "bg-zinc-900 text-white font-semibold"
                     : "hover:bg-zinc-100 text-zinc-800",
                 ].join(" ")}
                 onClick={() => { setForm(f => ({ ...f, excise_tax_unit: "Not Applicable" })); setShowTaxUnitPanel(false); }}
@@ -210,7 +204,7 @@ export default function GodownCreate() {
                   className={[
                     "px-3 py-1.5 text-sm cursor-pointer border-b border-zinc-50",
                     form.excise_tax_unit === tu.name
-                      ? "bg-amber-400 text-zinc-900 font-semibold"
+                      ? "bg-zinc-900 text-white font-semibold"
                       : "hover:bg-zinc-100 text-zinc-800",
                   ].join(" ")}
                   onClick={() => { setForm(f => ({ ...f, excise_tax_unit: tu.name })); setShowTaxUnitPanel(false); }}
