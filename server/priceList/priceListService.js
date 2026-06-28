@@ -38,7 +38,7 @@ module.exports = {
 
   create: async (data) => {
     try {
-      const { company_id, stock_group, price_level, applicable_from, lines } = data;
+      const { company_id, stock_group, stock_category, price_level, applicable_from, lines } = data;
 
       if (!company_id)      return { success: false, error: 'company_id is required.' };
       if (!price_level)     return { success: false, error: 'price_level is required.' };
@@ -52,6 +52,7 @@ module.exports = {
         .values({
           companyId: company_id,
           stockGroup: stock_group || 'All Items',
+          stockCategory: stock_category ?? null,
           priceLevel: price_level,
           applicableFrom: applicable_from,
           isActive: 1,
@@ -120,7 +121,7 @@ module.exports = {
 
   update: async (data) => {
     try {
-      const { id, company_id, stock_group, price_level, applicable_from, lines } = data;
+      const { id, company_id, stock_group, stock_category, price_level, applicable_from, lines } = data;
 
       if (!id)              return { success: false, error: 'id is required.' };
       if (!price_level)     return { success: false, error: 'price_level is required.' };
@@ -140,6 +141,7 @@ module.exports = {
         .update(priceLists)
         .set({
           stockGroup: stock_group || 'All Items',
+          stockCategory: stock_category ?? null,
           priceLevel: price_level,
           applicableFrom: applicable_from,
           updatedAt: sql`datetime('now')`,

@@ -12,6 +12,15 @@ const init = async (db) => {
     )
   `);
 
+  // Idempotent column add for category-based price lists (issue #138).
+  // SQLite has no "ADD COLUMN IF NOT EXISTS"; guard with try/catch so a
+  // re-run on an already-migrated DB is a no-op.
+  try {
+    await db.execute(`ALTER TABLE price_lists ADD COLUMN stock_category TEXT`);
+  } catch (err) {
+    // Column already exists — ignore.
+  }
+
   await db.execute(`
     CREATE TABLE IF NOT EXISTS price_list_lines (
       line_id           INTEGER PRIMARY KEY AUTOINCREMENT,

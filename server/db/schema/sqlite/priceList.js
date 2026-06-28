@@ -5,6 +5,7 @@ const priceLists = sqliteTable('price_lists', {
   priceListId: integer('price_list_id').primaryKey({ autoIncrement: true }),
   companyId: integer('company_id').notNull(),
   stockGroup: text('stock_group').notNull().default('All Items'),
+  stockCategory: text('stock_category'),
   priceLevel: text('price_level').notNull(),
   applicableFrom: text('applicable_from').notNull(),
   isActive: integer('is_active').default(1),

@@ -34,6 +34,8 @@ const ledgers = pgTable('ledgers', {
   allowCostCentres: boolean('allow_cost_centres').default(false),
   defaultCreditPeriod: integer('default_credit_period').default(0),
   checkCreditDays: integer('check_credit_days').default(0),
+  creditLimit: numeric('credit_limit', { precision: 18, scale: 2 }).default('0'),
+  creditLimitType: text('credit_limit_type').default('Cr'),
   invoiceRounding: boolean('invoice_rounding').default(false),
   roundingMethod: text('rounding_method'),
   roundingLimit: numeric('rounding_limit', { precision: 18, scale: 4 }).default('0'),

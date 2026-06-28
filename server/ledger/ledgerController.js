@@ -87,6 +87,10 @@ module.exports = {
         return await ledgerService.getByGroup(company_id, group_id);
     },
 
+    updateCreditLimits: async (event, { company_id, rows }) => {
+        return await ledgerService.updateCreditLimits(company_id, rows);
+    },
+
     getTotalOpeningBalance: async (event, company_id) => {
         return await ledgerService.getTotalOpeningBalance(company_id);
     },

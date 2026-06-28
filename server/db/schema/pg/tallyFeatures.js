@@ -26,7 +26,7 @@ const tallyFeatures = pgTable('tally_features', {
   enableTcs: boolean('enable_tcs').notNull().default(false),
   enableBrowserAccessForReports: boolean('enable_browser_access_for_reports').notNull().default(false),
   enableTallyNetServices: boolean('enable_tally_net_services').notNull().default(false),
-  enablePaymentRequestQr: boolean('enable_payment_request_qr').notNull().default(false),
+  enablePaymentRequestQr: boolean('enable_payment_request_qr').notNull().default(true),
   enableMultipleAddresses: boolean('enable_multiple_addresses').notNull().default(false),
   markModifiedVouchers: boolean('mark_modified_vouchers').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

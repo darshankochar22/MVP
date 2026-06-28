@@ -16,6 +16,7 @@ const priceLists = pgTable('price_lists', {
     .generatedByDefaultAsIdentity(),
   companyId: bigint('company_id', { mode: 'number' }).notNull(),
   stockGroup: text('stock_group').notNull().default('All Items'),
+  stockCategory: text('stock_category'),
   priceLevel: text('price_level').notNull(),
   applicableFrom: date('applicable_from').notNull(),
   isActive: boolean('is_active').notNull().default(true),

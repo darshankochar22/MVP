@@ -11,6 +11,12 @@ export type {
 } from './Budget';
 export type { ScenarioType, ScenarioVoucher } from './Scenario';
 export type { ExciseDutyClassificationType } from './ExciseDutyClassification';
+export type {
+  ExciseBookType,
+  ExciseBookRestartRow,
+  ExciseBookAffixRow,
+  ExciseNumberingMethod,
+} from './ExciseBook';
 export type { CostCategoryType } from './CostCategory';
 export type { UnitType } from './Unit';
 export type { StockGroupType, StockGroupTreeNode } from './StockGroup';

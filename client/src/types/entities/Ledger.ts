@@ -28,6 +28,8 @@ export interface LedgerType {
   service_tax_details?: number;
   default_credit_period?: number;
   check_credit_days?: number;
+  credit_limit?: number;
+  credit_limit_type?: string;
   allow_cost_centres?: number;
   invoice_rounding?: number;
   rounding_method?: string;

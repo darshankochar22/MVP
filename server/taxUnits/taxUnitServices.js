@@ -47,9 +47,17 @@ module.exports = {
           registeredFor: data.registered_for || "Excise",
           setAlterExciseDetails: data.set_alter_excise_details ? 1 : 0,
           registrationType: data.registration_type || "Importer",
+          typeOfManufacturer: data.type_of_manufacturer || null,
           eccNumber: data.ecc_number || null,
           setAlterExciseTariff: data.set_alter_excise_tariff ? 1 : 0,
+          tariffName: data.tariff_name || null,
+          hsnCode: data.hsn_code || null,
+          reportingUom: data.reporting_uom || null,
+          valuationType: data.valuation_type || null,
+          tariffRate: Number(data.tariff_rate) || 0,
+          tariffRatePerUnit: Number(data.tariff_rate_per_unit) || 0,
           setAlterRule11Book: data.set_alter_rule11_book ? 1 : 0,
+          rule11Book: data.rule11_book || null,
           sortOrder: data.sort_order || 0,
           isActive: 1,
         })
@@ -118,6 +126,10 @@ module.exports = {
             data.registration_type !== undefined
               ? data.registration_type
               : taxUnit.registration_type,
+          typeOfManufacturer:
+            data.type_of_manufacturer !== undefined
+              ? data.type_of_manufacturer
+              : taxUnit.type_of_manufacturer,
           eccNumber: data.ecc_number !== undefined ? data.ecc_number : taxUnit.ecc_number,
           setAlterExciseTariff:
             data.set_alter_excise_tariff !== undefined
@@ -125,12 +137,22 @@ module.exports = {
                 ? 1
                 : 0
               : taxUnit.set_alter_excise_tariff,
+          tariffName: data.tariff_name !== undefined ? data.tariff_name : taxUnit.tariff_name,
+          hsnCode: data.hsn_code !== undefined ? data.hsn_code : taxUnit.hsn_code,
+          reportingUom: data.reporting_uom !== undefined ? data.reporting_uom : taxUnit.reporting_uom,
+          valuationType: data.valuation_type !== undefined ? data.valuation_type : taxUnit.valuation_type,
+          tariffRate: data.tariff_rate !== undefined ? Number(data.tariff_rate) || 0 : taxUnit.tariff_rate,
+          tariffRatePerUnit:
+            data.tariff_rate_per_unit !== undefined
+              ? Number(data.tariff_rate_per_unit) || 0
+              : taxUnit.tariff_rate_per_unit,
           setAlterRule11Book:
             data.set_alter_rule11_book !== undefined
               ? data.set_alter_rule11_book
                 ? 1
                 : 0
               : taxUnit.set_alter_rule11_book,
+          rule11Book: data.rule11_book !== undefined ? data.rule11_book : taxUnit.rule11_book,
           sortOrder: data.sort_order !== undefined ? data.sort_order : taxUnit.sort_order,
           updatedAt: sql`datetime('now')`,
         })

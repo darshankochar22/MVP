@@ -30,7 +30,7 @@ const seedDefaultFeatures = async (company_id) => {
     enableTcs: 0,
     enableBrowserAccessForReports: 0,
     enableTallyNetServices: 0,
-    enablePaymentRequestQr: 0,
+    enablePaymentRequestQr: 1,
     enableMultipleAddresses: 0,
     markModifiedVouchers: 0,
   });
@@ -130,7 +130,7 @@ module.exports = {
           enableTcs: 0,
           enableBrowserAccessForReports: 0,
           enableTallyNetServices: 0,
-          enablePaymentRequestQr: 0,
+          enablePaymentRequestQr: 1,
           enableMultipleAddresses: 0,
           markModifiedVouchers: 0,
           updatedAt: sql`datetime('now')`,

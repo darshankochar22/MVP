@@ -26,7 +26,7 @@ const tallyFeatures = sqliteTable('tally_features', {
   enableTcs: integer('enable_tcs').default(0),
   enableBrowserAccessForReports: integer('enable_browser_access_for_reports').default(0),
   enableTallyNetServices: integer('enable_tally_net_services').default(0),
-  enablePaymentRequestQr: integer('enable_payment_request_qr').default(0),
+  enablePaymentRequestQr: integer('enable_payment_request_qr').default(1),
   enableMultipleAddresses: integer('enable_multiple_addresses').default(0),
   markModifiedVouchers: integer('mark_modified_vouchers').default(0),
   createdAt: text('created_at').default(sql`(datetime('now'))`),

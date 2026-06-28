@@ -110,6 +110,11 @@ const initDB = async () => {
   await require("../attendanceType/attendanceType").init(rawDb);
   await require("../payHead/payHead").init(rawDb);
   await require("../payrollStatutoryDetails/payrollStatutoryDetails").init(rawDb);
+  await require("../serviceTaxDetails/serviceTaxDetails").init(rawDb);
+  await require("../exciseRegistrationDetails/exciseRegistrationDetails").init(rawDb);
+  await require("../exciseBook/exciseBook").init(rawDb);
+  await require("../merchantProfile/merchantProfile").init(rawDb);
+  await require("../vatRegistrationDetails/vatRegistrationDetails").init(rawDb);
   await require("../dayBookReport/dayBookReport").init(rawDb);
   await require("../balanceSheetReport/balanceSheetReport").init(rawDb);
   await require("../profitLossReport/profitLossReport").init(rawDb);

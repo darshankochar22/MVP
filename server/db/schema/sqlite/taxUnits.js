@@ -1,4 +1,4 @@
-const { sqliteTable, integer, text } = require('drizzle-orm/sqlite-core');
+const { sqliteTable, integer, text, real } = require('drizzle-orm/sqlite-core');
 const { sql } = require('drizzle-orm');
 
 // SQLite stores created_at/updated_at as TEXT DEFAULT (datetime('now')).
@@ -22,9 +22,17 @@ const taxUnits = sqliteTable('tax_units', {
   registeredFor: text('registered_for').default('Excise'),
   setAlterExciseDetails: integer('set_alter_excise_details').default(0),
   registrationType: text('registration_type').default('Importer'),
+  typeOfManufacturer: text('type_of_manufacturer'),
   eccNumber: text('ecc_number'),
   setAlterExciseTariff: integer('set_alter_excise_tariff').default(0),
+  tariffName: text('tariff_name'),
+  hsnCode: text('hsn_code'),
+  reportingUom: text('reporting_uom'),
+  valuationType: text('valuation_type'),
+  tariffRate: real('tariff_rate').default(0),
+  tariffRatePerUnit: real('tariff_rate_per_unit').default(0),
   setAlterRule11Book: integer('set_alter_rule11_book').default(0),
+  rule11Book: text('rule11_book'),
   sortOrder: integer('sort_order').default(0),
   isActive: integer('is_active').default(1),
   createdAt: text('created_at').default(datetimeNow),

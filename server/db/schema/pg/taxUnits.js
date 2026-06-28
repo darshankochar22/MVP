@@ -1,4 +1,4 @@
-const { pgTable, bigint, text, integer, boolean, timestamp } = require('drizzle-orm/pg-core');
+const { pgTable, bigint, text, integer, real, boolean, timestamp } = require('drizzle-orm/pg-core');
 const { companies } = require('./company');
 
 // Follows docs/db/modules/taxUnits.sql.
@@ -25,9 +25,17 @@ const taxUnits = pgTable('tax_units', {
   registeredFor: text('registered_for').notNull().default('Excise'),
   setAlterExciseDetails: boolean('set_alter_excise_details').notNull().default(false),
   registrationType: text('registration_type').notNull().default('Importer'),
+  typeOfManufacturer: text('type_of_manufacturer'),
   eccNumber: text('ecc_number'),
   setAlterExciseTariff: boolean('set_alter_excise_tariff').notNull().default(false),
+  tariffName: text('tariff_name'),
+  hsnCode: text('hsn_code'),
+  reportingUom: text('reporting_uom'),
+  valuationType: text('valuation_type'),
+  tariffRate: real('tariff_rate').default(0),
+  tariffRatePerUnit: real('tariff_rate_per_unit').default(0),
   setAlterRule11Book: boolean('set_alter_rule11_book').notNull().default(false),
+  rule11Book: text('rule11_book'),
   sortOrder: integer('sort_order').notNull().default(0),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

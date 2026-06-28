@@ -7,6 +7,9 @@ import type { CompanyTDSDetails } from '../entities/CompanyTDSDetails';
 import type { CompanyTCSDetails } from '../entities/CompanyTCSDetails';
 import type { CompanyPanCinDetails } from '../entities/CompanyPanCinDetails';
 import type { PayrollStatutoryDetails } from '../entities/PayrollStatutoryDetails';
+import type { ServiceTaxDetails } from '../entities/ServiceTaxDetails';
+import type { ExciseRegistrationDetails } from '../entities/ExciseRegistrationDetails';
+import type { VATRegistrationDetails } from '../entities/VATRegistrationDetails';
 import type { TCSNatureOfGoodsType } from '../entities/TCSNatureOfGoods';
 import type { TDSNatureOfPaymentType } from '../entities/TDSNatureOfPayment';
 
@@ -19,6 +22,21 @@ export interface MasterDataAPI {
   payrollStatutoryDetails: {
     get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: PayrollStatutoryDetails | null; error?: string }>;
     save: (data: PayrollStatutoryDetails & { company_id: number }) => Promise<{ success: boolean; error?: string }>;
+  };
+
+  serviceTaxDetails: {
+    get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: ServiceTaxDetails | null; error?: string }>;
+    save: (data: ServiceTaxDetails & { company_id: number }) => Promise<{ success: boolean; error?: string }>;
+  };
+
+  exciseRegistrationDetails: {
+    get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: ExciseRegistrationDetails | null; error?: string }>;
+    save: (data: ExciseRegistrationDetails & { company_id: number }) => Promise<{ success: boolean; error?: string }>;
+  };
+
+  vatRegistrationDetails: {
+    get: (company_id: number) => Promise<{ success: boolean; exists: boolean; data: VATRegistrationDetails | null; error?: string }>;
+    save: (data: VATRegistrationDetails & { company_id: number }) => Promise<{ success: boolean; error?: string }>;
   };
 
   companyTdsDetails: {

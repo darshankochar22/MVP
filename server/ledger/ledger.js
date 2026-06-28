@@ -123,6 +123,14 @@ const init = async (db) => {
   } catch (err) {}
 
   try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN credit_limit REAL DEFAULT 0`);
+  } catch (err) {}
+
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN credit_limit_type TEXT DEFAULT 'Cr'`);
+  } catch (err) {}
+
+  try {
     await db.execute(`ALTER TABLE ledgers ADD COLUMN allow_cost_centres INTEGER DEFAULT 0`);
   } catch (err) {}
 

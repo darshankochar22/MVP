@@ -14,8 +14,8 @@ import type { TaxUnitType } from "@/types/entities";
 
 const REGISTRATION_TYPES = ["Dealer", "Importer", "Manufacturer"];
 
-const activeClass = "bg-[#ffea5d] border-[#e6c300] text-zinc-950 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs uppercase";
-const inactiveClass = "border-transparent bg-transparent text-zinc-900 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs uppercase";
+const activeClass = "bg-zinc-100 border-zinc-800 text-zinc-950 px-2 py-0.5 outline-none border w-64 font-mono font-bold text-xs uppercase";
+const inactiveClass = "border-transparent bg-transparent text-zinc-900 px-2 py-0.5 outline-none border hover:border-zinc-200 w-64 font-mono font-bold text-xs uppercase";
 const getSelectCls = (isActive: boolean) =>
   `${isActive ? activeClass : inactiveClass}`;
 const getInputCls = (isActive: boolean) =>
@@ -186,9 +186,6 @@ const FIELDS = [
   "name",
   "alias",
   "addressLine1",
-  "addressLine2",
-  "addressLine3",
-  "addressLine4",
   "state",
   "pincode",
   "telephone",
@@ -623,37 +620,15 @@ export default function TaxAlter() {
 
             <div className="py-2" />
 
-            <FormRow label="Address" labelWidth="w-56" className="items-start">
-              <div className="flex flex-col gap-1 flex-1">
-                <input
-                  ref={addressLine1Ref}
-                  className={getInputCls(activeField === "addressLine1")}
-                  value={form.addressLine1}
-                  onChange={set("addressLine1")}
-                  onFocus={() => setActiveField("addressLine1")}
-                />
-                <input
-                  ref={addressLine2Ref}
-                  className={getInputCls(activeField === "addressLine2")}
-                  value={form.addressLine2}
-                  onChange={set("addressLine2")}
-                  onFocus={() => setActiveField("addressLine2")}
-                />
-                <input
-                  ref={addressLine3Ref}
-                  className={getInputCls(activeField === "addressLine3")}
-                  value={form.addressLine3}
-                  onChange={set("addressLine3")}
-                  onFocus={() => setActiveField("addressLine3")}
-                />
-                <input
-                  ref={addressLine4Ref}
-                  className={getInputCls(activeField === "addressLine4")}
-                  value={form.addressLine4}
-                  onChange={set("addressLine4")}
-                  onFocus={() => setActiveField("addressLine4")}
-                />
-              </div>
+            {/* Address — single line, on the same row as its label */}
+            <FormRow label="Address" labelWidth="w-56">
+              <input
+                ref={addressLine1Ref}
+                className={`${getInputCls(activeField === "addressLine1")} normal-case`}
+                value={form.addressLine1}
+                onChange={set("addressLine1")}
+                onFocus={() => setActiveField("addressLine1")}
+              />
             </FormRow>
 
             <div className="py-2" />
@@ -765,7 +740,7 @@ export default function TaxAlter() {
       )}
 
       {showAccept && (
-        <div className="absolute bottom-16 right-72 bg-white border-2 border-[#4c90e2] w-[165px] rounded shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono animate-fade-in text-zinc-950">
+        <div className="absolute bottom-16 right-72 bg-white border border-zinc-800 w-[165px] shadow-2xl p-3 flex flex-col items-center z-[10000] font-mono text-zinc-950">
           <h4 className="font-bold text-[11px] mb-3">Accept?</h4>
           <div className="flex items-center gap-3 w-full justify-center">
             <button

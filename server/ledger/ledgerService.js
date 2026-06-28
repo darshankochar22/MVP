@@ -132,6 +132,8 @@ module.exports = {
           registrationType: data.registration_type || "Unregistered",
           defaultCreditPeriod: data.default_credit_period || 0,
           checkCreditDays: data.check_credit_days ? 1 : 0,
+          creditLimit: Number(data.credit_limit) || 0,
+          creditLimitType: data.credit_limit_type || 'Cr',
           allowCostCentres: data.allow_cost_centres ? 1 : 0,
           invoiceRounding: data.invoice_rounding ? 1 : 0,
           roundingMethod: data.rounding_method || null,
@@ -394,6 +396,12 @@ module.exports = {
           defaultCreditPeriod:
             data.default_credit_period ?? ledger.default_credit_period ?? 0,
           checkCreditDays: data.check_credit_days ? 1 : 0,
+          creditLimit:
+            data.credit_limit !== undefined
+              ? Number(data.credit_limit) || 0
+              : (ledger.credit_limit ?? 0),
+          creditLimitType:
+            data.credit_limit_type ?? ledger.credit_limit_type ?? 'Cr',
           allowCostCentres: data.allow_cost_centres ? 1 : 0,
           invoiceRounding: data.invoice_rounding ? 1 : 0,
           roundingMethod: data.rounding_method ?? ledger.rounding_method,
@@ -636,6 +644,43 @@ module.exports = {
         success: false,
         error: err.message,
       };
+    }
+  },
+
+  // Bulk-update only the credit-limit fields for many ledgers at once.
+  // Used by the "Credit Limits" master (Multi Ledger Limit Alteration).
+  // Touches credit columns only — never overwrites other ledger fields.
+  updateCreditLimits: async (company_id, rows) => {
+    try {
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return { success: true, updated: 0 };
+      }
+
+      let updated = 0;
+      for (const r of rows) {
+        if (!r || !r.ledger_id) continue;
+
+        await db
+          .update(ledgers)
+          .set({
+            creditLimit: Number(r.credit_limit) || 0,
+            creditLimitType: r.credit_limit_type || 'Cr',
+            defaultCreditPeriod: Number(r.credit_period) || 0,
+            checkCreditDays: r.check_credit_days ? 1 : 0,
+            updatedAt: sql`datetime('now')`,
+          })
+          .where(
+            and(
+              eq(ledgers.ledgerId, r.ledger_id),
+              eq(ledgers.companyId, company_id),
+            ),
+          );
+        updated += 1;
+      }
+
+      return { success: true, updated };
+    } catch (err) {
+      return { success: false, error: err.message };
     }
   },
 

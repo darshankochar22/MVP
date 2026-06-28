@@ -7,7 +7,7 @@ const getMenu = async (company_id = 1) => {
 
     const menu = [];
 
-    const accountingItems = ["Group", "Ledger", "Currency", "Voucher Type", "Cost Category", "Cost Centre", "Budget", "Scenario"];
+    const accountingItems = ["Group", "Ledger", "Credit Limits", "Currency", "Voucher Type", "Cost Category", "Cost Centre", "Budget", "Scenario"];
     menu.push({ title: "Accounting Masters", items: accountingItems });
      
     if(features.enable_payment_request_qr) {
@@ -21,12 +21,12 @@ const getMenu = async (company_id = 1) => {
     }
     menu.push({
       title: "Statutory Masters",
-      items: ["GST Registration", "GST Classification", "TCS Nature of Goods", "TDS Nature of Payment", "Excise Duty Classification", "Tax Units"]
+      items: ["GST Registration", "GST Classification", "TCS Nature of Goods", "TDS Nature of Payment", "Excise Duty Classification", "Excise Book", "Tax Units"]
     });
 
     menu.push({
       title: "Statutory Details",
-      items: ["Company GST Details","TDS Details","TCS Details","VAT Registration Details","Excise Registration Details", "PAN / CIN Details", "Payroll Statutory Details"]
+      items: ["Company GST Details","TDS Details","TCS Details","VAT Registration Details","Excise Registration Details","Service Tax Details", "PAN / CIN Details", "Payroll Statutory Details"]
     });
 
     menu.push({

@@ -13,9 +13,17 @@ export interface TaxUnitType {
   registered_for?: string;
   set_alter_excise_details?: 0 | 1;
   registration_type?: string;
+  type_of_manufacturer?: string | null;
   ecc_number?: string | null;
   set_alter_excise_tariff?: 0 | 1;
+  tariff_name?: string | null;
+  hsn_code?: string | null;
+  reporting_uom?: string | null;
+  valuation_type?: string | null;
+  tariff_rate?: number | null;
+  tariff_rate_per_unit?: number | null;
   set_alter_rule11_book?: 0 | 1;
+  rule11_book?: string | null;
   sort_order?: number;
   is_active?: 0 | 1;
   created_at?: string;

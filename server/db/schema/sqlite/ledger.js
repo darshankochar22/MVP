@@ -34,6 +34,8 @@ const ledgers = sqliteTable('ledgers', {
   allowCostCentres: integer('allow_cost_centres').default(0),
   defaultCreditPeriod: integer('default_credit_period').default(0),
   checkCreditDays: integer('check_credit_days').default(0),
+  creditLimit: real('credit_limit').default(0),
+  creditLimitType: text('credit_limit_type').default('Cr'),
   invoiceRounding: integer('invoice_rounding').default(0),
   roundingMethod: text('rounding_method'),
   roundingLimit: real('rounding_limit').default(0),

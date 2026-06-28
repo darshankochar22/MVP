@@ -23,12 +23,20 @@ import PANDetailsCreate from "./pages/master/statutory-details/PANDetails/PANDet
 import PANDetailsAlter from "./pages/master/statutory-details/PANDetails/PANDetailsAlter.tsx";
 import PANDetailsCOA from "./pages/master/statutory-details/PANDetails/PANDetailsCOA.tsx";
 import PayrollStatutoryDetailsCreate from "./pages/master/statutory-details/PayrollStatutoryDetails/PayrollStatutoryDetailsCreate.tsx";
+import ServiceTaxDetailsCreate from "./pages/master/statutory-details/ServiceTaxDetails/ServiceTaxDetailsCreate.tsx";
 import VATRDCreate from "./pages/master/statutory-details/VATRegistrationDetails/VATRDCreate.tsx";
 import VATRDAlter from "./pages/master/statutory-details/VATRegistrationDetails/VATRDAlter.tsx";
 import VATRDCOA from "./pages/master/statutory-details/VATRegistrationDetails/VATRDCOA.tsx";
 import ExciseRDCreate from "./pages/master/statutory-details/ExciseRegistrationDetails/ExciseRDCreate.tsx";
 import ExciseRDAlter from "./pages/master/statutory-details/ExciseRegistrationDetails/ExciseRDAlter.tsx";
 import ExciseRDCOA from "./pages/master/statutory-details/ExciseRegistrationDetails/ExciseRDCOA.tsx";
+import ExciseBookCreate from "./pages/master/statutory/excise-book/ExciseBookCreate.tsx";
+import ExciseBookAlter from "./pages/master/statutory/excise-book/ExciseBookAlter.tsx";
+import ExciseBookCOA from "./pages/master/statutory/excise-book/ExciseBookCOA.tsx";
+import MerchantProfileCreate from "./pages/master/merchant-profile/MerchantProfileCreate.tsx";
+import MerchantProfileAlter from "./pages/master/merchant-profile/MerchantProfileAlter.tsx";
+import CreditLimitsCreate from "./pages/master/credit-limits/CreditLimitsCreate.tsx";
+import CreditLimitsAlter from "./pages/master/credit-limits/CreditLimitsAlter.tsx";
 import CostCentreAlter from "./pages/master/cost-centre/cost-centreAlter.tsx";
 import CostCentreCOA from "./pages/master/cost-centre/cost-centreCOA.tsx";
 import BudgetCreate from "./pages/master/budget/BudgetCreate.tsx";
@@ -342,6 +350,7 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/coa/tcs-details", element: <TCSDetailsCOA /> },
   { path: "/master/create/pan-cin-details", element: <PANDetailsCreate /> },
   { path: "/master/create/payroll-statutory-details", element: <PayrollStatutoryDetailsCreate /> },
+  { path: "/master/create/service-tax-details", element: <ServiceTaxDetailsCreate /> },
   { path: "/master/alter/pan-cin-details", element: <PANDetailsAlter /> },
   { path: "/master/coa/pan-cin-details", element: <PANDetailsCOA /> },
   { path: "/master/create/vat-registration-details", element: <VATRDCreate /> },
@@ -350,6 +359,13 @@ export const APP_ROUTES: RouteConfig[] = [
   { path: "/master/create/excise-registration-details", element: <ExciseRDCreate /> },
   { path: "/master/alter/excise-registration-details", element: <ExciseRDAlter /> },
   { path: "/master/coa/excise-registration-details", element: <ExciseRDCOA /> },
+  { path: "/master/create/excise-book", element: <ExciseBookCreate /> },
+  { path: "/master/alter/excise-book", element: <ExciseBookAlter /> },
+  { path: "/master/coa/excise-book", element: <ExciseBookCOA /> },
+  { path: "/master/create/merchant-profile", element: <MerchantProfileCreate /> },
+  { path: "/master/alter/merchant-profile", element: <MerchantProfileAlter /> },
+  { path: "/master/create/credit-limits", element: <CreditLimitsCreate /> },
+  { path: "/master/alter/credit-limits", element: <CreditLimitsAlter /> },
   { path: "/master/create/price-levels", element: <PricelevelsCreate /> },
   { path: "/master/alter/price-levels", element: <PricelevelsAlter /> },
   { path: "/master/coa/price-levels", element: <PricelevelsCOA /> },

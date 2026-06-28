@@ -55,6 +55,7 @@ contextBridge.exposeInMainWorld('api', {
         update:     (data)               => invoke('ledger:update', data),
         delete:     (id)                 => invoke('ledger:delete', id),
         getByGroup: (company_id, groupId) => invoke('ledger:getByGroup', { company_id, group_id: groupId }),
+        updateCreditLimits: (company_id, rows) => invoke('ledger:updateCreditLimits', { company_id, rows }),
         getTotalOpeningBalance: (company_id) => invoke('ledger:getTotalOpeningBalance', company_id),
     },
     costCentre: {
@@ -92,6 +93,20 @@ contextBridge.exposeInMainWorld('api', {
         getById: (id)         => invoke('exciseDutyClassification:getById', id),
         update:  (data)       => invoke('exciseDutyClassification:update', data),
         delete:  (id)         => invoke('exciseDutyClassification:delete', id),
+    },
+    exciseBook: {
+        create:  (data)       => invoke('exciseBook:create', data),
+        getAll:  (company_id) => invoke('exciseBook:getAll', company_id),
+        getById: (id)         => invoke('exciseBook:getById', id),
+        update:  (data)       => invoke('exciseBook:update', data),
+        delete:  (id)         => invoke('exciseBook:delete', id),
+    },
+    merchantProfile: {
+        create:  (data)       => invoke('merchantProfile:create', data),
+        getAll:  (company_id) => invoke('merchantProfile:getAll', company_id),
+        getById: (id)         => invoke('merchantProfile:getById', id),
+        update:  (data)       => invoke('merchantProfile:update', data),
+        delete:  (id)         => invoke('merchantProfile:delete', id),
     },
     unit: {
         create:       (data)       => invoke('unit:create', data),
@@ -441,6 +456,18 @@ contextBridge.exposeInMainWorld('api', {
     payrollStatutoryDetails: {
         get:  (company_id) => invoke('payrollStatutoryDetails:get', company_id),
         save: (data)       => invoke('payrollStatutoryDetails:save', data),
+    },
+    serviceTaxDetails: {
+        get:  (company_id) => invoke('serviceTaxDetails:get', company_id),
+        save: (data)       => invoke('serviceTaxDetails:save', data),
+    },
+    exciseRegistrationDetails: {
+        get:  (company_id) => invoke('exciseRegistrationDetails:get', company_id),
+        save: (data)       => invoke('exciseRegistrationDetails:save', data),
+    },
+    vatRegistrationDetails: {
+        get:  (company_id) => invoke('vatRegistrationDetails:get', company_id),
+        save: (data)       => invoke('vatRegistrationDetails:save', data),
     },
     companyTdsDetails: {
         get:  (company_id) => invoke('companyTdsDetails:get', company_id),

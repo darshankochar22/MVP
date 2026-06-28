@@ -50,6 +50,11 @@ const physicalStockController = require('./physicalStock/physicalStockController
 const attendanceController = require('./attendance/attendanceController');
 const companyGstDetailsController = require('./companyGstDetails/companyGstDetailsController');
 const payrollStatutoryDetailsController = require('./payrollStatutoryDetails/payrollStatutoryDetailsController');
+const serviceTaxDetailsController = require('./serviceTaxDetails/serviceTaxDetailsController');
+const exciseRegistrationDetailsController = require('./exciseRegistrationDetails/exciseRegistrationDetailsController');
+const exciseBookController = require('./exciseBook/exciseBookController');
+const merchantProfileController = require('./merchantProfile/merchantProfileController');
+const vatRegistrationDetailsController = require('./vatRegistrationDetails/vatRegistrationDetailsController');
 const companyTdsDetailsController = require('./companyTdsDetails/companyTdsDetailsController');
 const companyTcsDetailsController = require('./companyTcsDetails/companyTcsDetailsController');
 const companyPanCinDetailsController = require('./companyPanCinDetails/companyPanCinDetailsController');
@@ -101,6 +106,7 @@ ipcMain.handle('ledger:getById', ledgerController.getById);
 ipcMain.handle('ledger:update', ledgerController.update);
 ipcMain.handle('ledger:delete', ledgerController.delete);
 ipcMain.handle('ledger:getByGroup', ledgerController.getByGroup);
+ipcMain.handle('ledger:updateCreditLimits', ledgerController.updateCreditLimits);
 ipcMain.handle('ledger:getTotalOpeningBalance', ledgerController.getTotalOpeningBalance);
 
 ipcMain.handle('costCentre:create', costCentreController.create);
@@ -133,6 +139,18 @@ ipcMain.handle('exciseDutyClassification:getAll', exciseDutyClassificationContro
 ipcMain.handle('exciseDutyClassification:getById', exciseDutyClassificationController.getById);
 ipcMain.handle('exciseDutyClassification:update', exciseDutyClassificationController.update);
 ipcMain.handle('exciseDutyClassification:delete', exciseDutyClassificationController.delete);
+
+ipcMain.handle('exciseBook:create', exciseBookController.create);
+ipcMain.handle('exciseBook:getAll', exciseBookController.getAll);
+ipcMain.handle('exciseBook:getById', exciseBookController.getById);
+ipcMain.handle('exciseBook:update', exciseBookController.update);
+ipcMain.handle('exciseBook:delete', exciseBookController.delete);
+
+ipcMain.handle('merchantProfile:create', merchantProfileController.create);
+ipcMain.handle('merchantProfile:getAll', merchantProfileController.getAll);
+ipcMain.handle('merchantProfile:getById', merchantProfileController.getById);
+ipcMain.handle('merchantProfile:update', merchantProfileController.update);
+ipcMain.handle('merchantProfile:delete', merchantProfileController.delete);
 
 ipcMain.handle('unit:create', unitController.create);
 ipcMain.handle('unit:getAll', unitController.getAll);
@@ -506,6 +524,15 @@ ipcMain.handle('companyGstDetails:save', companyGstDetailsController.save);
 
 ipcMain.handle('payrollStatutoryDetails:get', payrollStatutoryDetailsController.get);
 ipcMain.handle('payrollStatutoryDetails:save', payrollStatutoryDetailsController.save);
+
+ipcMain.handle('serviceTaxDetails:get', serviceTaxDetailsController.get);
+ipcMain.handle('serviceTaxDetails:save', serviceTaxDetailsController.save);
+
+ipcMain.handle('exciseRegistrationDetails:get', exciseRegistrationDetailsController.get);
+ipcMain.handle('exciseRegistrationDetails:save', exciseRegistrationDetailsController.save);
+
+ipcMain.handle('vatRegistrationDetails:get', vatRegistrationDetailsController.get);
+ipcMain.handle('vatRegistrationDetails:save', vatRegistrationDetailsController.save);
 
 ipcMain.handle('companyTdsDetails:get', companyTdsDetailsController.get);
 ipcMain.handle('companyTdsDetails:save', companyTdsDetailsController.save);

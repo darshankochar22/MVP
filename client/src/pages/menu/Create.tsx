@@ -29,6 +29,9 @@ export default function Create() {
   const getRoute = (item: string) => {
     const map: Record<string, string> = {
       "Ledger": "/master/create/ledger",
+      "Credit Limits": "/master/create/credit-limits",
+      "Merchant Profile": "/master/create/merchant-profile",
+      "Excise Book": "/master/create/excise-book",
       "Group": "/master/create/group",
       "Currency": "/master/create/currency",
       "Voucher Type": "/master/create/voucher-type",
@@ -57,6 +60,7 @@ export default function Create() {
       "Price list (Stock Category)": "/master/create/price-lists-sc",      
       "PAN / CIN Details": "/master/create/pan-cin-details",
       "Payroll Statutory Details": "/master/create/payroll-statutory-details",
+      "Service Tax Details": "/master/create/service-tax-details",
       "Employee Category": "/master/create/employee-category",
       "Employee Group": "/master/create/employee-group",
       "Employee": "/master/create/employee",
