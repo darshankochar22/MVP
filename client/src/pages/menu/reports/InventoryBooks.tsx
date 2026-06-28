@@ -22,7 +22,7 @@ export default function InventoryBooks() {
 
   const getRoute = (_section: string, item: string) => {
     const routes: Record<string, string> = {
-      "Stock Item":"/reports/inventory-books/stock-item",
+      "Stock Item": "/reports/inventory/stock-item",
       "Batch": "/reports/inventory/batch-vouchers",
       "Godowns / Excise Units": "/reports/inventory/godown-summary",
       "Stock Group Summary": "/reports/inventory/stock-group-summary",
