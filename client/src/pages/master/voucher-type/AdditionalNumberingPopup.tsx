@@ -69,9 +69,18 @@ function RestartSection({
                 onChange={(e) => setCell(i, { applicable_from: e.target.value })} />
               <input type="number" className={`${cellCls} ${colCell}`} value={r.starting_number}
                 onChange={(e) => setCell(i, { starting_number: Number(e.target.value) })} />
-              <input className={`${cellCls} ${colCell}`} value={r.particulars}
-                placeholder={isBlank ? "e.g. Yearly" : ""}
-                onChange={(e) => setCell(i, { particulars: e.target.value })} />
+              <select
+                className={`${cellCls} ${colCell}`}
+                value={r.particulars}
+                onChange={(e) => setCell(i, { particulars: e.target.value })}
+              >
+                <option value="">—</option>
+                <option>Daily</option>
+                <option>Monthly</option>
+                <option>Never</option>
+                <option>Weekly</option>
+                <option>Yearly</option>
+              </select>
               <button onClick={() => !isBlank && removeAt(i)}
                 className={`text-sm font-bold leading-none text-center ${isBlank ? "text-transparent cursor-default" : "text-zinc-300 hover:text-zinc-900"}`}
                 title="Remove">&times;</button>
