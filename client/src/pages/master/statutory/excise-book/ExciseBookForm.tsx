@@ -19,6 +19,9 @@ const cellCls =
 // Standard excise forms shown in the "Used for" picker.
 const EXCISE_FORMS = ["ARE-1", "ARE-2", "ARE-3", "Rule -11 Invoice"];
 
+// Restart Numbering "Particulars" is a periodicity picker (TallyPrime).
+const PERIODICITY_OPTIONS = ["Daily", "Monthly", "Never", "Weekly", "Yearly"];
+
 interface Props {
   mode: "create" | "alter";
   companyId: number;
@@ -334,6 +337,7 @@ function RestartNumberingTable({
   className?: string;
 }) {
   const all = [...rows, { ...EMPTY_RESTART_ROW }];
+  const [openPeriodicity, setOpenPeriodicity] = useState<number | null>(null);
 
   const setCell = (i: number, patch: Partial<ExciseBookRestartRow>) => {
     const next = all.map((r, idx) => (idx === i ? { ...r, ...patch } : r));
@@ -376,12 +380,34 @@ function RestartNumberingTable({
               value={r.starting_number}
               onChange={(e) => setCell(i, { starting_number: Number(e.target.value) })}
             />
-            <input
-              className={`${cellCls} border-r border-zinc-100`}
-              value={r.particulars}
-              placeholder={isBlank ? "e.g. Yearly" : ""}
-              onChange={(e) => setCell(i, { particulars: e.target.value })}
-            />
+            <div className="relative border-r border-zinc-100">
+              <input
+                className={cellCls}
+                value={r.particulars}
+                placeholder={isBlank ? "e.g. Yearly" : ""}
+                onChange={(e) => { setCell(i, { particulars: e.target.value }); setOpenPeriodicity(i); }}
+                onFocus={() => setOpenPeriodicity(i)}
+                onBlur={() => setTimeout(() => setOpenPeriodicity((cur) => (cur === i ? null : cur)), 150)}
+              />
+              {openPeriodicity === i && (
+                <div className="absolute left-0 top-full mt-0.5 z-50 bg-white border border-zinc-300 shadow-xl w-40 flex flex-col">
+                  <div className="bg-zinc-800 text-white text-[11px] font-bold px-3 py-1.5 shrink-0">
+                    Periodicity
+                  </div>
+                  {PERIODICITY_OPTIONS.map((p) => (
+                    <div
+                      key={p}
+                      onMouseDown={(e) => { e.preventDefault(); setCell(i, { particulars: p }); setOpenPeriodicity(null); }}
+                      className={`px-3 py-1.5 text-[12px] font-mono cursor-pointer border-b border-zinc-50 ${
+                        r.particulars === p ? "bg-zinc-100 text-black font-bold" : "text-zinc-700 hover:bg-zinc-50"
+                      }`}
+                    >
+                      {p}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               onClick={() => !isBlank && removeAt(i)}
               className={`text-sm font-bold leading-none ${
