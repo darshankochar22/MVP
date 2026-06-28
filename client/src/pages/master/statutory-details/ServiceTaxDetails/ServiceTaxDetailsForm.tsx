@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { FormRow } from "@/components/ui";
 import {
   type ServiceTaxDetails,
@@ -6,6 +7,15 @@ import {
   COMPUTATION_BASIS,
   DEFAULT_SERVICE_TAX_CATEGORY,
 } from "@/types/entities/ServiceTaxDetails";
+
+// Rate Details rows shown inside the "Service Tax Details" popup.
+const RATE_FIELDS: { key: keyof ServiceTaxCategory; label: string }[] = [
+  { key: "serviceTaxRate", label: "Service tax" },
+  { key: "educationCessRate", label: "Education cess" },
+  { key: "secondaryEducationCessRate", label: "Secondary education cess" },
+  { key: "swachhBharatCessRate", label: "Swachh Bharat cess" },
+  { key: "krishiKalyanCessRate", label: "Krishi Kalyan cess" },
+];
 
 // ─── Shared field tokens (black / white / zinc only) ───────────────────────────
 const inputCls =
@@ -53,6 +63,22 @@ export function ServiceTaxDetailsForm({
       </select>
     </FormRow>
   );
+
+  // ── "Service Tax Details" popup, opened from Set/alter = Yes ──
+  const [showRatePopup, setShowRatePopup] = useState(false);
+  // The single rate set lives in the first category row (preserves any others).
+  const cat: ServiceTaxCategory = form.categories[0] ?? { ...DEFAULT_SERVICE_TAX_CATEGORY };
+  const updCat = (patch: Partial<ServiceTaxCategory>) => {
+    const next = [...form.categories];
+    next[0] = { ...cat, ...patch };
+    setField("categories", next);
+  };
+  useEffect(() => {
+    if (!showRatePopup) return;
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") { e.preventDefault(); setShowRatePopup(false); } };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [showRatePopup]);
 
   // ── service-category list helpers (always keep one blank row to type into) ──
   const rows: ServiceTaxCategory[] = [...form.categories, { ...DEFAULT_SERVICE_TAX_CATEGORY }];
@@ -107,16 +133,30 @@ export function ServiceTaxDetailsForm({
           </>
         )}
 
-        <YesNo label="Set/alter service tax details" field="setAlterServiceTaxDetails" />
+        <FormRow label="Set/alter service tax details" labelWidth={LABEL_W} className="flex items-center min-h-[26px]">
+          <select
+            className={selectCls}
+            value={Number(form.setAlterServiceTaxDetails) ? "Yes" : "No"}
+            onChange={(e) => {
+              const yes = e.target.value === "Yes";
+              setField("setAlterServiceTaxDetails", (yes ? 1 : 0) as ServiceTaxDetails["setAlterServiceTaxDetails"]);
+              if (yes) setShowRatePopup(true);
+            }}
+          >
+            <option>No</option>
+            <option>Yes</option>
+          </select>
+        </FormRow>
         {Number(form.setAlterServiceTaxDetails) === 1 && (
-          <FormRow label="Applicable from" labelWidth="w-80 pl-4" className="flex items-center min-h-[26px]">
-            <input
-              type="date"
-              className={dateCls}
-              value={form.taxLiabilityApplicableFrom}
-              onChange={(e) => setField("taxLiabilityApplicableFrom", e.target.value)}
-            />
-          </FormRow>
+          <div className="pl-[20rem]">
+            <button
+              type="button"
+              className="text-xs text-zinc-500 underline hover:text-zinc-800"
+              onClick={() => setShowRatePopup(true)}
+            >
+              {cat.name ? `${cat.name} — edit rate details` : "Set rate details"}
+            </button>
+          </div>
         )}
 
         <YesNo label="Define service category and tax details as masters" field="defineServiceCategoryAsMasters" />
@@ -199,6 +239,53 @@ export function ServiceTaxDetailsForm({
         </div>
       </div>
       <div className="flex-1" />
+
+      {/* ── Service Tax Details popup (Name + Rate Details) ── */}
+      {showRatePopup && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+          <div className="bg-white border border-zinc-800 shadow-2xl w-[480px]">
+            <div className="text-center font-bold text-sm py-3 border-b border-zinc-200">
+              Service Tax Details
+            </div>
+            <div className="px-6 py-5">
+              <FormRow label="Name" labelWidth="w-52" className="flex items-center min-h-[28px]">
+                <input
+                  autoFocus
+                  className={inputCls}
+                  value={cat.name}
+                  onChange={(e) => updCat({ name: e.target.value })}
+                />
+              </FormRow>
+
+              <div className="text-center text-[13px] font-bold text-zinc-800 mt-4 mb-2">Rate Details</div>
+              {RATE_FIELDS.map((f) => (
+                <FormRow key={String(f.key)} label={f.label} labelWidth="w-52" className="flex items-center min-h-[26px]">
+                  <span className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      className="w-28 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 rounded text-right"
+                      value={Number(cat[f.key]) || ""}
+                      onChange={(e) => updCat({ [f.key]: Number(e.target.value) || 0 })}
+                    />
+                    <span className="text-sm text-zinc-500">%</span>
+                  </span>
+                </FormRow>
+              ))}
+            </div>
+
+            <div className="border-t border-zinc-200 px-4 py-2.5 flex justify-end">
+              <button
+                onClick={() => setShowRatePopup(false)}
+                className="text-xs px-5 py-1 bg-zinc-900 text-white hover:bg-black font-bold rounded"
+              >
+                Ok
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
