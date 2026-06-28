@@ -461,6 +461,18 @@ contextBridge.exposeInMainWorld('api', {
         get:  (company_id) => invoke('serviceTaxDetails:get', company_id),
         save: (data)       => invoke('serviceTaxDetails:save', data),
     },
+    cenvatOpeningBalance: {
+        get:  (company_id) => invoke('cenvatOpeningBalance:get', company_id),
+        save: (data)       => invoke('cenvatOpeningBalance:save', data),
+    },
+    plaOpeningBalance: {
+        get:  (company_id) => invoke('plaOpeningBalance:get', company_id),
+        save: (data)       => invoke('plaOpeningBalance:save', data),
+    },
+    exciseOpeningBalance: {
+        get:  (company_id) => invoke('exciseOpeningBalance:get', company_id),
+        save: (data)       => invoke('exciseOpeningBalance:save', data),
+    },
     exciseRegistrationDetails: {
         get:  (company_id) => invoke('exciseRegistrationDetails:get', company_id),
         save: (data)       => invoke('exciseRegistrationDetails:save', data),

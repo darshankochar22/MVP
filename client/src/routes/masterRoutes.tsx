@@ -115,6 +115,9 @@ import PANDetailsAlter from "../pages/master/statutory-details/PANDetails/PANDet
 import PANDetailsCOA from "../pages/master/statutory-details/PANDetails/PANDetailsCOA.tsx";
 import PayrollStatutoryDetailsCreate from "../pages/master/statutory-details/PayrollStatutoryDetails/PayrollStatutoryDetailsCreate.tsx";
 import ServiceTaxDetailsCreate from "../pages/master/statutory-details/ServiceTaxDetails/ServiceTaxDetailsCreate.tsx";
+import CenvatOpeningBalanceCreate from "../pages/master/statutory-details/CenvatOpeningBalance/CenvatOpeningBalanceCreate.tsx";
+import PlaOpeningBalanceCreate from "../pages/master/statutory-details/PlaOpeningBalance/PlaOpeningBalanceCreate.tsx";
+import ExciseOpeningBalanceCreate from "../pages/master/statutory-details/ExciseOpeningBalance/ExciseOpeningBalanceCreate.tsx";
 import VATRDCreate from "../pages/master/statutory-details/VATRegistrationDetails/VATRDCreate.tsx";
 import VATRDAlter from "../pages/master/statutory-details/VATRegistrationDetails/VATRDAlter.tsx";
 import VATRDCOA from "../pages/master/statutory-details/VATRegistrationDetails/VATRDCOA.tsx";
@@ -307,6 +310,9 @@ export const masterRoutes: RouteConfig[] = [
   // Statutory Details — Payroll / Service Tax
   { path: "/master/create/payroll-statutory-details", element: <PayrollStatutoryDetailsCreate /> },
   { path: "/master/create/service-tax-details", element: <ServiceTaxDetailsCreate /> },
+  { path: "/master/create/cenvat-opening-balance", element: <CenvatOpeningBalanceCreate /> },
+  { path: "/master/create/pla-opening-balance", element: <PlaOpeningBalanceCreate /> },
+  { path: "/master/create/excise-opening-balance", element: <ExciseOpeningBalanceCreate /> },
 
   // Statutory Details — VAT Registration
   { path: "/master/create/vat-registration-details", element: <VATRDCreate /> },
