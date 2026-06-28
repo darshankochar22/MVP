@@ -130,10 +130,12 @@ export function CategoryListPanel({
   selected,
   onSelect,
   onClose,
+  categories = CATEGORIES,
 }: {
   selected: string;
   onSelect: (v: string) => void;
   onClose: () => void;
+  categories?: string[];
 }) {
   return (
     <div className="w-64 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
@@ -142,7 +144,7 @@ export function CategoryListPanel({
         <button onClick={onClose} className="text-sm font-bold font-sans hover:text-zinc-500">&times;</button>
       </div>
       <div className="flex-1 overflow-y-auto">
-        {CATEGORIES.map((cat) => (
+        {categories.map((cat) => (
           <div
             key={cat}
             onClick={() => { onSelect(cat); onClose(); }}
@@ -169,6 +171,7 @@ export function VoucherTypeFormBody({
   setShowCategoryPanel,
   lockIdentity = false,
   nameAutoFocus = false,
+  categories,
 }: {
   form: VTForm;
   setForm: React.Dispatch<React.SetStateAction<VTForm>>;
@@ -178,6 +181,7 @@ export function VoucherTypeFormBody({
   setShowCategoryPanel: (v: boolean) => void;
   lockIdentity?: boolean;
   nameAutoFocus?: boolean;
+  categories?: string[];
 }) {
   const setF = (key: keyof VTForm) => (v: string) => setForm((f) => ({ ...f, [key]: v }));
   const setC = (key: keyof VTConfig) => (v: YN) => setConfig((c) => ({ ...c, [key]: v }));
@@ -354,6 +358,7 @@ export function VoucherTypeFormBody({
           selected={form.category}
           onSelect={(v) => setForm((f) => ({ ...f, category: v }))}
           onClose={() => setShowCategoryPanel(false)}
+          categories={categories}
         />
       )}
 

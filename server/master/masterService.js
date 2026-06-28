@@ -31,7 +31,7 @@ const getMenu = async (company_id = 1) => {
 
     menu.push({
       title: "Payroll Masters",
-      items: ["Employee Category", "Employee","Units(work)", "Employee Group", "Attendance / Production type", "Pay Heads","Payroll Voucher Type", "Salary Structure"]
+      items: ["Employee Category", "Employee","Units(work)", "Employee Group", "Attendance / Production type", "Pay Heads","Payroll Voucher Type"]
     });
 
     return { success: true, menu };
