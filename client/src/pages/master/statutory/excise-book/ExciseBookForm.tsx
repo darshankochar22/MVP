@@ -335,7 +335,7 @@ function RestartNumberingTable({
       <div className="bg-zinc-50 px-3 py-1.5 border-b border-zinc-200 font-bold text-[11px] uppercase tracking-wider text-zinc-600">
         Restart Numbering
       </div>
-      <div className="grid grid-cols-[1fr_1fr_1.4fr_28px] bg-zinc-100 border-b border-zinc-200 text-[11px] font-bold text-zinc-600">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_28px] bg-zinc-100 border-b border-zinc-200 text-[11px] font-bold text-zinc-600">
         <div className="py-1.5 px-1.5 border-r border-zinc-200">Applicable From</div>
         <div className="py-1.5 px-1.5 border-r border-zinc-200">Starting Number</div>
         <div className="py-1.5 px-1.5 border-r border-zinc-200">Particulars</div>
@@ -346,7 +346,7 @@ function RestartNumberingTable({
         return (
           <div
             key={i}
-            className="grid grid-cols-[1fr_1fr_1.4fr_28px] border-b border-zinc-100 items-center"
+            className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)_28px] border-b border-zinc-100 items-center"
           >
             <input
               type="date"
@@ -410,7 +410,7 @@ function AffixTable({
       <div className="bg-zinc-50 px-3 py-1.5 border-b border-zinc-200 font-bold text-[11px] uppercase tracking-wider text-zinc-600">
         {title}
       </div>
-      <div className="grid grid-cols-[1fr_1.6fr_28px] bg-zinc-100 border-b border-zinc-200 text-[11px] font-bold text-zinc-600">
+      <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_28px] bg-zinc-100 border-b border-zinc-200 text-[11px] font-bold text-zinc-600">
         <div className="py-1.5 px-1.5 border-r border-zinc-200">Applicable From</div>
         <div className="py-1.5 px-1.5 border-r border-zinc-200">Particulars</div>
         <div className="py-1.5 px-1.5" />
@@ -420,7 +420,7 @@ function AffixTable({
         return (
           <div
             key={i}
-            className="grid grid-cols-[1fr_1.6fr_28px] border-b border-zinc-100 items-center"
+            className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)_28px] border-b border-zinc-100 items-center"
           >
             <input
               type="date"
