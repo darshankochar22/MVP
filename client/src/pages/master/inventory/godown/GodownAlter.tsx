@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel, SearchInput, DataTable, SideSelectionPanel } from "@/components/ui";
 import type { GodownType } from "@/types/api";
+import type { TaxUnitType } from "@/types/entities/TaxUnit";
 
 const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-400 focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
 const selectCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm cursor-pointer focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
@@ -88,31 +89,32 @@ interface FormData {
   parent_godown_id: string;
   excise_tax_unit: string;
   allow_storage_of_materials: string;
-  address: string;
-  city: string;
-  state: string;
-  pincode: string;
 }
 
 export default function GodownAlter() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
+  const companyId = selectedCompany?.company_id;
 
   const [godowns, setGodowns] = useState<GodownType[]>([]);
+  const [taxUnits, setTaxUnits] = useState<TaxUnitType[]>([]);
   const [selectedGodown, setSelectedGodown] = useState<GodownType | null>(null);
   const [form, setForm] = useState<FormData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showPanel, setShowPanel] = useState(false);
+  const [showTaxUnitPanel, setShowTaxUnitPanel] = useState(false);
 
   useEffect(() => {
-    const company_id = selectedCompany?.company_id;
-    if (!company_id) return;
-    window.api.godown.getAll(company_id).then(r => {
+    if (!companyId) return;
+    window.api.godown.getAll(companyId).then(r => {
       if (r.success) setGodowns(r.godowns ?? []);
     });
-  }, [selectedCompany]);
+    window.api.taxUnit.getAll(companyId).then((r: any) => {
+      if (r.success) setTaxUnits(r.taxUnits ?? []);
+    });
+  }, [companyId]);
 
   const handleSelectGodown = (g: GodownType) => {
     setSelectedGodown(g);
@@ -122,10 +124,6 @@ export default function GodownAlter() {
       parent_godown_id: g.parent_godown_id ? String(g.parent_godown_id) : "",
       excise_tax_unit: g.excise_tax_unit ?? "Not Applicable",
       allow_storage_of_materials: String(g.allow_storage_of_materials ?? 1),
-      address: g.address ?? "",
-      city: g.city ?? "",
-      state: g.state ?? "",
-      pincode: g.pincode ?? "",
     });
     setError(null);
     setSuccess(null);
@@ -137,10 +135,7 @@ export default function GodownAlter() {
 
   const validate = (): string | null => {
     if (!form?.name.trim()) return "Name is required.";
-    if (!selectedCompany?.company_id) return "No company selected.";
-    if (form.pincode && !/^\d{0,6}$/.test(form.pincode)) {
-      return "Pincode must be numeric (max 6 digits).";
-    }
+    if (!companyId) return "No company selected.";
     return null;
   };
 
@@ -158,20 +153,16 @@ export default function GodownAlter() {
     try {
       const result = await window.api.godown.update({
         godown_id: selectedGodown.godown_id,
-        company_id: selectedCompany!.company_id,
+        company_id: companyId!,
         name: form.name.trim(),
         alias: form.alias.trim() || null,
         parent_godown_id: form.parent_godown_id ? Number(form.parent_godown_id) : null,
-        excise_tax_unit: form.excise_tax_unit.trim() || "Not Applicable",
+        excise_tax_unit: form.excise_tax_unit || "Not Applicable",
         allow_storage_of_materials: Number(form.allow_storage_of_materials),
-        address: form.address.trim() || null,
-        city: form.city.trim() || null,
-        state: form.state.trim() || null,
-        pincode: form.pincode.trim() || null,
       });
 
       if (result.success) {
-        const updated = await window.api.godown.getAll(selectedCompany!.company_id!);
+        const updated = await window.api.godown.getAll(companyId!);
         if (updated.success) setGodowns(updated.godowns ?? []);
         setSuccess(`Godown "${form.name}" updated successfully.`);
         setTimeout(() => {
@@ -186,7 +177,7 @@ export default function GodownAlter() {
     } finally {
       setLoading(false);
     }
-  }, [form, selectedGodown, selectedCompany, handleBack]);
+  }, [form, selectedGodown, companyId, handleBack]);
 
   const handleDelete = useCallback(async () => {
     if (!selectedGodown) return;
@@ -196,7 +187,7 @@ export default function GodownAlter() {
     try {
       const result = await window.api.godown.delete(selectedGodown.godown_id);
       if (result.success) {
-        const updated = await window.api.godown.getAll(selectedCompany!.company_id!);
+        const updated = await window.api.godown.getAll(companyId!);
         if (updated.success) setGodowns(updated.godowns ?? []);
         handleBack();
       } else {
@@ -207,10 +198,14 @@ export default function GodownAlter() {
     } finally {
       setLoading(false);
     }
-  }, [selectedGodown, selectedCompany, handleBack]);
+  }, [selectedGodown, companyId, handleBack]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      if (showTaxUnitPanel) {
+        if (e.key === "Escape") { e.preventDefault(); setShowTaxUnitPanel(false); }
+        return;
+      }
       if (e.key === "Escape") {
         e.preventDefault();
         if (showPanel) { setShowPanel(false); return; }
@@ -221,22 +216,13 @@ export default function GodownAlter() {
         e.preventDefault();
         if (selectedGodown) setShowPanel(prev => !prev);
       }
-      if (e.altKey && e.key.toLowerCase() === "a") {
-        e.preventDefault();
-        handleSubmit();
-      }
-      if (e.ctrlKey && e.key.toLowerCase() === "a") {
-        e.preventDefault();
-        handleSubmit();
-      }
-      if (e.altKey && e.key.toLowerCase() === "d") {
-        e.preventDefault();
-        handleDelete();
-      }
+      if (e.altKey && e.key.toLowerCase() === "a") { e.preventDefault(); handleSubmit(); }
+      if (e.ctrlKey && e.key.toLowerCase() === "a") { e.preventDefault(); handleSubmit(); }
+      if (e.altKey && e.key.toLowerCase() === "d") { e.preventDefault(); handleDelete(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, handleDelete, handleBack, navigate, showPanel, selectedGodown]);
+  }, [handleSubmit, handleDelete, handleBack, navigate, showPanel, showTaxUnitPanel, selectedGodown]);
 
   if (!selectedGodown || !form) {
     return (
@@ -279,10 +265,9 @@ export default function GodownAlter() {
       )}
 
       <div className="flex-1 flex min-h-0">
-        <div className="flex-1 overflow-y-auto p-3 space-y-6 max-w-2xl bg-white border-r border-zinc-100">
+        <div className="flex-1 overflow-y-auto p-3 max-w-2xl bg-white border-r border-zinc-100">
           <div className="space-y-1">
-            <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans select-none">General</div>
-            
+
             <FormRow label="Name" required labelWidth="w-56" className="flex items-center min-h-[26px]">
               <input autoFocus className={inputCls} value={form.name} onChange={set("name")} placeholder="Godown name" />
             </FormRow>
@@ -301,8 +286,15 @@ export default function GodownAlter() {
               </button>
             </FormRow>
 
+            {/* Excise Tax Unit — button opens side panel */}
             <FormRow label="Excise Tax unit" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.excise_tax_unit} onChange={set("excise_tax_unit")} placeholder="Not Applicable" />
+              <button
+                type="button"
+                className="w-full text-left text-sm py-0.5 px-1 bg-transparent outline-none font-bold text-zinc-800 hover:text-black transition-colors"
+                onClick={() => setShowTaxUnitPanel(v => !v)}
+              >
+                {form.excise_tax_unit || "Not Applicable"}
+              </button>
             </FormRow>
 
             <FormRow label="Allow Storage of Materials" labelWidth="w-56" className="flex items-center min-h-[26px]">
@@ -312,27 +304,49 @@ export default function GodownAlter() {
               </select>
             </FormRow>
           </div>
-
-          <div className="space-y-1 border-t border-zinc-100 pt-4">
-            <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-2 font-sans select-none">Address Details</div>
-
-            <FormRow label="Address" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.address} onChange={set("address")} placeholder="Street/Building (optional)" />
-            </FormRow>
-
-            <FormRow label="City" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.city} onChange={set("city")} placeholder="City (optional)" />
-            </FormRow>
-
-            <FormRow label="State" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.state} onChange={set("state")} placeholder="State (optional)" />
-            </FormRow>
-
-            <FormRow label="Pincode" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.pincode} onChange={set("pincode")} placeholder="6-digit Pincode (optional)" maxLength={6} />
-            </FormRow>
-          </div>
         </div>
+
+        {/* Tax Unit side panel */}
+        {showTaxUnitPanel && (
+          <div className="w-64 flex flex-col border-l border-zinc-200 bg-white shrink-0 overflow-hidden">
+            <div className="bg-zinc-800 text-white text-xs font-bold px-3 py-1.5 shrink-0">
+              List of Excise Tax Units
+            </div>
+            <div className="overflow-y-auto flex-1">
+              <div
+                className="px-3 py-1.5 text-xs font-bold text-zinc-600 border-b border-zinc-100 cursor-pointer hover:bg-zinc-50"
+                onClick={() => navigate("/master/create/tax-units")}
+              >
+                Create
+              </div>
+              <div
+                className={[
+                  "px-3 py-1.5 text-sm cursor-pointer border-b border-zinc-50",
+                  form.excise_tax_unit === "Not Applicable"
+                    ? "bg-amber-400 text-zinc-900 font-semibold"
+                    : "hover:bg-zinc-100 text-zinc-800",
+                ].join(" ")}
+                onClick={() => { setForm(f => f ? { ...f, excise_tax_unit: "Not Applicable" } : f); setShowTaxUnitPanel(false); }}
+              >
+                ◆ Not Applicable
+              </div>
+              {taxUnits.map(tu => (
+                <div
+                  key={tu.tax_unit_id}
+                  className={[
+                    "px-3 py-1.5 text-sm cursor-pointer border-b border-zinc-50",
+                    form.excise_tax_unit === tu.name
+                      ? "bg-amber-400 text-zinc-900 font-semibold"
+                      : "hover:bg-zinc-100 text-zinc-800",
+                  ].join(" ")}
+                  onClick={() => { setForm(f => f ? { ...f, excise_tax_unit: tu.name } : f); setShowTaxUnitPanel(false); }}
+                >
+                  {tu.name}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <RightActionPanel actions={alterActions} />
       </div>
