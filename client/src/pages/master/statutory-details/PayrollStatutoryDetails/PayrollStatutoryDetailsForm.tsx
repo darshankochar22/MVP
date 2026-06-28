@@ -20,28 +20,29 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function PayrollStatutoryDetailsForm({
+// Field row defined at MODULE scope (not inside the form component) so its
+// component identity is stable across renders. When it was declared inline,
+// every keystroke gave React a brand-new component type → it remounted the
+// input, dropping focus, and the first field's autoFocus yanked the cursor
+// back to "Company code" on each change.
+function TextField({
+  label,
+  field,
   form,
   setField,
-  firstFieldAutoFocus = false,
+  autoFocus = false,
+  indent = false,
+  maxLength,
 }: {
+  label: string;
+  field: keyof PayrollStatutoryDetails;
   form: PayrollStatutoryDetails;
   setField: <K extends keyof PayrollStatutoryDetails>(key: K, value: PayrollStatutoryDetails[K]) => void;
-  firstFieldAutoFocus?: boolean;
+  autoFocus?: boolean;
+  indent?: boolean;
+  maxLength?: number;
 }) {
-  const Text = ({
-    label,
-    field,
-    autoFocus = false,
-    indent = false,
-    maxLength,
-  }: {
-    label: string;
-    field: keyof PayrollStatutoryDetails;
-    autoFocus?: boolean;
-    indent?: boolean;
-    maxLength?: number;
-  }) => (
+  return (
     <FormRow
       label={label}
       labelWidth={indent ? "w-72 pl-4" : LABEL_W}
@@ -56,7 +57,17 @@ export function PayrollStatutoryDetailsForm({
       />
     </FormRow>
   );
+}
 
+export function PayrollStatutoryDetailsForm({
+  form,
+  setField,
+  firstFieldAutoFocus = false,
+}: {
+  form: PayrollStatutoryDetails;
+  setField: <K extends keyof PayrollStatutoryDetails>(key: K, value: PayrollStatutoryDetails[K]) => void;
+  firstFieldAutoFocus?: boolean;
+}) {
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-white overflow-y-auto">
       <div className="p-6 max-w-[760px]">
@@ -66,14 +77,14 @@ export function PayrollStatutoryDetailsForm({
 
         {/* ── Provident Fund ── */}
         <SectionTitle>Provident Fund</SectionTitle>
-        <Text label="Company code" field="pfCompanyCode" autoFocus={firstFieldAutoFocus} />
-        <Text label="Company account group code" field="pfAccountGroupCode" />
-        <Text label="Company security code" field="pfSecurityCode" />
+        <TextField label="Company code" field="pfCompanyCode" form={form} setField={setField} autoFocus={firstFieldAutoFocus} />
+        <TextField label="Company account group code" field="pfAccountGroupCode" form={form} setField={setField} />
+        <TextField label="Company security code" field="pfSecurityCode" form={form} setField={setField} />
 
         {/* ── Employee State Insurance ── */}
         <SectionTitle>Employee State Insurance</SectionTitle>
-        <Text label="Company code" field="esiCompanyCode" />
-        <Text label="ESI branch office" field="esiBranchOffice" />
+        <TextField label="Company code" field="esiCompanyCode" form={form} setField={setField} />
+        <TextField label="ESI branch office" field="esiBranchOffice" form={form} setField={setField} />
         <FormRow label="Standard working days per month" labelWidth={LABEL_W} className="flex items-center min-h-[26px]">
           <input
             type="number"
@@ -86,14 +97,14 @@ export function PayrollStatutoryDetailsForm({
 
         {/* ── National Pension Scheme ── */}
         <SectionTitle>National Pension Scheme</SectionTitle>
-        <Text label="Corporate registration number" field="npsCorporateRegistrationNumber" />
-        <Text label="Corporate branch office number" field="npsCorporateBranchOfficeNumber" />
+        <TextField label="Corporate registration number" field="npsCorporateRegistrationNumber" form={form} setField={setField} />
+        <TextField label="Corporate branch office number" field="npsCorporateBranchOfficeNumber" form={form} setField={setField} />
 
         {/* ── Income Tax ── */}
         <SectionTitle>Income Tax</SectionTitle>
-        <Text label="Tax deduction and collection Account Number (TAN)" field="itTan" maxLength={10} />
-        <Text label="TAN registration number" field="itTanRegistrationNumber" />
-        <Text label="Income tax circle or ward" field="itCircleOrWard" />
+        <TextField label="Tax deduction and collection Account Number (TAN)" field="itTan" form={form} setField={setField} maxLength={10} />
+        <TextField label="TAN registration number" field="itTanRegistrationNumber" form={form} setField={setField} />
+        <TextField label="Income tax circle or ward" field="itCircleOrWard" form={form} setField={setField} />
         <FormRow label="Deductor type" labelWidth={LABEL_W} className="flex items-center min-h-[26px]">
           <select
             className={selectCls}
@@ -103,11 +114,11 @@ export function PayrollStatutoryDetailsForm({
             {DEDUCTOR_TYPES.map((t) => <option key={t}>{t}</option>)}
           </select>
         </FormRow>
-        <Text label="Deductor branch/division" field="itDeductorBranchDivision" />
-        <Text label="Name of person responsible" field="itPersonResponsibleName" />
-        <Text label="Son/daughter of" field="itPersonResponsibleRelation" indent />
-        <Text label="Designation" field="itDesignation" />
-        <Text label="PAN" field="itPan" maxLength={10} />
+        <TextField label="Deductor branch/division" field="itDeductorBranchDivision" form={form} setField={setField} />
+        <TextField label="Name of person responsible" field="itPersonResponsibleName" form={form} setField={setField} />
+        <TextField label="Son/daughter of" field="itPersonResponsibleRelation" form={form} setField={setField} indent />
+        <TextField label="Designation" field="itDesignation" form={form} setField={setField} />
+        <TextField label="PAN" field="itPan" form={form} setField={setField} maxLength={10} />
 
         <div className="mt-5 pt-3 border-t border-zinc-100 text-[11px] italic text-zinc-400">
           Note: All the above details will be used in Challan, Forms &amp; Returns.
