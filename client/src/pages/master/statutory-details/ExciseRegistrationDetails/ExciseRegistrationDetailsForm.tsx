@@ -8,6 +8,7 @@ import {
   EXCISE_VALUATION_TYPES,
   DEFAULT_EXCISE_TARIFF_ITEM,
 } from "@/types/entities/ExciseRegistrationDetails";
+import { EXCISE_REPORTING_UOMS } from "@/pages/master/statutory/Tax-units/taxUnitsConstants";
 
 // ─── Shared field tokens (black / white / zinc only) ───────────────────────────
 const inputCls =
@@ -62,16 +63,11 @@ export function ExciseRegistrationDetailsForm({
     </FormRow>
   );
 
-  // ── tariff list helpers (keep one blank row to type into) ──
-  const rows: ExciseTariffItem[] = [...form.tariffs, { ...DEFAULT_EXCISE_TARIFF_ITEM }];
-  const commit = (next: ExciseTariffItem[]) =>
-    setField("tariffs", next.filter((r) => String(r.tariffName || "").trim() !== ""));
-  const updateRow = (idx: number, patch: Partial<ExciseTariffItem>) =>
-    commit(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
-  const removeRow = (idx: number) => commit(rows.filter((_, i) => i !== idx));
-
-  const cellInput =
-    "w-full bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 rounded";
+  // ── single excise tariff detail, persisted as the first (only) tariff row ──
+  const tariff: ExciseTariffItem =
+    form.tariffs[0] ?? { ...DEFAULT_EXCISE_TARIFF_ITEM, reportingUom: "Undefined" };
+  const updTariff = (patch: Partial<ExciseTariffItem>) =>
+    setField("tariffs", [{ ...tariff, ...patch }]);
 
   return (
     <div className="flex-1 flex flex-col min-w-0 bg-white overflow-y-auto">
@@ -121,6 +117,61 @@ export function ExciseRegistrationDetailsForm({
         <Text label="ECC number" field="eccNumber" />
 
         <YesNo label="Set/alter excise tariff details" field="setAlterExciseTariffDetails" />
+
+        {/* ── Excise Tariff Details — single tariff, shown when Set/alter = Yes ── */}
+        {Number(form.setAlterExciseTariffDetails) === 1 && (
+          <>
+            <div className="text-[12px] font-bold text-zinc-700 mt-1 mb-0.5 pl-4">Excise Tariff Details</div>
+            <FormRow label="Tariff name" labelWidth="w-80 pl-4" className="flex items-center min-h-[26px]">
+              <input
+                className={inputCls}
+                value={tariff.tariffName}
+                onChange={(e) => updTariff({ tariffName: e.target.value })}
+              />
+            </FormRow>
+            <FormRow label="HSN code" labelWidth="w-80 pl-4" className="flex items-center min-h-[26px]">
+              <input
+                className={inputCls}
+                value={tariff.hsnCode}
+                onChange={(e) => updTariff({ hsnCode: e.target.value })}
+              />
+            </FormRow>
+            <FormRow label="Reporting unit of measure" labelWidth="w-80 pl-4" className="flex items-center min-h-[26px]">
+              <select
+                className={selectCls}
+                value={tariff.reportingUom || "Undefined"}
+                onChange={(e) => updTariff({ reportingUom: e.target.value })}
+              >
+                {EXCISE_REPORTING_UOMS.map((u) => (
+                  <option key={u.code} value={u.code}>
+                    {u.code === "Undefined" ? "Undefined" : `${u.code} — ${u.label}`}
+                  </option>
+                ))}
+              </select>
+            </FormRow>
+            <FormRow label="Valuation type" labelWidth="w-80 pl-4" className="flex items-center min-h-[26px]">
+              <select
+                className={selectCls}
+                value={tariff.valuationType}
+                onChange={(e) => updTariff({ valuationType: e.target.value as ExciseTariffItem["valuationType"] })}
+              >
+                {EXCISE_VALUATION_TYPES.map((v) => <option key={v}>{v}</option>)}
+              </select>
+            </FormRow>
+            <FormRow label="Rate" labelWidth="w-80 pl-4" className="flex items-center min-h-[26px]">
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className={dateCls}
+                value={Number(tariff.rate) || ""}
+                onChange={(e) => updTariff({ rate: Number(e.target.value) || 0 })}
+              />
+              <span className="ml-1 text-sm text-zinc-500">%</span>
+            </FormRow>
+          </>
+        )}
+
         <YesNo label="Define excise tariff and duty details as masters" field="defineExciseTariffAsMasters" />
 
         <FormRow label="Deactivate from" labelWidth={LABEL_W} className="flex items-center min-h-[26px]">
@@ -131,82 +182,6 @@ export function ExciseRegistrationDetailsForm({
             onChange={(e) => setField("deactivateFrom", e.target.value)}
           />
         </FormRow>
-
-        {/* ── Excise Tariff Details — tariff/duty masters ── */}
-        {Number(form.defineExciseTariffAsMasters) === 1 && (
-          <div className="mt-6">
-            <div className="text-[12px] font-bold text-zinc-700 uppercase tracking-wide mb-2">
-              Excise Tariff Details
-            </div>
-            <table className="border-collapse text-sm">
-              <thead>
-                <tr className="border-b border-zinc-800 text-zinc-700">
-                  <th className="text-left font-semibold px-2 py-1 w-52">Tariff name</th>
-                  <th className="text-left font-semibold px-2 py-1 w-32">HSN code</th>
-                  <th className="text-left font-semibold px-2 py-1 w-40">Reporting UOM</th>
-                  <th className="text-left font-semibold px-2 py-1 w-40">Valuation type</th>
-                  <th className="text-right font-semibold px-2 py-1 w-24">Rate %</th>
-                  <th className="w-8" />
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, idx) => {
-                  const isBlankLast = idx === rows.length - 1;
-                  return (
-                    <tr key={idx} className="border-b border-zinc-100">
-                      <td className="px-2 py-0.5">
-                        <input
-                          className={cellInput}
-                          placeholder={isBlankLast ? "Add tariff…" : ""}
-                          value={row.tariffName}
-                          onChange={(e) => updateRow(idx, { tariffName: e.target.value })}
-                        />
-                      </td>
-                      <td className="px-2 py-0.5">
-                        <input className={cellInput} value={row.hsnCode} onChange={(e) => updateRow(idx, { hsnCode: e.target.value })} />
-                      </td>
-                      <td className="px-2 py-0.5">
-                        <input className={cellInput} value={row.reportingUom} onChange={(e) => updateRow(idx, { reportingUom: e.target.value })} />
-                      </td>
-                      <td className="px-2 py-0.5">
-                        <select
-                          className={cellInput}
-                          value={row.valuationType}
-                          onChange={(e) => updateRow(idx, { valuationType: e.target.value as ExciseTariffItem["valuationType"] })}
-                        >
-                          {EXCISE_VALUATION_TYPES.map((v) => <option key={v}>{v}</option>)}
-                        </select>
-                      </td>
-                      <td className="px-2 py-0.5 text-right">
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          className={`${cellInput} text-right`}
-                          value={Number(row.rate) || ""}
-                          onChange={(e) => updateRow(idx, { rate: Number(e.target.value) || 0 })}
-                        />
-                      </td>
-                      <td className="px-1 text-center">
-                        {!isBlankLast && (
-                          <button
-                            type="button"
-                            onClick={() => removeRow(idx)}
-                            className="text-zinc-400 hover:text-zinc-900 font-bold leading-none"
-                            title="Remove"
-                          >
-                            ×
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            <div className="text-[11px] italic text-zinc-400 mt-1">End of List</div>
-          </div>
-        )}
 
         <div className="mt-6 pt-3 border-t border-zinc-100 text-[11px] italic text-zinc-400">
           Note: Excise registration &amp; tariff details are used in excise invoices, returns &amp; reports.
