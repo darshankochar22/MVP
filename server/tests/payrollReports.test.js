@@ -247,3 +247,57 @@ describe("Payroll Report Service — Attendance Sheet (#127)", () => {
     expect(row.total_days).toBe(0);
   });
 });
+
+describe("Payroll Report Service — Payment Advice (#128)", () => {
+  let companyId;
+  let fyId;
+  let employeeId;
+
+  beforeAll(async () => {
+    await setupTestDB();
+    const company = await createTestCompany();
+    companyId = company.company_id;
+    fyId = company.fy_id;
+
+    const earn = await payHeadService.create({
+      company_id: companyId, name: "Test Basic 128",
+      pay_head_type: "Earnings for Employees", calculation_type: "Flat Rate",
+    });
+    expect(earn.success).toBe(true);
+    const ded = await payHeadService.create({
+      company_id: companyId, name: "Test Deduction 128",
+      pay_head_type: "Deductions from Employees", calculation_type: "Flat Rate",
+    });
+    expect(ded.success).toBe(true);
+
+    const emp = await employeeService.create({
+      company_id: companyId,
+      name: "Mohan Lal",
+      date_of_joining: "2026-04-01",
+      bank_account_number: "9876543210",
+      bank_name: "SBI",
+      ifsc_code: "SBIN0001234",
+    });
+    employeeId = emp.employee.employee_id;
+
+    await salaryStructureService.create({
+      company_id: companyId, employee_id: employeeId, effective_from: "2026-04-01",
+      pay_head_id: earn.payHead.pay_head_id, amount: 30000, calculation_mode: "Flat Rate",
+    });
+    await salaryStructureService.create({
+      company_id: companyId, employee_id: employeeId, effective_from: "2026-04-01",
+      pay_head_id: ded.payHead.pay_head_id, amount: 4000, calculation_mode: "Flat Rate",
+    });
+  });
+
+  it("Payment Advice returns bank details and net pay per employee", async () => {
+    const res = await payrollReportService.paymentAdvice(companyId, fyId);
+    expect(res.success).toBe(true);
+    const row = res.rows.find((r) => r.emp_name === "Mohan Lal");
+    expect(row).toBeDefined();
+    expect(row.bank_name).toBe("SBI");
+    expect(row.account_number).toBe("9876543210");
+    expect(row.ifsc_code).toBe("SBIN0001234");
+    expect(row.net_pay).toBe(26000); // 30000 - 4000
+  });
+});
