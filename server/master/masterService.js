@@ -26,7 +26,7 @@ const getMenu = async (company_id = 1) => {
 
     menu.push({
       title: "Statutory Details",
-      items: ["Company GST Details","TDS Details","TCS Details","VAT Registration Details","Excise Registration Details","Service Tax Details","CENVAT Opening Balance","PLA Opening Balance","Excise Opening Balance", "PAN / CIN Details", "Payroll Statutory Details"]
+      items: ["Company GST Details","TDS Details","TCS Details","VAT Registration Details","Excise Registration Details","Service Tax Details","CENVAT Opening Balance","PLA Opening Balance","Excise Opening Balance","Dealer Excise Opening Stock", "PAN / CIN Details", "Payroll Statutory Details"]
     });
 
     menu.push({

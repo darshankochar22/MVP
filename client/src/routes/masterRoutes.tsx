@@ -118,6 +118,7 @@ import ServiceTaxDetailsCreate from "../pages/master/statutory-details/ServiceTa
 import CenvatOpeningBalanceCreate from "../pages/master/statutory-details/CenvatOpeningBalance/CenvatOpeningBalanceCreate.tsx";
 import PlaOpeningBalanceCreate from "../pages/master/statutory-details/PlaOpeningBalance/PlaOpeningBalanceCreate.tsx";
 import ExciseOpeningBalanceCreate from "../pages/master/statutory-details/ExciseOpeningBalance/ExciseOpeningBalanceCreate.tsx";
+import DealerExciseOpeningStockCreate from "../pages/master/statutory-details/DealerExciseOpeningStock/DealerExciseOpeningStockCreate.tsx";
 import VATRDCreate from "../pages/master/statutory-details/VATRegistrationDetails/VATRDCreate.tsx";
 import VATRDAlter from "../pages/master/statutory-details/VATRegistrationDetails/VATRDAlter.tsx";
 import VATRDCOA from "../pages/master/statutory-details/VATRegistrationDetails/VATRDCOA.tsx";
@@ -313,6 +314,7 @@ export const masterRoutes: RouteConfig[] = [
   { path: "/master/create/cenvat-opening-balance", element: <CenvatOpeningBalanceCreate /> },
   { path: "/master/create/pla-opening-balance", element: <PlaOpeningBalanceCreate /> },
   { path: "/master/create/excise-opening-balance", element: <ExciseOpeningBalanceCreate /> },
+  { path: "/master/create/dealer-excise-opening-stock", element: <DealerExciseOpeningStockCreate /> },
 
   // Statutory Details — VAT Registration
   { path: "/master/create/vat-registration-details", element: <VATRDCreate /> },

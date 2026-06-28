@@ -64,6 +64,7 @@ export default function Create() {
       "CENVAT Opening Balance": "/master/create/cenvat-opening-balance",
       "PLA Opening Balance": "/master/create/pla-opening-balance",
       "Excise Opening Balance": "/master/create/excise-opening-balance",
+      "Dealer Excise Opening Stock": "/master/create/dealer-excise-opening-stock",
       "Employee Category": "/master/create/employee-category",
       "Employee Group": "/master/create/employee-group",
       "Employee": "/master/create/employee",
