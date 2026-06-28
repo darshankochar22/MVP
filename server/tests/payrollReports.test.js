@@ -343,3 +343,88 @@ describe("Payroll Report Service — Employees Without Email IDs (#129)", () => 
     expect(row.department).toBe("Ops");
   });
 });
+
+describe("Payroll Report Service — Statement + Pay Head Breakups (#131)", () => {
+  let companyId;
+  let fyId;
+  let empA;
+  let empB;
+
+  beforeAll(async () => {
+    await setupTestDB();
+    const company = await createTestCompany();
+    companyId = company.company_id;
+    fyId = company.fy_id;
+
+    const basic = await payHeadService.create({
+      company_id: companyId, name: "Test Basic 131",
+      pay_head_type: "Earnings for Employees", calculation_type: "Flat Rate",
+    });
+    expect(basic.success).toBe(true);
+    const pf = await payHeadService.create({
+      company_id: companyId, name: "Test PF 131",
+      pay_head_type: "Deductions from Employees", calculation_type: "Flat Rate",
+    });
+    expect(pf.success).toBe(true);
+
+    const a = await employeeService.create({
+      company_id: companyId, name: "Emp Alpha", date_of_joining: "2026-04-01",
+    });
+    const b = await employeeService.create({
+      company_id: companyId, name: "Emp Beta", date_of_joining: "2026-04-01",
+    });
+    empA = a.employee.employee_id;
+    empB = b.employee.employee_id;
+
+    // Both employees share the Basic earning head; only Alpha has PF.
+    await salaryStructureService.create({
+      company_id: companyId, employee_id: empA, effective_from: "2026-04-01",
+      pay_head_id: basic.payHead.pay_head_id, amount: 20000, calculation_mode: "Flat Rate",
+    });
+    await salaryStructureService.create({
+      company_id: companyId, employee_id: empB, effective_from: "2026-04-01",
+      pay_head_id: basic.payHead.pay_head_id, amount: 30000, calculation_mode: "Flat Rate",
+    });
+    await salaryStructureService.create({
+      company_id: companyId, employee_id: empA, effective_from: "2026-04-01",
+      pay_head_id: pf.payHead.pay_head_id, amount: 2000, calculation_mode: "Flat Rate",
+    });
+  });
+
+  it("Payroll Statement aggregates each pay head across all employees with pay type", async () => {
+    const res = await payrollReportService.payrollStatement(companyId, fyId);
+    expect(res.success).toBe(true);
+    const basic = res.rows.find((r) => r.pay_head_name === "Test Basic 131");
+    const pf = res.rows.find((r) => r.pay_head_name === "Test PF 131");
+    expect(basic.total_amount).toBe(50000); // 20000 + 30000 across both employees
+    expect(basic.pay_type).toBe("Earning");
+    expect(pf.total_amount).toBe(2000);
+    expect(pf.pay_type).toBe("Deduction");
+  });
+
+  it("Employee Pay Head Breakup lists one line per employee/pay-head pair", async () => {
+    const res = await payrollReportService.employeePayHeadBreakup(companyId, fyId);
+    expect(res.success).toBe(true);
+    const alphaBasic = res.rows.find(
+      (r) => r.emp_name === "Emp Alpha" && r.pay_head_name === "Test Basic 131"
+    );
+    expect(alphaBasic).toBeDefined();
+    expect(alphaBasic.amount).toBe(20000);
+    expect(alphaBasic.pay_type).toBe("Earning");
+    const alphaPf = res.rows.find(
+      (r) => r.emp_name === "Emp Alpha" && r.pay_head_name === "Test PF 131"
+    );
+    expect(alphaPf.pay_type).toBe("Deduction");
+  });
+
+  it("Pay Head Employee Breakup lists each employee under a pay head", async () => {
+    const res = await payrollReportService.payHeadEmployeeBreakup(companyId, fyId);
+    expect(res.success).toBe(true);
+    const basicLines = res.rows.filter((r) => r.pay_head_name === "Test Basic 131");
+    const names = basicLines.map((r) => r.emp_name);
+    expect(names).toContain("Emp Alpha");
+    expect(names).toContain("Emp Beta");
+    const betaBasic = basicLines.find((r) => r.emp_name === "Emp Beta");
+    expect(betaBasic.amount).toBe(30000);
+  });
+});
