@@ -516,7 +516,18 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
           trackExpiry={form.track_expiry}
           godowns={godowns}
           initialAllocations={form.allocations}
-          onAccept={(allocs) => { setForm(f => ({ ...f, allocations: allocs })); setShowAllocationModal(false); }}
+          onAccept={(allocs) => {
+            const totalQty = allocs.reduce((s, a) => s + (parseFloat(a.quantity) || 0), 0);
+            const totalVal = allocs.reduce((s, a) => s + (parseFloat(a.quantity) || 0) * (parseFloat(a.rate) || 0), 0);
+            const avgRate = totalQty > 0 ? totalVal / totalQty : 0;
+            setForm(f => ({
+              ...f,
+              allocations: allocs,
+              opening_quantity: totalQty > 0 ? String(totalQty) : f.opening_quantity,
+              opening_rate: avgRate > 0 ? String(avgRate) : f.opening_rate,
+            }));
+            setShowAllocationModal(false);
+          }}
           onClose={() => setShowAllocationModal(false)}
         />
       )}
