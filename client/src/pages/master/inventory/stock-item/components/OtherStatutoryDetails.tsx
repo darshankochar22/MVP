@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { FormRow } from "@/components/ui";
 import { EXCISE_REPORTING_UOM_OPTIONS, EXCISE_VALUATION_TYPE_OPTIONS } from "../consts";
 import ExciseAdditionalInfoModal, { type ExciseAdditionalInfoRow } from "./ExciseAdditionalInfoModal";
@@ -306,8 +307,8 @@ export default function OtherStatutoryDetails({
 
       </div>
 
-      {/* Excise Additional Info sub-modal */}
-      {showAdditionalInfoModal && (
+      {/* Excise Additional Info sub-modal — portalled to body to escape z-50 stacking context */}
+      {showAdditionalInfoModal && createPortal(
         <ExciseAdditionalInfoModal
           stockItemName={stockItemName}
           unitSymbol={unitLabel || "Nos"}
@@ -318,7 +319,8 @@ export default function OtherStatutoryDetails({
             setShowAdditionalInfoModal(false);
           }}
           onClose={() => setShowAdditionalInfoModal(false)}
-        />
+        />,
+        document.body
       )}
     </div>
   );

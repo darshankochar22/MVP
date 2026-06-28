@@ -205,7 +205,7 @@ export default function ExciseAdditionalInfoModal({
       {/* ── List of Excise Units panel ── */}
       {activePopup?.field === "exciseUnit" && (
         <div
-          className="absolute top-1/2 -translate-y-1/2 bg-white border border-zinc-300 shadow-xl flex flex-col"
+          className="fixed top-1/2 -translate-y-1/2 bg-white border border-zinc-300 shadow-xl flex flex-col"
           style={{ left: "calc(50% + 432px)", width: 280, maxHeight: 360 }}
         >
           <div className="bg-zinc-800 text-white text-xs font-bold px-3 py-1.5 shrink-0">List of Excise Units</div>
@@ -245,7 +245,7 @@ export default function ExciseAdditionalInfoModal({
       {/* ── List of Excise Reporting UoMs panel ── */}
       {activePopup?.field === "exciseUom" && (
         <div
-          className="absolute top-1/2 -translate-y-1/2 bg-white border border-zinc-300 shadow-xl flex flex-col"
+          className="fixed top-1/2 -translate-y-1/2 bg-white border border-zinc-300 shadow-xl flex flex-col"
           style={{ left: "calc(50% + 432px)", width: 300, maxHeight: 400 }}
         >
           <div className="bg-zinc-800 text-white text-xs font-bold px-3 py-1.5 shrink-0">List of Excise Reporting UoMs</div>
@@ -284,7 +284,7 @@ export default function ExciseAdditionalInfoModal({
       {/* ── Natures of Stock Item panel ── */}
       {activePopup?.field === "stockItemType" && (
         <div
-          className="absolute top-1/2 -translate-y-1/2 bg-white border border-zinc-300 shadow-xl flex flex-col"
+          className="fixed top-1/2 -translate-y-1/2 bg-white border border-zinc-300 shadow-xl flex flex-col"
           style={{ left: "calc(50% + 432px)", width: 220, maxHeight: 280 }}
         >
           <div className="bg-zinc-800 text-white text-xs font-bold px-3 py-1.5 shrink-0">Natures of Stock Item</div>
