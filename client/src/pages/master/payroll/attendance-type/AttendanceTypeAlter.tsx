@@ -271,30 +271,34 @@ export default function AttendanceTypeAlter() {
               {ATTENDANCE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>
           </FormRow>
-          <FormRow label="Period" labelWidth="w-56" className="flex items-center min-h-[26px]">
-            <select
-              disabled={isPredefined}
-              className={`${selectCls} ${isPredefined ? "text-zinc-500 cursor-not-allowed bg-zinc-50" : ""}`}
-              value={form.period}
-              onChange={setField("period")}
-            >
-              <option value="Per Day">Per Day</option>
-              <option value="Per Month">Per Month</option>
-              <option value="Per Year">Per Year</option>
-              <option value="Per Hour">Per Hour</option>
-            </select>
-          </FormRow>
-          <FormRow label="Unit" labelWidth="w-56" className="flex items-center min-h-[26px]">
-            <select
-              disabled={isPredefined}
-              className={`${selectCls} ${isPredefined ? "text-zinc-500 cursor-not-allowed bg-zinc-50" : ""}`}
-              value={form.unit_id}
-              onChange={setField("unit_id")}
-            >
-              <option value="">Select</option>
-              {units.map(u => <option key={u.payroll_unit_id} value={u.payroll_unit_id}>{u.name}</option>)}
-            </select>
-          </FormRow>
+          {/* Production → Unit only; all other types → Period only */}
+          {form.type === "Production" ? (
+            <FormRow label="Unit" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <select
+                disabled={isPredefined}
+                className={`${selectCls} ${isPredefined ? "text-zinc-500 cursor-not-allowed bg-zinc-50" : ""}`}
+                value={form.unit_id}
+                onChange={setField("unit_id")}
+              >
+                <option value="">Select</option>
+                {units.map(u => <option key={u.payroll_unit_id} value={u.payroll_unit_id}>{u.name}</option>)}
+              </select>
+            </FormRow>
+          ) : (
+            <FormRow label="Period" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <select
+                disabled={isPredefined}
+                className={`${selectCls} ${isPredefined ? "text-zinc-500 cursor-not-allowed bg-zinc-50" : ""}`}
+                value={form.period}
+                onChange={setField("period")}
+              >
+                <option value="Per Day">Per Day</option>
+                <option value="Per Month">Per Month</option>
+                <option value="Per Year">Per Year</option>
+                <option value="Per Hour">Per Hour</option>
+              </select>
+            </FormRow>
+          )}
         </div>
 
         <RightActionPanel actions={alterActions} />
