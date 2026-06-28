@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { FormRow } from "@/components/ui";
+import type { NumberingRestartRow, NumberingAffixRow } from "@/types/entities/VoucherType";
+import AdditionalNumberingPopup from "./AdditionalNumberingPopup";
 
 // ─── Shared field tokens (black / white / zinc only) ───────────────────────────
 const inputCls =
@@ -57,6 +60,13 @@ export interface VTConfig {
   prevent_duplicate_numbers: YN;
   print_after_save: YN;
   whatsapp_after_save: YN;
+  // Additional numbering details sub-screen (issue #143)
+  starting_number: number;
+  width_of_numerical_part: number;
+  prefill_with_zero: YN;
+  restart_numbering: NumberingRestartRow[];
+  prefix_details: NumberingAffixRow[];
+  suffix_details: NumberingAffixRow[];
 }
 
 export const INITIAL_FORM: VTForm = {
@@ -80,6 +90,12 @@ export const INITIAL_CONFIG: VTConfig = {
   prevent_duplicate_numbers: "No",
   print_after_save: "No",
   whatsapp_after_save: "No",
+  starting_number: 1,
+  width_of_numerical_part: 0,
+  prefill_with_zero: "No",
+  restart_numbering: [],
+  prefix_details: [],
+  suffix_details: [],
 };
 
 export const toInt = (v: YN) => (v === "Yes" ? 1 : 0);
@@ -165,6 +181,8 @@ export function VoucherTypeFormBody({
 }) {
   const setF = (key: keyof VTForm) => (v: string) => setForm((f) => ({ ...f, [key]: v }));
   const setC = (key: keyof VTConfig) => (v: YN) => setConfig((c) => ({ ...c, [key]: v }));
+
+  const [showNumberingPopup, setShowNumberingPopup] = useState(false);
 
   const method = form.numbering_method;
   const isAuto = method === "Automatic" || method === "Multi-user Auto";
@@ -254,7 +272,24 @@ export function VoucherTypeFormBody({
                     </select>
                   </FormRow>
                   <FormRow label="Set/Alter additional numbering details" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                    <YesNoSelect value={config.set_alter_additional_numbering} onChange={setC("set_alter_additional_numbering")} />
+                    <div className="flex items-center gap-2">
+                      <YesNoSelect
+                        value={config.set_alter_additional_numbering}
+                        onChange={(v) => {
+                          setC("set_alter_additional_numbering")(v);
+                          if (v === "Yes") setShowNumberingPopup(true);
+                        }}
+                      />
+                      {config.set_alter_additional_numbering === "Yes" && (
+                        <button
+                          type="button"
+                          onClick={() => setShowNumberingPopup(true)}
+                          className="text-[11px] text-zinc-500 hover:text-zinc-900 underline font-sans"
+                        >
+                          Edit details
+                        </button>
+                      )}
+                    </div>
                   </FormRow>
                   {config.numbering_behaviour === "Retain Original Voucher No." && (
                     <FormRow label="Show unused vch nos. in transactions" labelWidth="w-56" className="flex items-center min-h-[26px]">
@@ -316,6 +351,27 @@ export function VoucherTypeFormBody({
           selected={form.category}
           onSelect={(v) => setForm((f) => ({ ...f, category: v }))}
           onClose={() => setShowCategoryPanel(false)}
+        />
+      )}
+
+      {showNumberingPopup && config.set_alter_additional_numbering === "Yes" && (
+        <AdditionalNumberingPopup
+          value={{
+            starting_number: config.starting_number,
+            width_of_numerical_part: config.width_of_numerical_part,
+            prefill_with_zero: config.prefill_with_zero === "Yes",
+            restart_numbering: config.restart_numbering,
+            prefix_details: config.prefix_details,
+            suffix_details: config.suffix_details,
+          }}
+          onChange={(patch) =>
+            setConfig((c) => {
+              const next = { ...c, ...patch } as VTConfig;
+              if (patch.prefill_with_zero !== undefined) next.prefill_with_zero = patch.prefill_with_zero ? "Yes" : "No";
+              return next;
+            })
+          }
+          onClose={() => setShowNumberingPopup(false)}
         />
       )}
     </>

@@ -48,6 +48,13 @@ const voucherTypeConfigs = pgTable('voucher_type_configs', {
   defaultBankId: bigint('default_bank_id', { mode: 'number' }),
   declaration: text('declaration'),
   setAlterDeclaration: boolean('set_alter_declaration').notNull().default(false),
+  // Additional numbering details sub-screen (issue #143).
+  startingNumber: integer('starting_number').notNull().default(1),
+  widthOfNumericalPart: integer('width_of_numerical_part').notNull().default(0),
+  prefillWithZero: boolean('prefill_with_zero').notNull().default(false),
+  restartNumbering: text('restart_numbering').notNull().default('[]'),
+  prefixDetails: text('prefix_details').notNull().default('[]'),
+  suffixDetails: text('suffix_details').notNull().default('[]'),
 });
 
 module.exports = { voucherTypes, voucherTypeConfigs };

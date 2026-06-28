@@ -165,6 +165,12 @@ export default function VoucherTypeAlter() {
           prevent_duplicate_numbers:      fromInt(c.prevent_duplicate_numbers),
           print_after_save:               fromInt(c.print_after_save),
           whatsapp_after_save:            fromInt(c.whatsapp_after_save),
+          starting_number:                c.starting_number ?? 1,
+          width_of_numerical_part:        c.width_of_numerical_part ?? 0,
+          prefill_with_zero:              fromInt(c.prefill_with_zero),
+          restart_numbering:              c.restart_numbering ?? [],
+          prefix_details:                 c.prefix_details ?? [],
+          suffix_details:                 c.suffix_details ?? [],
         });
       } else {
         setConfig({ ...INITIAL_CONFIG });
@@ -218,6 +224,12 @@ export default function VoucherTypeAlter() {
         prevent_duplicate_numbers:      toInt(config.prevent_duplicate_numbers),
         print_after_save:               toInt(config.print_after_save),
         whatsapp_after_save:            toInt(config.whatsapp_after_save),
+        starting_number:                config.starting_number,
+        width_of_numerical_part:        config.width_of_numerical_part,
+        prefill_with_zero:              toInt(config.prefill_with_zero),
+        restart_numbering:              config.restart_numbering,
+        prefix_details:                 config.prefix_details,
+        suffix_details:                 config.suffix_details,
       };
       const configRes = await window.api.voucherType.updateConfig(configPayload);
       if (!configRes.success) { setError(configRes.error || "Failed to update config."); return; }

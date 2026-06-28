@@ -63,7 +63,13 @@ const init = async (db) => {
       use_for_pos_invoicing                INTEGER DEFAULT 0,
       default_bank_id                      INTEGER,
       declaration                          TEXT,
-      set_alter_declaration                INTEGER DEFAULT 0
+      set_alter_declaration                INTEGER DEFAULT 0,
+      starting_number                      INTEGER DEFAULT 1,
+      width_of_numerical_part              INTEGER DEFAULT 0,
+      prefill_with_zero                    INTEGER DEFAULT 0,
+      restart_numbering                    TEXT DEFAULT '[]',
+      prefix_details                       TEXT DEFAULT '[]',
+      suffix_details                       TEXT DEFAULT '[]'
     )
   `);
 
@@ -79,7 +85,14 @@ const init = async (db) => {
     { name: 'use_for_pos_invoicing', spec: 'INTEGER DEFAULT 0' },
     { name: 'default_bank_id', spec: 'INTEGER' },
     { name: 'declaration', spec: 'TEXT' },
-    { name: 'set_alter_declaration', spec: 'INTEGER DEFAULT 0' }
+    { name: 'set_alter_declaration', spec: 'INTEGER DEFAULT 0' },
+    // Additional numbering details sub-screen (issue #143) — scalars + JSON rows.
+    { name: 'starting_number', spec: 'INTEGER DEFAULT 1' },
+    { name: 'width_of_numerical_part', spec: 'INTEGER DEFAULT 0' },
+    { name: 'prefill_with_zero', spec: 'INTEGER DEFAULT 0' },
+    { name: 'restart_numbering', spec: "TEXT DEFAULT '[]'" },
+    { name: 'prefix_details', spec: "TEXT DEFAULT '[]'" },
+    { name: 'suffix_details', spec: "TEXT DEFAULT '[]'" }
   ];
 
   for (const col of columnsToAdd_config) {

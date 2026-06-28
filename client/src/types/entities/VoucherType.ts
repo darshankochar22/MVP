@@ -1,3 +1,14 @@
+// Additional numbering details sub-screen rows (issue #143).
+export interface NumberingRestartRow {
+  applicable_from: string;
+  starting_number: number;
+  particulars: string;
+}
+export interface NumberingAffixRow {
+  applicable_from: string;
+  particulars: string;
+}
+
 export interface VoucherTypeConfig {
   config_id?: number;
   voucher_type_id?: number;
@@ -12,6 +23,13 @@ export interface VoucherTypeConfig {
   prevent_duplicate_numbers?: number;
   whatsapp_after_save?: number;
   print_after_save?: number;
+  // Additional numbering details (issue #143)
+  starting_number?: number;
+  width_of_numerical_part?: number;
+  prefill_with_zero?: number;
+  restart_numbering?: NumberingRestartRow[];
+  prefix_details?: NumberingAffixRow[];
+  suffix_details?: NumberingAffixRow[];
 }
 
 export interface VoucherTypeType {

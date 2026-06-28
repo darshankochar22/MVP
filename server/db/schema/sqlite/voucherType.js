@@ -47,6 +47,13 @@ const voucherTypeConfigs = sqliteTable('voucher_type_configs', {
   defaultBankId: integer('default_bank_id'),
   declaration: text('declaration'),
   setAlterDeclaration: integer('set_alter_declaration').default(0),
+  // Additional numbering details sub-screen (issue #143).
+  startingNumber: integer('starting_number').default(1),
+  widthOfNumericalPart: integer('width_of_numerical_part').default(0),
+  prefillWithZero: integer('prefill_with_zero').default(0),
+  restartNumbering: text('restart_numbering').default('[]'),
+  prefixDetails: text('prefix_details').default('[]'),
+  suffixDetails: text('suffix_details').default('[]'),
 });
 
 module.exports = { voucherTypes, voucherTypeConfigs };

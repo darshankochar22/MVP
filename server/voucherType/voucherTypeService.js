@@ -16,6 +16,26 @@ const { db } = require('../db/index');
 const { sql, eq } = require('drizzle-orm');
 const { voucherTypes, voucherTypeConfigs } = require('../db/schema');
 
+// ── Additional numbering details (issue #143) — restart/prefix/suffix rows are
+//    stored as JSON text columns on voucher_type_configs. Serialize on write,
+//    parse on read so callers always see arrays. ──────────────────────────────
+const parseRows = (val) => {
+  if (Array.isArray(val)) return val;
+  if (typeof val !== 'string' || !val.trim()) return [];
+  try { const r = JSON.parse(val); return Array.isArray(r) ? r : []; } catch { return []; }
+};
+const serializeRows = (val) => JSON.stringify(Array.isArray(val) ? val : parseRows(val));
+// Parse the three JSON columns of a raw config row in place.
+const normalizeConfig = (config) => {
+  if (!config) return config;
+  return {
+    ...config,
+    restart_numbering: parseRows(config.restart_numbering),
+    prefix_details: parseRows(config.prefix_details),
+    suffix_details: parseRows(config.suffix_details),
+  };
+};
+
 // Fetch a single voucher_types row in the legacy snake_case shape (or undefined).
 const findVoucherTypeRow = async (whereSql) => {
   const rows = await db.all(sql`SELECT * FROM ${voucherTypes} WHERE ${whereSql}`);
@@ -162,6 +182,12 @@ module.exports = {
           defaultBankId: null,
           declaration: null,
           setAlterDeclaration: 0,
+          startingNumber: Number.isFinite(Number(data.starting_number)) ? Number(data.starting_number) : 1,
+          widthOfNumericalPart: Number.isFinite(Number(data.width_of_numerical_part)) ? Number(data.width_of_numerical_part) : 0,
+          prefillWithZero: data.prefill_with_zero ? 1 : 0,
+          restartNumbering: serializeRows(data.restart_numbering),
+          prefixDetails: serializeRows(data.prefix_details),
+          suffixDetails: serializeRows(data.suffix_details),
         });
 
       const voucherType = await findVoucherTypeRow(sql`${voucherTypes.vtId} = ${vt_id}`);
@@ -199,13 +225,15 @@ module.exports = {
                 vtc.prevent_duplicate_numbers,
                 vtc.whatsapp_after_save, vtc.print_after_save, vtc.enable_default_accounting_allocation,
                 vtc.track_additional_cost_for_purchase, vtc.default_title_to_print,
-                vtc.use_for_pos_invoicing, vtc.default_bank_id, vtc.declaration, vtc.set_alter_declaration
+                vtc.use_for_pos_invoicing, vtc.default_bank_id, vtc.declaration, vtc.set_alter_declaration,
+                vtc.starting_number, vtc.width_of_numerical_part, vtc.prefill_with_zero,
+                vtc.restart_numbering, vtc.prefix_details, vtc.suffix_details
             FROM ${voucherTypes} vt
             LEFT JOIN ${voucherTypeConfigs} vtc ON vt.vt_id = vtc.voucher_type_id
             WHERE vt.vt_id = ${id}`
       );
       if (rows.length === 0) return { success: false, error: 'Voucher Type not found' };
-      return { success: true, voucherType: rows[0] };
+      return { success: true, voucherType: normalizeConfig(rows[0]) };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -215,7 +243,7 @@ module.exports = {
     try {
       const config = await findConfigRow(voucher_type_id);
       if (!config) return { success: false, error: 'Config not found' };
-      return { success: true, config };
+      return { success: true, config: normalizeConfig(config) };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -247,11 +275,17 @@ module.exports = {
           defaultBankId: data.default_bank_id ?? c.default_bank_id,
           declaration: data.declaration ?? c.declaration,
           setAlterDeclaration: data.set_alter_declaration ?? c.set_alter_declaration,
+          startingNumber: data.starting_number !== undefined ? Number(data.starting_number) : c.starting_number,
+          widthOfNumericalPart: data.width_of_numerical_part !== undefined ? Number(data.width_of_numerical_part) : c.width_of_numerical_part,
+          prefillWithZero: data.prefill_with_zero !== undefined ? (data.prefill_with_zero ? 1 : 0) : c.prefill_with_zero,
+          restartNumbering: data.restart_numbering !== undefined ? serializeRows(data.restart_numbering) : c.restart_numbering,
+          prefixDetails: data.prefix_details !== undefined ? serializeRows(data.prefix_details) : c.prefix_details,
+          suffixDetails: data.suffix_details !== undefined ? serializeRows(data.suffix_details) : c.suffix_details,
         })
         .where(eq(voucherTypeConfigs.voucherTypeId, data.voucher_type_id));
 
       const updated = await findConfigRow(data.voucher_type_id);
-      return { success: true, config: updated };
+      return { success: true, config: normalizeConfig(updated) };
     } catch (err) {
       return { success: false, error: err.message };
     }

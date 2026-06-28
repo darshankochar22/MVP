@@ -56,6 +56,12 @@ export default function VoucherTypeCreate() {
         prevent_duplicate_numbers:      toInt(config.prevent_duplicate_numbers),
         print_after_save:               toInt(config.print_after_save),
         whatsapp_after_save:            toInt(config.whatsapp_after_save),
+        starting_number:                config.starting_number,
+        width_of_numerical_part:        config.width_of_numerical_part,
+        prefill_with_zero:              toInt(config.prefill_with_zero),
+        restart_numbering:              config.restart_numbering,
+        prefix_details:                 config.prefix_details,
+        suffix_details:                 config.suffix_details,
       };
       const result = await window.api.voucherType.create(payload);
 
