@@ -17,9 +17,6 @@ interface MonthData {
 interface SourceAppItem {
   particulars: string;
   amount: number;
-  // Present for line items that map to a real ledger (e.g. "Stock (Increase)").
-  // Absent for derived rows like "Funds from Operations" / "Funds Lost in
-  // Operations", which drill into the P&L instead.
   ledger_id?: number;
 }
 
@@ -28,28 +25,17 @@ interface DetailData {
   applications: SourceAppItem[];
   totalSources: number;
   totalApplications: number;
-  netWorkingCapitalChange: number;
+  workingCapitalChange: number;
   isNetIncrease: boolean;
-  // WC footer
+  // WC reconciliation footer (all live from the server)
   currentAssetsOpening: number;
   currentAssetsClosing: number;
-  currentLiabOpening: number;
-  currentLiabClosing: number;
-}
-
-interface GroupRow {
-  group_id: number;
-  name: string;
-  parent_group_id: number | null;
-  nature: string | null;
-}
-
-interface LedgerRow {
-  ledger_id: number;
-  name: string;
-  group_id: number;
-  opening_balance: number;
-  nature: string | null;
+  currentLiabilitiesOpening: number;
+  currentLiabilitiesClosing: number;
+  workingCapitalOpening: number;
+  workingCapitalClosing: number;
+  caGroupId: number | null;
+  clGroupId: number | null;
 }
 
 export default function FundsFlowStatement() {
@@ -66,11 +52,6 @@ export default function FundsFlowStatement() {
   const [error, setError] = useState<string | null>(null);
 
   const [focusedIndex, setFocusedIndex] = useState(0);
-  // Top-level group_id for "Current Assets" / "Current Liabilities", resolved
-  // from the group list we already fetch for the WC computation, so the
-  // reconciliation footer rows can drill into Group Summary.
-  const [caGroupId, setCaGroupId] = useState<number | null>(null);
-  const [clGroupId, setClGroupId] = useState<number | null>(null);
 
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
@@ -97,21 +78,8 @@ export default function FundsFlowStatement() {
     });
   }, [activeFY]);
 
-  // Helper: is a group "Current Assets" or "Current Liabilities" by name?
-  const isCurrentGroup = useCallback((groupId: number, groupMap: Map<number, GroupRow>, targetName: string): boolean => {
-    let current = groupMap.get(groupId);
-    while (current) {
-      if (current.name === targetName) return true;
-      if (current.parent_group_id) {
-        current = groupMap.get(current.parent_group_id);
-      } else {
-        break;
-      }
-    }
-    return false;
-  }, []);
-
-  // Load Monthly Summary
+  // Load Monthly Summary — each month's working capital comes straight from the
+  // server's funds-flow reconciliation (no client-side WC arithmetic).
   const loadMonthlySummary = useCallback(async () => {
     if (!companyId || !fyId || monthRanges.length === 0) {
       setLoading(false);
@@ -120,121 +88,62 @@ export default function FundsFlowStatement() {
     setLoading(true);
     setError(null);
     try {
-      const [ledgerRes, groupRes] = await Promise.all([
-        window.api.ledger.getAll(companyId),
-        window.api.group.getAll(companyId)
-      ]);
-
-      const groupsData: GroupRow[] = groupRes.success ? groupRes.groups || [] : [];
-      const ledgersData: LedgerRow[] = ledgerRes.success ? ledgerRes.ledgers || [] : [];
-
-      const groupMap = new Map<number, GroupRow>();
-      groupsData.forEach((g) => groupMap.set(g.group_id, g));
-
-      // Calculate initial working capital from opening balances
-      let currentAssetOpening = 0;
-      let currentLiabOpening = 0;
-      ledgersData.forEach((l) => {
-        const isCA = isCurrentGroup(l.group_id, groupMap, "Current Assets");
-        const isCL = isCurrentGroup(l.group_id, groupMap, "Current Liabilities");
-        if (isCA) currentAssetOpening += l.opening_balance || 0;
-        if (isCL) currentLiabOpening += l.opening_balance || 0;
-      });
-      const initialWC = currentAssetOpening - currentLiabOpening;
-
-      const changes = await Promise.all(
+      const data: MonthData[] = await Promise.all(
         monthRanges.map(async (m) => {
           const res = await window.api.report.fundsFlow(companyId, fyId, m.startDate, m.endDate);
           return {
             name: m.name,
             startDate: m.startDate,
             endDate: m.endDate,
-            netChange: res.success ? res.netWorkingCapitalChange || 0 : 0
+            opening: res.success ? res.workingCapitalOpening || 0 : 0,
+            closing: res.success ? res.workingCapitalClosing || 0 : 0,
+            netChange: res.success ? res.workingCapitalChange || 0 : 0,
           };
         })
       );
-
-      let currentOpening = initialWC;
-      const data: MonthData[] = changes.map((c) => {
-        const closing = currentOpening + c.netChange;
-        const row = {
-          name: c.name,
-          startDate: c.startDate,
-          endDate: c.endDate,
-          opening: currentOpening,
-          closing,
-          netChange: c.netChange
-        };
-        currentOpening = closing;
-        return row;
-      });
-
       setMonthlyData(data);
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [companyId, fyId, monthRanges, isCurrentGroup]);
+  }, [companyId, fyId, monthRanges]);
 
-  // Load Detailed Month Flow
+  // Load Detailed Month Flow — sources/applications + working-capital footer,
+  // all computed server-side.
   const loadMonthDetails = useCallback(async (month: MonthData) => {
     if (!companyId || !fyId) return;
     setLoading(true);
     setError(null);
     try {
-      const [res, ledgerRes, groupRes] = await Promise.all([
-        window.api.report.fundsFlow(companyId, fyId, month.startDate, month.endDate),
-        window.api.ledger.getAll(companyId),
-        window.api.group.getAll(companyId)
-      ]);
-
+      const res = await window.api.report.fundsFlow(companyId, fyId, month.startDate, month.endDate);
       if (!res.success) {
         setError(res.error || "Failed to load details");
         setDetailData(null);
         return;
       }
-
-      // Compute WC components for footer
-      const groupsData: GroupRow[] = groupRes.success ? groupRes.groups || [] : [];
-      const ledgersData: LedgerRow[] = ledgerRes.success ? ledgerRes.ledgers || [] : [];
-      const groupMap = new Map<number, GroupRow>();
-      groupsData.forEach((g) => groupMap.set(g.group_id, g));
-      const caGroup = groupsData.find((g) => g.name === "Current Assets");
-      const clGroup = groupsData.find((g) => g.name === "Current Liabilities");
-      setCaGroupId(caGroup ? caGroup.group_id : null);
-      setClGroupId(clGroup ? clGroup.group_id : null);
-
-      let currentAssetsOpening = 0;
-      let currentLiabOpening = 0;
-      ledgersData.forEach((l) => {
-        const isCA = isCurrentGroup(l.group_id, groupMap, "Current Assets");
-        const isCL = isCurrentGroup(l.group_id, groupMap, "Current Liabilities");
-        if (isCA) currentAssetsOpening += l.opening_balance || 0;
-        if (isCL) currentLiabOpening += l.opening_balance || 0;
-      });
-
-      const currentAssetsClosing = currentAssetsOpening + (res.netWorkingCapitalChange > 0 ? res.netWorkingCapitalChange : 0);
-      const currentLiabClosing  = currentLiabOpening  + (res.netWorkingCapitalChange < 0 ? Math.abs(res.netWorkingCapitalChange) : 0);
-
       setDetailData({
         sources: res.sources || [],
         applications: res.applications || [],
         totalSources: res.totalSources || 0,
         totalApplications: res.totalApplications || 0,
-        netWorkingCapitalChange: res.netWorkingCapitalChange || 0,
+        workingCapitalChange: res.workingCapitalChange || 0,
         isNetIncrease: res.isNetIncrease,
-        currentAssetsOpening,
-        currentAssetsClosing,
-        currentLiabOpening,
-        currentLiabClosing,
+        currentAssetsOpening: res.currentAssetsOpening || 0,
+        currentAssetsClosing: res.currentAssetsClosing || 0,
+        currentLiabilitiesOpening: res.currentLiabilitiesOpening || 0,
+        currentLiabilitiesClosing: res.currentLiabilitiesClosing || 0,
+        workingCapitalOpening: res.workingCapitalOpening || 0,
+        workingCapitalClosing: res.workingCapitalClosing || 0,
+        caGroupId: res.currentAssetsGroupId ?? null,
+        clGroupId: res.currentLiabilitiesGroupId ?? null,
       });
     } catch (e: any) {
       setError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [companyId, fyId, isCurrentGroup]);
+  }, [companyId, fyId]);
 
   useEffect(() => {
     if (viewMode === "monthly") {
@@ -614,28 +523,34 @@ export default function FundsFlowStatement() {
                         </tr>
                       </thead>
                       <tbody>
-                        {detailData.sources.length === 0 ? (
+                        {detailData.sources.map((s, idx) => (
+                          <tr
+                            key={idx}
+                            onClick={() => handleLineDrilldown(s)}
+                            title={s.ledger_id ? `View ledger: ${s.particulars}` : "View Profit & Loss for this period"}
+                            className="border-b border-zinc-100 hover:bg-zinc-50 cursor-pointer transition-colors"
+                          >
+                            <td className="px-3 py-1.5 pl-5">{s.particulars}</td>
+                            <td className="px-3 py-1.5 text-right text-zinc-700">{fmt(s.amount)}</td>
+                          </tr>
+                        ))}
+                        {/* Net decrease in working capital is the balancing source. */}
+                        {detailData.workingCapitalChange < 0 && (
+                          <tr className="border-b border-zinc-200 bg-[#d4d4d8]/20">
+                            <td className="px-3 py-1.5 pl-5 font-semibold text-zinc-800">Net Decrease in Working Capital</td>
+                            <td className="px-3 py-1.5 text-right font-semibold text-zinc-700">{fmt(Math.abs(detailData.workingCapitalChange))}</td>
+                          </tr>
+                        )}
+                        {detailData.sources.length === 0 && detailData.workingCapitalChange >= 0 && (
                           <tr>
                             <td colSpan={2} className="px-3 py-4 text-zinc-400 italic text-center">No sources</td>
                           </tr>
-                        ) : (
-                          detailData.sources.map((s, idx) => (
-                            <tr
-                              key={idx}
-                              onClick={() => handleLineDrilldown(s)}
-                              title={s.ledger_id ? `View ledger: ${s.particulars}` : "View Profit & Loss for this period"}
-                              className="border-b border-zinc-100 hover:bg-zinc-50 cursor-pointer transition-colors"
-                            >
-                              <td className="px-3 py-1.5 pl-5">{s.particulars}</td>
-                              <td className="px-3 py-1.5 text-right text-zinc-700">{fmt(s.amount)}</td>
-                            </tr>
-                          ))
                         )}
                       </tbody>
                       <tfoot>
                         <tr className="border-t-2 border-zinc-700 bg-zinc-100 font-bold text-zinc-900">
                           <td className="px-3 py-2 uppercase tracking-wide">Total</td>
-                          <td className="px-3 py-2 text-right">{fmt(detailData.totalSources)}</td>
+                          <td className="px-3 py-2 text-right">{fmt(Math.max(detailData.totalSources, detailData.totalApplications))}</td>
                         </tr>
                       </tfoot>
                     </table>
@@ -651,46 +566,34 @@ export default function FundsFlowStatement() {
                         </tr>
                       </thead>
                       <tbody>
-                        {detailData.applications.length === 0 ? (
-                          <tr>
-                            <td colSpan={2} className="px-3 py-4 text-zinc-400 italic text-center">No applications</td>
-                          </tr>
-                        ) : (
-                          detailData.applications.map((a, idx) => (
-                            <tr
-                              key={idx}
-                              onClick={() => handleLineDrilldown(a)}
-                              title={a.ledger_id ? `View ledger: ${a.particulars}` : "View Profit & Loss for this period"}
-                              className="border-b border-zinc-100 hover:bg-zinc-50 cursor-pointer transition-colors"
-                            >
-                              <td className="px-3 py-1.5 pl-5">{a.particulars}</td>
-                              <td className="px-3 py-1.5 text-right text-zinc-700">{fmt(a.amount)}</td>
-                            </tr>
-                          ))
-                        )}
-                        {/* Nett Loss shown as Application header if isNetIncrease=false */}
-                        {!detailData.isNetIncrease && detailData.netWorkingCapitalChange < 0 && (
+                        {detailData.applications.map((a, idx) => (
                           <tr
-                            onClick={() => selectedMonth && navigate(`/reports/accounts/profit-loss?from_date=${selectedMonth.startDate}&to_date=${selectedMonth.endDate}`)}
-                            title="View Profit & Loss for this period"
-                            className="border-b border-zinc-200 bg-[#d4d4d8]/20 cursor-pointer hover:bg-[#d4d4d8]/35 transition-colors"
+                            key={idx}
+                            onClick={() => handleLineDrilldown(a)}
+                            title={a.ledger_id ? `View ledger: ${a.particulars}` : "View Profit & Loss for this period"}
+                            className="border-b border-zinc-100 hover:bg-zinc-50 cursor-pointer transition-colors"
                           >
-                            <td className="px-3 py-1.5 pl-5 font-semibold text-zinc-800">Nett Loss</td>
-                            <td className="px-3 py-1.5 text-right font-semibold">{fmt(Math.abs(detailData.netWorkingCapitalChange))}</td>
+                            <td className="px-3 py-1.5 pl-5">{a.particulars}</td>
+                            <td className="px-3 py-1.5 text-right text-zinc-700">{fmt(a.amount)}</td>
                           </tr>
-                        )}
-                        {/* Net increase in working capital shown on applications side */}
-                        {detailData.isNetIncrease && detailData.netWorkingCapitalChange > 0 && (
+                        ))}
+                        {/* Net increase in working capital is the balancing application. */}
+                        {detailData.workingCapitalChange > 0 && (
                           <tr className="border-b border-zinc-200 bg-[#d4d4d8]/20">
                             <td className="px-3 py-1.5 pl-5 font-semibold text-zinc-800">Net Increase in Working Capital</td>
-                            <td className="px-3 py-1.5 text-right font-semibold text-zinc-700">{fmt(detailData.netWorkingCapitalChange)}</td>
+                            <td className="px-3 py-1.5 text-right font-semibold text-zinc-700">{fmt(detailData.workingCapitalChange)}</td>
+                          </tr>
+                        )}
+                        {detailData.applications.length === 0 && detailData.workingCapitalChange <= 0 && (
+                          <tr>
+                            <td colSpan={2} className="px-3 py-4 text-zinc-400 italic text-center">No applications</td>
                           </tr>
                         )}
                       </tbody>
                       <tfoot>
                         <tr className="border-t-2 border-zinc-700 bg-zinc-100 font-bold text-zinc-900">
                           <td className="px-3 py-2 uppercase tracking-wide">Total</td>
-                          <td className="px-3 py-2 text-right">{fmt(detailData.totalApplications)}</td>
+                          <td className="px-3 py-2 text-right">{fmt(Math.max(detailData.totalSources, detailData.totalApplications))}</td>
                         </tr>
                       </tfoot>
                     </table>
@@ -710,11 +613,11 @@ export default function FundsFlowStatement() {
                     </thead>
                     <tbody>
                       <tr
-                        onClick={() => caGroupId && navigate(`/reports/accounts/group-summary/${caGroupId}`)}
-                        title={caGroupId ? "View Current Assets group" : undefined}
+                        onClick={() => detailData.caGroupId && navigate(`/reports/accounts/group-summary/${detailData.caGroupId}`)}
+                        title={detailData.caGroupId ? "View Current Assets group" : undefined}
                         className={cn(
                           "border-b border-zinc-200 transition-colors",
-                          caGroupId && "cursor-pointer hover:bg-zinc-100"
+                          detailData.caGroupId && "cursor-pointer hover:bg-zinc-100"
                         )}
                       >
                         <td className="px-3 py-1.5">Current Assets</td>
@@ -731,41 +634,41 @@ export default function FundsFlowStatement() {
                         </td>
                       </tr>
                       <tr
-                        onClick={() => clGroupId && navigate(`/reports/accounts/group-summary/${clGroupId}`)}
-                        title={clGroupId ? "View Current Liabilities group" : undefined}
+                        onClick={() => detailData.clGroupId && navigate(`/reports/accounts/group-summary/${detailData.clGroupId}`)}
+                        title={detailData.clGroupId ? "View Current Liabilities group" : undefined}
                         className={cn(
                           "border-b border-zinc-200 transition-colors",
-                          clGroupId && "cursor-pointer hover:bg-zinc-100"
+                          detailData.clGroupId && "cursor-pointer hover:bg-zinc-100"
                         )}
                       >
                         <td className="px-3 py-1.5">Current Liabilities</td>
                         <td className="px-3 py-1.5 text-right text-zinc-600">
-                          {fmt(detailData.currentLiabOpening)} Cr
+                          {fmt(detailData.currentLiabilitiesOpening)} Cr
                         </td>
                         <td className="px-3 py-1.5 text-right text-zinc-600">
-                          {fmt(detailData.currentLiabClosing)} Cr
+                          {fmt(detailData.currentLiabilitiesClosing)} Cr
                         </td>
                         <td className="px-3 py-1.5 text-right text-zinc-700 font-semibold">
-                          {detailData.currentLiabClosing - detailData.currentLiabOpening !== 0
-                            ? `(-) ${fmt(detailData.currentLiabClosing - detailData.currentLiabOpening)}`
+                          {detailData.currentLiabilitiesClosing - detailData.currentLiabilitiesOpening !== 0
+                            ? `(-) ${fmt(detailData.currentLiabilitiesClosing - detailData.currentLiabilitiesOpening)}`
                             : ""}
                         </td>
                       </tr>
                       <tr className="font-bold text-zinc-900 bg-zinc-100 border-t border-zinc-400">
                         <td className="px-3 py-1.5">Working Capital</td>
                         <td className="px-3 py-1.5 text-right">
-                          {fmt(detailData.currentAssetsOpening - detailData.currentLiabOpening)} Dr
+                          {fmt(detailData.workingCapitalOpening)} Dr
                         </td>
                         <td className="px-3 py-1.5 text-right">
-                          {fmt(detailData.currentAssetsClosing - detailData.currentLiabClosing)} Dr
+                          {fmt(detailData.workingCapitalClosing)} Dr
                         </td>
                         <td className={cn(
                           "px-3 py-1.5 text-right",
-                          detailData.netWorkingCapitalChange < 0 ? "text-zinc-800" : "text-zinc-700"
+                          detailData.workingCapitalChange < 0 ? "text-zinc-800" : "text-zinc-700"
                         )}>
-                          {detailData.netWorkingCapitalChange < 0
-                            ? `(-) ${fmt(Math.abs(detailData.netWorkingCapitalChange))}`
-                            : fmt(detailData.netWorkingCapitalChange)}
+                          {detailData.workingCapitalChange < 0
+                            ? `(-) ${fmt(Math.abs(detailData.workingCapitalChange))}`
+                            : fmt(detailData.workingCapitalChange)}
                         </td>
                       </tr>
                     </tbody>

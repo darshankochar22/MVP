@@ -4,6 +4,10 @@
 export const EXCISE_REGISTRATION_TYPES = ["Dealer", "Importer", "Manufacturer"] as const;
 export type ExciseRegistrationType = (typeof EXCISE_REGISTRATION_TYPES)[number];
 
+// Shown only when Registration type = Manufacturer (Issue #145 comment).
+export const EXCISE_MANUFACTURER_TYPES = ["Regular", "Small Scale Industries (SSI)"] as const;
+export type ExciseManufacturerType = (typeof EXCISE_MANUFACTURER_TYPES)[number];
+
 export const EXCISE_VALUATION_TYPES = [
   "Ad Valorem",
   "Ad Quantum",
@@ -28,6 +32,7 @@ export interface ExciseRegistrationDetails {
   pincode: string;
   telephoneNo: string;
   registrationType: ExciseRegistrationType;
+  typeOfManufacturer: ExciseManufacturerType; // only relevant when registrationType === "Manufacturer"
   eccNumber: string;
   setAlterExciseTariffDetails: number; // 0 / 1
   defineExciseTariffAsMasters: number; // 0 / 1 → reveals tariff list
@@ -50,6 +55,7 @@ export const DEFAULT_EXCISE_REGISTRATION_DETAILS: ExciseRegistrationDetails = {
   pincode: "",
   telephoneNo: "",
   registrationType: "Dealer",
+  typeOfManufacturer: "Regular",
   eccNumber: "",
   setAlterExciseTariffDetails: 0,
   defineExciseTariffAsMasters: 0,

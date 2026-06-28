@@ -14,6 +14,7 @@ const init = async (db) => {
       pincode                          TEXT,
       telephone_no                     TEXT,
       registration_type                TEXT DEFAULT 'Dealer',
+      type_of_manufacturer             TEXT,
       ecc_number                       TEXT,
       set_alter_excise_tariff_details  INTEGER DEFAULT 0,
       define_excise_tariff_as_masters  INTEGER DEFAULT 0,
@@ -36,6 +37,18 @@ const init = async (db) => {
       sort_order                       INTEGER DEFAULT 0
     )
   `);
+
+  // Migrations for DBs created before a column existed (ignored if already present).
+  const migrations = [
+    { col: 'type_of_manufacturer', sql: "ALTER TABLE excise_registration_details ADD COLUMN type_of_manufacturer TEXT" },
+  ];
+  for (const m of migrations) {
+    try {
+      await db.execute(m.sql);
+    } catch (err) {
+      // Ignored if column already exists
+    }
+  }
 };
 
 module.exports = { init };

@@ -5,24 +5,27 @@ const { voucherEntries, vouchers, ledgers, groups } = require('../db/schema');
 // ---------------------------------------------------------------------------
 // Funds Flow statement (READ-ONLY).
 //
-// A funds flow statement explains how a company's financial position moved
-// between two dates by listing the SOURCES of funds (where money came from)
-// and the APPLICATIONS of funds (where money went), reconciled through the
-// net change in working capital.
+// Explains how the financial position moved between two dates by listing the
+// SOURCES of funds and the APPLICATIONS of funds, reconciled through the net
+// change in WORKING CAPITAL (= Current Assets − Current Liabilities).
 //
-// All numbers are derived live from voucher entries, mirroring the balance
-// computation conventions already used in reportService.js:
-//   - A ledger's balance = opening_balance + Σ(Dr amounts) - Σ(Cr amounts)
-//   - Group `nature` drives Assets / Liabilities / Income / Expenses buckets.
+// Tally model:
+//   • Working capital = the Current Assets / Current Liabilities subtrees.
+//     Their per-ledger movement is NOT a source/application — it IS the working
+//     capital, reconciled separately in the footer.
+//   • Sources/Applications come only from NON-CURRENT items + operations:
+//       Nett Profit (source) / Nett Loss (application)         ← P&L for period
+//       non-current asset  increase → application, decrease → source
+//       non-current liab.  increase → source,      decrease → application
+//   • Net increase/decrease in working capital is the balancing figure and,
+//     by the balance-sheet identity, equals totalSources − totalApplications.
 //
-// We need two snapshots:
-//   - opening: all entries with date <  from_date  (plus ledger opening_balance)
-//   - closing: all entries with date <= to_date    (plus ledger opening_balance)
-// The DELTA per ledger between those snapshots is what drives the statement.
+// All figures are live from voucher entries, Dr-positive convention:
+//   balance = opening_balance + Σ(Dr) − Σ(Cr);  assets > 0, liabilities < 0.
+// Two snapshots drive the period:  opening (date < from), closing (date <= to).
 // ---------------------------------------------------------------------------
 
-// Pull entries up to (and optionally including) a cut-off date for a company/FY.
-// `inclusive` controls whether the cut-off date itself is counted (<= vs <).
+// Pull entries up to a cut-off date. `inclusive` => `<=` (closing) vs `<` (opening).
 const getEntriesUpto = async (company_id, fy_id, cutoff_date, inclusive) => {
   const conditions = [
     sql`v.company_id = ${company_id}`,
@@ -42,7 +45,7 @@ const getEntriesUpto = async (company_id, fy_id, cutoff_date, inclusive) => {
   );
 };
 
-// Net balance of a single ledger across a set of entries (Dr positive, Cr negative).
+// Net balance of one ledger across a set of entries (Dr positive, Cr negative).
 const calcLedgerBalance = (ledger_id, entries, opening_balance = 0, opening_balance_type = 'Dr') => {
   const rawOpening = Number(opening_balance) || 0;
   let balance = rawOpening < 0
@@ -50,126 +53,130 @@ const calcLedgerBalance = (ledger_id, entries, opening_balance = 0, opening_bala
     : (opening_balance_type === 'Cr' ? -rawOpening : rawOpening);
   for (const e of entries) {
     if (e.ledger_id === ledger_id) {
-      balance += e.type === 'Dr' ? e.amount : -e.amount;
+      balance += e.type === 'Dr' ? Number(e.amount) : -Number(e.amount);
     }
   }
   return balance;
 };
 
+// Classify a ledger's group into a funds-flow bucket by walking up to its root.
+// Returns 'CA' | 'CL' | 'NCA' | 'NCL' | 'Income' | 'Expenses' | null.
+const buildClassifier = (allGroups) => {
+  const byId = new Map();
+  allGroups.forEach(g => byId.set(g.group_id, g));
+  return (group_id) => {
+    let g = byId.get(group_id);
+    let guard = 0;
+    while (g && guard++ < 64) {
+      if (g.name === 'Current Assets') return 'CA';
+      if (g.name === 'Current Liabilities') return 'CL';
+      if (!g.parent_group_id) {
+        if (g.nature === 'Assets') return 'NCA';
+        if (g.nature === 'Liabilities') return 'NCL';
+        if (g.nature === 'Income') return 'Income';
+        if (g.nature === 'Expenses') return 'Expenses';
+        return null;
+      }
+      g = byId.get(g.parent_group_id);
+    }
+    return null;
+  };
+};
+
 module.exports = {
   // fundsFlow(company_id, fy_id, from_date, to_date)
-  //
-  // Returns sources & applications of funds and the working-capital reconciliation
-  // for the period (from_date .. to_date].
   fundsFlow: async (company_id, fy_id, from_date, to_date) => {
     try {
-      // Ledgers joined to their group nature, exactly like balanceSheet/profitLoss.
+      const allGroups = await db.all(
+        sql`SELECT group_id, name, nature, parent_group_id
+            FROM ${groups}
+            WHERE company_id = ${company_id} AND is_active = 1`
+      );
+      const classify = buildClassifier(allGroups);
+      const caGroup = allGroups.find(g => g.name === 'Current Assets' && !g.parent_group_id);
+      const clGroup = allGroups.find(g => g.name === 'Current Liabilities' && !g.parent_group_id);
+
       const ledgerRows = await db.all(
-        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.opening_balance_type, l.group_id,
-                   g.nature, g.name AS group_name
+        sql`SELECT l.ledger_id, l.name, l.opening_balance, l.opening_balance_type, l.group_id
             FROM ${ledgers} l
-            INNER JOIN ${groups} g ON g.group_id = l.group_id
             WHERE l.company_id = ${company_id} AND l.is_active = 1`
       );
 
-      // Two snapshots of all entries: before the period and through the period.
       const openingEntries = await getEntriesUpto(company_id, fy_id, from_date, false);
       const closingEntries = await getEntriesUpto(company_id, fy_id, to_date, true);
 
-      // Per-ledger opening balance, closing balance and change over the period.
-      // `change` is signed in Dr-positive terms (the natural sign of the balance).
-      const movements = ledgerRows.map(l => {
-        const opening = calcLedgerBalance(l.ledger_id, openingEntries, l.opening_balance || 0, l.opening_balance_type || 'Dr');
-        const closing = calcLedgerBalance(l.ledger_id, closingEntries, l.opening_balance || 0, l.opening_balance_type || 'Dr');
-        return {
-          ledger_id: l.ledger_id,
-          ledger_name: l.name,
-          group_id: l.group_id,
-          group_name: l.group_name,
-          nature: l.nature,
-          opening,
-          closing,
-          change: closing - opening,
-        };
-      });
-
-      // -------------------------------------------------------------------
-      // Funds from operations.
-      // Net profit (income - expenses) over the period is the primary internal
-      // source of funds. Income ledgers carry credit (negative) balances and
-      // expense ledgers carry debit (positive) balances in Dr-positive terms,
-      // so the period movement is summed accordingly.
-      // -------------------------------------------------------------------
-      let periodIncome = 0;   // magnitude of income earned in the period
-      let periodExpenses = 0; // magnitude of expenses incurred in the period
-      for (const m of movements) {
-        if (m.nature === 'Income') periodIncome += -m.change; // Cr movement
-        else if (m.nature === 'Expenses') periodExpenses += m.change; // Dr movement
-      }
-      const fundsFromOperations = periodIncome - periodExpenses;
-
-      // -------------------------------------------------------------------
-      // Sources & applications from non-current (Assets / Liabilities) ledgers.
-      //
-      //   Assets (Dr-positive balance):
-      //     increase in an asset  -> APPLICATION of funds (change > 0)
-      //     decrease in an asset  -> SOURCE of funds      (change < 0)
-      //   Liabilities (Cr-negative balance):
-      //     increase in a liability (change < 0) -> SOURCE of funds
-      //     decrease in a liability (change > 0) -> APPLICATION of funds
-      // -------------------------------------------------------------------
+      let caOpen = 0, caClose = 0;          // current assets (Dr +)
+      let clOpenSigned = 0, clCloseSigned = 0; // current liabilities (Cr -, signed)
+      let periodIncome = 0, periodExpenses = 0;
       const sources = [];
       const applications = [];
 
-      const addSource = (name, amount, ledger_id) => {
-        if (amount > 0) sources.push({ particulars: name, amount, ...(ledger_id ? { ledger_id } : {}) });
-      };
-      const addApplication = (name, amount, ledger_id) => {
-        if (amount > 0) applications.push({ particulars: name, amount, ...(ledger_id ? { ledger_id } : {}) });
-      };
+      for (const l of ledgerRows) {
+        const cat = classify(l.group_id);
+        if (!cat) continue;
 
-      // Funds from operations is shown as a source (or, if negative, an application).
-      // It has no single backing ledger — it's the net of all Income/Expenses
-      // ledgers for the period — so it deliberately gets no ledger_id; the
-      // client routes these rows to the P&L instead.
-      if (fundsFromOperations >= 0) addSource('Funds from Operations', fundsFromOperations);
-      else addApplication('Funds Lost in Operations', Math.abs(fundsFromOperations));
+        const opening = calcLedgerBalance(l.ledger_id, openingEntries, l.opening_balance || 0, l.opening_balance_type || 'Dr');
+        const closing = calcLedgerBalance(l.ledger_id, closingEntries, l.opening_balance || 0, l.opening_balance_type || 'Dr');
+        const change = closing - opening;
 
-      for (const m of movements) {
-        if (m.change === 0) continue;
-
-        if (m.nature === 'Assets') {
-          // change in Dr-positive terms is the change in the asset value.
-          if (m.change > 0) addApplication(`${m.ledger_name} (Increase)`, m.change, m.ledger_id);
-          else addSource(`${m.ledger_name} (Decrease)`, Math.abs(m.change), m.ledger_id);
-        } else if (m.nature === 'Liabilities') {
-          // For liabilities a more-negative balance means the liability grew.
-          const liabIncrease = -m.change; // positive when the liability increased
-          if (liabIncrease > 0) addSource(`${m.ledger_name} (Increase)`, liabIncrease, m.ledger_id);
-          else addApplication(`${m.ledger_name} (Decrease)`, Math.abs(liabIncrease), m.ledger_id);
+        if (cat === 'CA') { caOpen += opening; caClose += closing; }
+        else if (cat === 'CL') { clOpenSigned += opening; clCloseSigned += closing; }
+        else if (cat === 'Income') { periodIncome += -change; }      // income is Cr movement
+        else if (cat === 'Expenses') { periodExpenses += change; }   // expense is Dr movement
+        else if (cat === 'NCA') {
+          if (change > 0) applications.push({ particulars: `${l.name} (Increase)`, amount: change, ledger_id: l.ledger_id });
+          else if (change < 0) sources.push({ particulars: `${l.name} (Decrease)`, amount: -change, ledger_id: l.ledger_id });
+        } else if (cat === 'NCL') {
+          const inc = -change; // liability grew when its (negative) balance fell further
+          if (inc > 0) sources.push({ particulars: `${l.name} (Increase)`, amount: inc, ledger_id: l.ledger_id });
+          else if (inc < 0) applications.push({ particulars: `${l.name} (Decrease)`, amount: -inc, ledger_id: l.ledger_id });
         }
-        // Income / Expenses already captured via fundsFromOperations above.
       }
+
+      // Funds from operations — a source if profit, an application if loss.
+      // No backing ledger_id: the client routes these rows to the P&L.
+      const fundsFromOperations = periodIncome - periodExpenses;
+      if (fundsFromOperations > 0) sources.unshift({ particulars: 'Nett Profit', amount: fundsFromOperations });
+      else if (fundsFromOperations < 0) applications.unshift({ particulars: 'Nett Loss', amount: -fundsFromOperations });
 
       const totalSources = sources.reduce((s, r) => s + r.amount, 0);
       const totalApplications = applications.reduce((s, r) => s + r.amount, 0);
 
-      // Net increase / decrease in working capital is the balancing figure.
-      const netWorkingCapitalChange = totalSources - totalApplications;
+      // Working-capital reconciliation (Dr-positive: WC = CA + CL_signed).
+      // Negate the signed Cr balance to a display magnitude; avoid JS -0.
+      const currentLiabilitiesOpening = clOpenSigned === 0 ? 0 : -clOpenSigned;
+      const currentLiabilitiesClosing = clCloseSigned === 0 ? 0 : -clCloseSigned;
+      const workingCapitalOpening = caOpen + clOpenSigned;   // = caOpen − currentLiabilitiesOpening
+      const workingCapitalClosing = caClose + clCloseSigned;
+      const workingCapitalChange = workingCapitalClosing - workingCapitalOpening;
 
       return {
         success: true,
         from_date: from_date || null,
         to_date: to_date || null,
-        fundsFromOperations,
-        periodIncome,
-        periodExpenses,
+
         sources,
         applications,
         totalSources,
         totalApplications,
-        netWorkingCapitalChange,
-        isNetIncrease: netWorkingCapitalChange >= 0,
+        fundsFromOperations,
+        periodIncome,
+        periodExpenses,
+
+        currentAssetsOpening: caOpen,
+        currentAssetsClosing: caClose,
+        currentLiabilitiesOpening,
+        currentLiabilitiesClosing,
+        workingCapitalOpening,
+        workingCapitalClosing,
+        workingCapitalChange,
+
+        // back-compat alias used by older callers
+        netWorkingCapitalChange: workingCapitalChange,
+        isNetIncrease: workingCapitalChange >= 0,
+
+        currentAssetsGroupId: caGroup ? caGroup.group_id : null,
+        currentLiabilitiesGroupId: clGroup ? clGroup.group_id : null,
       };
     } catch (err) {
       return { success: false, error: err.message };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar, RightActionPanel } from "@/components/ui";
@@ -13,6 +13,14 @@ interface StockCategory {
 interface StockItem {
   item_id: number;
   name: string;
+  opening_rate?: number;
+}
+
+// Most recent prior price (per item, per price level) shown read-only as
+// "Historical Details" alongside the rate being entered — matches TallyPrime.
+interface HistRate {
+  rate: number;
+  disc: number;
 }
 
 interface PriceListLine {
@@ -49,6 +57,8 @@ export default function PricelistscAlter() {
   const [stockCategories, setStockCategories] = useState<StockCategory[]>([]);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [priceLevels, setPriceLevels] = useState<string[]>([]);
+  // Historical prices keyed by `${level}|${item_id}` (most recent prior list).
+  const [histByItem, setHistByItem] = useState<Record<string, HistRate>>({});
 
   const [selectedCategory, setSelectedCategory] = useState<string>("All Items");
   const [selectedLevel, setSelectedLevel] = useState<string>("");
@@ -98,6 +108,23 @@ export default function PricelistscAlter() {
           if (pl?.success && pl?.data) {
             const named = (pl.data as string[]).filter((n) => n.trim() !== "");
             setPriceLevels(named);
+          }
+        }
+        // Historical-price lookup from other existing price lists (exclude the
+        // record being edited). getAll is newest-first → first hit is latest.
+        if (window.api?.priceList) {
+          const plAll = await window.api.priceList.getAll(companyId);
+          if (plAll?.success && Array.isArray(plAll.data)) {
+            const hist: Record<string, HistRate> = {};
+            for (const rec of plAll.data as any[]) {
+              if (id && String(rec.price_list_id) === String(id)) continue;
+              for (const ln of rec.lines || []) {
+                if (ln.item_id == null) continue;
+                const key = `${rec.price_level}|${ln.item_id}`;
+                if (!hist[key]) hist[key] = { rate: Number(ln.rate) || 0, disc: Number(ln.disc_percent) || 0 };
+              }
+            }
+            setHistByItem(hist);
           }
         }
         // Existing price list record
@@ -286,6 +313,16 @@ export default function PricelistscAlter() {
 
   const filledCount = lines.filter((l) => l.particulars.trim() !== "").length;
 
+  // Cost price (item opening rate) keyed by item_id, for the read-only column.
+  const costByItem = useMemo(() => {
+    const m: Record<number, number> = {};
+    stockItems.forEach((s) => { if (s.opening_rate != null) m[s.item_id] = Number(s.opening_rate) || 0; });
+    return m;
+  }, [stockItems]);
+
+  const fmtRate = (n?: number) =>
+    n == null || n === 0 ? "" : n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
   const formatDateDisplay = (iso: string) => {
     if (!iso) return "";
     const d = new Date(iso);
@@ -427,7 +464,7 @@ export default function PricelistscAlter() {
           </div>
 
           {/* ── Table ── */}
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="flex-1 overflow-auto min-h-0">
             <table className="w-full text-[11px] font-mono border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-zinc-100 border-b border-zinc-300">
@@ -445,6 +482,14 @@ export default function PricelistscAlter() {
                     Disc. %
                     <div className="text-[10px] font-normal text-zinc-400">(if any)</div>
                   </th>
+                  <th className="text-center px-2 py-2 font-bold text-zinc-400 w-40 border-l border-zinc-200" colSpan={2}>
+                    Historical Details
+                    <div className="flex justify-between mt-0.5 text-[10px] font-normal text-zinc-300">
+                      <span className="w-1/2 text-center">Rate</span>
+                      <span className="w-1/2 text-center">Disc. %</span>
+                    </div>
+                  </th>
+                  <th className="text-right px-3 py-2 font-bold text-zinc-400 w-28 border-l border-zinc-200">Cost Price</th>
                   <th className="w-6"></th>
                 </tr>
               </thead>
@@ -456,6 +501,9 @@ export default function PricelistscAlter() {
                         it.name.toLowerCase().includes(line.particulars.toLowerCase())
                       )
                     : stockItems;
+
+                  const hist = line.item_id != null ? histByItem[`${selectedLevel}|${line.item_id}`] : undefined;
+                  const cost = line.item_id != null ? costByItem[line.item_id] : undefined;
 
                   return (
                     <tr
@@ -551,6 +599,19 @@ export default function PricelistscAlter() {
                           onChange={(e) => setLineField(i, "disc_percent", e.target.value)}
                           onKeyDown={(e) => handleDiscKeyDown(e, i)}
                         />
+                      </td>
+
+                      {/* Historical Details (read-only) — last saved price for this item + level */}
+                      <td className="px-2 py-1 align-middle text-right text-[11px] font-mono text-zinc-400 border-l border-zinc-100">
+                        {fmtRate(hist?.rate)}
+                      </td>
+                      <td className="px-2 py-1 align-middle text-center text-[11px] font-mono text-zinc-400">
+                        {hist?.disc ? `${fmtRate(hist.disc)}%` : ""}
+                      </td>
+
+                      {/* Cost Price (read-only) — item opening rate */}
+                      <td className="px-3 py-1 align-middle text-right text-[11px] font-mono text-zinc-400 border-l border-zinc-100">
+                        {fmtRate(cost)}
                       </td>
 
                       <td className="px-1 align-middle">

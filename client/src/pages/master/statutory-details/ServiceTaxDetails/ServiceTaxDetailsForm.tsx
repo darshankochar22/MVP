@@ -90,17 +90,22 @@ export function ServiceTaxDetailsForm({
           </select>
         </FormRow>
 
-        <YesNo label="Is Monthly format" field="isMonthlyFormat" />
+        {/* Monthly format & computation basis — only for Individual/Proprietory/One Person Company (Issue #146) */}
+        {form.typeOfOrganisation === ORGANISATION_TYPES[0] && (
+          <>
+            <YesNo label="Is Monthly format" field="isMonthlyFormat" />
 
-        <FormRow label="Compute tax liability based on" labelWidth={LABEL_W} className="flex items-center min-h-[26px]">
-          <select
-            className={selectCls}
-            value={form.computeTaxLiabilityBasedOn}
-            onChange={(e) => setField("computeTaxLiabilityBasedOn", e.target.value as ServiceTaxDetails["computeTaxLiabilityBasedOn"])}
-          >
-            {COMPUTATION_BASIS.map((t) => <option key={t}>{t}</option>)}
-          </select>
-        </FormRow>
+            <FormRow label="Compute tax liability based on" labelWidth={LABEL_W} className="flex items-center min-h-[26px]">
+              <select
+                className={selectCls}
+                value={form.computeTaxLiabilityBasedOn}
+                onChange={(e) => setField("computeTaxLiabilityBasedOn", e.target.value as ServiceTaxDetails["computeTaxLiabilityBasedOn"])}
+              >
+                {COMPUTATION_BASIS.map((t) => <option key={t}>{t}</option>)}
+              </select>
+            </FormRow>
+          </>
+        )}
 
         <YesNo label="Set/alter service tax details" field="setAlterServiceTaxDetails" />
         {Number(form.setAlterServiceTaxDetails) === 1 && (

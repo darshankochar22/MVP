@@ -72,17 +72,23 @@ const get = async (company_id) => {
   }
 };
 
-const toColumns = (data) => ({
-  serviceTaxRegistrationNumber: data.serviceTaxRegistrationNumber || null,
-  typeOfOrganisation: data.typeOfOrganisation || DEFAULTS.typeOfOrganisation,
-  isMonthlyFormat: Number(data.isMonthlyFormat) ? 1 : 0,
-  computeTaxLiabilityBasedOn: data.computeTaxLiabilityBasedOn || 'Accrual',
-  setAlterServiceTaxDetails: Number(data.setAlterServiceTaxDetails) ? 1 : 0,
-  taxLiabilityApplicableFrom: data.taxLiabilityApplicableFrom || null,
-  defineServiceCategoryAsMasters: Number(data.defineServiceCategoryAsMasters) ? 1 : 0,
-  isReverseChargeApplicable: Number(data.isReverseChargeApplicable) ? 1 : 0,
-  deactivateFrom: data.deactivateFrom || null,
-});
+const toColumns = (data) => {
+  // "Is monthly format" & "Compute tax liability based on" apply only to
+  // Individual/Proprietory/One Person Company; reset them for company types (#146).
+  const isIndividual =
+    (data.typeOfOrganisation || DEFAULTS.typeOfOrganisation) === 'Individual/Proprietory/One Person Company';
+  return {
+    serviceTaxRegistrationNumber: data.serviceTaxRegistrationNumber || null,
+    typeOfOrganisation: data.typeOfOrganisation || DEFAULTS.typeOfOrganisation,
+    isMonthlyFormat: isIndividual && Number(data.isMonthlyFormat) ? 1 : 0,
+    computeTaxLiabilityBasedOn: isIndividual ? (data.computeTaxLiabilityBasedOn || 'Accrual') : 'Accrual',
+    setAlterServiceTaxDetails: Number(data.setAlterServiceTaxDetails) ? 1 : 0,
+    taxLiabilityApplicableFrom: data.taxLiabilityApplicableFrom || null,
+    defineServiceCategoryAsMasters: Number(data.defineServiceCategoryAsMasters) ? 1 : 0,
+    isReverseChargeApplicable: Number(data.isReverseChargeApplicable) ? 1 : 0,
+    deactivateFrom: data.deactivateFrom || null,
+  };
+};
 
 const replaceCategories = async (company_id, categories) => {
   await db.delete(serviceTaxCategories).where(eq(serviceTaxCategories.companyId, company_id));

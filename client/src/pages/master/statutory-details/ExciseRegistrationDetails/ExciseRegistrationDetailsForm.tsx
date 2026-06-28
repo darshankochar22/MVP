@@ -4,6 +4,7 @@ import {
   type ExciseRegistrationDetails,
   type ExciseTariffItem,
   EXCISE_REGISTRATION_TYPES,
+  EXCISE_MANUFACTURER_TYPES,
   EXCISE_VALUATION_TYPES,
   DEFAULT_EXCISE_TARIFF_ITEM,
 } from "@/types/entities/ExciseRegistrationDetails";
@@ -103,6 +104,19 @@ export function ExciseRegistrationDetailsForm({
             {EXCISE_REGISTRATION_TYPES.map((t) => <option key={t}>{t}</option>)}
           </select>
         </FormRow>
+
+        {/* Type of manufacturer — only for Manufacturer registration (Issue #145) */}
+        {form.registrationType === "Manufacturer" && (
+          <FormRow label="Type of manufacturer" labelWidth={LABEL_W} className="flex items-center min-h-[26px]">
+            <select
+              className={selectCls}
+              value={form.typeOfManufacturer}
+              onChange={(e) => setField("typeOfManufacturer", e.target.value as ExciseRegistrationDetails["typeOfManufacturer"])}
+            >
+              {EXCISE_MANUFACTURER_TYPES.map((t) => <option key={t}>{t}</option>)}
+            </select>
+          </FormRow>
+        )}
 
         <Text label="ECC number" field="eccNumber" />
 

@@ -13,6 +13,7 @@ const exciseRegistrationDetails = sqliteTable('excise_registration_details', {
   pincode: text('pincode'),
   telephoneNo: text('telephone_no'),
   registrationType: text('registration_type').default('Dealer'),
+  typeOfManufacturer: text('type_of_manufacturer'),
   eccNumber: text('ecc_number'),
   setAlterExciseTariffDetails: integer('set_alter_excise_tariff_details').default(0),
   defineExciseTariffAsMasters: integer('define_excise_tariff_as_masters').default(0),
