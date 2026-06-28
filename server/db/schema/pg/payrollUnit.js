@@ -8,6 +8,7 @@ const payrollUnits = pgTable('payroll_units', {
   symbol: text('symbol'),
   formalName: text('formal_name'),
   unitType: text('unit_type').notNull().default('Simple'),
+  unitQuantityCode: text('unit_quantity_code'),
   decimalPlaces: integer('decimal_places').notNull().default(0),
   firstUnit: text('first_unit'),
   conversion: numeric('conversion', { precision: 18, scale: 4 }),

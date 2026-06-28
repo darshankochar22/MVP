@@ -1,14 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, MasterSelectionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
 import { useMasterShortcuts } from "@/hooks/useMasterShortcuts";
 import type { PayrollUnitType } from "@/types/entities/Payroll";
+import { UqcPopup } from "../../inventory/unit/UqcPopup";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 
-interface FormData { unit_type: string; symbol: string; formal_name: string; decimal_places: string; first_unit: string; conversion: string; second_unit: string; }
+interface FormData { unit_type: string; symbol: string; formal_name: string; uqc: string; decimal_places: string; first_unit: string; conversion: string; second_unit: string; }
 
 export default function PayrollUnitAlter() {
   const navigate = useNavigate();
@@ -17,10 +18,12 @@ export default function PayrollUnitAlter() {
   const companyId = selectedCompany?.company_id;
   const [units, setUnits] = useState<PayrollUnitType[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<PayrollUnitType | null>(null);
-  const [form, setForm] = useState<FormData>({ unit_type: "Simple", symbol: "", formal_name: "", decimal_places: "0", first_unit: "", conversion: "", second_unit: "" });
+  const [form, setForm] = useState<FormData>({ unit_type: "Simple", symbol: "", formal_name: "", uqc: "Not Applicable", decimal_places: "0", first_unit: "", conversion: "", second_unit: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showUqc, setShowUqc] = useState(false);
+  const uqcAnchorRef = useRef<HTMLButtonElement>(null);
 
   const loadUnits = useCallback(async () => {
     if (!companyId) return;
@@ -32,7 +35,7 @@ export default function PayrollUnitAlter() {
 
   const handleSelectUnit = (u: PayrollUnitType) => {
     setSelectedUnit(u);
-    setForm({ unit_type: u.unit_type || "Simple", symbol: u.symbol || "", formal_name: u.formal_name || "", decimal_places: String(u.decimal_places ?? 0), first_unit: u.first_unit || "", conversion: u.conversion != null ? String(u.conversion) : "", second_unit: u.second_unit || "" });
+    setForm({ unit_type: u.unit_type || "Simple", symbol: u.symbol || "", formal_name: u.formal_name || "", uqc: (u as any).unit_quantity_code || "Not Applicable", decimal_places: String(u.decimal_places ?? 0), first_unit: u.first_unit || "", conversion: u.conversion != null ? String(u.conversion) : "", second_unit: u.second_unit || "" });
   };
 
   useEffect(() => {
@@ -49,7 +52,7 @@ export default function PayrollUnitAlter() {
     if (!selectedUnit) return;
     setLoading(true); setError(null);
     try {
-      const res = await window.api.payrollUnit.update({ payroll_unit_id: selectedUnit.payroll_unit_id, name: form.symbol.trim(), symbol: form.symbol.trim(), formal_name: form.formal_name.trim() || undefined, unit_type: form.unit_type, decimal_places: Number(form.decimal_places) || 0, first_unit: form.unit_type === "Compound" ? form.first_unit || undefined : undefined, conversion: form.unit_type === "Compound" && form.conversion ? Number(form.conversion) : undefined, second_unit: form.unit_type === "Compound" ? form.second_unit || undefined : undefined });
+      const res = await window.api.payrollUnit.update({ payroll_unit_id: selectedUnit.payroll_unit_id, name: form.symbol.trim(), symbol: form.symbol.trim(), formal_name: form.formal_name.trim() || undefined, unit_type: form.unit_type, unit_quantity_code: form.uqc === "Not Applicable" ? null : form.uqc || null, decimal_places: Number(form.decimal_places) || 0, first_unit: form.unit_type === "Compound" ? form.first_unit || undefined : undefined, conversion: form.unit_type === "Compound" && form.conversion ? Number(form.conversion) : undefined, second_unit: form.unit_type === "Compound" ? form.second_unit || undefined : undefined });
       if (res.success) { setSuccess(`Unit "${form.symbol}" updated.`); await loadUnits(); setTimeout(() => { setSuccess(null); setSelectedUnit(null); }, 1500); }
       else setError(res.error || "Failed.");
     } catch (e) { setError(e instanceof Error ? e.message : "Error."); }
@@ -132,6 +135,14 @@ export default function PayrollUnitAlter() {
             <FormRow label="Type" labelWidth="w-56"><select className={selectCls} value={form.unit_type} onChange={setField("unit_type")}><option value="Simple">Simple</option><option value="Compound">Compound</option></select></FormRow>
             <FormRow label="Symbol" required labelWidth="w-56"><input className={inputCls} value={form.symbol} onChange={setField("symbol")} /></FormRow>
             <FormRow label="Formal Name" labelWidth="w-56"><input className={inputCls} value={form.formal_name} onChange={setField("formal_name")} /></FormRow>
+            <FormRow label="Unit Quantity Code (UQC)" labelWidth="w-56" className="relative">
+              <button ref={uqcAnchorRef} type="button" className="flex-1 text-left text-sm px-1 py-0.5 hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors" onClick={() => setShowUqc(v => !v)}>
+                ◆ {form.uqc || "Not Applicable"}
+              </button>
+              {showUqc && (
+                <UqcPopup selected={form.uqc} onSelect={v => { setForm(f => ({ ...f, uqc: v })); setShowUqc(false); }} onClose={() => setShowUqc(false)} />
+              )}
+            </FormRow>
             <FormRow label="Decimal Places" labelWidth="w-56"><select className={selectCls} value={form.decimal_places} onChange={setField("decimal_places")}>{[0, 1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}</select></FormRow>
             {form.unit_type === "Compound" && (
               <div className="pt-2 mt-2 border-t border-zinc-100 space-y-1">

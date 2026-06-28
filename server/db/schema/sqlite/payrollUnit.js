@@ -8,6 +8,7 @@ const payrollUnits = sqliteTable('payroll_units', {
   symbol: text('symbol'),
   formalName: text('formal_name'),
   unitType: text('unit_type').default('Simple'),
+  unitQuantityCode: text('unit_quantity_code'),
   decimalPlaces: integer('decimal_places').default(0),
   firstUnit: text('first_unit'),
   conversion: real('conversion'),

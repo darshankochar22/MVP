@@ -1,8 +1,9 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, MasterFormFooter, AlertBanner } from "@/components/ui";
 import { useMasterShortcuts } from "@/hooks/useMasterShortcuts";
+import { UqcPopup } from "../../inventory/unit/UqcPopup";
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 
@@ -10,6 +11,7 @@ interface FormData {
   unit_type: "Simple" | "Compound";
   symbol: string;
   formal_name: string;
+  uqc: string;
   decimal_places: string;
   first_unit: string;
   conversion: string;
@@ -20,6 +22,7 @@ const INITIAL: FormData = {
   unit_type: "Simple",
   symbol: "",
   formal_name: "",
+  uqc: "Not Applicable",
   decimal_places: "0",
   first_unit: "",
   conversion: "",
@@ -35,6 +38,8 @@ export default function PayrollUnitCreate() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showUqc, setShowUqc] = useState(false);
+  const uqcAnchorRef = useRef<HTMLButtonElement>(null);
 
   const setField = (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -57,6 +62,7 @@ export default function PayrollUnitCreate() {
         symbol: form.symbol.trim(),
         formal_name: form.formal_name.trim() || undefined,
         unit_type: form.unit_type,
+        unit_quantity_code: form.uqc === "Not Applicable" ? null : form.uqc || null,
         decimal_places: Number(form.decimal_places) || 0,
         first_unit: form.unit_type === "Compound" ? form.first_unit.trim() || undefined : undefined,
         conversion: form.unit_type === "Compound" ? Number(form.conversion) || undefined : undefined,
@@ -102,6 +108,23 @@ export default function PayrollUnitCreate() {
             </FormRow>
             <FormRow label="Formal Name" labelWidth="w-56" className="flex items-center min-h-[26px]">
               <input className={inputCls} value={form.formal_name} onChange={setField("formal_name")} placeholder="e.g. Number of Days" />
+            </FormRow>
+            <FormRow label="Unit Quantity Code (UQC)" labelWidth="w-56" className="flex items-center min-h-[26px] relative">
+              <button
+                ref={uqcAnchorRef}
+                type="button"
+                className="flex-1 text-left text-sm px-1 py-0.5 hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors"
+                onClick={() => setShowUqc(v => !v)}
+              >
+                ◆ {form.uqc || "Not Applicable"}
+              </button>
+              {showUqc && (
+                <UqcPopup
+                  selected={form.uqc}
+                  onSelect={v => { setForm(f => ({ ...f, uqc: v })); setShowUqc(false); }}
+                  onClose={() => setShowUqc(false)}
+                />
+              )}
             </FormRow>
             <FormRow label="Number of Decimal Places" labelWidth="w-56" className="flex items-center min-h-[26px]">
               <select className={selectCls} value={form.decimal_places} onChange={setField("decimal_places")}>
