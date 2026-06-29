@@ -858,17 +858,18 @@ export default function Vouchers() {
     [effectiveVoucherType, form.paymentEntryMode, form.receiptEntryMode, form.checkIsBank, form.checkIsParty, form.checkIsCash, form.bankDetails, form.cashDenominations, form.setActiveAllocation, proceedToNextRow]
   );
 
-  // In a double-entry voucher the 2nd row's amount auto-fills to the balancing
-  // figure the moment its ledger is picked — so the user never presses Enter in
-  // the amount field, and Bank Allocations (which only opens from that Enter via
-  // handleAmountConfirm) is skipped. Detect a bank ledger picked here and open
-  // it anyway, using the same balancing amount (row state updates async).
+  // In a double-entry voucher the balancing row's amount auto-fills the moment
+  // its ledger is picked — so the user never presses Enter in the amount field,
+  // and the allocation popup (bank / bill-wise / cost-centre), which only opens
+  // from that Enter via handleAmountConfirm, is skipped. Detect a ledger that
+  // needs an allocation and open it anyway, using the same balancing amount
+  // (row state updates async, so we recompute it here).
   const handleLedgerSelectWithAllocation = useCallback(
     (item: any) => {
       const field = form.activeField;
       form.handleLedgerPanelSelect(item);
 
-      if (field?.type !== "particular" || !form.checkIsBank(item)) return;
+      if (field?.type !== "particular") return;
 
       const dbl =
         effectiveVoucherType === "Contra"
@@ -877,8 +878,25 @@ export default function Vouchers() {
           ? form.receiptDoubleRows
           : effectiveVoucherType === "Payment" && form.paymentEntryMode === "double"
           ? form.paymentDoubleRows
+          : effectiveVoucherType === "Journal" && form.journalEntryMode === "double"
+          ? form.journalRows
           : null;
       if (!dbl) return;
+
+      const isBankAllocVoucher =
+        effectiveVoucherType === "Contra" ||
+        (effectiveVoucherType === "Receipt" && form.receiptEntryMode === "double") ||
+        (effectiveVoucherType === "Payment" && form.paymentEntryMode === "double");
+
+      // Only act for ledgers that actually open an allocation popup — bank (in a
+      // bank-allocation voucher), a party (Sundry Debtor/Creditor), any bill-wise
+      // ledger, or a cost-centre ledger. Anything else is left untouched.
+      const opensPopup =
+        (isBankAllocVoucher && form.checkIsBank(item)) ||
+        form.checkIsParty(item) ||
+        item.is_bill_wise === 1 ||
+        item.allow_cost_centres === 1;
+      if (!opensPopup) return;
 
       const idx = dbl.findIndex((r) => r.id === field.rowId);
       const row = dbl[idx];
@@ -893,7 +911,7 @@ export default function Vouchers() {
           : Math.abs(row.type === "Dr" ? crTotal - drTotal : drTotal - crTotal);
 
       // First row has no balancing figure yet → let the user type it (Enter then
-      // opens Bank Allocations through the normal path).
+      // opens the allocation through the normal path).
       if (amount <= 0.01) return;
 
       handleAmountConfirm({ ...row, ledger: item, amountRaw: String(amount) }, idx);
@@ -902,11 +920,14 @@ export default function Vouchers() {
       form.activeField,
       form.handleLedgerPanelSelect,
       form.checkIsBank,
+      form.checkIsParty,
       form.contraDoubleRows,
       form.receiptDoubleRows,
       form.paymentDoubleRows,
+      form.journalRows,
       form.receiptEntryMode,
       form.paymentEntryMode,
+      form.journalEntryMode,
       effectiveVoucherType,
       handleAmountConfirm,
     ]
