@@ -9,8 +9,18 @@ import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { AiProposal, AiStatus, AiProvider } from "@/types/api/Ai";
+import type { VoucherSchema } from "@/types/api/Automation";
 
 type Msg = { role: "user" | "assistant"; text: string; proposals?: AiProposal[] };
+type EntryResult = {
+  kind: "validate" | "create" | "parse";
+  ok?: boolean;
+  success?: boolean;
+  errors?: string[];
+  warnings?: string[];
+  voucher_id?: number;
+  voucher_number?: string;
+};
 
 export default function Copilot() {
   const navigate = useNavigate();
@@ -29,6 +39,16 @@ export default function Copilot() {
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Assisted Entry (no LLM) — drives the in-app automation endpoint by hand.
+  const [mode, setMode] = useState<"chat" | "entry">("chat");
+  const [schema, setSchema] = useState<VoucherSchema | null>(null);
+  const [examples, setExamples] = useState<Record<string, Record<string, unknown>>>({});
+  const [voucherTypes, setVoucherTypes] = useState<string[]>([]);
+  const [draft, setDraft] = useState("");
+  const [entryBusy, setEntryBusy] = useState(false);
+  const [entryResult, setEntryResult] = useState<EntryResult | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const refreshStatus = useCallback(async () => {
     setStatus(await window.api.ai.getKeyStatus());
@@ -107,10 +127,179 @@ export default function Copilot() {
 
   const suggestions = ["What is my cash balance?", "Show the trial balance", "List unreconciled bank entries", "Which bills are overdue?"];
 
+  // ----- Assisted Entry handlers -----
+  useEffect(() => {
+    if (mode !== "entry" || schema) return;
+    window.api.automation.getVoucherSchema().then((r) => {
+      setSchema(r.schema);
+      setExamples(r.examples || {});
+      setVoucherTypes(r.voucherTypes || []);
+      if (!draft && r.examples?.Journal) {
+        setDraft(JSON.stringify({ company_id: selectedCompany?.company_id, fy_id: activeFY?.fy_id, ...r.examples.Journal }, null, 2));
+      }
+    });
+  }, [mode, schema, draft, selectedCompany, activeFY]);
+
+  const loadExample = (t: string) => {
+    const ex = examples[t];
+    if (!ex) return;
+    setDraft(JSON.stringify({ company_id: selectedCompany?.company_id, fy_id: activeFY?.fy_id, ...ex }, null, 2));
+    setEntryResult(null);
+  };
+
+  const copyPattern = () => {
+    if (!schema) return;
+    navigator.clipboard?.writeText(JSON.stringify(schema, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  const parseDraft = (): Record<string, unknown> | null => {
+    try {
+      const obj = JSON.parse(draft);
+      if (!obj || typeof obj !== "object" || Array.isArray(obj)) throw new Error("must be a JSON object");
+      return obj as Record<string, unknown>;
+    } catch (e: any) {
+      setEntryResult({ kind: "parse", errors: [`Invalid JSON: ${e.message}`] });
+      return null;
+    }
+  };
+
+  const validateEntry = async () => {
+    const payload = parseDraft();
+    if (!payload) return;
+    setEntryBusy(true);
+    const r = await window.api.automation.validateVoucher(payload);
+    setEntryBusy(false);
+    setEntryResult({ kind: "validate", ...r });
+  };
+
+  const createEntry = async () => {
+    const payload = parseDraft();
+    if (!payload) return;
+    if (payload.company_id == null) payload.company_id = selectedCompany?.company_id;
+    if (payload.fy_id == null) payload.fy_id = activeFY?.fy_id;
+    setEntryBusy(true);
+    const r = await window.api.automation.createVoucher(payload);
+    setEntryBusy(false);
+    setEntryResult({ kind: "create", ...r });
+  };
+
+  const reqLabel = (req?: boolean | string) => (req ? (typeof req === "string" ? ` · ${req}` : " · required") : "");
+
+  const entryPanel = (
+    <div className="max-w-5xl mx-auto space-y-3">
+      <div className="text-[11px] text-zinc-600">
+        Build one entry as JSON and create it directly — no AI needed. This is the exact format an assistant would produce later; the endpoint that validates and saves it (<code className="text-zinc-800">window.api.automation.createVoucher</code>) is ready to plug into.
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Load example</span>
+        {voucherTypes.filter((t) => examples[t]).map((t) => (
+          <button key={t} onClick={() => loadExample(t)} className="text-[11px] px-2.5 py-1 rounded border border-zinc-300 bg-white hover:border-zinc-500">{t}</button>
+        ))}
+        <span className="flex-1" />
+        <Button size="xs" variant="ghost" className="text-zinc-500" onClick={copyPattern}>{copied ? "Copied ✓" : "Copy pattern"}</Button>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* editor */}
+        <div className="space-y-2">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Entry (JSON)</div>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            spellCheck={false}
+            className="w-full h-80 font-mono text-[11px] leading-relaxed border border-zinc-300 rounded p-2 bg-white text-zinc-800 focus:outline-none focus:border-zinc-500"
+          />
+          <div className="flex items-center gap-2">
+            <Button size="xs" variant="outline" disabled={entryBusy || !draft.trim()} onClick={validateEntry}>Validate</Button>
+            <Button size="xs" disabled={entryBusy || !draft.trim()} onClick={createEntry}>Create entry</Button>
+          </div>
+          {entryResult && (
+            <div className="space-y-1 pt-1">
+              {entryResult.kind === "create" && entryResult.success && (
+                <div className="border-l-2 border-zinc-900 pl-2 font-semibold text-zinc-900 text-[11px]">✓ Created {entryResult.voucher_number || "voucher"}{entryResult.voucher_id != null ? ` (#${entryResult.voucher_id})` : ""}</div>
+              )}
+              {entryResult.kind === "validate" && entryResult.ok && (
+                <div className="border-l-2 border-zinc-900 pl-2 font-semibold text-zinc-900 text-[11px]">✓ Looks valid — ready to create.</div>
+              )}
+              {(entryResult.errors || []).map((er, i) => (
+                <div key={i} className="border-l-2 border-zinc-900 pl-2 font-semibold text-zinc-800 text-[11px]">{er}</div>
+              ))}
+              {(entryResult.warnings || []).map((w, i) => (
+                <div key={i} className="pl-2 text-zinc-500 text-[11px]">⚠ {w}</div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* pattern reference */}
+        <div className="space-y-2">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Response pattern</div>
+          <div className="border border-zinc-200 rounded bg-white p-3 text-[11px] text-zinc-700 space-y-3 max-h-80 overflow-y-auto">
+            {schema ? (
+              <>
+                <div className="text-zinc-500">{schema.description}</div>
+                <div>
+                  <div className="font-bold text-zinc-700 mb-1">Fields</div>
+                  <dl className="space-y-0.5">
+                    {Object.entries(schema.fields).map(([name, f]) => (
+                      <div key={name} className="flex gap-2">
+                        <dt className="font-mono text-zinc-900 whitespace-nowrap">{name}</dt>
+                        <dd className="text-zinc-500">{f.type}{reqLabel(f.required)}{f.note ? ` — ${f.note}` : ""}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+                <div>
+                  <div className="font-bold text-zinc-700 mb-1">entry (each Dr/Cr line)</div>
+                  <dl className="space-y-0.5">
+                    {Object.entries(schema.entry).map(([name, f]) => (
+                      <div key={name} className="flex gap-2">
+                        <dt className="font-mono text-zinc-900 whitespace-nowrap">{name}</dt>
+                        <dd className="text-zinc-500">{f.type}{reqLabel(f.required)}{f.note ? ` — ${f.note}` : ""}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+                <div>
+                  <div className="font-bold text-zinc-700 mb-1">Rules</div>
+                  <ul className="list-disc pl-4 space-y-0.5 text-zinc-600">
+                    {schema.rules.map((r, i) => <li key={i}>{r}</li>)}
+                  </ul>
+                </div>
+              </>
+            ) : (
+              <div className="text-zinc-400">Loading pattern…</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex-1 flex flex-col h-full bg-zinc-50 text-xs select-none">
       <PageTitleBar title="AI Copilot" subtitle={selectedCompany?.name} />
 
+      {/* Mode tabs */}
+      <div className="border-b border-zinc-200 bg-white px-4 py-2 flex items-center gap-1">
+        {(["chat", "entry"] as const).map((m) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className={cn(
+              "text-[11px] px-3 py-1 rounded border",
+              mode === m ? "bg-zinc-900 text-white border-zinc-900" : "bg-white text-zinc-600 border-zinc-300 hover:border-zinc-400",
+            )}
+          >
+            {m === "chat" ? "Chat" : "Assisted Entry"}
+          </button>
+        ))}
+      </div>
+
+      {mode === "chat" && (<>
       {/* BYOK setup */}
       <div className="border-b border-zinc-200 bg-white px-4 py-2.5 flex items-center gap-2 flex-wrap">
         <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">AI Model</span>
@@ -219,6 +408,13 @@ export default function Copilot() {
         />
         <Button onClick={() => send()} disabled={!status?.hasKey || thinking || !input.trim()}>Send</Button>
       </div>
+      </>)}
+
+      {mode === "entry" && (
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {entryPanel}
+        </div>
+      )}
     </div>
   );
 }

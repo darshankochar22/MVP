@@ -13,6 +13,8 @@ const stockGroups = sqliteTable('stock_groups', {
   gstRate: real('gst_rate').default(0),
   cgstRate: real('cgst_rate').default(0),
   sgstRate: real('sgst_rate').default(0),
+  igstRate: real('igst_rate').default(0),
+  cessRate: real('cess_rate').default(0),
   taxabilityType: text('taxability_type').default(sql`NULL`),
   statutoryDetails: text('statutory_details'),
   isPrimary: integer('is_primary').default(0),

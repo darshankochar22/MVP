@@ -21,6 +21,8 @@ import type { PhysicalStockAPI } from './PhysicalStock';
 import type { AttendanceAPI } from './Attendance';
 import type { TaxUnitAPI } from './TaxUnits';
 import type { AiAPI } from './Ai';
+import type { AutomationAPI } from './Automation';
+import type { PdfAPI } from './Pdf';
 import type { TallyAPI } from './Tally';
 import type { AuditTrailAPI } from './AuditTrail';
 import type { TDSNatureOfPaymentAPI } from './TDSNatureOfPayment';
@@ -92,6 +94,8 @@ export type WindowAPI =
   & AttendanceAPI
   & TaxUnitAPI
   & AiAPI
+  & AutomationAPI
+  & PdfAPI
   & TallyAPI
   & AuditTrailAPI
   & TDSNatureOfPaymentAPI

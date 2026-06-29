@@ -16,6 +16,7 @@ import {
 } from "@/components/shadcn/table";
 import { EmptyState } from "@/components/blocks/EmptyState";
 import { cn } from "@/lib/utils";
+import { exportRowsToCsv, type CsvColumn } from "@/lib/exportCsv";
 
 const VOUCHER_TYPES = ["All", "Receipt", "Payment", "Contra", "Journal", "Sales", "Purchase", "Credit Note", "Debit Note"];
 
@@ -124,6 +125,7 @@ export default function VoucherList() {
   const [search, setSearch] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [showTypePopup, setShowTypePopup] = useState(false);
+  const exportRef = useRef<() => void>(() => {});
 
   const companyId = selectedCompany?.company_id;
   const fyId = activeFY?.fy_id;
@@ -169,6 +171,10 @@ export default function VoucherList() {
         e.preventDefault();
         navigate("/utilities/banking");
       }
+      if (e.altKey && (e.key === "e" || e.key === "E")) {
+        e.preventDefault();
+        exportRef.current();
+      }
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setSelectedIndex(prev => Math.min(prev + 1, filtered.length - 1));
@@ -195,6 +201,7 @@ export default function VoucherList() {
     { key: "F4",     label: "Voucher Type", onClick: () => setShowTypePopup(true) },
     { key: "Alt+D", label: "Day Book", onClick: () => navigate("/transactions/daybook") },
     { key: "Alt+B", label: "Banking", onClick: () => navigate("/utilities/banking") },
+    { key: "Alt+E", label: "Export", onClick: () => exportRef.current() },
     { key: "Esc", label: "Quit", onClick: () => navigate("/") },
   ];
 
@@ -231,6 +238,39 @@ export default function VoucherList() {
   };
 
   const listTitle = selectedType === "All" ? "Voucher Register" : `List of ${selectedType} Vouchers`;
+
+  // Download every voucher currently in the register (honours type/month/search filters).
+  const handleExport = useCallback(() => {
+    if (!filtered.length) {
+      setError("No vouchers to export.");
+      return;
+    }
+    const period = activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "";
+    const metadata = [
+      `Report,${listTitle}`,
+      `Company,${selectedCompany?.name || "Company"}`,
+      `Type,${selectedType}`,
+      monthParam ? `Month,${monthParam}` : "",
+      period ? `Period,${period}` : "",
+      `Generated At,${new Date().toLocaleString("en-IN")}`,
+      "",
+    ].filter(Boolean);
+    const columns: CsvColumn<VoucherRow>[] = [
+      { header: "Date", value: (v) => formatDate(v.date) },
+      { header: "Voucher Type", value: (v) => v.voucher_type },
+      { header: "Voucher No", value: (v) => v.voucher_number },
+      { header: "Particulars", value: (v) => v.party_name || v.ledger_names || v.narration || "" },
+      { header: "Narration", value: (v) => v.narration || "" },
+      { header: "Debit Amount", value: (v) => (v.debit_amount ? Number(v.debit_amount).toFixed(2) : "") },
+      { header: "Credit Amount", value: (v) => (v.credit_amount ? Number(v.credit_amount).toFixed(2) : "") },
+      { header: "Inwards Qty", value: (v) => v.inwards_qty || "" },
+      { header: "Outwards Qty", value: (v) => v.outwards_qty || "" },
+      { header: "Cancelled", value: (v) => (v.is_cancelled ? "Yes" : "") },
+    ];
+    const base = selectedType === "All" ? "voucher_register" : `${selectedType.toLowerCase().replace(/\s+/g, "_")}_vouchers`;
+    exportRowsToCsv(base, columns, filtered, metadata);
+  }, [filtered, selectedCompany, activeFY, listTitle, selectedType, monthParam]);
+  exportRef.current = handleExport;
 
   return (
     <div className="flex-1 flex flex-col bg-white h-full text-xs select-none">

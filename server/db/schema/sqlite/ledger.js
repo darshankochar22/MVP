@@ -85,6 +85,24 @@ const ledgers = sqliteTable('ledgers', {
   interestRate: real('interest_rate').default(0),
   interestStyle: text('interest_style').default('30-Day Month'),
   interestBalances: text('interest_balances').default('All Balances'),
+  // Columns added to source init() (server/ledger/ledger.js) via ALTER after this
+  // schema was first authored — mirrored here so the Drizzle migration matches init().
+  behaveAsPaymentGateway: integer('behave_as_payment_gateway').default(0),
+  paymentGatewayName: text('payment_gateway_name'),
+  placeOfSupply: text('place_of_supply'),
+  doesPartyBelongToNonTaxableTerritory: text('does_party_belong_to_non_taxable_territory').default('No'),
+  isPartyATransporter: text('is_party_a_transporter').default('No'),
+  isPartyAnAssociatedEnterprise: text('is_party_an_associated_enterprise').default('No'),
+  transporterId: text('transporter_id'),
+  notificationNumber: text('notification_number'),
+  notificationSerialNumber: text('notification_serial_number'),
+  salesPurchasesAgainstFormC: text('sales_purchases_against_form_c').default('No'),
+  serviceTaxRegistrationNumber: text('service_tax_registration_number'),
+  typeOfService: text('type_of_service').default('Undefined'),
+  tdsDeducteeRef: text('tds_deductee_ref'),
+  tdsTaxUniqueIdNo: text('tds_tax_unique_id_no'),
+  vatTinNo: text('vat_tin_no'),
+  vatTypeOfDealer: text('vat_type_of_dealer').default('Unknown'),
   isActive: integer('is_active').default(1),
   isPredefined: integer('is_predefined').default(0),
   createdAt: text('created_at').default(sql`(datetime('now'))`),
@@ -134,6 +152,10 @@ const ledgerStatutoryDetails = sqliteTable('ledger_statutory_details', {
   includeInAssessableValueCalculation: text('include_in_assessable_value_calculation').default('Not Applicable'),
   appropriateTo: text('appropriate_to').default('Goods'),
   methodOfCalculation: text('method_of_calculation').default('Based on Quantity'),
+  gstRateSource: text('gst_rate_source').default('As per Company/Group'),
+  hsnSacSource: text('hsn_sac_source').default('As per Company/Group'),
+  taxabilityType: text('taxability_type'),
+  typeOfSupply: text('type_of_supply').default('Services'),
 });
 
 module.exports = { ledgers, ledgerBankDetails, ledgerStatutoryDetails };

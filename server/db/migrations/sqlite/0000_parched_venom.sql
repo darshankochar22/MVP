@@ -33,6 +33,20 @@ CREATE TABLE `attendance_types` (
 	`updated_at` text DEFAULT (datetime('now'))
 );
 --> statement-breakpoint
+CREATE TABLE `audit_trail` (
+	`log_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`company_id` integer NOT NULL,
+	`entity_type` text NOT NULL,
+	`entity_id` integer,
+	`action` text NOT NULL,
+	`user` text DEFAULT 'system',
+	`before_snapshot` text,
+	`after_snapshot` text,
+	`prev_hash` text,
+	`row_hash` text,
+	`created_at` text DEFAULT (datetime('now'))
+);
+--> statement-breakpoint
 CREATE TABLE `balance_sheet_reports` (
 	`report_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`company_id` integer NOT NULL,
@@ -92,6 +106,71 @@ CREATE TABLE `reconciliations` (
 	`bank_date` text,
 	`bank_reference` text,
 	`reconciled_at` text DEFAULT (datetime('now'))
+);
+--> statement-breakpoint
+CREATE TABLE `budgets` (
+	`budget_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`company_id` integer NOT NULL,
+	`name` text NOT NULL,
+	`parent_id` integer,
+	`period_from` text,
+	`period_to` text,
+	`is_active` integer DEFAULT 1,
+	`is_predefined` integer DEFAULT 0,
+	`created_at` text DEFAULT (datetime('now')),
+	`updated_at` text DEFAULT (datetime('now'))
+);
+--> statement-breakpoint
+CREATE TABLE `budget_group_allocations` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`budget_id` integer NOT NULL,
+	`group_id` integer NOT NULL,
+	`cost_centre_id` integer,
+	`type_of_budget` text DEFAULT 'On Closing Balance',
+	`amount` real DEFAULT 0
+);
+--> statement-breakpoint
+CREATE TABLE `budget_ledger_allocations` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`budget_id` integer NOT NULL,
+	`ledger_id` integer NOT NULL,
+	`cost_centre_id` integer,
+	`type_of_budget` text DEFAULT 'On Closing Balance',
+	`amount` real DEFAULT 0
+);
+--> statement-breakpoint
+CREATE TABLE `budget_cost_centre_allocations` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`budget_id` integer NOT NULL,
+	`cost_centre_id` integer NOT NULL,
+	`expenses` real DEFAULT 0,
+	`income` real DEFAULT 0,
+	`closing_balance` real DEFAULT 0
+);
+--> statement-breakpoint
+CREATE TABLE `scenarios` (
+	`scenario_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`company_id` integer NOT NULL,
+	`name` text NOT NULL,
+	`include_actuals` integer DEFAULT 1,
+	`is_active` integer DEFAULT 1,
+	`is_predefined` integer DEFAULT 0,
+	`created_at` text DEFAULT (datetime('now')),
+	`updated_at` text DEFAULT (datetime('now'))
+);
+--> statement-breakpoint
+CREATE TABLE `scenario_include_vouchers` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`scenario_id` integer NOT NULL,
+	`voucher_type_id` integer NOT NULL,
+	`vouchers_mode` text DEFAULT 'Optional Vouchers Only'
+);
+--> statement-breakpoint
+CREATE TABLE `scenario_exclude_vouchers` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`scenario_id` integer NOT NULL,
+	`voucher_type_id` integer NOT NULL,
+	`vouchers_mode` text DEFAULT 'Optional Vouchers Only'
 );
 --> statement-breakpoint
 CREATE TABLE `companies` (
@@ -215,15 +294,38 @@ CREATE TABLE `company_tds_details` (
 	`deductor_branch` text,
 	`set_alter_person_responsible` integer DEFAULT 0,
 	`person_responsible_name` text,
+	`person_responsible_son_of` text,
 	`person_responsible_designation` text,
 	`person_responsible_pan` text,
+	`person_responsible_flat_no` text,
+	`person_responsible_premises` text,
+	`person_responsible_road` text,
+	`person_responsible_area` text,
+	`person_responsible_city` text,
+	`person_responsible_state` text,
+	`person_responsible_pincode` text,
 	`person_responsible_phone` text,
+	`person_responsible_std_code` text,
+	`person_responsible_telephone` text,
 	`person_responsible_email` text,
 	`ignore_it_exemption` integer DEFAULT 1,
 	`activate_tds_for_items` integer DEFAULT 0,
 	`created_at` text DEFAULT (datetime('now')),
 	`updated_at` text DEFAULT (datetime('now')),
 	FOREIGN KEY (`company_id`) REFERENCES `companies`(`company_id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `cost_categories` (
+	`cc_cat_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`company_id` integer NOT NULL,
+	`name` text NOT NULL,
+	`alias` text,
+	`allocate_revenue_items` integer DEFAULT 1,
+	`allocate_non_revenue_items` integer DEFAULT 0,
+	`is_active` integer DEFAULT 1,
+	`is_predefined` integer DEFAULT 0,
+	`created_at` text DEFAULT (datetime('now')),
+	`updated_at` text DEFAULT (datetime('now'))
 );
 --> statement-breakpoint
 CREATE TABLE `cost_centres` (
@@ -233,6 +335,7 @@ CREATE TABLE `cost_centres` (
 	`alias` text,
 	`parent_id` integer,
 	`category` text DEFAULT 'Primary',
+	`cost_category_id` integer,
 	`is_active` integer DEFAULT 1,
 	`is_predefined` integer DEFAULT 0,
 	`created_at` text DEFAULT (datetime('now')),
@@ -280,8 +383,8 @@ CREATE TABLE `day_book_reports` (
 	`show_stat_adjustment` integer DEFAULT 0,
 	`show_details` integer DEFAULT 1,
 	`show_related_reports` integer DEFAULT 0,
-	`created_at` text DEFAULT 'datetime(''now'')',
-	`updated_at` text DEFAULT 'datetime(''now'')'
+	`created_at` text DEFAULT (datetime('now')),
+	`updated_at` text DEFAULT (datetime('now'))
 );
 --> statement-breakpoint
 CREATE TABLE `day_book_entries` (
@@ -306,8 +409,8 @@ CREATE TABLE `day_book_entries` (
 	`display_order` integer DEFAULT 0,
 	`is_drillable` integer DEFAULT 1,
 	`notes` text,
-	`created_at` text DEFAULT 'datetime(''now'')',
-	`updated_at` text DEFAULT 'datetime(''now'')'
+	`created_at` text DEFAULT (datetime('now')),
+	`updated_at` text DEFAULT (datetime('now'))
 );
 --> statement-breakpoint
 CREATE TABLE `day_book_entry_lines` (
@@ -355,6 +458,130 @@ CREATE TABLE `einvoice_records` (
 	`raw_response` text,
 	`created_at` text DEFAULT (datetime('now')),
 	`updated_at` text DEFAULT (datetime('now'))
+);
+--> statement-breakpoint
+CREATE TABLE `excise_duty_classifications` (
+	`excise_duty_classification_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`company_id` integer NOT NULL,
+	`name` text NOT NULL,
+	`duty_code` text,
+	`is_active` integer DEFAULT 1,
+	`created_at` text DEFAULT (datetime('now')),
+	`updated_at` text DEFAULT (datetime('now'))
+);
+--> statement-breakpoint
+CREATE TABLE `excise_duty_calculation_methods` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`excise_duty_classification_id` integer NOT NULL,
+	`method` text NOT NULL,
+	`sort_order` integer DEFAULT 0
+);
+--> statement-breakpoint
+CREATE TABLE `excise_registration_details` (
+	`company_id` integer PRIMARY KEY NOT NULL,
+	`unit_name` text,
+	`address` text,
+	`state` text,
+	`pincode` text,
+	`telephone_no` text,
+	`registration_type` text DEFAULT 'Dealer',
+	`type_of_manufacturer` text,
+	`ecc_number` text,
+	`set_alter_excise_tariff_details` integer DEFAULT 0,
+	`define_excise_tariff_as_masters` integer DEFAULT 0,
+	`deactivate_from` text,
+	`created_at` text DEFAULT (datetime('now')),
+	`updated_at` text DEFAULT (datetime('now')),
+	FOREIGN KEY (`company_id`) REFERENCES `companies`(`company_id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `excise_tariff_items` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`company_id` integer NOT NULL,
+	`tariff_name` text NOT NULL,
+	`hsn_code` text,
+	`reporting_uom` text,
+	`valuation_type` text DEFAULT 'Ad Valorem',
+	`rate` real DEFAULT 0,
+	`sort_order` integer DEFAULT 0,
+	FOREIGN KEY (`company_id`) REFERENCES `companies`(`company_id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `excise_books` (
+	`excise_book_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`company_id` integer NOT NULL,
+	`name` text NOT NULL,
+	`alias` text,
+	`numbering_method` text DEFAULT 'Automatic',
+	`prevent_duplicates` integer DEFAULT 0,
+	`starting_number` integer DEFAULT 1,
+	`width_of_numerical_part` integer DEFAULT 0,
+	`prefill_with_zero` integer DEFAULT 0,
+	`used_for` text,
+	`is_active` integer DEFAULT 1,
+	`created_at` text DEFAULT (datetime('now')),
+	`updated_at` text DEFAULT (datetime('now'))
+);
+--> statement-breakpoint
+CREATE TABLE `excise_book_restart_numbering` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`excise_book_id` integer NOT NULL,
+	`applicable_from` text,
+	`starting_number` integer DEFAULT 1,
+	`particulars` text,
+	`sort_order` integer DEFAULT 0
+);
+--> statement-breakpoint
+CREATE TABLE `excise_book_prefix_details` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`excise_book_id` integer NOT NULL,
+	`applicable_from` text,
+	`particulars` text,
+	`sort_order` integer DEFAULT 0
+);
+--> statement-breakpoint
+CREATE TABLE `excise_book_suffix_details` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`excise_book_id` integer NOT NULL,
+	`applicable_from` text,
+	`particulars` text,
+	`sort_order` integer DEFAULT 0
+);
+--> statement-breakpoint
+CREATE TABLE `merchant_profiles` (
+	`merchant_profile_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`company_id` integer NOT NULL,
+	`name` text NOT NULL,
+	`payment_method` text DEFAULT 'UPI',
+	`is_active` integer DEFAULT 1,
+	`created_at` text DEFAULT (datetime('now')),
+	`updated_at` text DEFAULT (datetime('now')),
+	FOREIGN KEY (`company_id`) REFERENCES `companies`(`company_id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `vat_registration_details` (
+	`company_id` integer PRIMARY KEY NOT NULL,
+	`state` text,
+	`tin` text,
+	`interstate_sales_tax_number` text,
+	`set_alter_tax_rate_details` integer DEFAULT 0,
+	`tax_rate` real DEFAULT 0,
+	`tax_type` text DEFAULT 'Unknown',
+	`define_vat_commodity_as_masters` integer DEFAULT 0,
+	`deactivate_from` text,
+	`created_at` text DEFAULT (datetime('now')),
+	`updated_at` text DEFAULT (datetime('now')),
+	FOREIGN KEY (`company_id`) REFERENCES `companies`(`company_id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `vat_commodities` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`company_id` integer NOT NULL,
+	`name` text NOT NULL,
+	`rate` real DEFAULT 0,
+	`tax_type` text DEFAULT 'Unknown',
+	`sort_order` integer DEFAULT 0,
+	FOREIGN KEY (`company_id`) REFERENCES `companies`(`company_id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
 CREATE TABLE `employees` (
@@ -479,6 +706,7 @@ CREATE TABLE `godowns` (
 	`city` text,
 	`state` text,
 	`pincode` text,
+	`excise_tax_unit` text DEFAULT 'Not Applicable',
 	`is_primary` integer DEFAULT 0,
 	`is_main_location` integer DEFAULT 0,
 	`allow_storage_of_materials` integer DEFAULT 1,
@@ -515,6 +743,23 @@ CREATE TABLE `groups` (
 	`igst_rate` real,
 	`hsn_sac_code` text,
 	`statutory_details` text,
+	`set_alter_service_tax_details` integer DEFAULT 0,
+	`set_alter_vat_details` integer DEFAULT 0,
+	`set_alter_excise_details` integer DEFAULT 0,
+	`hsn_sac_classification_id` integer,
+	`gst_classification_id` integer,
+	`slab_based_rates` text,
+	`vat_nature_of_transaction` text,
+	`vat_party_entity_type` text DEFAULT 'Not Applicable',
+	`vat_tax_rate` real DEFAULT 0,
+	`vat_tax_type` text,
+	`vat_revised_applicability` text,
+	`excise_tariff_name` text,
+	`excise_hsn_code` text,
+	`excise_reporting_uom` text DEFAULT 'Undefined',
+	`excise_valuation_type` text DEFAULT 'Undefined',
+	`excise_rate` real DEFAULT 0,
+	`excise_rate_per_unit` real DEFAULT 0,
 	`sort_order` integer DEFAULT 0,
 	`group_type` text,
 	`display_order` integer DEFAULT 0,
@@ -572,6 +817,15 @@ CREATE TABLE `gstr1_exports` (
 	`hsn_json` text,
 	`errors_json` text,
 	`full_payload_json` text,
+	`created_at` text DEFAULT (datetime('now'))
+);
+--> statement-breakpoint
+CREATE TABLE `gstr2b_imports` (
+	`import_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`company_id` integer NOT NULL,
+	`fy_id` integer NOT NULL,
+	`return_period` text NOT NULL,
+	`payload_json` text,
 	`created_at` text DEFAULT (datetime('now'))
 );
 --> statement-breakpoint
@@ -646,6 +900,7 @@ CREATE TABLE `ledgers` (
 	`ledger_type` text DEFAULT 'General',
 	`nature` text,
 	`opening_balance` real DEFAULT 0,
+	`opening_balance_type` text DEFAULT 'Dr',
 	`closing_balance` real DEFAULT 0,
 	`is_bill_wise` integer DEFAULT 0,
 	`maintain_inventory_values` integer DEFAULT 0,
@@ -664,6 +919,8 @@ CREATE TABLE `ledgers` (
 	`allow_cost_centres` integer DEFAULT 0,
 	`default_credit_period` integer DEFAULT 0,
 	`check_credit_days` integer DEFAULT 0,
+	`credit_limit` real DEFAULT 0,
+	`credit_limit_type` text DEFAULT 'Cr',
 	`invoice_rounding` integer DEFAULT 0,
 	`rounding_method` text,
 	`rounding_limit` real DEFAULT 0,
@@ -672,6 +929,63 @@ CREATE TABLE `ledgers` (
 	`include_assessable_value` text DEFAULT 'Not Applicable',
 	`method_of_calculation` text DEFAULT 'Based on Value',
 	`other_statutory_details` integer DEFAULT 0,
+	`set_alter_tds_details` integer DEFAULT 0,
+	`set_alter_tcs_details` integer DEFAULT 0,
+	`set_alter_service_tax_details` integer DEFAULT 0,
+	`set_alter_excise_details` integer DEFAULT 0,
+	`set_alter_vat_details` integer DEFAULT 0,
+	`is_tds_deductable` integer DEFAULT 0,
+	`treat_as_tds_expenses` integer DEFAULT 0,
+	`deductee_type` text,
+	`deduct_tds_in_same_voucher` integer DEFAULT 0,
+	`nature_of_payment` text,
+	`tds_pan_it_no` text,
+	`tds_pan_status` text,
+	`tds_pan_effective_date` text,
+	`tds_name_on_pan` text,
+	`is_tcs_applicable` integer DEFAULT 0,
+	`tcs_buyer_lessee_type` text,
+	`tcs_pan_it_no` text,
+	`tcs_pan_status` text,
+	`tcs_name_on_pan` text,
+	`tcs_nature_of_goods` text,
+	`is_service_tax_applicable` text,
+	`is_tds_applicable` text,
+	`is_excise_applicable` text,
+	`is_vat_cst_applicable` text,
+	`deductee_ref` text,
+	`tax_unique_id_no` text,
+	`excise_tariff_name` text,
+	`excise_hsn_code` text,
+	`excise_reporting_uom` text DEFAULT 'Undefined',
+	`excise_valuation_type` text DEFAULT 'Undefined',
+	`excise_rate` real DEFAULT 0,
+	`excise_rate_per_unit` real DEFAULT 0,
+	`vat_nature_of_transaction` text DEFAULT 'Undefined',
+	`vat_tax_rate` real DEFAULT 0,
+	`vat_tax_type` text DEFAULT 'Unknown',
+	`activate_interest` integer DEFAULT 0,
+	`interest_include_added` integer DEFAULT 0,
+	`interest_include_deducted` integer DEFAULT 0,
+	`interest_rate` real DEFAULT 0,
+	`interest_style` text DEFAULT '30-Day Month',
+	`interest_balances` text DEFAULT 'All Balances',
+	`behave_as_payment_gateway` integer DEFAULT 0,
+	`payment_gateway_name` text,
+	`place_of_supply` text,
+	`does_party_belong_to_non_taxable_territory` text DEFAULT 'No',
+	`is_party_a_transporter` text DEFAULT 'No',
+	`is_party_an_associated_enterprise` text DEFAULT 'No',
+	`transporter_id` text,
+	`notification_number` text,
+	`notification_serial_number` text,
+	`sales_purchases_against_form_c` text DEFAULT 'No',
+	`service_tax_registration_number` text,
+	`type_of_service` text DEFAULT 'Undefined',
+	`tds_deductee_ref` text,
+	`tds_tax_unique_id_no` text,
+	`vat_tin_no` text,
+	`vat_type_of_dealer` text DEFAULT 'Unknown',
 	`is_active` integer DEFAULT 1,
 	`is_predefined` integer DEFAULT 0,
 	`created_at` text DEFAULT (datetime('now')),
@@ -696,6 +1010,7 @@ CREATE TABLE `ledger_bank_details` (
 	`transaction_type` text,
 	`cross_using` text DEFAULT 'A/c Payee',
 	`company_bank` text,
+	`cheque_ranges` text,
 	FOREIGN KEY (`ledger_id`) REFERENCES `ledgers`(`ledger_id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
@@ -715,6 +1030,10 @@ CREATE TABLE `ledger_statutory_details` (
 	`include_in_assessable_value_calculation` text DEFAULT 'Not Applicable',
 	`appropriate_to` text DEFAULT 'Goods',
 	`method_of_calculation` text DEFAULT 'Based on Quantity',
+	`gst_rate_source` text DEFAULT 'As per Company/Group',
+	`hsn_sac_source` text DEFAULT 'As per Company/Group',
+	`taxability_type` text,
+	`type_of_supply` text DEFAULT 'Services',
 	FOREIGN KEY (`ledger_id`) REFERENCES `ledgers`(`ledger_id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
@@ -736,6 +1055,18 @@ CREATE TABLE `pay_heads` (
 	`rounding_limit` real DEFAULT 0,
 	`statutory_component` text,
 	`percentage_or_amount` real DEFAULT 0,
+	`statutory_pay_type` text,
+	`compute_method` text DEFAULT 'On Current Earnings Total',
+	`registration_number` text,
+	`contribute_min_rs2` integer DEFAULT 0,
+	`leave_without_pay` text,
+	`production_type` text,
+	`opening_balance` real DEFAULT 0,
+	`opening_balance_type` text DEFAULT 'Dr',
+	`it_component` text,
+	`it_calculation_basis` text,
+	`it_deduct_tds_across_periods` integer DEFAULT 0,
+	`gratuity_days_per_month` real DEFAULT 0,
 	`is_active` integer DEFAULT 1,
 	`is_predefined` integer DEFAULT 0,
 	`created_at` text DEFAULT (datetime('now')),
@@ -766,6 +1097,40 @@ CREATE TABLE `pay_head_formula_lines` (
 	FOREIGN KEY (`pay_head_id_ref`) REFERENCES `pay_heads`(`pay_head_id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
+CREATE TABLE `pay_head_gratuity_slabs` (
+	`gratuity_slab_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`pay_head_id` integer NOT NULL,
+	`months_from` integer,
+	`months_to` integer,
+	`eligibility_days` real DEFAULT 0,
+	`created_at` text DEFAULT (datetime('now')),
+	FOREIGN KEY (`pay_head_id`) REFERENCES `pay_heads`(`pay_head_id`) ON UPDATE no action ON DELETE no action
+);
+--> statement-breakpoint
+CREATE TABLE `payroll_statutory_details` (
+	`company_id` integer PRIMARY KEY NOT NULL,
+	`pf_company_code` text,
+	`pf_account_group_code` text,
+	`pf_security_code` text,
+	`esi_company_code` text,
+	`esi_branch_office` text,
+	`esi_standard_working_days` integer DEFAULT 0,
+	`nps_corporate_registration_number` text,
+	`nps_corporate_branch_office_number` text,
+	`it_tan` text,
+	`it_tan_registration_number` text,
+	`it_circle_or_ward` text,
+	`it_deductor_type` text DEFAULT 'Government',
+	`it_deductor_branch_division` text,
+	`it_person_responsible_name` text,
+	`it_person_responsible_relation` text,
+	`it_designation` text,
+	`it_pan` text,
+	`created_at` text DEFAULT (datetime('now')),
+	`updated_at` text DEFAULT (datetime('now')),
+	FOREIGN KEY (`company_id`) REFERENCES `companies`(`company_id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
 CREATE TABLE `payroll_units` (
 	`payroll_unit_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`company_id` integer NOT NULL,
@@ -773,6 +1138,7 @@ CREATE TABLE `payroll_units` (
 	`symbol` text,
 	`formal_name` text,
 	`unit_type` text DEFAULT 'Simple',
+	`unit_quantity_code` text,
 	`decimal_places` integer DEFAULT 0,
 	`first_unit` text,
 	`conversion` real,
@@ -829,6 +1195,7 @@ CREATE TABLE `price_lists` (
 	`price_list_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`company_id` integer NOT NULL,
 	`stock_group` text DEFAULT 'All Items' NOT NULL,
+	`stock_category` text,
 	`price_level` text NOT NULL,
 	`applicable_from` text NOT NULL,
 	`is_active` integer DEFAULT 1,
@@ -912,6 +1279,35 @@ CREATE TABLE `salary_structures` (
 	`updated_at` text DEFAULT (datetime('now'))
 );
 --> statement-breakpoint
+CREATE TABLE `service_tax_details` (
+	`company_id` integer PRIMARY KEY NOT NULL,
+	`service_tax_registration_number` text,
+	`type_of_organisation` text DEFAULT 'Individual/Proprietory/One Person Company',
+	`is_monthly_format` integer DEFAULT 0,
+	`compute_tax_liability_based_on` text DEFAULT 'Accrual',
+	`set_alter_service_tax_details` integer DEFAULT 0,
+	`tax_liability_applicable_from` text,
+	`define_service_category_as_masters` integer DEFAULT 0,
+	`is_reverse_charge_applicable` integer DEFAULT 0,
+	`deactivate_from` text,
+	`created_at` text DEFAULT (datetime('now')),
+	`updated_at` text DEFAULT (datetime('now')),
+	FOREIGN KEY (`company_id`) REFERENCES `companies`(`company_id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE TABLE `service_tax_categories` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`company_id` integer NOT NULL,
+	`name` text NOT NULL,
+	`service_tax_rate` real DEFAULT 0,
+	`education_cess_rate` real DEFAULT 0,
+	`secondary_education_cess_rate` real DEFAULT 0,
+	`swachh_bharat_cess_rate` real DEFAULT 0,
+	`krishi_kalyan_cess_rate` real DEFAULT 0,
+	`sort_order` integer DEFAULT 0,
+	FOREIGN KEY (`company_id`) REFERENCES `companies`(`company_id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
 CREATE TABLE `stock_categories` (
 	`sc_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`company_id` integer NOT NULL,
@@ -937,6 +1333,8 @@ CREATE TABLE `stock_groups` (
 	`gst_rate` real DEFAULT 0,
 	`cgst_rate` real DEFAULT 0,
 	`sgst_rate` real DEFAULT 0,
+	`igst_rate` real DEFAULT 0,
+	`cess_rate` real DEFAULT 0,
 	`taxability_type` text DEFAULT NULL,
 	`statutory_details` text,
 	`is_primary` integer DEFAULT 0,
@@ -1010,6 +1408,20 @@ CREATE TABLE `stock_item_opening_allocations` (
 	FOREIGN KEY (`item_id`) REFERENCES `stock_items`(`item_id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
+CREATE TABLE `bom_components` (
+	`bom_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`company_id` integer NOT NULL,
+	`item_id` integer NOT NULL,
+	`bom_name` text,
+	`component_item_id` integer NOT NULL,
+	`godown_id` integer,
+	`quantity` real DEFAULT 0,
+	`unit_id` integer,
+	`created_at` text DEFAULT (datetime('now')),
+	`updated_at` text DEFAULT (datetime('now')),
+	FOREIGN KEY (`item_id`) REFERENCES `stock_items`(`item_id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
 CREATE TABLE `tally_features` (
 	`tally_feature_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`company_id` integer NOT NULL,
@@ -1029,7 +1441,7 @@ CREATE TABLE `tally_features` (
 	`enable_tcs` integer DEFAULT 0,
 	`enable_browser_access_for_reports` integer DEFAULT 0,
 	`enable_tally_net_services` integer DEFAULT 0,
-	`enable_payment_request_qr` integer DEFAULT 0,
+	`enable_payment_request_qr` integer DEFAULT 1,
 	`enable_multiple_addresses` integer DEFAULT 0,
 	`mark_modified_vouchers` integer DEFAULT 0,
 	`created_at` text DEFAULT (datetime('now')),
@@ -1052,9 +1464,17 @@ CREATE TABLE `tax_units` (
 	`registered_for` text DEFAULT 'Excise',
 	`set_alter_excise_details` integer DEFAULT 0,
 	`registration_type` text DEFAULT 'Importer',
+	`type_of_manufacturer` text,
 	`ecc_number` text,
 	`set_alter_excise_tariff` integer DEFAULT 0,
+	`tariff_name` text,
+	`hsn_code` text,
+	`reporting_uom` text,
+	`valuation_type` text,
+	`tariff_rate` real DEFAULT 0,
+	`tariff_rate_per_unit` real DEFAULT 0,
 	`set_alter_rule11_book` integer DEFAULT 0,
+	`rule11_book` text,
 	`sort_order` integer DEFAULT 0,
 	`is_active` integer DEFAULT 1,
 	`created_at` text DEFAULT (datetime('now')),
@@ -1093,6 +1513,7 @@ CREATE TABLE `tds_nature_of_payment` (
 	`rate_other_with_pan` real DEFAULT 0,
 	`is_zero_rated` integer DEFAULT 0,
 	`threshold_limit` real DEFAULT 0,
+	`calculate_tax_on_exceeding_threshold` integer DEFAULT 0,
 	`is_predefined` integer DEFAULT 0,
 	`is_active` integer DEFAULT 1,
 	`created_at` text DEFAULT (datetime('now')),
@@ -1225,6 +1646,7 @@ CREATE TABLE `voucher_batches` (
 	`voucher_id` integer NOT NULL,
 	`stock_entry_id` integer NOT NULL,
 	`batch_number` text,
+	`mfg_date` text,
 	`expiry_date` text,
 	`quantity` real DEFAULT 0,
 	`rate` real DEFAULT 0,
@@ -1383,6 +1805,7 @@ CREATE TABLE `voucher_types` (
 	`vt_id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`company_id` integer NOT NULL,
 	`name` text NOT NULL,
+	`alias` text,
 	`short_name` text,
 	`category` text,
 	`default_voucher_class` text,
@@ -1408,6 +1831,10 @@ CREATE TABLE `voucher_type_configs` (
 	`make_voucher_optional` integer DEFAULT 0,
 	`allow_narration` integer DEFAULT 1,
 	`allow_narration_per_ledger` integer DEFAULT 0,
+	`numbering_behaviour` text DEFAULT 'Retain Original Voucher No.',
+	`set_alter_additional_numbering` integer DEFAULT 0,
+	`show_unused_numbers` integer DEFAULT 1,
+	`prevent_duplicate_numbers` integer DEFAULT 0,
 	`print_after_save` integer DEFAULT 0,
 	`whatsapp_after_save` integer DEFAULT 0,
 	`enable_default_accounting_allocation` integer DEFAULT 0,
@@ -1416,7 +1843,13 @@ CREATE TABLE `voucher_type_configs` (
 	`use_for_pos_invoicing` integer DEFAULT 0,
 	`default_bank_id` integer,
 	`declaration` text,
-	`set_alter_declaration` integer DEFAULT 0
+	`set_alter_declaration` integer DEFAULT 0,
+	`starting_number` integer DEFAULT 1,
+	`width_of_numerical_part` integer DEFAULT 0,
+	`prefill_with_zero` integer DEFAULT 0,
+	`restart_numbering` text DEFAULT '[]',
+	`prefix_details` text DEFAULT '[]',
+	`suffix_details` text DEFAULT '[]'
 );
 --> statement-breakpoint
 CREATE TABLE `whatsapp_config` (

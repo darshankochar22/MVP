@@ -1,10 +1,54 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 // E2E_PROD makes `electron .` load the built client/dist (like a packaged app) so Playwright
 // can drive the real renderer without a Vite dev server.
 const isDev = !app.isPackaged && !process.env.E2E_PROD;
 
 ipcMain.handle("app:getDataPath", () => app.getPath("userData"));
+
+// Render a self-contained HTML document to a PDF file (used for invoice/voucher export).
+// Lives here because it needs Electron main APIs (offscreen window, printToPDF, save dialog).
+ipcMain.handle("export:htmlToPdf", async (event, { html, defaultFileName } = {}) => {
+    if (!html || typeof html !== "string") {
+        return { success: false, error: "No HTML provided." };
+    }
+    let pdfWin = null;
+    let tmpPath = null;
+    try {
+        pdfWin = new BrowserWindow({
+            show: false,
+            webPreferences: { contextIsolation: true, nodeIntegration: false },
+        });
+        // Write to a temp file and loadFile — robust for large HTML/CSS (data: URLs have size limits).
+        tmpPath = path.join(app.getPath("temp"), `vch-export-${Date.now()}.html`);
+        fs.writeFileSync(tmpPath, html, "utf8");
+        await pdfWin.loadFile(tmpPath);
+        // Let layout/fonts settle before snapshotting.
+        await new Promise((r) => setTimeout(r, 200));
+        const pdfBuffer = await pdfWin.webContents.printToPDF({
+            printBackground: true,
+            pageSize: "A4",
+            margins: { marginType: "custom", top: 0.4, bottom: 0.4, left: 0.4, right: 0.4 },
+        });
+
+        const parent = BrowserWindow.fromWebContents(event.sender) || BrowserWindow.getFocusedWindow();
+        const { canceled, filePath } = await dialog.showSaveDialog(parent, {
+            title: "Save PDF",
+            defaultPath: defaultFileName || "voucher.pdf",
+            filters: [{ name: "PDF", extensions: ["pdf"] }],
+        });
+        if (canceled || !filePath) return { success: false, canceled: true };
+
+        fs.writeFileSync(filePath, pdfBuffer);
+        return { success: true, filePath };
+    } catch (err) {
+        return { success: false, error: err.message };
+    } finally {
+        if (pdfWin) pdfWin.destroy();
+        if (tmpPath) { try { fs.unlinkSync(tmpPath); } catch (e) { /* best-effort temp cleanup */ } }
+    }
+});
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -27,10 +71,8 @@ function createWindow() {
 
 app.whenReady().then(async () => {
     try {
-        const { initDB, db } = require('./server/db/index');
+        const { initDB } = require('./server/db/index');
         await initDB();
-        console.log('db type:', typeof db);
-        console.log('db.execute type:', typeof db?.execute);
         require('./server/index.js');
 
         // Dev-only: serve auto-generated API docs at http://localhost:5180/docs

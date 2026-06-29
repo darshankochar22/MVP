@@ -492,6 +492,14 @@ contextBridge.exposeInMainWorld('api', {
         testKey:      (config)  => invoke('ai:testKey', config || {}),
         ask:          (payload) => invoke('ai:ask', payload),
     },
+    automation: {
+        getVoucherSchema: ()        => invoke('automation:getVoucherSchema'),
+        validateVoucher:  (payload) => invoke('automation:validateVoucher', payload),
+        createVoucher:    (payload) => invoke('automation:createVoucher', payload),
+    },
+    pdf: {
+        fromHtml: (html, defaultFileName) => invoke('export:htmlToPdf', { html, defaultFileName }),
+    },
     tally: {
         testConnection: (params)  => invoke('tally:testConnection', params),
         preview:        (params)  => invoke('tally:preview', params),

@@ -69,4 +69,16 @@ const gstr1Exports = sqliteTable('gstr1_exports', {
   createdAt: text('created_at').default(sql`(datetime('now'))`),
 });
 
-module.exports = { gstHsnRates, gstVoucherTaxLines, gstr1Exports };
+// 4. gstr2b_imports — snapshot of an imported GSTR-2B return payload.
+const gstr2bImports = sqliteTable('gstr2b_imports', {
+  importId: integer('import_id').primaryKey({ autoIncrement: true }),
+  // FK -> companies(company_id) ON DELETE CASCADE.
+  companyId: integer('company_id').notNull(),
+  // FK -> financial_years(fy_id) ON DELETE CASCADE.
+  fyId: integer('fy_id').notNull(),
+  returnPeriod: text('return_period').notNull(),
+  payloadJson: text('payload_json'),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+});
+
+module.exports = { gstHsnRates, gstVoucherTaxLines, gstr1Exports, gstr2bImports };

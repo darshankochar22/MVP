@@ -3,6 +3,7 @@ const { ipcMain } = require('electron');
 const eInvoiceController = require('../eInvoice/eInvoiceController');
 const whatsappController = require('../whatsapp/whatsappController');
 const aiController = require('../ai/aiController');
+const automationController = require('../automation/automationController');
 const tallyController = require('../integrations/tally/tallyController');
 
 function register() {
@@ -30,6 +31,10 @@ function register() {
   ipcMain.handle('ai:clearKey', aiController.clearKey);
   ipcMain.handle('ai:testKey', aiController.testKey);
   ipcMain.handle('ai:ask', aiController.ask);
+
+  ipcMain.handle('automation:getVoucherSchema', automationController.getVoucherSchema);
+  ipcMain.handle('automation:validateVoucher', automationController.validateVoucher);
+  ipcMain.handle('automation:createVoucher', automationController.createVoucher);
 
   ipcMain.handle('tally:testConnection', tallyController.testConnection);
   ipcMain.handle('tally:preview', tallyController.preview);

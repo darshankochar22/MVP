@@ -1,4 +1,5 @@
 const { sqliteTable, text, integer, real } = require('drizzle-orm/sqlite-core');
+const { sql } = require('drizzle-orm');
 
 const dayBookReports = sqliteTable('day_book_reports', {
   reportId: integer('report_id').primaryKey({ autoIncrement: true }),
@@ -20,8 +21,8 @@ const dayBookReports = sqliteTable('day_book_reports', {
   showStatAdjustment: integer('show_stat_adjustment').default(0),
   showDetails: integer('show_details').default(1),
   showRelatedReports: integer('show_related_reports').default(0),
-  createdAt: text('created_at').default("datetime('now')"),
-  updatedAt: text('updated_at').default("datetime('now')"),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
 });
 
 const dayBookEntries = sqliteTable('day_book_entries', {
@@ -46,8 +47,8 @@ const dayBookEntries = sqliteTable('day_book_entries', {
   displayOrder: integer('display_order').default(0),
   isDrillable: integer('is_drillable').default(1),
   notes: text('notes'),
-  createdAt: text('created_at').default("datetime('now')"),
-  updatedAt: text('updated_at').default("datetime('now')"),
+  createdAt: text('created_at').default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').default(sql`(datetime('now'))`),
 });
 
 const dayBookEntryLines = sqliteTable('day_book_entry_lines', {

@@ -1,11 +1,23 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import MenuCard, { type OptionType } from "@/components/ui/Card";
 import { useCompany } from "@/context/CompanyContext";
+import { exportElementToPdf } from "@/lib/exportDomPdf";
 
 export default function Navbar() {
   const { setSelectedCompany } = useCompany();
+  const navigate = useNavigate();
   const [openMenu, setOpenMenu] = useState("");
   const navRef = useRef<HTMLElement>(null);
+
+  // Export → the voucher currently on screen, exactly as the frontend renders it.
+  // If not viewing a voucher, go to the Voucher Register so the user can pick one.
+  const exportCurrentVoucher = async () => {
+    const el = document.getElementById("voucher-print-area");
+    if (!el) { navigate("/transactions/voucher-list"); return; }
+    const res = await exportElementToPdf(el as HTMLElement, el.dataset.filename || "voucher");
+    if (!res.success && !res.canceled) window.alert(res.error || "Failed to export PDF");
+  };
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -92,6 +104,7 @@ export default function Navbar() {
     {
       name: "Export",
       options: [
+        { label: "Voucher / Invoice (PDF)", action: exportCurrentVoucher },
         { label: "Reports" },
         { label: "Current" },
         { label: "Others" },

@@ -5,6 +5,7 @@ import { AlertBanner } from "../../components/ui";
 import { Button } from "@/components/shadcn/button";
 import { Badge } from "@/components/shadcn/badge";
 import { cn } from "@/lib/utils";
+import { exportElementToPdf } from "@/lib/exportDomPdf";
 
 interface VoucherEntry {
   entry_id: number;
@@ -430,6 +431,7 @@ export default function VoucherView() {
   const [balances, setBalances] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -498,6 +500,23 @@ export default function VoucherView() {
       }
     } catch (e: any) {
       setError(e.message);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    if (!voucher) return;
+    const el = document.getElementById("voucher-print-area");
+    if (!el) return;
+    setExporting(true);
+    setError(null);
+    try {
+      const name = `${voucher.voucher_type}_${voucher.voucher_number || voucher.voucher_id}`;
+      const res = await exportElementToPdf(el as HTMLElement, name);
+      if (!res.success && !res.canceled) setError(res.error || "Failed to export PDF");
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -585,7 +604,11 @@ export default function VoucherView() {
       </div>
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+        <div
+          id="voucher-print-area"
+          data-filename={`${voucher.voucher_type}_${voucher.voucher_number || voucher.voucher_id}`}
+          className="flex-1 flex flex-col min-h-0 overflow-y-auto"
+        >
           <div className="flex items-center px-3 py-1.5 border-b border-black bg-white shrink-0">
             <div className="text-sm font-bold text-white bg-[#2f7ab8] px-3 py-0.5 min-w-[90px] text-center">
               {voucher.voucher_type}
@@ -686,6 +709,15 @@ export default function VoucherView() {
           <span className="underline">Q</span>: Quit
         </Button>
         <div className="flex items-center gap-3">
+          <Button
+            onClick={handleExportPdf}
+            disabled={exporting}
+            variant="outline"
+            size="xs"
+            className="h-auto rounded-none text-sm px-3 py-0.5 border-zinc-400 text-zinc-800 hover:bg-zinc-100"
+          >
+            <span className="underline">P</span>: {exporting ? "Exporting…" : "Export PDF"}
+          </Button>
           {!voucher.is_cancelled && (
             <Button
               onClick={handleCancel}
