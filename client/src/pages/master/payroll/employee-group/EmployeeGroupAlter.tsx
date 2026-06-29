@@ -4,8 +4,10 @@ import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, MasterSelectionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
 import { useMasterShortcuts } from "@/hooks/useMasterShortcuts";
 import type { EmployeeGroupType } from "@/types/entities/Employee";
+import SalaryDetailsModal, { type SalaryRow, fyStartISO } from "@/components/payroll/SalaryDetailsModal";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
+const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-24";
 
 export default function EmployeeGroupAlter() {
   const navigate = useNavigate();
@@ -20,6 +22,10 @@ export default function EmployeeGroupAlter() {
   const [success, setSuccess] = useState<string | null>(null);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const [selectedParent, setSelectedParent] = useState<EmployeeGroupType | null>(null);
+  const [defineSalary, setDefineSalary] = useState(false);
+  const [showSalaryModal, setShowSalaryModal] = useState(false);
+  const [salaryRows, setSalaryRows] = useState<SalaryRow[]>([]);
+  const [salaryEffectiveFrom, setSalaryEffectiveFrom] = useState(fyStartISO());
 
   const loadGroups = useCallback(async () => {
     if (!companyId) return;
@@ -33,6 +39,11 @@ export default function EmployeeGroupAlter() {
     setForm({ name: g.name, alias: g.alias || "", parent_group_id: g.parent_group_id ?? null });
     const parent = groups.find(p => p.employee_group_id === g.parent_group_id);
     setSelectedParent(parent || null);
+    // Group-level salary defaults are not persisted (no backend store keyed by group),
+    // so reset to a blank structure on every selection — mirrors EmployeeGroupCreate.
+    setDefineSalary(false);
+    setSalaryRows([]);
+    setSalaryEffectiveFrom(fyStartISO());
   };
 
   useEffect(() => {
@@ -156,6 +167,33 @@ export default function EmployeeGroupAlter() {
               <span className="text-sm font-semibold text-zinc-800 underline decoration-dotted">{selectedParent?.name || "Primary"}</span>
             </div>
           </div>
+
+          <div className="p-3 border-t border-zinc-100 space-y-1 max-w-2xl">
+            <FormRow label="Define salary details" labelWidth="w-56" className="flex items-center min-h-[26px]">
+              <select
+                className={selectCls}
+                value={defineSalary ? "Yes" : "No"}
+                onChange={(e) => {
+                  const yes = e.target.value === "Yes";
+                  setDefineSalary(yes);
+                  if (yes) setShowSalaryModal(true);
+                  else setSalaryRows([]);
+                }}
+              >
+                <option>No</option>
+                <option>Yes</option>
+              </select>
+            </FormRow>
+            {defineSalary && salaryRows.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowSalaryModal(true)}
+                className="ml-56 text-xs text-zinc-500 underline hover:text-zinc-900"
+              >
+                {salaryRows.length} pay head{salaryRows.length !== 1 ? "s" : ""} defined — click to edit
+              </button>
+            )}
+          </div>
           <div className="flex-1" />
         </div>
         {showGroupPanel && (
@@ -176,6 +214,26 @@ export default function EmployeeGroupAlter() {
         cancelLabel="Back"
         loading={loading}
       />
+
+      {showSalaryModal && (
+        <SalaryDetailsModal
+          name={form.name}
+          under={selectedParent?.name || "Primary"}
+          companyId={companyId}
+          effectiveFrom={salaryEffectiveFrom}
+          initialRows={salaryRows}
+          onAccept={(rows, eff) => {
+            setSalaryRows(rows);
+            setSalaryEffectiveFrom(eff);
+            setShowSalaryModal(false);
+            if (rows.length === 0) setDefineSalary(false);
+          }}
+          onClose={() => {
+            setShowSalaryModal(false);
+            if (salaryRows.length === 0) setDefineSalary(false);
+          }}
+        />
+      )}
     </div>
   );
 }

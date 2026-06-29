@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel, MasterSelectionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
 import { useMasterShortcuts } from "@/hooks/useMasterShortcuts";
+import PayHeadCalculationPanel from "@/components/payroll/PayHeadCalculationPanel";
 import IncomeTaxDetailsPopup from "@/components/payroll/IncomeTaxDetailsPopup";
 import GratuitySlabPopup, { type GratuitySlab } from "@/components/payroll/GratuitySlabPopup";
 import {
@@ -53,10 +54,9 @@ export default function PayHeadAlter() {
   const [payHeads, setPayHeads] = useState<PayHeadType[]>([]);
   const [selected, setSelected] = useState<PayHeadType | null>(null);
   const [form, setForm] = useState<FormData | null>(null);
-  const [_slabs, setSlabs] = useState<PayHeadSlabLineType[]>([]);
-  const [_formulaLines, setFormulaLines] = useState<PayHeadFormulaLineType[]>([]);
+  const [slabs, setSlabs] = useState<PayHeadSlabLineType[]>([]);
+  const [formulaLines, setFormulaLines] = useState<PayHeadFormulaLineType[]>([]);
   const [gratuitySlabs, setGratuitySlabs] = useState<GratuitySlab[]>([]);
-  void _slabs; void _formulaLines;
   const [showITPopup, setShowITPopup] = useState(false);
   const [showGratuityPopup, setShowGratuityPopup] = useState(false);
   const [totalOpeningBalance, setTotalOpeningBalance] = useState<{ totalDr: number; totalCr: number; netBalance: number; balanceType: string } | null>(null);
@@ -113,6 +113,8 @@ export default function PayHeadAlter() {
     });
     setError(null);
     setSuccess(null);
+    setSlabs([]);
+    setFormulaLines([]);
     setGratuitySlabs([]);
     if (ph.pay_head_id) {
       const [sRes, fRes, gRes] = await Promise.all([
@@ -149,6 +151,33 @@ export default function PayHeadAlter() {
       if (v === "As Per Income Tax Slab") return { ...f, calculation_type: v, rounding_method: "Upward Rounding", rounding_limit: 1 };
       return { ...f, calculation_type: v };
     });
+
+  // Adapter so PayHeadCalculationPanel (per-key change handlers) drives the single `form` object.
+  const calcConfig = form
+    ? {
+        calculation_type: form.calculation_type,
+        calculation_period: form.calculation_period,
+        percentage_or_amount: form.percentage_or_amount,
+        rounding_method: form.rounding_method,
+        rounding_limit: form.rounding_limit,
+        compute_method: form.compute_method,
+        leave_without_pay: form.leave_without_pay,
+        production_type: form.production_type,
+      }
+    : null;
+
+  const handleCalcChange = (key: keyof NonNullable<typeof calcConfig>) =>
+    (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const v = e.target.value;
+      if (key === "calculation_type") return onCalcType(v);
+      setForm(f => (f ? { ...f, [key]: v } : null));
+    };
+
+  const handleCalcNumberChange = (key: keyof NonNullable<typeof calcConfig>) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const v = e.target.value === "" ? 0 : Number(e.target.value);
+      setForm(f => (f ? { ...f, [key]: v } : null));
+    };
 
   const onStatutoryPayType = (v: string) =>
     setForm(f => {
@@ -226,6 +255,38 @@ export default function PayHeadAlter() {
         gratuity_days_per_month: form.pay_head_type === "Gratuity" ? form.gratuity_days_per_month : 0,
       });
       if (res.success) {
+        // Replace-on-save: no updateSlab/updateFormula exists, so delete the existing
+        // computed-value rows for this pay head and recreate the current set (no dupes/orphans).
+        if (selected.pay_head_id) {
+          const phId = selected.pay_head_id;
+          const isComputed = form.calculation_type === "As Computed Value";
+          const keepSlabs = isComputed && form.compute_method !== "On Specified Formula";
+          const keepFormulas = isComputed && form.compute_method === "On Specified Formula";
+
+          const existingSlabs = await window.api.payHead.getSlabs(phId);
+          if (existingSlabs.success) {
+            for (const s of existingSlabs.slabs ?? []) {
+              if (s.slab_line_id) await window.api.payHead.deleteSlab(s.slab_line_id);
+            }
+          }
+          if (keepSlabs) {
+            for (const slab of slabs) {
+              await window.api.payHead.createSlab({ pay_head_id: phId, effective_from: slab.effective_from, amount_gt: slab.amount_gt, amount_up_to: slab.amount_up_to, slab_type: slab.slab_type, value: slab.value });
+            }
+          }
+
+          const existingFormulas = await window.api.payHead.getFormulas(phId);
+          if (existingFormulas.success) {
+            for (const fl of existingFormulas.formulas ?? []) {
+              if (fl.formula_line_id) await window.api.payHead.deleteFormula(fl.formula_line_id);
+            }
+          }
+          if (keepFormulas) {
+            for (let i = 0; i < formulaLines.length; i++) {
+              await window.api.payHead.createFormula({ pay_head_id: phId, sequence: i, function: formulaLines[i].function, pay_head_id_ref: formulaLines[i].pay_head_id_ref, operator: formulaLines[i].operator });
+            }
+          }
+        }
         if (form.pay_head_type === "Gratuity" && selected.pay_head_id) {
           const existing = await window.api.payHead.getGratuitySlabs(selected.pay_head_id);
           if (existing.success) {
@@ -253,7 +314,7 @@ export default function PayHeadAlter() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, selected, loadData, companyId, gratuitySlabs]);
+  }, [form, selected, loadData, companyId, gratuitySlabs, slabs, formulaLines]);
 
   const handleDelete = useCallback(async () => {
     if (!selected) return;
@@ -415,6 +476,8 @@ export default function PayHeadAlter() {
                 <option value="Current Liabilities">Current Liabilities</option>
                 <option value="Current Assets">Current Assets</option>
                 <option value="Loans & Advances (Asset)">Loans &amp; Advances (Asset)</option>
+                <option value="Direct Incomes">Direct Incomes</option>
+                <option value="Indirect Incomes">Indirect Incomes</option>
               </select>
             </FormRow>
 
@@ -466,96 +529,69 @@ export default function PayHeadAlter() {
             )}
           </div>
 
-          {showCalc && (
-            <div className="p-3 border-t border-zinc-100 space-y-1.5">
-              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Calculation &amp; Rounding</div>
-              <FormRow label="Calculation Type" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <select disabled={isPredefined} className={`${selectCls} ${dis()}`} value={form.calculation_type} onChange={e => onCalcType(e.target.value)}>
-                  {CALCULATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </FormRow>
-
-              <FormRow label="Calculation Period" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <select disabled={isPredefined} className={`${selectCls} ${dis()}`} value={form.calculation_period} onChange={setField("calculation_period")}>
-                  <option value="Days">Days</option>
-                  <option value="Fortnights">Fortnights</option>
-                  <option value="Months">Months</option>
-                  <option value="Weeks">Weeks</option>
-                </select>
-              </FormRow>
-
-              {form.calculation_type === "On Attendance" && (
-                <FormRow label="Leave without pay" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                  <select disabled={isPredefined} className={`${selectCls} ${dis()}`} value={form.leave_without_pay} onChange={setField("leave_without_pay")}>
-                    <option>Not Applicable</option>
-                    <option>Casual Leave</option>
-                    <option>Sick Leave</option>
-                    <option>Earned Leave</option>
-                    <option>Loss of Pay</option>
+          {showCalc && calcConfig && (
+            <>
+              <div className="p-3 border-t border-zinc-100 space-y-1.5">
+                <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Calculation Type</div>
+                <FormRow label="Calculation Type" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                  <select disabled={isPredefined} className={`${selectCls} ${dis()}`} value={form.calculation_type} onChange={e => onCalcType(e.target.value)}>
+                    {CALCULATION_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </FormRow>
-              )}
+              </div>
 
-              {form.calculation_type === "On Production" && (
-                <FormRow label="Production type" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                  <select disabled={isPredefined} className={`${selectCls} ${dis()}`} value={form.production_type} onChange={setField("production_type")}>
-                    <option>Not Applicable</option>
-                    <option>Piece Production</option>
-                    <option>Hours Worked</option>
-                    <option>Units Produced</option>
-                  </select>
-                </FormRow>
-              )}
-
-              {form.calculation_type === "As Computed Value" && (
-                <FormRow label="Compute" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                  <select disabled={isPredefined} className={`${selectCls} ${dis()}`} value={form.compute_method} onChange={setField("compute_method")}>
-                    <option value="On Current Earnings Total">On Current Earnings Total</option>
-                    <option value="On Current Deductions Total">On Current Deductions Total</option>
-                    <option value="On Current SubTotal">On Current SubTotal</option>
-                    <option value="On PF Gross">On PF Gross</option>
-                    <option value="On Specified Formula">On Specified Formula</option>
-                  </select>
-                </FormRow>
-              )}
-
-              {(form.calculation_type === "As User Defined Value" || form.calculation_type === "Flat Rate") && (
-                <FormRow label="Value" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                  <input type="number" step="0.01" disabled={isPredefined} className={`${inputCls} text-right max-w-[120px] ${dis()}`} value={form.percentage_or_amount} onChange={setNumber("percentage_or_amount")} />
-                </FormRow>
-              )}
-
-              <FormRow label="Rounding Method" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <select disabled={isPredefined} className={`${selectCls} ${dis()}`} value={form.rounding_method} onChange={setField("rounding_method")}>
-                  <option value="Not Applicable">Not Applicable</option>
-                  <option value="Normal Rounding">Normal Rounding</option>
-                  <option value="Downward Rounding">Downward Rounding</option>
-                  <option value="Upward Rounding">Upward Rounding</option>
-                </select>
-              </FormRow>
-              {form.rounding_method !== "Not Applicable" && (
-                <FormRow label="Limit" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                  <input type="number" step="0.01" disabled={isPredefined} className={`${inputCls} text-right max-w-[120px] ${dis()}`} value={form.rounding_limit} onChange={setNumber("rounding_limit")} />
-                </FormRow>
+              {form.calculation_type !== "As Per Income Tax Slab" && (
+                isPredefined ? (
+                  // Predefined heads stay read-only (never computed) — show the simple calc/rounding fields disabled.
+                  <div className="p-3 border-t border-zinc-100 space-y-1.5">
+                    <FormRow label="Calculation Period" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                      <input disabled className={`${inputCls} ${dis()}`} value={form.calculation_period} readOnly />
+                    </FormRow>
+                    {(form.calculation_type === "As User Defined Value" || form.calculation_type === "Flat Rate") && (
+                      <FormRow label="Value" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                        <input type="number" step="0.01" disabled className={`${inputCls} text-right max-w-[120px] ${dis()}`} value={form.percentage_or_amount} readOnly />
+                      </FormRow>
+                    )}
+                    <FormRow label="Rounding Method" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                      <input disabled className={`${inputCls} ${dis()}`} value={form.rounding_method} readOnly />
+                    </FormRow>
+                  </div>
+                ) : (
+                  <PayHeadCalculationPanel
+                    config={calcConfig}
+                    slabs={slabs}
+                    formulaLines={formulaLines}
+                    companyId={companyId}
+                    onConfigChange={handleCalcChange}
+                    onConfigNumberChange={handleCalcNumberChange}
+                    onSlabAdd={() => setSlabs(s => [...s, { effective_from: "", amount_gt: 0, amount_up_to: 0, slab_type: "Percentage", value: 0 }])}
+                    onSlabDelete={(i) => setSlabs(s => s.filter((_, idx) => idx !== i))}
+                    onSlabChange={(i, field, value) => setSlabs(s => s.map((sl, idx) => idx === i ? { ...sl, [field]: value } : sl))}
+                    onFormulaAdd={(line) => setFormulaLines(f => [...f, { ...line, sequence: f.length }])}
+                    onFormulaDelete={(i) => setFormulaLines(f => f.filter((_, idx) => idx !== i))}
+                  />
+                )
               )}
 
               {!isComputedType(form.calculation_type) && (
-                <FormRow label="Opening Balance ( on 1-Apr-26 )" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                  <div className="flex items-center gap-2">
-                    <input type="number" step="0.01" disabled={isPredefined} className={`${inputCls} text-right max-w-[140px] ${dis()}`} value={form.opening_balance} onChange={setNumber("opening_balance")} />
-                    <select
-                      disabled={isPredefined}
-                      className={`bg-transparent text-sm outline-none px-1.5 py-0.5 border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 transition-colors bg-white/50 rounded w-16 ${dis()}`}
-                      value={form.opening_balance_type}
-                      onChange={setField("opening_balance_type")}
-                    >
-                      <option value="Dr">Dr</option>
-                      <option value="Cr">Cr</option>
-                    </select>
-                  </div>
-                </FormRow>
+                <div className="p-3 border-t border-zinc-100 space-y-1.5">
+                  <FormRow label="Opening Balance ( on 1-Apr-26 )" labelWidth="w-44" className="flex items-center min-h-[26px]">
+                    <div className="flex items-center gap-2">
+                      <input type="number" step="0.01" disabled={isPredefined} className={`${inputCls} text-right max-w-[140px] ${dis()}`} value={form.opening_balance} onChange={setNumber("opening_balance")} />
+                      <select
+                        disabled={isPredefined}
+                        className={`bg-transparent text-sm outline-none px-1.5 py-0.5 border border-zinc-200 hover:border-zinc-300 focus:border-zinc-800 transition-colors bg-white/50 rounded w-16 ${dis()}`}
+                        value={form.opening_balance_type}
+                        onChange={setField("opening_balance_type")}
+                      >
+                        <option value="Dr">Dr</option>
+                        <option value="Cr">Cr</option>
+                      </select>
+                    </div>
+                  </FormRow>
+                </div>
               )}
-            </div>
+            </>
           )}
 
           {form.pay_head_type === "Gratuity" && !isPredefined && (

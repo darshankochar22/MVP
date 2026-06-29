@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import type { GroupType, SlabBasedRate } from "@/types/api";
 import { getConfig, TOGGLE_META, type StatutoryToggle } from "@/config/statutoryConfig";
 import StatutoryModal from "./StatutoryModal";

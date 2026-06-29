@@ -30,6 +30,7 @@ export interface LedgerType {
   check_credit_days?: number;
   credit_limit?: number;
   credit_limit_type?: string;
+  od_limit?: number;
   allow_cost_centres?: number;
   invoice_rounding?: number;
   rounding_method?: string;

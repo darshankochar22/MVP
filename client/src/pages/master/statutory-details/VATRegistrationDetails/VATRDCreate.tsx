@@ -5,7 +5,7 @@ import { PageTitleBar, RightActionPanel, MasterFormFooter } from "@/components/u
 import { useVATRegistrationDetails } from "./useVATRegistrationDetails";
 import { VATRegistrationDetailsForm } from "./VATRegistrationDetailsForm";
 
-export default function VATRDCreate() {
+export default function VATRDCreate({ returnPath = "/master/create" }: { returnPath?: string } = {}) {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
@@ -13,7 +13,7 @@ export default function VATRDCreate() {
   const { form, setField, loading, error, setError, success, setSuccess, save } =
     useVATRegistrationDetails({ companyId });
 
-  const quit = useCallback(() => navigate("/master/create"), [navigate]);
+  const quit = useCallback(() => navigate(returnPath), [navigate, returnPath]);
 
   const handleSubmit = useCallback(async () => {
     await save();

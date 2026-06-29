@@ -5,7 +5,7 @@ import { PageTitleBar, RightActionPanel, MasterFormFooter } from "@/components/u
 import { useExciseRegistrationDetails } from "./useExciseRegistrationDetails";
 import { ExciseRegistrationDetailsForm } from "./ExciseRegistrationDetailsForm";
 
-export default function ExciseRDCreate() {
+export default function ExciseRDCreate({ returnPath = "/master/create" }: { returnPath?: string } = {}) {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
@@ -13,7 +13,7 @@ export default function ExciseRDCreate() {
   const { form, setField, loading, error, setError, success, setSuccess, save } =
     useExciseRegistrationDetails({ companyId });
 
-  const quit = useCallback(() => navigate("/master/create"), [navigate]);
+  const quit = useCallback(() => navigate(returnPath), [navigate, returnPath]);
 
   const handleSubmit = useCallback(async () => {
     await save();

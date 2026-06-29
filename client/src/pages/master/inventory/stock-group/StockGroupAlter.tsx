@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import { PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
+import { FormRow, PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
 import type { StockGroupType } from "@/types/api";
 import StatutorySection from "@/pages/master/group/StatutorySection";
 import {
@@ -13,24 +13,6 @@ import {
 
 const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-300";
 const selectCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm cursor-pointer";
-
-function Row({ label, required, children, indent }: {
-  label: string;
-  required?: boolean;
-  children: React.ReactNode;
-  indent?: boolean;
-}) {
-  return (
-    <div className={`flex items-center min-h-[26px] ${indent ? "pl-4" : ""}`}>
-      <span className="w-56 text-sm text-zinc-400 shrink-0 py-1 font-sans">
-        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
-      </span>
-      <span className="text-zinc-600 mr-2 shrink-0">:</span>
-      <div className="flex-1">{children}</div>
-    </div>
-  );
-}
-
 
 // ── Group side panel ───────────────────────────────────────────────────────────
 function SidePanel({
@@ -357,12 +339,12 @@ export default function StockGroupAlter() {
         <div className="flex-1 overflow-y-auto p-3 space-y-1 max-w-2xl bg-white">
 
           {/* Basic */}
-          <Row label="Name" required>
+          <FormRow label="Name" required labelWidth="w-56" className="flex items-center min-h-[26px]">
             <input autoFocus className={inputCls} value={form.name} onChange={set("name")} placeholder="Stock group name" />
-          </Row>
-          <Row label="(alias)">
+          </FormRow>
+          <FormRow label="(alias)" labelWidth="w-56" className="flex items-center min-h-[26px]">
             <input className={inputCls} value={form.alias} onChange={set("alias")} placeholder="Short name (optional)" />
-          </Row>
+          </FormRow>
 
           {/* Under — opens side panel */}
           <div className="flex items-center min-h-[26px]">
@@ -377,12 +359,12 @@ export default function StockGroupAlter() {
             </button>
           </div>
 
-          <Row label="Should quantities of items be added">
+          <FormRow label="Should quantities of items be added" labelWidth="w-56" className="flex items-center min-h-[26px]">
             <select className={selectCls} value={form.should_quantities_be_added} onChange={set("should_quantities_be_added")}>
               <option value="1">Yes</option>
               <option value="0">No</option>
             </select>
-          </Row>
+          </FormRow>
 
           {/* ── Statutory Details (shared with Group / Ledger) ── */}
           <div className="mt-3">
@@ -456,7 +438,7 @@ export default function StockGroupAlter() {
         <button
           onClick={handleDelete}
           disabled={loading}
-          className="text-xs px-4 py-1.5 rounded border border-red-200 text-red-500 hover:bg-red-50 hover:border-red-300 disabled:opacity-50 transition-colors font-medium shadow-sm"
+          className="text-xs px-4 py-1.5 rounded border border-zinc-300 text-zinc-600 hover:bg-zinc-50 disabled:opacity-50 transition-colors font-medium shadow-sm"
         >
           Delete
         </button>

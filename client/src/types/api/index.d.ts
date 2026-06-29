@@ -43,6 +43,8 @@ export type {
   ScenarioVoucher,
   ExciseDutyClassificationType,
   ExciseBookType,
+  ExciseBookRestartRow,
+  ExciseBookAffixRow,
   UnitType,
   StockGroupType,
   StockGroupTreeNode,

@@ -1,172 +1,351 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import { PageTitleBar, RightActionPanel } from "@/components/ui";
+import { FormRow, PageTitleBar, RightActionPanel, SearchInput, DataTable } from "@/components/ui";
+import type { StockCategoryType } from "@/types/api";
 
-const MAX_LEVELS = 10;
+const inputCls = "flex-1 bg-transparent text-sm outline-none px-1 py-0.5 border border-transparent focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
 
-const inputCls =
-  "bg-transparent outline-none text-[11px] font-mono font-bold text-zinc-950 w-full px-1 py-0.5 border border-transparent focus:border-zinc-300 rounded";
+function SelectionPanel({
+  categories,
+  onSelect,
+  onCancel,
+  onCreate,
+}: {
+  categories: StockCategoryType[];
+  onSelect: (c: StockCategoryType) => void;
+  onCancel: () => void;
+  onCreate: () => void;
+}) {
+  const [search, setSearch] = useState("");
 
-export default function PriceLevelsAlter() {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.preventDefault(); onCancel(); }
+      if (e.altKey && e.key.toLowerCase() === "c") { e.preventDefault(); onCreate(); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onCancel, onCreate]);
+
+  const nameOf = (id?: number) =>
+    id ? categories.find((c) => c.sc_id === id)?.name ?? "Primary" : "Primary";
+
+  const filtered = categories.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    (c.alias && c.alias.toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const columns = [
+    {
+      key: "name",
+      label: "Name",
+      span: "col-span-6",
+      render: (r: StockCategoryType) => <span className="font-bold text-zinc-900 text-xs">{r.name}</span>,
+    },
+    {
+      key: "alias",
+      label: "Alias",
+      span: "col-span-3",
+      render: (r: StockCategoryType) => <span className="text-zinc-500 font-semibold">{r.alias || "—"}</span>,
+    },
+    {
+      key: "under",
+      label: "Under",
+      span: "col-span-3",
+      render: (r: StockCategoryType) => <span className="text-zinc-500 font-semibold">{nameOf(r.parent_category_id)}</span>,
+    },
+  ];
+
+  const selectionActions = [
+    { key: "Alt+C", label: "Create Category", onClick: onCreate },
+    { key: "Esc", label: "Quit", onClick: onCancel },
+  ];
+
+  return (
+    <div className="flex-1 flex flex-col h-full bg-white select-none font-mono text-[12px]">
+      <PageTitleBar title="Alter Stock Category" subtitle="Select Stock Category to Alter" />
+      <div className="p-3 bg-zinc-50 border-b border-zinc-200 shrink-0 font-sans">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search stock categories…"
+          autoFocus
+        />
+      </div>
+      <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex flex-col bg-white border-r border-zinc-100">
+          <DataTable
+            columns={columns}
+            rows={filtered}
+            rowKey={(r: StockCategoryType) => String(r.sc_id)}
+            onRowClick={onSelect}
+            emptyMessage="No stock categories found."
+          />
+        </div>
+        <RightActionPanel actions={selectionActions} />
+      </div>
+      <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50 font-sans">
+        <button
+          onClick={onCancel}
+          className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white shadow-sm text-zinc-600 hover:bg-zinc-50 transition-colors font-medium"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CategoryListPanel({
+  categories,
+  selected,
+  excludeId,
+  onSelect,
+  onClose,
+}: {
+  categories: StockCategoryType[];
+  selected: string;
+  excludeId?: number;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) {
+  const options = categories.filter(
+    (c) => c.name.toLowerCase() !== "primary" && c.sc_id !== excludeId
+  );
+  return (
+    <div className="w-72 border-l border-zinc-200 flex flex-col shrink-0 bg-white">
+      <div className="px-3 py-2 text-xs font-bold uppercase tracking-wider flex justify-between items-center select-none border-b border-zinc-150">
+        <span>List of Categories</span>
+        <button onClick={onClose} className="text-sm font-bold font-sans hover:text-red-500">&times;</button>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        <div
+          onClick={() => { onSelect(""); onClose(); }}
+          className={[
+            "text-xs px-3 py-1.5 border-b border-zinc-100 cursor-pointer select-none italic",
+            selected === "" ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 text-zinc-500",
+          ].join(" ")}
+        >
+          Primary
+        </div>
+        {options.map((c) => (
+          <div
+            key={c.sc_id}
+            onClick={() => { onSelect(String(c.sc_id)); onClose(); }}
+            className={[
+              "text-xs px-3 py-1.5 border-b border-zinc-100 cursor-pointer select-none",
+              selected === String(c.sc_id) ? "bg-zinc-900 text-white" : "hover:bg-zinc-50 text-zinc-800",
+            ].join(" ")}
+          >
+            {c.name}
+          </div>
+        ))}
+        {options.length === 0 && (
+          <div className="text-xs text-zinc-400 px-3 py-2 italic">No other categories</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface FormData {
+  name: string;
+  alias: string;
+  parent_category_id: string;
+}
+
+export default function StockCategoryAlter() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
 
-  const [levels, setLevels] = useState<string[]>(Array(MAX_LEVELS).fill(""));
+  const [categories, setCategories] = useState<StockCategoryType[]>([]);
+  const [selected, setSelected] = useState<StockCategoryType | null>(null);
+  const [form, setForm] = useState<FormData | null>(null);
+  const [showPanel, setShowPanel] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-
-  // Load existing price levels
-  useEffect(() => {
+  const loadCategories = useCallback(async () => {
     if (!companyId) return;
-    const load = async () => {
-      try {
-        if (window.api?.priceLevels) {
-          const result = await window.api.priceLevels.get(companyId);
-          if (result?.success && result?.data) {
-            const loaded = Array(MAX_LEVELS).fill("");
-            result.data.forEach((name: string, i: number) => {
-              if (i < MAX_LEVELS) loaded[i] = name;
-            });
-            setLevels(loaded);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to load price levels:", err);
-      }
-    };
-    load();
+    const r = await window.api.stockCategory.getAll(companyId);
+    if (r.success) setCategories(r.stockCategories ?? []);
   }, [companyId]);
 
-  const setLevel = (index: number, value: string) => {
-    setLevels((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
+  useEffect(() => { loadCategories(); }, [loadCategories]);
+
+  const handleSelectCategory = (c: StockCategoryType) => {
+    setSelected(c);
+    setForm({
+      name: c.name,
+      alias: c.alias || "",
+      parent_category_id: c.parent_category_id ? String(c.parent_category_id) : "",
     });
-  };
-
-  const handleSubmit = useCallback(async () => {
-    if (!companyId) { setError("No company selected."); return; }
-
-    const trimmed = levels.map((l) => l.trim());
-    const filled = trimmed.filter(Boolean);
-    if (filled.length === 0) { setError("Enter at least one price level name."); return; }
-
-    setLoading(true);
     setError(null);
     setSuccess(null);
+  };
 
+  const setField = (key: keyof FormData) =>
+    (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm(f => (f ? { ...f, [key]: e.target.value } : f));
+
+  const handleSubmit = useCallback(async () => {
+    if (!form || !selected) return;
+    if (!form.name.trim()) { setError("Name is required."); return; }
+    setLoading(true); setError(null);
     try {
-      if (window.api?.priceLevels) {
-        const result = await window.api.priceLevels.save({
-          company_id: companyId,
-          levels: trimmed,
-        });
-        if (!result.success) throw new Error(result.error || "Save failed.");
+      const result = await window.api.stockCategory.update({
+        sc_id: selected.sc_id,
+        company_id: companyId,
+        name: form.name.trim(),
+        alias: form.alias.trim() || undefined,
+        parent_category_id: form.parent_category_id ? Number(form.parent_category_id) : undefined,
+      });
+      if (result.success) {
+        setSuccess(`Stock Category "${form.name}" updated.`);
+        await loadCategories();
+        setTimeout(() => { setSuccess(null); setSelected(null); setForm(null); }, 1200);
+      } else {
+        setError(result.error || "Failed to update.");
       }
-      setSuccess("Price levels updated successfully.");
-      setTimeout(() => {
-        setSuccess(null);
-        navigate("/master/alter");
-      }, 1000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save price levels.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unexpected error.");
     } finally {
       setLoading(false);
     }
-  }, [levels, companyId, navigate]);
+  }, [form, selected, companyId, loadCategories]);
 
-  // Keyboard navigation
+  const handleDelete = useCallback(async () => {
+    if (!selected) return;
+    if (!window.confirm(`Delete stock category "${selected.name}"?`)) return;
+    setLoading(true); setError(null);
+    try {
+      const result = await window.api.stockCategory.delete(selected.sc_id!);
+      if (result.success) {
+        setSuccess("Stock Category deleted.");
+        await loadCategories();
+        setTimeout(() => { setSuccess(null); setSelected(null); setForm(null); }, 1200);
+      } else {
+        setError(result.error || "Failed to delete.");
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unexpected error.");
+    } finally {
+      setLoading(false);
+    }
+  }, [selected, loadCategories]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
-        navigate("/master/alter");
+        if (showPanel) { setShowPanel(false); }
+        else if (selected) { setSelected(null); setForm(null); }
+        else navigate("/master/alter");
       }
       if ((e.altKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
         e.preventDefault();
-        handleSubmit();
+        if (selected) handleSubmit();
+      }
+      if (e.altKey && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        if (selected) handleDelete();
+      }
+      if (e.altKey && e.key.toLowerCase() === "u") {
+        e.preventDefault();
+        if (selected) setShowPanel(p => !p);
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleSubmit, navigate]);
+  }, [handleSubmit, handleDelete, navigate, selected, showPanel]);
 
-  const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (index < MAX_LEVELS - 1) {
-        inputRefs.current[index + 1]?.focus();
-      } else {
-        handleSubmit();
-      }
-    }
-  };
+  if (!selected || !form) {
+    return (
+      <SelectionPanel
+        categories={categories}
+        onSelect={handleSelectCategory}
+        onCancel={() => navigate("/master/alter")}
+        onCreate={() => navigate("/master/create/stock-category")}
+      />
+    );
+  }
 
-  const actions = [
+  const selectedLabel = form.parent_category_id
+    ? categories.find(c => String(c.sc_id) === form.parent_category_id)?.name ?? "Primary"
+    : "Primary";
+
+  const alterActions = [
+    { key: "Alt+U", label: "Select Parent", onClick: () => setShowPanel(p => !p) },
     { key: "Alt+A", label: "Accept", onClick: handleSubmit },
-    { key: "Esc", label: "Quit", onClick: () => navigate("/master/alter") },
+    { key: "Alt+D", label: "Delete", onClick: handleDelete },
+    { key: "Esc", label: "Back", onClick: () => { setSelected(null); setForm(null); } },
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-950">
-      <PageTitleBar title="Company Price Levels" subtitle={selectedCompany?.name} />
+    <div className="flex-1 flex flex-col h-full bg-white select-none relative overflow-hidden">
+      <PageTitleBar title="Stock Category Alteration" subtitle={selectedCompany?.name} />
 
       {error && (
-        <div className="px-4 py-2 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0 font-sans">
+        <div className="px-3 py-1.5 border-b border-red-200 bg-red-50 text-red-700 text-xs flex justify-between items-center shrink-0">
           <span>• {error}</span>
-          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 font-bold">&times;</button>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700 text-xs font-bold font-sans">&times;</button>
         </div>
       )}
       {success && (
-        <div className="px-4 py-2 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0 font-sans">
+        <div className="px-3 py-1.5 border-b border-green-200 bg-green-50 text-green-700 text-xs flex justify-between items-center shrink-0">
           <span>• {success}</span>
-          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 font-bold">&times;</button>
+          <button onClick={() => setSuccess(null)} className="text-green-500 hover:text-green-700 text-xs font-bold font-sans">&times;</button>
         </div>
       )}
 
       <div className="flex-1 flex min-h-0">
-        <div className="flex-1 overflow-y-auto p-4 bg-zinc-50">
-          <div className="max-w-sm mx-auto bg-white border border-zinc-200 rounded shadow-sm overflow-hidden">
-            {/* Header */}
-            <div className="text-center font-bold text-xs py-3 border-b border-zinc-200 tracking-wide text-zinc-900 uppercase font-mono">
-              Company Price Levels
-            </div>
-
-            {/* Numbered list of inputs */}
-            <div className="p-3 space-y-0.5 font-mono">
-              {levels.map((level, i) => (
-                <div key={i} className="flex items-center gap-2 min-h-[24px]">
-                  <span className="text-[11px] text-zinc-400 w-6 text-right shrink-0 select-none">
-                    {i + 1}.
-                  </span>
-                  <input
-                    ref={(el) => { inputRefs.current[i] = el; }}
-                    autoFocus={i === 0}
-                    className={inputCls}
-                    value={level}
-                    onChange={(e) => setLevel(i, e.target.value)}
-                    onKeyDown={(e) => handleKeyDown(e, i)}
-                  />
-                </div>
-              ))}
+        <div className="flex-1 flex flex-col min-w-0 bg-white p-3 overflow-y-auto">
+          <div className="space-y-1 max-w-2xl">
+            <FormRow label="Name" required labelWidth="w-48" className="flex items-center min-h-[26px]">
+              <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} />
+            </FormRow>
+            <FormRow label="(alias)" labelWidth="w-48" className="flex items-center min-h-[26px]">
+              <input className={inputCls} value={form.alias} onChange={setField("alias")} />
+            </FormRow>
+            <div
+              className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50 select-none text-sm"
+              onClick={() => setShowPanel(v => !v)}
+            >
+              <span className="w-48 text-zinc-400 shrink-0 py-1 font-sans">Under</span>
+              <span className="text-zinc-600 mr-2 shrink-0">:</span>
+              <span className="text-sm px-1 py-0.5 font-bold uppercase tracking-wide text-zinc-900">{selectedLabel}</span>
             </div>
           </div>
+          <div className="flex-1" />
         </div>
 
-        <RightActionPanel actions={actions} />
+        {showPanel && (
+          <CategoryListPanel
+            categories={categories}
+            selected={form.parent_category_id}
+            excludeId={selected.sc_id}
+            onSelect={val => setForm(f => (f ? { ...f, parent_category_id: val } : f))}
+            onClose={() => setShowPanel(false)}
+          />
+        )}
+
+        <RightActionPanel actions={alterActions} />
       </div>
 
-      {/* Footer */}
-      <div className="border-t border-zinc-200 p-3 flex justify-end bg-zinc-50 shrink-0 font-sans">
+      <div className="border-t border-zinc-200 p-3 flex justify-between items-center bg-zinc-50 shrink-0">
+        <button
+          onClick={handleDelete}
+          disabled={loading}
+          className="text-xs px-4 py-1.5 rounded border border-zinc-300 text-zinc-600 hover:bg-zinc-50 disabled:opacity-50 transition-colors font-medium shadow-sm"
+        >
+          Delete (Alt+D)
+        </button>
         <div className="flex gap-3">
           <button
-            onClick={() => navigate("/master/alter")}
+            onClick={() => { setSelected(null); setForm(null); }}
             className="text-xs px-4 py-1.5 rounded border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 shadow-sm transition-colors font-medium"
           >
             Quit
@@ -174,7 +353,7 @@ export default function PriceLevelsAlter() {
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="text-xs px-5 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 shadow-sm transition-colors font-medium"
+            className="text-sm px-6 py-1.5 rounded bg-black text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium"
           >
             {loading ? "Saving..." : "Accept"}
           </button>

@@ -7,9 +7,11 @@ import GeneralInfoSection from "@/components/payroll/GeneralInfoSection";
 import BankDetailsSection from "@/components/payroll/BankDetailsSection";
 import StatutoryDetailsSection from "@/components/payroll/StatutoryDetailsSection";
 import type { EmployeeType, EmployeeGroupType } from "@/types/entities/Employee";
+import type { PayHeadType } from "@/types/entities/Payroll";
 import type { GeneralInfoData } from "@/components/payroll/GeneralInfoSection";
 import type { BankDetailsData } from "@/components/payroll/BankDetailsSection";
 import type { StatutoryDetailsData } from "@/components/payroll/StatutoryDetailsSection";
+import SalaryDetailsModal, { type SalaryRow, fyStartISO } from "@/components/payroll/SalaryDetailsModal";
 
 const inputCls = "flex-1 bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded";
 const selectCls = "bg-transparent text-sm outline-none px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 transition-colors bg-white/50 rounded w-24";
@@ -40,23 +42,58 @@ export default function EmployeeAlter() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [payHeads, setPayHeads] = useState<PayHeadType[]>([]);
+  const [showSalaryModal, setShowSalaryModal] = useState(false);
+  const [salaryRows, setSalaryRows] = useState<SalaryRow[]>([]);
+  const [salaryEffectiveFrom, setSalaryEffectiveFrom] = useState(fyStartISO());
+  // structure_id of the active salary rows currently in the DB for this employee —
+  // soft-deleted on save before re-inserting, so altering replaces instead of duplicating.
+  const [existingStructureIds, setExistingStructureIds] = useState<number[]>([]);
 
   const loadData = useCallback(async () => {
     if (!companyId) return;
-    const [eRes, gRes] = await Promise.all([
+    const [eRes, gRes, pRes] = await Promise.all([
       window.api.employee.getAll(companyId),
-      window.api.employeeGroup.getAll(companyId)
+      window.api.employeeGroup.getAll(companyId),
+      window.api.payHead.getAll(companyId)
     ]);
     if (eRes.success) setEmployees(eRes.employees ?? []);
     if (gRes.success) setGroups(gRes.employeeGroups ?? []);
+    if (pRes.success) setPayHeads(pRes.payHeads ?? []);
   }, [companyId]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
+  const loadSalaryStructure = async (employeeId: number) => {
+    setSalaryRows([]);
+    setSalaryEffectiveFrom(fyStartISO());
+    setExistingStructureIds([]);
+    if (!companyId) return;
+    const res = await window.api.salaryStructure.getByEmployee(companyId, employeeId);
+    if (!res.success || !res.salaryStructures?.length) return;
+    // getByEmployee groups active rows by effective_from (DESC) — take the latest group.
+    const latest = res.salaryStructures[0];
+    const rows: SalaryRow[] = (latest.pay_heads ?? []).map((s: any) => {
+      const ph = payHeads.find(p => p.pay_head_id === s.pay_head_id);
+      return {
+        pay_head_id: s.pay_head_id,
+        pay_head_name: ph?.name ?? "",
+        rate: s.amount != null ? String(s.amount) : "",
+        per: "",
+        pay_head_type: ph?.pay_head_type ?? "",
+        calculation_type: s.calculation_mode ?? ph?.calculation_type ?? "",
+      };
+    });
+    setSalaryRows(rows);
+    setSalaryEffectiveFrom(latest.effective_from || fyStartISO());
+    setExistingStructureIds((latest.pay_heads ?? []).map((s: any) => s.structure_id).filter((id: any) => id != null));
+  };
+
   const selectEmployee = (e: EmployeeType) => {
     setSelected(e);
+    if (e.employee_id != null) loadSalaryStructure(e.employee_id);
     setBase({
       name: e.name,
       alias: e.alias || "",
@@ -186,6 +223,22 @@ export default function EmployeeAlter() {
       };
       const res = await window.api.employee.update(payload);
       if (res.success) {
+        // Replace-on-save: createBulk only appends, so soft-delete the previously
+        // loaded active rows first, then re-insert the current set (no duplicates).
+        await Promise.all(existingStructureIds.map(id => window.api.salaryStructure.delete(id)));
+        if (base.define_salary_details === "Yes" && salaryRows.length > 0) {
+          await window.api.salaryStructure.createBulk(
+            companyId!,
+            selected.employee_id!,
+            salaryEffectiveFrom,
+            salaryRows.map((r) => ({
+              pay_head_id: r.pay_head_id,
+              amount: parseFloat(r.rate) || 0,
+              calculation_mode: r.calculation_type || "Flat Rate",
+            }))
+          );
+        }
+        setExistingStructureIds([]);
         setSuccess(`"${base.name}" updated successfully.`);
         await loadData();
         setTimeout(() => {
@@ -201,7 +254,7 @@ export default function EmployeeAlter() {
     } finally {
       setLoading(false);
     }
-  }, [base, general, bank, statutory, provideBank, selected, loadData, companyId]);
+  }, [base, general, bank, statutory, provideBank, selected, loadData, companyId, salaryRows, salaryEffectiveFrom, existingStructureIds]);
 
   const handleDelete = useCallback(async () => {
     if (!selected) return;
@@ -359,11 +412,29 @@ export default function EmployeeAlter() {
               <input type="date" className={inputCls} value={base.date_of_joining} onChange={setBaseField("date_of_joining")} />
             </FormRow>
             <FormRow label="Define Salary Details" labelWidth="w-44" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={base.define_salary_details} onChange={setBaseField("define_salary_details")}>
+              <select
+                className={selectCls}
+                value={base.define_salary_details}
+                onChange={(e) => {
+                  const yes = e.target.value === "Yes";
+                  setBase(f => (f ? { ...f, define_salary_details: yes ? "Yes" : "No" } : null));
+                  if (yes) setShowSalaryModal(true);
+                  else setSalaryRows([]);
+                }}
+              >
                 <option>No</option>
                 <option>Yes</option>
               </select>
             </FormRow>
+            {base.define_salary_details === "Yes" && salaryRows.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowSalaryModal(true)}
+                className="ml-44 text-xs text-zinc-500 underline hover:text-zinc-900"
+              >
+                {salaryRows.length} pay head{salaryRows.length !== 1 ? "s" : ""} defined — click to edit
+              </button>
+            )}
           </div>
           <div className="flex-1" />
         </div>
@@ -410,6 +481,26 @@ export default function EmployeeAlter() {
         cancelLabel="Back"
         loading={loading}
       />
+
+      {showSalaryModal && (
+        <SalaryDetailsModal
+          name={base.name}
+          under={selectedGroup?.name || "Primary"}
+          companyId={companyId}
+          effectiveFrom={salaryEffectiveFrom}
+          initialRows={salaryRows}
+          onAccept={(rows, eff) => {
+            setSalaryRows(rows);
+            setSalaryEffectiveFrom(eff);
+            setShowSalaryModal(false);
+            setBase(f => (f ? { ...f, define_salary_details: rows.length === 0 ? "No" : "Yes" } : null));
+          }}
+          onClose={() => {
+            setShowSalaryModal(false);
+            if (salaryRows.length === 0) setBase(f => (f ? { ...f, define_salary_details: "No" } : null));
+          }}
+        />
+      )}
     </div>
   );
 }

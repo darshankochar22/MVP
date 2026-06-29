@@ -6,7 +6,6 @@ import type { GodownType } from "@/types/api";
 import type { TaxUnitType } from "@/types/entities/TaxUnit";
 
 const inputCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm placeholder:text-zinc-400 focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
-const selectCls = "w-full bg-transparent text-sm outline-none py-0.5 px-1 rounded-sm cursor-pointer focus:bg-zinc-100 hover:bg-zinc-50 focus:border-zinc-300 transition-colors";
 
 function SelectionPanel({
   godowns,
