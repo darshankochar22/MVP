@@ -277,6 +277,7 @@
 import { useState } from "react";
 import type { useVoucherForm } from "../hooks/useVoucherForm";
 import FieldRow from "../components/FieldRow";
+import VatAdditionalDetailsPopup from "../components/popups/VatAdditionalDetailsPopup";
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -639,8 +640,50 @@ export default function SalesVoucher({
             : ""}
         </div>
       </div>
-      
+
+      <SalesVATDetails form={form} />
     </div>
   );
-  
+}
+
+// ── VAT Details (Statutory → Additional Details : Sales Taxable) ───────────────
+function SalesVATDetails({ form }: { form: any }) {
+  const [provideVAT, setProvideVAT] = useState<"Yes" | "No">("No");
+  const [showPopup, setShowPopup] = useState(false);
+
+  return (
+    <>
+      <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
+        <span className="text-sm text-black">Provide VAT details</span>
+        <span className="text-sm text-black">:</span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => { setProvideVAT("Yes"); setShowPopup(true); }}
+            className={`text-sm px-2 py-0 border ${provideVAT === "Yes" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            onClick={() => { setProvideVAT("No"); setShowPopup(false); }}
+            className={`text-sm px-2 py-0 border ${provideVAT === "No" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+          >
+            No
+          </button>
+        </div>
+      </div>
+
+      {showPopup && (
+        <VatAdditionalDetailsPopup
+          initialDetails={form.vatDetails}
+          onClose={() => { setProvideVAT("No"); setShowPopup(false); }}
+          onSave={(details) => {
+            form.setVatDetails({ ...form.vatDetails, ...details });
+            setShowPopup(false);
+          }}
+        />
+      )}
+    </>
+  );
 }

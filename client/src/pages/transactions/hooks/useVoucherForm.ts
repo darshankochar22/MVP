@@ -28,6 +28,17 @@ export function useVoucherForm(
   const [taxUnit, setTaxUnit] = useState<any | null>(null);
   const [priceLevel, setPriceLevel] = useState<string>("");
 
+  // Per-godown balances for the item currently being entered (Physical Stock's
+  // "List of Godowns" quantity column). Fetched on item selection.
+  const [godownBalances, setGodownBalances] = useState<Record<number, number>>({});
+  const fetchGodownBalances = useCallback(async (itemId?: number | null) => {
+    if (!companyId || !itemId) { setGodownBalances({}); return; }
+    try {
+      const res = await window.api.stockItem.getStockBalancesByGodown({ company_id: companyId, item_id: itemId });
+      setGodownBalances(res?.success && res.balances ? res.balances : {});
+    } catch { setGodownBalances({}); }
+  }, [companyId]);
+
   const fetchTaxAndPriceMasters = useCallback(async () => {
     if (!companyId) return;
     try {
@@ -333,7 +344,7 @@ export function useVoucherForm(
       } else if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType)) {
         const filledItems = rows.stockEntries.filter((r) => r.stockItem && Number(r.quantityRaw) > 0 && Number(r.rateRaw) > 0);
         const stockSubtotal = filledItems.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
-        stock_entries = filledItems.map((r) => ({ stock_item_id: r.stockItem!.item_id ?? null, item_name: r.stockItem!.name, godown_id: r.godown?.godown_id ?? null, unit_id: r.unit?.unit_id ?? null, quantity: Number(r.quantityRaw), rate: Number(r.rateRaw), amount: Number(r.amountRaw), batches: r.batchAllocations && r.batchAllocations.length ? r.batchAllocations : undefined }));
+        stock_entries = filledItems.map((r) => ({ stock_item_id: r.stockItem!.item_id ?? null, item_name: r.stockItem!.name, godown_id: r.godown?.godown_id ?? null, unit_id: r.unit?.unit_id ?? null, quantity: Number(r.quantityRaw), rate: Number(r.rateRaw), amount: Number(r.amountRaw), batches: r.batchAllocations && r.batchAllocations.length ? r.batchAllocations : undefined, excise_item_details: r.exciseItemDetails || undefined }));
         const isInventoryOnly = ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType);
         if (!isInventoryOnly) {
           const isPurchaseLike = effectiveVoucherType === "Purchase";
@@ -511,6 +522,15 @@ export function useVoucherForm(
           credit_note_details: meta.creditNoteDetails || undefined,
           debit_note_details: meta.debitNoteDetails || undefined,
           excise_details: meta.exciseDetails || undefined,
+          vat_details: meta.vatDetails || undefined,
+          order_details:
+            (meta.orderDetails || meta.sourceGodown)
+              ? {
+                  ...(meta.orderDetails || {}),
+                  source_godown_id: meta.sourceGodown?.godown_id ?? null,
+                  source_godown_name: meta.sourceGodown?.name ?? null,
+                }
+              : undefined,
           payroll_entries: effectiveVoucherType === "Payroll"
             ? rows.payrollEntries
                 .filter((r) => r.employee && r.payHead && Number(r.amountRaw) > 0)
@@ -605,6 +625,12 @@ export function useVoucherForm(
     setDebitNoteDetails: meta.setDebitNoteDetails,
     exciseDetails: meta.exciseDetails,
     setExciseDetails: meta.setExciseDetails,
+    vatDetails: meta.vatDetails,
+    setVatDetails: meta.setVatDetails,
+    orderDetails: meta.orderDetails,
+    setOrderDetails: meta.setOrderDetails,
+    sourceGodown: meta.sourceGodown,
+    setSourceGodown: meta.setSourceGodown,
 
     // ── Reference / invoice
     referenceNumber: meta.referenceNumber,
@@ -627,6 +653,8 @@ export function useVoucherForm(
     allLedgers: ledgers.allLedgers,
     allStockItems: ledgers.allStockItems,
     stockBalances: ledgers.stockBalances,
+    godownBalances,
+    fetchGodownBalances,
     allGodowns: ledgers.allGodowns,
     allUnits: ledgers.allUnits,
     allEmployees: ledgers.allEmployees,

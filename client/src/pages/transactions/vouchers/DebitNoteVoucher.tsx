@@ -4,6 +4,8 @@
 import { useState } from "react";
 import type { useVoucherForm } from "../hooks/useVoucherForm";
 import FieldRow from "../components/FieldRow";
+import GstNoteAdditionalDetailsPopup from "../components/popups/GstNoteAdditionalDetailsPopup";
+import VatNatureOfReturnPopup from "../components/popups/VatNatureOfReturnPopup";
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -237,28 +239,23 @@ export default function DebitNoteVoucher({
         </div>
       </div>
 
-      <DebitNoteGSTDetails form={form} />
+      {/* Provide GST details — only for a Purchase Accounts ledger */}
+      {form.checkLedgerGroup(form.salesPurchaseLedger, ["purchase accounts"]) && (
+        <DebitNoteGSTDetails form={form} />
+      )}
+
+      {/* Provide VAT details — only for a Sales Accounts ledger */}
+      {form.checkLedgerGroup(form.salesPurchaseLedger, ["sales accounts"]) && (
+        <DebitNoteVATDetails form={form} />
+      )}
     </>
   );
 }
 
-// ── GST Details component ─────────────────────────────────────────────────────
+// ── GST Details (Additional Details : Reason for Issuing Note) ────────────────
 function DebitNoteGSTDetails({ form }: { form: any }) {
   const [provideGST, setProvideGST] = useState<"Yes" | "No">("No");
-  const [showGSTPopup, setShowGSTPopup] = useState(false);
-  const [reasonForNote, setReasonForNote] = useState("");
-  const [supplierNoteNo, setSupplierNoteNo] = useState("");
-
-  const REASONS = [
-    "Not Applicable",
-    "01-Sales Return",
-    "02-Post Sale Discount",
-    "03-Deficiency in services",
-    "04-Correction in Invoice",
-    "05-Change in POS",
-    "06-Finalization of Provisional assessment",
-    "07-Others",
-  ];
+  const [showPopup, setShowPopup] = useState(false);
 
   return (
     <>
@@ -268,14 +265,14 @@ function DebitNoteGSTDetails({ form }: { form: any }) {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => { setProvideGST("Yes"); setShowGSTPopup(true); }}
+            onClick={() => { setProvideGST("Yes"); setShowPopup(true); }}
             className={`text-sm px-2 py-0 border ${provideGST === "Yes" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
           >
             Yes
           </button>
           <button
             type="button"
-            onClick={() => { setProvideGST("No"); setShowGSTPopup(false); }}
+            onClick={() => { setProvideGST("No"); setShowPopup(false); }}
             className={`text-sm px-2 py-0 border ${provideGST === "No" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
           >
             No
@@ -283,60 +280,57 @@ function DebitNoteGSTDetails({ form }: { form: any }) {
         </div>
       </div>
 
-      {showGSTPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white border border-gray-400 shadow-xl w-96">
-            <div className="bg-blue-700 text-white text-sm font-semibold px-3 py-1">
-              Additional Details
-            </div>
-            <div className="px-4 py-4 flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-sm w-44 shrink-0">Reason for Issuing Note</span>
-                <span className="text-sm">:</span>
-                <select
-                  className="flex-1 border border-gray-400 px-2 py-1 text-sm outline-none focus:border-black"
-                  value={reasonForNote}
-                  onChange={(e) => setReasonForNote(e.target.value)}
-                >
-                  {REASONS.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm w-44 shrink-0">Supplier's Debit/Credit Note No.</span>
-                <span className="text-sm">:</span>
-                <input
-                  type="text"
-                  className="flex-1 border border-gray-400 px-2 py-1 text-sm outline-none focus:border-black"
-                  value={supplierNoteNo}
-                  onChange={(e) => setSupplierNoteNo(e.target.value)}
-                />
-              </div>
-              <div className="flex justify-end gap-2 mt-2">
-                <button
-                  onClick={() => setShowGSTPopup(false)}
-                  className="text-xs border border-gray-400 px-3 py-1 hover:bg-gray-100"
-                >
-                  Esc: Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    form.setDebitNoteDetails({
-                      ...form.debitNoteDetails,
-                      reason_for_note: reasonForNote,
-                      supplier_note_no: supplierNoteNo,
-                    });
-                    setShowGSTPopup(false);
-                  }}
-                  className="text-xs bg-black text-white px-3 py-1 hover:bg-gray-800"
-                >
-                  A: Accept
-                </button>
-              </div>
-            </div>
-          </div>
+      {showPopup && (
+        <GstNoteAdditionalDetailsPopup
+          initialDetails={form.debitNoteDetails}
+          onClose={() => { setProvideGST("No"); setShowPopup(false); }}
+          onSave={(details) => {
+            form.setDebitNoteDetails({ ...form.debitNoteDetails, ...details });
+            setShowPopup(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+// ── VAT Details (Additional Details : Nature of Return) ───────────────────────
+function DebitNoteVATDetails({ form }: { form: any }) {
+  const [provideVAT, setProvideVAT] = useState<"Yes" | "No">("No");
+  const [showPopup, setShowPopup] = useState(false);
+
+  return (
+    <>
+      <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
+        <span className="text-sm text-black">Provide VAT details</span>
+        <span className="text-sm text-black">:</span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => { setProvideVAT("Yes"); setShowPopup(true); }}
+            className={`text-sm px-2 py-0 border ${provideVAT === "Yes" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            onClick={() => { setProvideVAT("No"); setShowPopup(false); }}
+            className={`text-sm px-2 py-0 border ${provideVAT === "No" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+          >
+            No
+          </button>
         </div>
+      </div>
+
+      {showPopup && (
+        <VatNatureOfReturnPopup
+          initialDetails={form.debitNoteDetails}
+          onClose={() => { setProvideVAT("No"); setShowPopup(false); }}
+          onSave={(details) => {
+            form.setDebitNoteDetails({ ...form.debitNoteDetails, ...details });
+            setShowPopup(false);
+          }}
+        />
       )}
     </>
   );

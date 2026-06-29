@@ -34,7 +34,7 @@ export default function ExciseDetailsPopup({ initialDetails, onClose, onSave }: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white border border-black shadow-xl w-[560px] flex flex-col">
+      <div className="bg-white border border-black shadow-xl w-[640px] flex flex-col">
         <div className="bg-black text-white px-3 py-1 flex justify-between items-center select-none">
           <span className="text-sm font-bold">Tax Details</span>
           <button onClick={onClose} className="text-white hover:text-gray-300 font-bold text-sm leading-none">&times;</button>
@@ -49,7 +49,7 @@ export default function ExciseDetailsPopup({ initialDetails, onClose, onSave }: 
           <span className="text-sm text-black shrink-0">:</span>
           <input
             type="text"
-            className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-yellow-50"
+            className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-yellow-50"
             value={form.inspection_document_no ?? ""}
             onChange={(e) => set("inspection_document_no", e.target.value)}
             autoFocus
@@ -58,7 +58,7 @@ export default function ExciseDetailsPopup({ initialDetails, onClose, onSave }: 
           <span className="text-sm text-black shrink-0">:</span>
           <input
             type="date"
-            className="w-36 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+            className="w-36 shrink-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
             value={form.inspection_document_date ?? ""}
             onChange={(e) => set("inspection_document_date", e.target.value)}
           />

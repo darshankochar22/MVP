@@ -96,9 +96,35 @@ const voucherBatches = pgTable('voucher_batches', {
   stockEntryId: bigint('stock_entry_id', { mode: 'number' }).notNull().references(() => voucherStockEntries.stockEntryId, { onDelete: 'cascade' }),
   batchNumber: text('batch_number'),
   mfgDate: date('mfg_date'),
-  expiryDate: date('expiry_date'),
+  // Free-form: an actual date, or a period like "6 Months" / "2 Yrs" / "9 Days".
+  expiryDate: text('expiry_date'),
   quantity: numeric('quantity', { precision: 18, scale: 4 }).default('0'),
   rate: numeric('rate', { precision: 18, scale: 4 }).default('0'),
+  godown: text('godown'),
+  actualQuantity: numeric('actual_quantity', { precision: 18, scale: 4 }).default('0'),
+  discPercent: numeric('disc_percent', { precision: 18, scale: 4 }).default('0'),
+  orderNo: text('order_no'),
+  dueOn: text('due_on'),
+  componentOf: text('component_of'),
+  considerAsScrap: text('consider_as_scrap'),
+});
+
+// ---------------------------------------------------------------------------
+// voucher_item_excise  (per-item excise details — Credit Note excise items)
+// ---------------------------------------------------------------------------
+const voucherItemExcise = pgTable('voucher_item_excise', {
+  itemExciseId: bigint('item_excise_id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+  // FK -> vouchers.voucher_id ON DELETE CASCADE.
+  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  // FK -> voucher_stock_entries.stock_entry_id ON DELETE CASCADE.
+  stockEntryId: bigint('stock_entry_id', { mode: 'number' }).notNull().references(() => voucherStockEntries.stockEntryId, { onDelete: 'cascade' }),
+  salesInvoiceNumber: text('sales_invoice_number'),
+  salesInvoiceDate: text('sales_invoice_date'),
+  exciseSalesInvoice: text('excise_sales_invoice'),
+  rateOfDuty: text('rate_of_duty'),
+  ratePerUnit: text('rate_per_unit'),
+  supplierDutyAmount: text('supplier_duty_amount'),
+  mfgrImporterDutyAmount: text('mfgr_importer_duty_amount'),
 });
 
 // ---------------------------------------------------------------------------
@@ -234,6 +260,44 @@ const voucherCreditNoteDetails = pgTable('voucher_credit_note_details', {
   motorVehicleNo: text('motor_vehicle_no'),
   originalInvoiceNo: text('original_invoice_no'),
   originalInvoiceDate: date('original_invoice_date'),
+  reasonForIssuingNote: text('reason_for_issuing_note'),
+  supplierNoteNo: text('supplier_note_no'),
+  supplierNoteDate: date('supplier_note_date'),
+  natureOfReturn: text('nature_of_return'),
+});
+
+// ---------------------------------------------------------------------------
+// voucher_vat_details  (Sales VAT — Provide VAT details → Additional Details)
+// ---------------------------------------------------------------------------
+const voucherVatDetails = pgTable('voucher_vat_details', {
+  id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+  // FK -> vouchers.voucher_id ON DELETE CASCADE.
+  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  dateTime: text('date_time'),
+  pointOfSale: text('point_of_sale'),
+});
+
+// ---------------------------------------------------------------------------
+// voucher_order_details  (Material In/Out — Order Details + Party's Document Details)
+// ---------------------------------------------------------------------------
+const voucherOrderDetails = pgTable('voucher_order_details', {
+  id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+  // FK -> vouchers.voucher_id ON DELETE CASCADE.
+  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  orderNos: text('order_nos'),
+  orderDate: date('order_date'),
+  sourceGodownId: bigint('source_godown_id', { mode: 'number' }),
+  sourceGodownName: text('source_godown_name'),
+  modeTermsOfPayment: text('mode_terms_of_payment'),
+  otherReferences: text('other_references'),
+  termsOfDelivery: text('terms_of_delivery'),
+  challanNos: text('challan_nos'),
+  dispatchedThrough: text('dispatched_through'),
+  destination: text('destination'),
+  carrierName: text('carrier_name'),
+  billOfLadingNo: text('bill_of_lading_no'),
+  billOfLadingDate: date('bill_of_lading_date'),
+  motorVehicleNo: text('motor_vehicle_no'),
 });
 
 // ---------------------------------------------------------------------------
@@ -253,6 +317,12 @@ const voucherDebitNoteDetails = pgTable('voucher_debit_note_details', {
   motorVehicleNo: text('motor_vehicle_no'),
   originalInvoiceNo: text('original_invoice_no'),
   originalInvoiceDate: date('original_invoice_date'),
+  dateTimeOfInvoice: text('date_time_of_invoice'),
+  dateTimeOfRemoval: text('date_time_of_removal'),
+  reasonForIssuingNote: text('reason_for_issuing_note'),
+  supplierNoteNo: text('supplier_note_no'),
+  supplierNoteDate: date('supplier_note_date'),
+  natureOfReturn: text('nature_of_return'),
 });
 
 // ---------------------------------------------------------------------------
@@ -274,6 +344,7 @@ module.exports = {
   voucherEntries,
   voucherStockEntries,
   voucherBatches,
+  voucherItemExcise,
   voucherBillReferences,
   voucherBankDetails,
   voucherCostCentres,
@@ -283,5 +354,7 @@ module.exports = {
   voucherDispatchDetails,
   voucherCreditNoteDetails,
   voucherDebitNoteDetails,
+  voucherVatDetails,
+  voucherOrderDetails,
   voucherPayrollEntries,
 };

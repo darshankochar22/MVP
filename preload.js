@@ -140,6 +140,7 @@ contextBridge.exposeInMainWorld('api', {
         getByGroup:    ({ company_id, group_id })      => invoke('stockItem:getByGroup', { company_id, group_id }),
         getByCategory: ({ company_id, category_id })   => invoke('stockItem:getByCategory', { company_id, category_id }),
         getStockBalances: (company_id)                 => invoke('stockItem:getStockBalances', company_id),
+        getStockBalancesByGodown: ({ company_id, item_id }) => invoke('stockItem:getStockBalancesByGodown', { company_id, item_id }),
     },
     godown: {
         create:  (data)       => invoke('godown:create', data),

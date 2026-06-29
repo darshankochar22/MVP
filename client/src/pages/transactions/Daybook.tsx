@@ -62,6 +62,8 @@ interface VoucherRow {
   credit_amount: number;
   inwards_qty: number;
   outwards_qty: number;
+  stock_item_name: string | null;
+  stock_unit: string | null;
 }
 
 const formatDate = (d: string) => {
@@ -444,6 +446,15 @@ const openVoucher = useCallback((voucherId: number) => {
                   {vouchers.map((v, idx) => {
                     const isSelected = idx === selectedIndex;
                     const { debit, credit } = getAmountDisplay(v);
+                    // Material In/Out are inventory-only: show the stock item as
+                    // particulars and the quantity (In→Debit, Out→Credit).
+                    const isMatIn = v.voucher_type === "Material In";
+                    const isMatOut = v.voucher_type === "Material Out";
+                    const unitSuffix = v.stock_unit ? ` ${v.stock_unit}` : "";
+                    const debitQty = isMatIn ? Number(v.inwards_qty) || 0 : 0;
+                    const creditQty = isMatOut ? Number(v.outwards_qty) || 0 : 0;
+                    const debitText = debitQty > 0 ? `${debitQty.toLocaleString("en-IN")}${unitSuffix}` : (debit > 0 ? formatAmount(debit) : "");
+                    const creditText = creditQty > 0 ? `${creditQty.toLocaleString("en-IN")}${unitSuffix}` : (credit > 0 ? formatAmount(credit) : "");
 
                     return (
                       <TableRow
@@ -459,7 +470,9 @@ const openVoucher = useCallback((voucherId: number) => {
                         <TableCell className="px-3 py-1.5 text-zinc-600 text-[12px]">{formatDate(v.date)}</TableCell>
 
                         <TableCell className="px-3 py-1.5 font-semibold text-zinc-900 text-[12px]">
-                          {v.party_name || v.ledger_names || v.narration || "—"}
+                          {isMatIn || isMatOut
+                            ? (v.stock_item_name || v.narration || "—")
+                            : (v.party_name || v.ledger_names || v.narration || "—")}
                         </TableCell>
 
                         <TableCell className={cn(
@@ -475,20 +488,20 @@ const openVoucher = useCallback((voucherId: number) => {
                             : v.voucher_number || "—"}
                         </TableCell>
 
-                        {/* Debit column — only filled for Dr-primary voucher types */}
+                        {/* Debit column — amount for Dr-primary types; inwards qty for Material In */}
                         <TableCell className={cn(
                           "px-3 py-1.5 text-right text-[12px]",
-                          debit > 0 ? "font-bold text-zinc-900" : "text-zinc-300"
+                          debitText ? "font-bold text-zinc-900" : "text-zinc-300"
                         )}>
-                          {debit > 0 ? formatAmount(debit) : ""}
+                          {debitText}
                         </TableCell>
 
-                        {/* Credit column — only filled for Cr-primary voucher types */}
+                        {/* Credit column — amount for Cr-primary types; outwards qty for Material Out */}
                         <TableCell className={cn(
                           "px-3 py-1.5 text-right text-[12px]",
-                          credit > 0 ? "font-bold text-zinc-900" : "text-zinc-300"
+                          creditText ? "font-bold text-zinc-900" : "text-zinc-300"
                         )}>
-                          {credit > 0 ? formatAmount(credit) : ""}
+                          {creditText}
                         </TableCell>
                       </TableRow>
                     );

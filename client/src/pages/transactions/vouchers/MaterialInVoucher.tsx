@@ -9,5 +9,5 @@ interface Props {
 }
 
 export default function MaterialInVoucher(props: Props) {
-  return <StockTransferVoucherBody {...props} />;
+  return <StockTransferVoucherBody {...props} config={{ sourceGodownLabel: "Source Godown", hideGodownColumn: true }} />;
 }

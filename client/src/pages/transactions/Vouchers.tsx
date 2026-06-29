@@ -4,6 +4,7 @@ import { useCompany } from "../../context/CompanyContext";
 
 import { useVoucherForm } from "./hooks/useVoucherForm";
 import type { BatchAllocation } from "./types";
+import { makeStockRow } from "./utils/rowFactories";
 import { AlertBanner, PageTitleBar } from "../../components/ui";
 import { Button } from "@/components/shadcn/button";
 import { cn } from "@/lib/utils";
@@ -11,6 +12,8 @@ import CompanyTaxRegistrationPopup from "./components/popups/CompanyTaxRegistrat
 import BillWiseAllocationPopup from "./components/popups/BillWiseAllocationPopup";
 import CostCentreAllocationPopup from "./components/popups/CostCentreAllocationPopup";
 import BatchAllocationPopup from "./components/popups/BatchAllocationPopup";
+import ItemExciseDetailsPopup from "./components/popups/ItemExciseDetailsPopup";
+import type { ExciseItemDetails } from "./components/popups/ItemExciseDetailsPopup";
 import BankAllocationPopup from "./components/popups/BankAllocationPopup";
 import DenominationPopup from "./components/popups/DenominationPopup";
 import DispatchDetailsPopup from "./components/popups/DispatchDetailsPopup";
@@ -21,6 +24,10 @@ import CreditNoteDetailsPopup from "./components/popups/CreditNoteDetailsPopup";
 import DebitNoteDetailsPopup from "./components/popups/DebitNoteDetailsPopup";
 import OtherVouchersPopup from "./components/popups/OtherVouchersPopup";
 import ExciseDetailsPopup from "./components/popups/ExciseDetailsPopup";
+import VatDetailsPopup from "./components/popups/VatDetailsPopup";
+import DebitNoteExciseDetailsPopup from "./components/popups/DebitNoteExciseDetailsPopup";
+import OrderDetailsPopup from "./components/popups/OrderDetailsPopup";
+import MaterialInAllocationPopup from "./components/popups/MaterialInAllocationPopup";
 import LedgerListPanel from "./components/LedgerListPanel";
 import PaymentVoucher from "./vouchers/PaymentVoucher";
 import ReceiptVoucher from "./vouchers/ReceiptVoucher";
@@ -306,6 +313,12 @@ export default function Vouchers() {
   const [showPartyDetails, setShowPartyDetails] = useState(false);
   const [showCreditNoteDetails, setShowCreditNoteDetails] = useState(false);
   const [showExciseDetails, setShowExciseDetails] = useState(false);
+  const [showVatDetails, setShowVatDetails] = useState(false);
+  const [showDebitNoteExcise, setShowDebitNoteExcise] = useState(false);
+  const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [itemExcise, setItemExcise] = useState<
+    { rowId: string; itemName: string; initial: ExciseItemDetails | null } | null
+  >(null);
   const [showDebitNoteDetails, setShowDebitNoteDetails] = useState(false);
   const [showOtherVouchers, setShowOtherVouchers] = useState(false);
   const [subDropdownType, setSubDropdownType] = useState<string | null>(null);
@@ -316,6 +329,7 @@ export default function Vouchers() {
   const hasAutoOpenedDebitNote = useRef(false);
   const hasAutoOpenedDeliveryDispatch = useRef(false);
   const hasAutoOpenedReceiptNote = useRef(false);
+  const hasAutoOpenedMaterialIn = useRef(false);
 
   const acceptRef = useRef<() => void>(() => {});
 
@@ -515,6 +529,13 @@ export default function Vouchers() {
   }, [form.partyLedger, effectiveVoucherType]);
 
   useEffect(() => {
+    if ((effectiveVoucherType === "Material In" || effectiveVoucherType === "Material Out") && form.partyLedger && !hasAutoOpenedMaterialIn.current) {
+      hasAutoOpenedMaterialIn.current = true;
+      setShowOrderDetails(true);
+    }
+  }, [form.partyLedger, effectiveVoucherType]);
+
+  useEffect(() => {
     if (!form.partyLedger) {
       hasAutoOpenedReceipt.current = false;
       hasAutoOpenedDispatch.current = false;
@@ -522,6 +543,7 @@ export default function Vouchers() {
       hasAutoOpenedDebitNote.current = false;
       hasAutoOpenedDeliveryDispatch.current = false;
       hasAutoOpenedReceiptNote.current = false;
+      hasAutoOpenedMaterialIn.current = false;
     }
   }, [form.partyLedger]);
 
@@ -530,11 +552,13 @@ export default function Vouchers() {
   const handleAccept = useCallback(() => {
     // ── Sales / Purchase / Credit Note / Debit Note: bill-wise for party ──────
     if (
-      ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType) &&
+      ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out"].includes(effectiveVoucherType) &&
       form.partyLedger?.is_bill_wise === 1 &&
       form.partyBillReferences.length === 0
     ) {
-      const dcType = (effectiveVoucherType === "Sales" || effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Delivery Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Material Out") ? "Dr" : "Cr";
+      // Credit Note (sales return) credits the customer → "Cr"; Debit Note
+      // (purchase return) debits the supplier → "Dr".
+      const dcType = (effectiveVoucherType === "Sales" || effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Delivery Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Material Out") ? "Dr" : "Cr";
       form.setActiveAllocation({
         type: "billWiseParty",
         ledgerId: form.partyLedger.ledger_id,
@@ -781,17 +805,128 @@ export default function Vouchers() {
     [form.stockEntries, form.setActiveAllocation, effectiveVoucherType, advanceStockRow]
   );
 
+  // Physical Stock: after entering a godown's quantity, add another godown row for
+  // the SAME item and open its "List of Godowns" picker (instead of going to Rate).
+  const handlePhysicalStockQtyEnter = useCallback(
+    (idx: number) => {
+      const row = form.stockEntries[idx];
+      if (!row?.stockItem) { advanceStockRow(idx); return; }
+      const newRow = makeStockRow();
+      newRow.stockItem = row.stockItem;
+      newRow.unit = row.unit;
+      const newIdx = form.stockEntries.length; // appended at the end
+      form.setStockEntries((prev) => [...prev, newRow]);
+      setTimeout(() => {
+        (document.querySelector(`[data-stock-godown="${newIdx + 1}"]`) as HTMLInputElement | null)?.focus();
+      }, 50);
+    },
+    [form.stockEntries, form.setStockEntries, advanceStockRow]
+  );
+
+  // Physical Stock: "End of List" on the godown picker ends ALL item entry — drop
+  // the empty trailing godown row and move to the Narration field.
+  const handleGodownEndOfList = useCallback(() => {
+    const af = form.activeField;
+    if (af?.type !== "stockGodown") return;
+    const rowId = af.rowId;
+    form.setStockEntries((prev) => {
+      if (prev.length <= 1) return prev;
+      const row = prev.find((r) => r.id === rowId);
+      if (row && !row.godown && !Number(row.quantityRaw)) return prev.filter((r) => r.id !== rowId);
+      return prev;
+    });
+    form.handleFieldBlur();
+    setTimeout(() => {
+      (document.querySelector(`[data-narration="true"]`) as HTMLInputElement | null)?.focus();
+    }, 50);
+  }, [form.activeField, form.setStockEntries, form.handleFieldBlur]);
+
+  // Physical Stock: double-Enter on an empty next-godown row finishes the current
+  // item and starts a new one — the row becomes a fresh item row and the List of
+  // Stock Items opens.
+  const physicalStockGodownNewItem = useCallback((rowId: string) => {
+    const idx = form.stockEntries.findIndex((r) => r.id === rowId);
+    form.setStockEntries((prev) =>
+      prev.map((r) => (r.id === rowId ? { ...r, stockItem: null, godown: null, unit: null } : r))
+    );
+    form.handleFieldBlur();
+    setTimeout(() => {
+      (document.querySelector(`[data-stock-item="${idx + 1}"]`) as HTMLInputElement | null)?.focus();
+    }, 50);
+  }, [form.stockEntries, form.setStockEntries, form.handleFieldBlur]);
+
   const handleSaveBatchAllocations = useCallback(
     (allocations: BatchAllocation[]) => {
       const alloc = form.activeAllocation;
       if (alloc?.type !== "batch") return;
       const rowId = alloc.rowId;
-      form.handleUpdateStockRow(rowId, { batchAllocations: allocations });
+      if (alloc.quantityDriven) {
+        // Line qty (actual/billed) & rate are derived from the batch rows. The
+        // effective rate folds in per-batch discount so the line amount matches
+        // the popup total exactly (Tally behaviour).
+        const totalActual = allocations.reduce((s, a) => s + (Number(a.actual_quantity ?? a.quantity) || 0), 0);
+        const totalBilled = allocations.reduce((s, a) => s + (Number(a.quantity) || 0), 0);
+        const totalAmt = allocations.reduce(
+          (s, a) => s + (Number(a.quantity) || 0) * (Number(a.rate) || 0) * (1 - (Number(a.disc_percent) || 0) / 100),
+          0
+        );
+        const effRate = totalBilled > 0 ? totalAmt / totalBilled : 0;
+        form.handleUpdateStockRow(rowId, {
+          batchAllocations: allocations,
+          quantityRaw: totalActual ? String(totalActual) : "",
+          billedQtyRaw: totalBilled ? String(totalBilled) : "",
+          rateRaw: effRate ? String(effRate) : "",
+        });
+      } else {
+        form.handleUpdateStockRow(rowId, { batchAllocations: allocations });
+      }
+      form.setActiveAllocation(null);
+      const idx = form.stockEntries.findIndex((e) => e.id === rowId);
+      // Credit Note: prompt per-item Excise Details right after the allocation.
+      const row = form.stockEntries.find((e) => e.id === rowId);
+      if (effectiveVoucherType === "Credit Note") {
+        setItemExcise({
+          rowId,
+          itemName: row?.stockItem?.name ?? "",
+          initial: row?.exciseItemDetails ?? null,
+        });
+        return;
+      }
+      if (idx >= 0) advanceStockRow(idx);
+    },
+    [form.activeAllocation, form.handleUpdateStockRow, form.setActiveAllocation, form.stockEntries, effectiveVoucherType, advanceStockRow]
+  );
+
+  const handleSaveMaterialInAllocations = useCallback(
+    (allocations: BatchAllocation[]) => {
+      const alloc = form.activeAllocation;
+      if (alloc?.type !== "materialIn") return;
+      const rowId = alloc.rowId;
+      const totalQty = allocations.reduce((s, a) => s + (Number(a.quantity) || 0), 0);
+      const totalAmt = allocations.reduce((s, a) => s + (Number(a.quantity) || 0) * (Number(a.rate) || 0), 0);
+      const effRate = totalQty > 0 ? totalAmt / totalQty : 0;
+      form.handleUpdateStockRow(rowId, {
+        batchAllocations: allocations,
+        quantityRaw: totalQty ? String(totalQty) : "",
+        rateRaw: effRate ? String(effRate) : "",
+      });
       form.setActiveAllocation(null);
       const idx = form.stockEntries.findIndex((e) => e.id === rowId);
       if (idx >= 0) advanceStockRow(idx);
     },
     [form.activeAllocation, form.handleUpdateStockRow, form.setActiveAllocation, form.stockEntries, advanceStockRow]
+  );
+
+  const handleSaveItemExcise = useCallback(
+    (details: ExciseItemDetails) => {
+      if (!itemExcise) return;
+      const rowId = itemExcise.rowId;
+      form.handleUpdateStockRow(rowId, { exciseItemDetails: details });
+      setItemExcise(null);
+      const idx = form.stockEntries.findIndex((e) => e.id === rowId);
+      if (idx >= 0) advanceStockRow(idx);
+    },
+    [itemExcise, form.handleUpdateStockRow, form.stockEntries, advanceStockRow]
   );
 
   // ─── handleAmountConfirm ─────────────────────────────────────────────
@@ -869,6 +1004,75 @@ export default function Vouchers() {
       const field = form.activeField;
       form.handleLedgerPanelSelect(item);
 
+      // Physical Stock: pick item → open the godown picker (with per-godown balances);
+      // pick godown → move to Batch (batch item) or Quantity.
+      if (effectiveVoucherType === "Physical Stock" && field?.type === "stockItem" && item?.item_id) {
+        form.fetchGodownBalances(item.item_id);
+        const idx = form.stockEntries.findIndex((r) => r.id === field.rowId);
+        setTimeout(() => {
+          (document.querySelector(`[data-stock-godown="${idx + 1}"]`) as HTMLInputElement | null)?.focus();
+        }, 50);
+        return;
+      }
+      if (effectiveVoucherType === "Physical Stock" && field?.type === "stockGodown") {
+        const idx = form.stockEntries.findIndex((r) => r.id === field.rowId);
+        const row = form.stockEntries[idx];
+        const isBatch = Number((row?.stockItem as any)?.track_batches) === 1;
+        setTimeout(() => {
+          const sel = isBatch ? `[data-stock-batch="${idx + 1}"]` : `[data-stock-qty="${idx + 1}"]`;
+          (document.querySelector(sel) as HTMLInputElement | null)?.focus();
+        }, 50);
+        return;
+      }
+
+      // Material In / Material Out (job work): order-tracked Stock Item Allocations
+      // popup. Batch items additionally get Batch/Lot No. + Mfg/Expiry columns.
+      if ((effectiveVoucherType === "Material In" || effectiveVoucherType === "Material Out") && field?.type === "stockItem" && item?.item_id) {
+        const isBatch = Number(item?.track_batches) === 1;
+        const unit = form.allUnits.find((u: any) => u.unit_id === item.unit_id) ?? null;
+        form.setActiveAllocation({
+          type: "materialIn",
+          rowId: field.rowId,
+          itemId: item.item_id,
+          itemName: item.name,
+          rate: 0,
+          unitSymbol: unit?.symbol,
+          showBatch: isBatch,
+          trackMfg: isBatch && Number(item.track_date_of_manufacturing) === 1,
+          trackExpiry: isBatch && Number(item.track_expiry) === 1,
+        });
+        return;
+      }
+
+      // Sales / Purchase / Credit Note / Debit Note (Tally behaviour): the moment
+      // a stock item is picked, open the Stock Item Allocations popup. Items that
+      // "maintain in batches" get the Batch/Lot columns; others get a godown-only
+      // allocation. Quantity & rate are entered inside and written back on Accept.
+      if (
+        ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(effectiveVoucherType) &&
+        field?.type === "stockItem" &&
+        item?.item_id
+      ) {
+        const isBatch = Number(item?.track_batches) === 1;
+        const unit = form.allUnits.find((u: any) => u.unit_id === item.unit_id) ?? null;
+        form.setActiveAllocation({
+          type: "batch",
+          rowId: field.rowId,
+          itemId: item.item_id,
+          itemName: item.name,
+          quantity: 0,
+          rate: 0,
+          unitSymbol: unit?.symbol,
+          trackMfg: isBatch && Number(item.track_date_of_manufacturing) === 1,
+          trackExpiry: isBatch && Number(item.track_expiry) === 1,
+          // Credit Note (sales return) brings stock in; Debit Note (purchase return) sends it out.
+          isInward: ["Purchase", "Receipt Note", "Rejection In", "Material In", "Credit Note"].includes(effectiveVoucherType),
+          showBatch: isBatch,
+          quantityDriven: true,
+        });
+        return;
+      }
+
       if (field?.type !== "particular") return;
 
       const dbl =
@@ -928,6 +1132,8 @@ export default function Vouchers() {
       form.receiptEntryMode,
       form.paymentEntryMode,
       form.journalEntryMode,
+      form.setActiveAllocation,
+      form.allUnits,
       effectiveVoucherType,
       handleAmountConfirm,
     ]
@@ -1154,6 +1360,15 @@ export default function Vouchers() {
     [form.setDispatchDetails]
   );
 
+  const handleSaveOrderDetails = useCallback(
+    (details: any) => {
+      form.setOrderDetails(details);
+      setShowOrderDetails(false);
+      setShowPartyDetails(true);
+    },
+    [form.setOrderDetails]
+  );
+
   const handleSaveReceiptDetails = useCallback(
     (details: any) => {
       form.setReceiptDetails(details);
@@ -1172,6 +1387,8 @@ const handleSavePartyDetails = useCallback(
     setShowPartyDetails(false);
     if (effectiveVoucherType === "Credit Note") {
       setShowExciseDetails(true);
+    } else if (effectiveVoucherType === "Debit Note") {
+      setShowDebitNoteExcise(true);
     }
   },
   [form.setPartyDetails, form.setPlaceOfSupply, effectiveVoucherType]
@@ -1182,6 +1399,22 @@ const handleSaveExciseDetails = useCallback(
     setShowExciseDetails(false);
   },
   [form.setExciseDetails]
+);
+
+const handleSaveDebitNoteExcise = useCallback(
+  (details: any) => {
+    form.setDebitNoteDetails({ ...form.debitNoteDetails, ...details });
+    setShowDebitNoteExcise(false);
+  },
+  [form.setDebitNoteDetails, form.debitNoteDetails]
+);
+
+const handleSaveVatDetails = useCallback(
+  (details: any) => {
+    form.setVatDetails({ ...form.vatDetails, ...details });
+    setShowVatDetails(false);
+  },
+  [form.setVatDetails, form.vatDetails]
 );
 
   const handleSaveCreditNoteDetails = useCallback(
@@ -1228,7 +1461,21 @@ const handleSaveExciseDetails = useCallback(
     }
 
     if (af.type === "party") {
-      if (effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Rejection Out" || effectiveVoucherType === "Material In" || effectiveVoucherType === "Material Out") {
+      // Credit Note: party may be Cash, a Bank Accounts ledger, Sundry Debtor,
+      // Sundry Creditor or Bank OD ledger only.
+      if (effectiveVoucherType === "Credit Note") {
+        return form.allLedgers.filter((l) =>
+          form.checkLedgerGroup(l, [
+            "bank accounts",
+            "bank od accounts",
+            "bank od a/c",
+            "cash-in-hand",
+            "sundry debtors",
+            "sundry creditors",
+          ])
+        );
+      }
+      if (effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Rejection Out" || effectiveVoucherType === "Material In" || effectiveVoucherType === "Material Out") {
         return form.allLedgers;
       }
       const isPurchaseLike = effectiveVoucherType === "Purchase" || effectiveVoucherType === "Receipt Note" || effectiveVoucherType === "Rejection Out" || effectiveVoucherType === "Material In";
@@ -1244,7 +1491,13 @@ const handleSaveExciseDetails = useCallback(
     }
 
     if (af.type === "salesPurchase") {
-      if (effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Rejection Out") {
+      // Credit Note: ledger account is a Sales or Purchase Accounts ledger only.
+      if (effectiveVoucherType === "Credit Note") {
+        return form.allLedgers.filter((l) =>
+          form.checkLedgerGroup(l, ["sales accounts", "purchase accounts"])
+        );
+      }
+      if (effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Rejection Out") {
         return form.allLedgers;
       }
       const isPurchaseLike = effectiveVoucherType === "Purchase" || effectiveVoucherType === "Receipt Note" || effectiveVoucherType === "Rejection Out";
@@ -1314,8 +1567,8 @@ const handleSaveExciseDetails = useCallback(
       if (effectiveVoucherType === "Payroll") return "List of Ledger Accounts";
       return "List of Cash / Bank Accounts";
     }
-    if (af.type === "party") return "List of Party Accounts";
-    if (af.type === "salesPurchase") return `List of ${form.voucherType} Ledgers`;
+    if (af.type === "party") return effectiveVoucherType === "Credit Note" ? "List of Ledger Accounts" : "List of Party Accounts";
+    if (af.type === "salesPurchase") return effectiveVoucherType === "Credit Note" ? "List of Ledger Accounts" : `List of ${form.voucherType} Ledgers`;
     return "List of Ledger Accounts";
   }, [form.activeField, effectiveVoucherType, form.receiptEntryMode, form.receiptDoubleRows]);
 
@@ -1413,6 +1666,8 @@ const handleSaveExciseDetails = useCallback(
         !showReceiptDetails &&
         !showCreditNoteDetails &&
         !showDebitNoteDetails &&
+        !showVatDetails &&
+        !showOrderDetails &&
         !showOtherVouchers
       ) {
         e.preventDefault();
@@ -1441,6 +1696,8 @@ const handleSaveExciseDetails = useCallback(
     showReceiptDetails,
     showCreditNoteDetails,
     showDebitNoteDetails,
+    showVatDetails,
+    showOrderDetails,
     showOtherVouchers,
     subDropdownType,
     navigate,
@@ -1496,7 +1753,7 @@ const handleSaveExciseDetails = useCallback(
         }
       />
     {/* ── GST Registration / Tax Unit ── */}
-    {["Sales", "Purchase", "Contra", "Payment", "Journal", "Receipt","Credit Note","Debit Note"].includes(effectiveVoucherType) && (
+    {["Sales", "Purchase", "Contra", "Payment", "Journal", "Receipt","Credit Note","Debit Note","Physical Stock"].includes(effectiveVoucherType) && (
       <div className="flex justify-center gap-2 px-3 py-1 border-b border-zinc-200 bg-white shrink-0 text-sm">
         <div className="text-right text-zinc-500">
           <div>GST Registration</div>
@@ -1600,6 +1857,8 @@ const handleSaveExciseDetails = useCallback(
               focusStockQty={focusStockQty}
               focusStockRate={focusStockRate}
               proceedToNextStockRow={proceedToNextStockRow}
+              physicalStockQtyEnter={handlePhysicalStockQtyEnter}
+              physicalStockGodownNewItem={physicalStockGodownNewItem}
             />
           )}
           {effectiveVoucherType === "Stock Journal" && (
@@ -1715,6 +1974,7 @@ const handleSaveExciseDetails = useCallback(
             <span className="text-sm text-black shrink-0 mr-2">:</span>
            <input
               type="text"
+              data-narration="true"
              className="flex-1 text-sm bg-transparent outline-none border-b border-transparent focus:border-black px-1 py-0"
              value={form.narration}
             onChange={(e) => form.setNarration(e.target.value)}
@@ -1773,7 +2033,24 @@ const handleSaveExciseDetails = useCallback(
             createLabel={
               form.activeField?.type === "stockItem" ? "Create Stock Item" : "Create"
             }
+            onEndOfList={
+              form.activeField?.type === "stockItem"
+                ? () => form.handleFieldBlur()
+                : (form.activeField?.type === "stockGodown" && effectiveVoucherType === "Physical Stock")
+                ? handleGodownEndOfList
+                : undefined
+            }
             stockBalances={form.activeField?.type === "stockItem" ? form.stockBalances : undefined}
+            godownBalances={
+              form.activeField?.type === "stockGodown" && effectiveVoucherType === "Physical Stock"
+                ? form.godownBalances
+                : undefined
+            }
+            balanceUnit={
+              form.activeField?.type === "stockGodown"
+                ? (form.stockEntries.find((r) => r.id === (form.activeField as any).rowId)?.unit?.symbol ?? "")
+                : undefined
+            }
             allUnits={form.activeField?.type === "stockItem" ? form.allUnits : undefined}
           />
         )}
@@ -1855,6 +2132,14 @@ const handleSaveExciseDetails = useCallback(
         />
       )}
 
+      {showOrderDetails && form.partyLedger && (
+        <OrderDetailsPopup
+          initialDetails={form.orderDetails}
+          onClose={() => setShowOrderDetails(false)}
+          onSave={handleSaveOrderDetails}
+        />
+      )}
+
       {showReceiptDetails && form.partyLedger && (
         <ReceiptDetailsPopup
           initialDetails={form.receiptDetails}
@@ -1887,6 +2172,20 @@ const handleSaveExciseDetails = useCallback(
     initialDetails={form.exciseDetails}
     onClose={() => setShowExciseDetails(false)}
     onSave={handleSaveExciseDetails}
+  />
+)}
+{showDebitNoteExcise && form.partyLedger && (
+  <DebitNoteExciseDetailsPopup
+    initialDetails={form.debitNoteDetails}
+    onClose={() => setShowDebitNoteExcise(false)}
+    onSave={handleSaveDebitNoteExcise}
+  />
+)}
+{showVatDetails && form.partyLedger && (
+  <VatDetailsPopup
+    initialDetails={form.vatDetails}
+    onClose={() => setShowVatDetails(false)}
+    onSave={handleSaveVatDetails}
   />
 )}
 
@@ -1956,9 +2255,37 @@ const handleSaveExciseDetails = useCallback(
           trackMfg={form.activeAllocation.trackMfg}
           trackExpiry={form.activeAllocation.trackExpiry}
           isInward={form.activeAllocation.isInward}
+          godowns={form.allGodowns}
           initialAllocations={form.activeAllocation.initialAllocations}
+          quantityDriven={form.activeAllocation.quantityDriven}
+          showBatch={form.activeAllocation.showBatch}
           onClose={() => form.setActiveAllocation(null)}
           onSave={handleSaveBatchAllocations}
+        />
+      )}
+
+      {form.activeAllocation?.type === "materialIn" && (
+        <MaterialInAllocationPopup
+          itemName={form.activeAllocation.itemName}
+          rate={form.activeAllocation.rate}
+          unitSymbol={form.activeAllocation.unitSymbol}
+          godowns={form.allGodowns}
+          stockItems={form.allStockItems}
+          showBatch={form.activeAllocation.showBatch}
+          trackMfg={form.activeAllocation.trackMfg}
+          trackExpiry={form.activeAllocation.trackExpiry}
+          initialAllocations={form.activeAllocation.initialAllocations}
+          onClose={() => form.setActiveAllocation(null)}
+          onSave={handleSaveMaterialInAllocations}
+        />
+      )}
+
+      {itemExcise && (
+        <ItemExciseDetailsPopup
+          itemName={itemExcise.itemName}
+          initialDetails={itemExcise.initial}
+          onClose={() => setItemExcise(null)}
+          onSave={handleSaveItemExcise}
         />
       )}
 

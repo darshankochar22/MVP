@@ -87,4 +87,7 @@ module.exports = {
   getStockBalances: async (event, company_id) => {
     return await stockItemService.getStockBalances(company_id);
   },
+  getStockBalancesByGodown: async (event, { company_id, item_id }) => {
+    return await stockItemService.getStockBalancesByGodown(company_id, item_id);
+  },
 };

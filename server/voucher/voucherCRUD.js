@@ -6,6 +6,7 @@ const {
   voucherEntries,
   voucherStockEntries,
   voucherBatches,
+  voucherItemExcise,
   voucherBillReferences,
   voucherBankDetails,
   voucherCostCentres,
@@ -15,6 +16,8 @@ const {
   voucherDispatchDetails,
   voucherCreditNoteDetails,
   voucherDebitNoteDetails,
+  voucherVatDetails,
+  voucherOrderDetails,
   voucherPayrollEntries,
   ledgers,
   payHeads,
@@ -228,15 +231,41 @@ module.exports = {
               ? item.batches
               : (item.batch ? [item.batch] : []);
             for (const b of batchList) {
-              if (!b || !b.batch_number) continue;
+              // Keep rows with a batch number OR a godown (non-batch items
+              // allocate by godown only, leaving the batch number empty).
+              if (!b || (!b.batch_number && !b.godown)) continue;
               await db.insert(voucherBatches).values({
                 voucherId: voucher_id,
                 stockEntryId: Number(insertedStock[0].id),
-                batchNumber: b.batch_number,
+                batchNumber: nullify(b.batch_number) || null,
                 mfgDate: nullify(b.mfg_date) || null,
                 expiryDate: nullify(b.expiry_date) || null,
                 quantity: b.quantity || item.quantity,
                 rate: b.rate || item.rate,
+                godown: nullify(b.godown) || null,
+                actualQuantity: b.actual_quantity ?? b.quantity ?? 0,
+                discPercent: b.disc_percent ?? 0,
+                orderNo: nullify(b.order_no) || null,
+                dueOn: nullify(b.due_on) || null,
+                componentOf: nullify(b.component_of) || null,
+                considerAsScrap: nullify(b.consider_as_scrap) || null,
+              });
+            }
+
+            // Per-item excise details (Credit Note excise-applicable items —
+            // matches the TallyPrime "Excise Details for <item>" sub-screen).
+            const ie = item.excise_item_details;
+            if (ie) {
+              await db.insert(voucherItemExcise).values({
+                voucherId: voucher_id,
+                stockEntryId: Number(insertedStock[0].id),
+                salesInvoiceNumber: nullify(ie.sales_invoice_number) || null,
+                salesInvoiceDate: nullify(ie.sales_invoice_date) || null,
+                exciseSalesInvoice: nullify(ie.excise_sales_invoice) || null,
+                rateOfDuty: nullify(ie.rate_of_duty) || null,
+                ratePerUnit: nullify(ie.rate_per_unit) || null,
+                supplierDutyAmount: nullify(ie.supplier_duty_amount) || null,
+                mfgrImporterDutyAmount: nullify(ie.mfgr_importer_duty_amount) || null,
               });
             }
           }
@@ -365,6 +394,10 @@ module.exports = {
             motorVehicleNo: nullify(cn.motor_vehicle_no) || null,
             originalInvoiceNo: nullify(cn.original_invoice_no) || null,
             originalInvoiceDate: nullify(cn.original_invoice_date) || null,
+            reasonForIssuingNote: nullify(cn.reason_for_issuing_note) || null,
+            supplierNoteNo: nullify(cn.supplier_note_no) || null,
+            supplierNoteDate: nullify(cn.supplier_note_date) || null,
+            natureOfReturn: nullify(cn.nature_of_return) || null,
           });
         }
 
@@ -382,6 +415,42 @@ module.exports = {
             motorVehicleNo: nullify(dn.motor_vehicle_no) || null,
             originalInvoiceNo: nullify(dn.original_invoice_no) || null,
             originalInvoiceDate: nullify(dn.original_invoice_date) || null,
+            dateTimeOfInvoice: nullify(dn.date_time_of_invoice) || null,
+            dateTimeOfRemoval: nullify(dn.date_time_of_removal) || null,
+            reasonForIssuingNote: nullify(dn.reason_for_issuing_note) || null,
+            supplierNoteNo: nullify(dn.supplier_note_no) || null,
+            supplierNoteDate: nullify(dn.supplier_note_date) || null,
+            natureOfReturn: nullify(dn.nature_of_return) || null,
+          });
+        }
+
+        if (data.vat_details) {
+          const vd = data.vat_details;
+          await db.insert(voucherVatDetails).values({
+            voucherId: voucher_id,
+            dateTime: nullify(vd.date_time) || null,
+            pointOfSale: nullify(vd.point_of_sale) || null,
+          });
+        }
+
+        if (data.order_details) {
+          const od = data.order_details;
+          await db.insert(voucherOrderDetails).values({
+            voucherId: voucher_id,
+            orderNos: nullify(od.order_nos) || null,
+            orderDate: nullify(od.order_date) || null,
+            modeTermsOfPayment: nullify(od.mode_terms_of_payment) || null,
+            otherReferences: nullify(od.other_references) || null,
+            termsOfDelivery: nullify(od.terms_of_delivery) || null,
+            challanNos: nullify(od.challan_nos) || null,
+            dispatchedThrough: nullify(od.dispatched_through) || null,
+            destination: nullify(od.destination) || null,
+            carrierName: nullify(od.carrier_name) || null,
+            billOfLadingNo: nullify(od.bill_of_lading_no) || null,
+            billOfLadingDate: nullify(od.bill_of_lading_date) || null,
+            motorVehicleNo: nullify(od.motor_vehicle_no) || null,
+            sourceGodownId: nullify(od.source_godown_id) || null,
+            sourceGodownName: nullify(od.source_godown_name) || null,
           });
         }
 
@@ -633,7 +702,10 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
           const batches = await db.all(
             sql`SELECT * FROM ${voucherBatches} WHERE ${voucherBatches.stockEntryId} = ${s.stock_entry_id}`
           );
-          return { ...s, batches: batches };
+          const excise = await db.all(
+            sql`SELECT * FROM ${voucherItemExcise} WHERE ${voucherItemExcise.stockEntryId} = ${s.stock_entry_id}`
+          );
+          return { ...s, batches: batches, excise_item_details: excise[0] || null };
         })
       );
 
@@ -651,6 +723,12 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
       );
       const debitNoteDetails = await db.all(
         sql`SELECT * FROM ${voucherDebitNoteDetails} WHERE ${voucherDebitNoteDetails.voucherId} = ${id}`
+      );
+      const vatDetails = await db.all(
+        sql`SELECT * FROM ${voucherVatDetails} WHERE ${voucherVatDetails.voucherId} = ${id}`
+      );
+      const orderDetails = await db.all(
+        sql`SELECT * FROM ${voucherOrderDetails} WHERE ${voucherOrderDetails.voucherId} = ${id}`
       );
       let payrollEntries = [];
       try {
@@ -689,6 +767,8 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
           dispatch_details: dispatchDetails[0] || null,
           credit_note_details: creditNoteDetails[0] || null,
           debit_note_details: debitNoteDetails[0] || null,
+          vat_details: vatDetails[0] || null,
+          order_details: orderDetails[0] || null,
           payroll_entries: payrollEntries,
         },
       };
@@ -712,6 +792,13 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
          WHERE e.voucher_id = v.voucher_id
          ORDER BY e.entry_id ASC
          LIMIT 1) AS ledger_names,
+        (SELECT vse.item_name FROM ${voucherStockEntries} vse
+         WHERE vse.voucher_id = v.voucher_id
+         ORDER BY vse.stock_entry_id ASC LIMIT 1) AS stock_item_name,
+        (SELECT u.symbol FROM ${voucherStockEntries} vse
+         LEFT JOIN units u ON u.unit_id = vse.unit_id
+         WHERE vse.voucher_id = v.voucher_id
+         ORDER BY vse.stock_entry_id ASC LIMIT 1) AS stock_unit,
         CASE WHEN v.voucher_type IN ('Purchase','Receipt Note','Rejection In','Material In')
           THEN COALESCE((SELECT SUM(quantity) FROM ${voucherStockEntries} WHERE voucher_id = v.voucher_id), 0)
           ELSE 0

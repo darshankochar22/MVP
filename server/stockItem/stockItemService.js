@@ -463,4 +463,101 @@ module.exports = {
       return { success: false, error: err.message };
     }
   },
+
+  // Per-godown closing balance for ONE stock item — drives the "List of Godowns"
+  // quantity column on the Physical Stock voucher. Mirrors getStockBalances'
+  // movement signs, grouped by godown, with the latest Physical Stock count
+  // overriding a godown's balance (plus post-count movements).
+  getStockBalancesByGodown: async (company_id, item_id) => {
+    try {
+      const stockInTypes = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In', 'Credit Note'];
+      const stockOutTypes = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out', 'Debit Note'];
+
+      const moveRows = await db.all(
+        sql`
+          SELECT ${voucherStockEntries.godownId} AS godown_id,
+            COALESCE(SUM(
+              CASE
+                WHEN ${vouchers.voucherType} IN (${sql.join(stockInTypes.map((t) => sql`${t}`), sql`, `)})
+                  THEN ${voucherStockEntries.quantity}
+                WHEN ${vouchers.voucherType} IN (${sql.join(stockOutTypes.map((t) => sql`${t}`), sql`, `)})
+                  THEN -${voucherStockEntries.quantity}
+                WHEN ${vouchers.voucherType} IN ('Stock Journal', 'Manufacturing Journal') AND ${voucherStockEntries.isSource} = 0
+                  THEN ${voucherStockEntries.quantity}
+                WHEN ${vouchers.voucherType} IN ('Stock Journal', 'Manufacturing Journal') AND ${voucherStockEntries.isSource} = 1
+                  THEN -${voucherStockEntries.quantity}
+                ELSE 0
+              END
+            ), 0) AS qty
+          FROM ${voucherStockEntries}
+          JOIN ${vouchers} ON ${vouchers.voucherId} = ${voucherStockEntries.voucherId} AND ${vouchers.isCancelled} = 0
+          WHERE ${voucherStockEntries.stockItemId} = ${item_id}
+            AND ${vouchers.companyId} = ${company_id}
+            AND ${voucherStockEntries.godownId} IS NOT NULL
+          GROUP BY ${voucherStockEntries.godownId}
+        `
+      );
+
+      const balances = {};
+      for (const r of moveRows) {
+        if (r.godown_id != null) balances[r.godown_id] = Number(r.qty) || 0;
+      }
+
+      // Physical Stock overrides per godown (latest count wins, + post-count movement).
+      try {
+        const physRows = await db.all(
+          sql`
+            SELECT ${physicalStockEntryLines.godownId} AS godown_id,
+                   ${physicalStockEntryLines.quantity} AS quantity,
+                   ${physicalStockEntries.voucherDate} AS voucher_date
+            FROM ${physicalStockEntryLines}
+            JOIN ${physicalStockEntries} ON ${physicalStockEntries.physicalStockEntryId} = ${physicalStockEntryLines.physicalStockEntryId}
+            WHERE ${physicalStockEntries.companyId} = ${company_id}
+              AND ${physicalStockEntryLines.stockItemId} = ${item_id}
+              AND ${physicalStockEntryLines.godownId} IS NOT NULL
+            ORDER BY ${physicalStockEntries.voucherDate} DESC
+          `
+        );
+        const seen = new Set();
+        for (const ph of physRows) {
+          const g = ph.godown_id;
+          if (seen.has(g)) continue;
+          seen.add(g);
+          const physQty = Number(ph.quantity) || 0;
+          const physDate = ph.voucher_date;
+          if (physDate) {
+            const post = await db.all(
+              sql`
+                SELECT COALESCE(SUM(
+                  CASE
+                    WHEN ${vouchers.voucherType} IN (${sql.join(stockInTypes.map((t) => sql`${t}`), sql`, `)})
+                      THEN ${voucherStockEntries.quantity}
+                    WHEN ${vouchers.voucherType} IN (${sql.join(stockOutTypes.map((t) => sql`${t}`), sql`, `)})
+                      THEN -${voucherStockEntries.quantity}
+                    WHEN ${vouchers.voucherType} IN ('Stock Journal', 'Manufacturing Journal') AND ${voucherStockEntries.isSource} = 0
+                      THEN ${voucherStockEntries.quantity}
+                    WHEN ${vouchers.voucherType} IN ('Stock Journal', 'Manufacturing Journal') AND ${voucherStockEntries.isSource} = 1
+                      THEN -${voucherStockEntries.quantity}
+                    ELSE 0
+                  END
+                ), 0) AS post_qty
+                FROM ${voucherStockEntries}
+                JOIN ${vouchers} ON ${vouchers.voucherId} = ${voucherStockEntries.voucherId} AND ${vouchers.isCancelled} = 0
+                WHERE ${voucherStockEntries.stockItemId} = ${item_id}
+                  AND ${voucherStockEntries.godownId} = ${g}
+                  AND ${vouchers.date} > ${physDate}
+              `
+            );
+            balances[g] = physQty + (Number(post[0]?.post_qty) || 0);
+          } else {
+            balances[g] = physQty;
+          }
+        }
+      } catch (_physErr) { /* keep voucher-only balances */ }
+
+      return { success: true, balances };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
 };

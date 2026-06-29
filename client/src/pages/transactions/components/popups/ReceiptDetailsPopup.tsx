@@ -69,7 +69,7 @@ export default function ReceiptDetailsPopup({
             <span className="text-sm text-black shrink-0">:</span>
             <input
               type="text"
-              className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+              className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
               value={form.receipt_note_no ?? ""}
               onChange={(e) => set("receipt_note_no", e.target.value)}
               autoFocus
@@ -81,7 +81,7 @@ export default function ReceiptDetailsPopup({
             <span className="text-sm text-black shrink-0">:</span>
             <input
               type="text"
-              className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+              className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
               value={form.receipt_doc_no ?? ""}
               onChange={(e) => set("receipt_doc_no", e.target.value)}
             />
@@ -92,7 +92,7 @@ export default function ReceiptDetailsPopup({
             <span className="text-sm text-black shrink-0">:</span>
             <input
               type="text"
-              className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+              className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
               value={form.dispatched_through ?? ""}
               onChange={(e) => set("dispatched_through", e.target.value)}
             />
@@ -103,7 +103,7 @@ export default function ReceiptDetailsPopup({
             <span className="text-sm text-black shrink-0">:</span>
             <input
               type="text"
-              className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+              className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
               value={form.destination ?? ""}
               onChange={(e) => set("destination", e.target.value)}
             />
@@ -114,7 +114,7 @@ export default function ReceiptDetailsPopup({
             <span className="text-sm text-black shrink-0">:</span>
             <input
               type="text"
-              className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+              className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
               value={form.carrier_name ?? ""}
               onChange={(e) => set("carrier_name", e.target.value)}
             />
@@ -125,7 +125,7 @@ export default function ReceiptDetailsPopup({
             <span className="text-sm text-black shrink-0">:</span>
             <input
               type="text"
-              className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+              className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
               value={form.bill_of_lading_no ?? ""}
               onChange={(e) => set("bill_of_lading_no", e.target.value)}
             />
@@ -133,7 +133,7 @@ export default function ReceiptDetailsPopup({
             <span className="text-sm text-black shrink-0">:</span>
             <input
               type="date"
-              className="w-36 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+              className="w-36 shrink-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
               value={form.bill_of_lading_date ?? ""}
               onChange={(e) => set("bill_of_lading_date", e.target.value)}
             />
@@ -144,7 +144,7 @@ export default function ReceiptDetailsPopup({
             <span className="text-sm text-black shrink-0">:</span>
             <input
               type="text"
-              className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+              className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
               value={form.motor_vehicle_no ?? ""}
               onChange={(e) => set("motor_vehicle_no", e.target.value)}
             />

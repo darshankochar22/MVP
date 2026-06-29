@@ -54,16 +54,16 @@ export default function DispatchDetailsPopup({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white border border-black shadow-xl w-[700px] flex flex-col">
+      <div className="bg-white border border-black shadow-xl w-[800px] flex flex-col">
         {/* Header */}
         <div className="bg-white text-black px-3 py-1 flex justify-center items-center select-none border-b border-black">
           <span className="text-sm font-bold">Dispatch Details</span>
         </div>
 
         {/* Form Content — two-column layout matching Tally */}
-        <div className="p-4 flex gap-6">
+        <div className="p-4 flex gap-8">
           {/* Left column */}
-          <div className="w-1/2">
+          <div className="w-56 shrink-0">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm text-black shrink-0">Delivery Note No(s)</span>
               <span className="text-sm text-black shrink-0">:</span>
@@ -78,57 +78,57 @@ export default function DispatchDetailsPopup({
           </div>
 
           {/* Right column */}
-          <div className="w-1/2 space-y-2">
+          <div className="flex-1 min-w-0 space-y-2">
             <div className="flex items-center gap-2">
-              <span className="w-40 text-sm text-black shrink-0">Dispatch Doc No.</span>
+              <span className="w-48 text-right text-sm text-black shrink-0">Dispatch Doc No.</span>
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
                 value={form.dispatch_doc_no ?? ""}
                 onChange={(e) => set("dispatch_doc_no", e.target.value)}
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="w-40 text-sm text-black shrink-0">Dispatched through</span>
+              <span className="w-48 text-right text-sm text-black shrink-0">Dispatched through</span>
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
                 value={form.dispatched_through ?? ""}
                 onChange={(e) => set("dispatched_through", e.target.value)}
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="w-40 text-sm text-black shrink-0">Destination</span>
+              <span className="w-48 text-right text-sm text-black shrink-0">Destination</span>
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
                 value={form.destination ?? ""}
                 onChange={(e) => set("destination", e.target.value)}
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="w-40 text-sm text-black shrink-0">Carrier Name/Agent</span>
+              <span className="w-48 text-right text-sm text-black shrink-0">Carrier Name/Agent</span>
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
                 value={form.carrier_name ?? ""}
                 onChange={(e) => set("carrier_name", e.target.value)}
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="w-40 text-sm text-black shrink-0">Bill of Lading/LR-RR No.</span>
+              <span className="w-48 text-right text-sm text-black shrink-0">Bill of Lading/LR-RR No.</span>
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
                 value={form.bill_of_lading_no ?? ""}
                 onChange={(e) => set("bill_of_lading_no", e.target.value)}
               />
@@ -136,18 +136,18 @@ export default function DispatchDetailsPopup({
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="date"
-                className="w-28 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className="w-36 shrink-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
                 value={form.bill_of_lading_date ?? ""}
                 onChange={(e) => set("bill_of_lading_date", e.target.value)}
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="w-40 text-sm text-black shrink-0">Motor Vehicle No.</span>
+              <span className="w-48 text-right text-sm text-black shrink-0">Motor Vehicle No.</span>
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
-                className="flex-1 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
+                className="flex-1 min-w-0 text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black"
                 value={form.motor_vehicle_no ?? ""}
                 onChange={(e) => set("motor_vehicle_no", e.target.value)}
               />

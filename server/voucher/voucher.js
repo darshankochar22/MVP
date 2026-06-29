@@ -72,12 +72,41 @@ const init = async (db) => {
       mfg_date        TEXT,
       expiry_date     TEXT,
       quantity        REAL DEFAULT 0,
-      rate            REAL DEFAULT 0
+      rate            REAL DEFAULT 0,
+      godown          TEXT,
+      actual_quantity REAL DEFAULT 0,
+      disc_percent    REAL DEFAULT 0,
+      order_no        TEXT,
+      due_on          TEXT,
+      component_of    TEXT,
+      consider_as_scrap TEXT
     )
   `);
 
-  // mfg_date added later — ALTER for DBs created before the column existed.
+  // Columns added later — ALTER for DBs created before they existed.
   try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN mfg_date TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN godown TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN actual_quantity REAL DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN disc_percent REAL DEFAULT 0`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN order_no TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN due_on TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN component_of TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN consider_as_scrap TEXT`); } catch (err) {}
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS voucher_item_excise (
+      item_excise_id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      voucher_id                INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
+      stock_entry_id            INTEGER NOT NULL REFERENCES voucher_stock_entries(stock_entry_id) ON DELETE CASCADE,
+      sales_invoice_number      TEXT,
+      sales_invoice_date        TEXT,
+      excise_sales_invoice      TEXT,
+      rate_of_duty              TEXT,
+      rate_per_unit             TEXT,
+      supplier_duty_amount      TEXT,
+      mfgr_importer_duty_amount TEXT
+    )
+  `);
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS voucher_bill_references (
@@ -190,9 +219,19 @@ const init = async (db) => {
       bill_of_lading_date     TEXT,
       motor_vehicle_no        TEXT,
       original_invoice_no     TEXT,
-      original_invoice_date   TEXT
+      original_invoice_date   TEXT,
+      reason_for_issuing_note TEXT,
+      supplier_note_no        TEXT,
+      supplier_note_date      TEXT,
+      nature_of_return        TEXT
     )
   `);
+
+  // Columns added later — ALTER for DBs created before they existed.
+  try { await db.execute(`ALTER TABLE voucher_credit_note_details ADD COLUMN reason_for_issuing_note TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_credit_note_details ADD COLUMN supplier_note_no TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_credit_note_details ADD COLUMN supplier_note_date TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_credit_note_details ADD COLUMN nature_of_return TEXT`); } catch (err) {}
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS voucher_debit_note_details (
@@ -207,9 +246,55 @@ const init = async (db) => {
       bill_of_lading_date     TEXT,
       motor_vehicle_no        TEXT,
       original_invoice_no     TEXT,
-      original_invoice_date   TEXT
+      original_invoice_date   TEXT,
+      date_time_of_invoice    TEXT,
+      date_time_of_removal    TEXT,
+      reason_for_issuing_note TEXT,
+      supplier_note_no        TEXT,
+      supplier_note_date      TEXT,
+      nature_of_return        TEXT
     )
   `);
+
+  try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN date_time_of_invoice TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN date_time_of_removal TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN reason_for_issuing_note TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN supplier_note_no TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN supplier_note_date TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_debit_note_details ADD COLUMN nature_of_return TEXT`); } catch (err) {}
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS voucher_vat_details (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      voucher_id    INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
+      date_time     TEXT,
+      point_of_sale TEXT
+    )
+  `);
+
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS voucher_order_details (
+      id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+      voucher_id            INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
+      order_nos             TEXT,
+      order_date            TEXT,
+      source_godown_id      INTEGER,
+      source_godown_name    TEXT,
+      mode_terms_of_payment TEXT,
+      other_references      TEXT,
+      terms_of_delivery     TEXT,
+      challan_nos           TEXT,
+      dispatched_through    TEXT,
+      destination           TEXT,
+      carrier_name          TEXT,
+      bill_of_lading_no     TEXT,
+      bill_of_lading_date   TEXT,
+      motor_vehicle_no      TEXT
+    )
+  `);
+
+  try { await db.execute(`ALTER TABLE voucher_order_details ADD COLUMN source_godown_id INTEGER`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_order_details ADD COLUMN source_godown_name TEXT`); } catch (err) {}
 
   // Add new columns to existing tables (fail silently if already exist)
   try { await db.execute(`ALTER TABLE voucher_dispatch_details ADD COLUMN delivery_note_nos TEXT`); } catch (err) {}

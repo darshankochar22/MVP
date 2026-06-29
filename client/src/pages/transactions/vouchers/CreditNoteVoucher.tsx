@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { useVoucherForm } from "../hooks/useVoucherForm";
 import FieldRow from "../components/FieldRow";
+import GstNoteAdditionalDetailsPopup from "../components/popups/GstNoteAdditionalDetailsPopup";
+import VatNatureOfReturnPopup from "../components/popups/VatNatureOfReturnPopup";
 
 interface Props {
   form: ReturnType<typeof useVoucherForm>;
@@ -248,89 +250,99 @@ export default function CreditNoteVoucher({
         </div>
       </div>
 
-      {/* Provide VAT details */}
-      <CreditNoteVATDetails form={form} />
+      {/* Provide GST details — only for a Purchase Accounts ledger */}
+      {form.checkLedgerGroup(form.salesPurchaseLedger, ["purchase accounts"]) && (
+        <CreditNoteGSTDetails form={form} />
+      )}
+
+      {/* Provide VAT details — only for a Sales Accounts ledger */}
+      {form.checkLedgerGroup(form.salesPurchaseLedger, ["sales accounts"]) && (
+        <CreditNoteVATDetails form={form} />
+      )}
     </>
   );
 }
 
-// ── VAT Details component ─────────────────────────────────────────────────────
-function CreditNoteVATDetails({ form }: { form: any }) {
-  const [provideVAT, setProvideVAT] = useState<"Yes" | "No">("No");
-  const [showVATPopup, setShowVATPopup] = useState(false);
-  const [natureOfReturn, setNatureOfReturn] = useState("");
-
-  const NATURE_OPTIONS = ["Not Applicable", "Other Adjustments"];
-
+// ── GST Details (Statutory / Additional Details) ──────────────────────────────
+function CreditNoteGSTDetails({ form }: { form: any }) {
+  const [provideGST, setProvideGST] = useState<"Yes" | "No">("No");
+  const [showPopup, setShowPopup] = useState(false);
 
   return (
-  
+    <>
+      <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
+        <span className="text-sm text-black">Provide GST Details</span>
+        <span className="text-sm text-black">:</span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => { setProvideGST("Yes"); setShowPopup(true); }}
+            className={`text-sm px-2 py-0 border ${provideGST === "Yes" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            onClick={() => { setProvideGST("No"); setShowPopup(false); }}
+            className={`text-sm px-2 py-0 border ${provideGST === "No" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
+          >
+            No
+          </button>
+        </div>
+      </div>
+
+      {showPopup && (
+        <GstNoteAdditionalDetailsPopup
+          initialDetails={form.creditNoteDetails}
+          onClose={() => { setProvideGST("No"); setShowPopup(false); }}
+          onSave={(details) => {
+            form.setCreditNoteDetails({ ...form.creditNoteDetails, ...details });
+            setShowPopup(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+// ── VAT Details (Additional Details : Nature of Return) ───────────────────────
+function CreditNoteVATDetails({ form }: { form: any }) {
+  const [provideVAT, setProvideVAT] = useState<"Yes" | "No">("No");
+  const [showPopup, setShowPopup] = useState(false);
+
+  return (
+    <>
       <div className="flex items-center border-t border-gray-200 shrink-0 px-3 py-1 bg-white gap-3">
         <span className="text-sm text-black">Provide VAT details</span>
         <span className="text-sm text-black">:</span>
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => { setProvideVAT("Yes"); setShowVATPopup(true); }}
+            onClick={() => { setProvideVAT("Yes"); setShowPopup(true); }}
             className={`text-sm px-2 py-0 border ${provideVAT === "Yes" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
           >
             Yes
           </button>
           <button
             type="button"
-            onClick={() => { setProvideVAT("No"); setShowVATPopup(false); }}
+            onClick={() => { setProvideVAT("No"); setShowPopup(false); }}
             className={`text-sm px-2 py-0 border ${provideVAT === "No" ? "bg-black text-white border-black" : "border-gray-400 text-black"}`}
           >
             No
           </button>
         </div>
       </div>
-  )
 
-
-      {showVATPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
-          <div className="bg-white border border-gray-400 shadow-xl w-96">
-            <div className="bg-blue-700 text-white text-sm font-semibold px-3 py-1">
-              Additional Details : Sales - Tax Free
-            </div>
-            <div className="px-4 py-4 flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-sm w-36 shrink-0">Nature of Return</span>
-                <span className="text-sm">:</span>
-                <select
-                  className="flex-1 border border-gray-400 px-2 py-1 text-sm outline-none focus:border-black"
-                  value={natureOfReturn}
-                  onChange={(e) => setNatureOfReturn(e.target.value)}
-                >
-                  {NATURE_OPTIONS.map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex justify-end gap-2 mt-2">
-                <button
-                  onClick={() => setShowVATPopup(false)}
-                  className="text-xs border border-gray-400 px-3 py-1 hover:bg-gray-100"
-                >
-                  Esc: Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    form.setCreditNoteDetails({
-                      ...form.creditNoteDetails,
-                      nature_of_return: natureOfReturn,
-                    });
-                    setShowVATPopup(false);
-                  }}
-                  className="text-xs bg-black text-white px-3 py-1 hover:bg-gray-800"
-                >
-                  A: Accept
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )
-    };
-  }
+      {showPopup && (
+        <VatNatureOfReturnPopup
+          initialDetails={form.creditNoteDetails}
+          onClose={() => { setProvideVAT("No"); setShowPopup(false); }}
+          onSave={(details) => {
+            form.setCreditNoteDetails({ ...form.creditNoteDetails, ...details });
+            setShowPopup(false);
+          }}
+        />
+      )}
+    </>
+  );
+}

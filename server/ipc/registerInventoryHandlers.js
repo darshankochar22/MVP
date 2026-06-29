@@ -38,6 +38,7 @@ function register() {
   ipcMain.handle('stockItem:getByGroup', stockItemController.getByGroup);
   ipcMain.handle('stockItem:getByCategory', stockItemController.getByCategory);
   ipcMain.handle('stockItem:getStockBalances', stockItemController.getStockBalances);
+  ipcMain.handle('stockItem:getStockBalancesByGodown', stockItemController.getStockBalancesByGodown);
 
   ipcMain.handle('godown:create', godownController.create);
   ipcMain.handle('godown:getAll', godownController.getAll);

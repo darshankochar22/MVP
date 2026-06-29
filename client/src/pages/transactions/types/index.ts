@@ -17,10 +17,18 @@ export interface ParticularRow {
 
 export interface BatchAllocation {
   batch_number: string;
-  mfg_date?: string;       // ISO yyyy-mm-dd
-  expiry_date?: string;    // ISO yyyy-mm-dd
-  quantity: number;
+  godown?: string;            // godown / location name
+  mfg_date?: string;          // ISO yyyy-mm-dd
+  expiry_date?: string;       // ISO yyyy-mm-dd
+  quantity: number;           // billed quantity (drives amount + line total)
+  actual_quantity?: number;   // actual quantity (defaults to billed)
   rate: number;
+  disc_percent?: number;
+  // Material In job-work allocation (order tracking).
+  order_no?: string;
+  due_on?: string;
+  component_of?: string;
+  consider_as_scrap?: string;
 }
 
 export interface StockEntryRow {
@@ -39,6 +47,8 @@ export interface StockEntryRow {
   expiryDate?: string;
   /** Multi-batch split for a batch-tracked item (Stock Item Allocations sub-screen). */
   batchAllocations?: BatchAllocation[];
+  /** Per-item Excise Details (Credit Note, excise-applicable items). */
+  exciseItemDetails?: import("../components/popups/ItemExciseDetailsPopup").ExciseItemDetails;
 }
 
 export type ActiveField =
@@ -114,6 +124,23 @@ export type ActiveAllocation =
       trackMfg: boolean;
       trackExpiry: boolean;
       isInward: boolean;
+      initialAllocations?: BatchAllocation[];
+      /** Opened on item selection (Tally-style): quantity & rate are entered
+       *  inside the popup, then written back to the line. */
+      quantityDriven?: boolean;
+      /** Show Batch/Lot columns (batch item) vs godown-only allocation. */
+      showBatch?: boolean;
+    }
+  | {
+      type: "materialIn";
+      rowId: string;
+      itemId: number;
+      itemName: string;
+      rate: number;
+      unitSymbol?: string;
+      showBatch?: boolean;
+      trackMfg?: boolean;
+      trackExpiry?: boolean;
       initialAllocations?: BatchAllocation[];
     }
   | null;

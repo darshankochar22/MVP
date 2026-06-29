@@ -10,8 +10,14 @@ interface LedgerListPanelProps {
   onClose: () => void;
   onCreateNew: () => void;
   createLabel: string;
+  /** When provided (stock-item selection), shows an "End of List" row that ends item entry. */
+  onEndOfList?: () => void;
   height?: string;
   stockBalances?: Record<number, number>;
+  /** Per-godown balances (keyed by godown_id) for the item being entered — shown in the godown picker. */
+  godownBalances?: Record<number, number>;
+  /** Unit symbol appended to godown balances (the current item's unit). */
+  balanceUnit?: string;
   allUnits?: UnitType[];
 }
 
@@ -24,8 +30,11 @@ export default function LedgerListPanel({
   onClose,
   onCreateNew,
   createLabel,
+  onEndOfList,
   height = "h-full",
   stockBalances,
+  godownBalances,
+  balanceUnit,
   allUnits,
 }: LedgerListPanelProps) {
   const [hi, setHi] = useState(0);
@@ -90,6 +99,15 @@ export default function LedgerListPanel({
         {createLabel}
       </div>
 
+      {onEndOfList && (
+        <div
+          className="px-2 py-1 text-xs cursor-pointer hover:bg-gray-100 border-b border-gray-200 text-black select-none italic"
+          onClick={onEndOfList}
+        >
+          &#9670; End of List
+        </div>
+      )}
+
       <div ref={listRef} className="flex-1 overflow-y-auto min-h-0">
         {filtered.map((item, idx) => (
           <div
@@ -108,6 +126,11 @@ export default function LedgerListPanel({
               <span className="text-[10px] text-gray-500 tabular-nums">
                 {Number(stockBalances[item.item_id] ?? 0).toFixed(2)}{" "}
                 {allUnits?.find((u) => u.unit_id === item.unit_id)?.symbol ?? ""}
+              </span>
+            )}
+            {godownBalances && item.godown_id != null && (
+              <span className="text-[10px] text-gray-500 tabular-nums">
+                {Number(godownBalances[item.godown_id] ?? 0).toLocaleString("en-IN")}{balanceUnit ? ` ${balanceUnit}` : ""}
               </span>
             )}
           </div>
