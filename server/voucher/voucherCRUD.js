@@ -164,6 +164,7 @@ module.exports = {
             isCancelled: 0,
             isOptional: data.is_optional ? 1 : 0,
             isPostDated: data.is_post_dated ? 1 : 0,
+            applicableUpto: nullify(data.applicable_upto) || null,
           })
           .returning({ id: vouchers.voucherId });
 
@@ -974,6 +975,7 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
           partyName: nullify(data.party_name) ?? nullify(current.party_name),
           placeOfSupply: nullify(data.place_of_supply) ?? nullify(current.place_of_supply),
           isPostDated: data.is_post_dated !== undefined ? (data.is_post_dated ? 1 : 0) : current.is_post_dated,
+          applicableUpto: nullify(data.applicable_upto) ?? nullify(current.applicable_upto),
           updatedAt: sql`datetime('now')`,
         })
         .where(eq(vouchers.voucherId, data.voucher_id));

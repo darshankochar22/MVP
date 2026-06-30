@@ -41,6 +41,17 @@ export function useVoucherForm(
     } catch { setGodownBalances({}); }
   }, [companyId]);
 
+  // Active batches for the item currently being entered (Physical Stock's
+  // "List of Active Batches" picker on the Batch/Lot No. field).
+  const [activeBatches, setActiveBatches] = useState<{ name: string; expiry: string; balance: number }[]>([]);
+  const fetchActiveBatches = useCallback(async (itemId?: number | null) => {
+    if (!companyId || !itemId) { setActiveBatches([]); return; }
+    try {
+      const res = await window.api.stockItem.getActiveBatches({ company_id: companyId, item_id: itemId });
+      setActiveBatches(res?.success && res.batches ? res.batches : []);
+    } catch { setActiveBatches([]); }
+  }, [companyId]);
+
   const fetchTaxAndPriceMasters = useCallback(async () => {
     if (!companyId) return;
     try {
@@ -210,13 +221,27 @@ export function useVoucherForm(
       } else {
         const filled = rows.journalRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
         if (filled.length < 2) return "At least two valid Journal entries are required.";
-        for (const row of filled) {
-          if (ledgers.checkIsCashOrBank(row.ledger)) return "Journal vouchers cannot use Cash or Bank ledgers.";
+        // A regular Journal forbids Cash/Bank ledgers; a Reversing Journal allows them
+        // (it is a non-posting scenario voucher — e.g. provisioning against a bank a/c).
+        if (effectiveVoucherType === "Journal") {
+          for (const row of filled) {
+            if (ledgers.checkIsCashOrBank(row.ledger)) return "Journal vouchers cannot use Cash or Bank ledgers.";
+          }
         }
         if (Math.abs(rows.debitTotal - rows.creditTotal) > 0.01)
           return `Debit (${rows.debitTotal.toFixed(2)}) and Credit (${rows.creditTotal.toFixed(2)}) totals must balance.`;
         if (rows.debitTotal <= 0) return "Journal amount must be greater than zero.";
       }
+    }
+
+    // Memorandum is a non-accounting voucher entered like a double-entry Journal,
+    // but (unlike Journal) it may use any ledger, including Cash/Bank.
+    if (effectiveVoucherType === "Memorandum") {
+      const filled = rows.journalRows.filter((r) => r.ledger && Number(r.amountRaw) > 0);
+      if (filled.length < 2) return "At least two valid entries are required.";
+      if (Math.abs(rows.debitTotal - rows.creditTotal) > 0.01)
+        return `Debit (${rows.debitTotal.toFixed(2)}) and Credit (${rows.creditTotal.toFixed(2)}) totals must balance.`;
+      if (rows.debitTotal <= 0) return "Amount must be greater than zero.";
     }
 
     if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType)) {
@@ -339,7 +364,7 @@ export function useVoucherForm(
         } else {
           entries = rows.contraDoubleRows.filter((r) => r.ledger && Number(r.amountRaw) > 0).map((r) => ({ ledger_id: r.ledger!.ledger_id, ledger_name: r.ledger!.name, type: r.type, amount: Number(r.amountRaw), currency: "INR", cost_centres: r.costCentres }));
         }
-      } else if (effectiveVoucherType === "Journal" || effectiveVoucherType === "Reversing Journal") {
+      } else if (effectiveVoucherType === "Journal" || effectiveVoucherType === "Reversing Journal" || effectiveVoucherType === "Memorandum") {
         if (rows.journalEntryMode === "single") {
           entries.push({ ledger_id: rows.accountLedger!.ledger_id, ledger_name: rows.accountLedger!.name, type: "Cr", amount: rows.particularsTotal });
           entries.push(...rows.particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0).map((p) => ({ ledger_id: p.ledger!.ledger_id, ledger_name: p.ledger!.name, type: p.type, amount: Number(p.amountRaw), currency: "INR", cost_centres: p.costCentres })));
@@ -376,6 +401,7 @@ export function useVoucherForm(
             quantity: Number(r.quantityRaw),
             rate: Number(r.rateRaw),
             amount: Number(r.amountRaw),
+            batches: r.batchAllocations && r.batchAllocations.length ? r.batchAllocations : undefined,
             is_source: 1,
           })),
           ...filledDest.map((r) => ({
@@ -386,6 +412,7 @@ export function useVoucherForm(
             quantity: Number(r.quantityRaw),
             rate: Number(r.rateRaw),
             amount: Number(r.amountRaw),
+            batches: r.batchAllocations && r.batchAllocations.length ? r.batchAllocations : undefined,
             is_source: 0,
           })),
         ];
@@ -401,6 +428,7 @@ export function useVoucherForm(
             quantity: Number(r.quantityRaw),
             rate: Number(r.rateRaw),
             amount: Number(r.amountRaw),
+            batches: r.batchAllocations && r.batchAllocations.length ? r.batchAllocations : undefined,
             is_source: 1,
           })),
           ...filledDest.map((r) => ({
@@ -411,6 +439,7 @@ export function useVoucherForm(
             quantity: Number(r.quantityRaw),
             rate: Number(r.rateRaw),
             amount: Number(r.amountRaw),
+            batches: r.batchAllocations && r.batchAllocations.length ? r.batchAllocations : undefined,
             is_source: 0,
           })),
         ];
@@ -424,6 +453,8 @@ export function useVoucherForm(
           quantity: Number(r.quantityRaw),
           rate: Number(r.rateRaw),
           amount: Number(r.amountRaw),
+          // Godown / Batch-Lot allocations captured in the Stock Item Allocations popup.
+          batches: r.batchAllocations && r.batchAllocations.length ? r.batchAllocations : undefined,
         }));
       }
 
@@ -441,7 +472,7 @@ export function useVoucherForm(
         finalBillReferences = rows.contraEntryMode === "single"
           ? rows.particulars.filter((p) => p.ledger && p.billReferences?.length).flatMap((p) => p.billReferences!.map((b) => ({ ...b, ledger_id: p.ledger!.ledger_id })))
           : rows.contraDoubleRows.filter((r) => r.ledger && r.billReferences?.length).flatMap((r) => r.billReferences!.map((b) => ({ ...b, ledger_id: r.ledger!.ledger_id })));
-      } else if (effectiveVoucherType === "Journal") {
+      } else if (effectiveVoucherType === "Journal" || effectiveVoucherType === "Reversing Journal" || effectiveVoucherType === "Memorandum") {
         finalBillReferences = rows.journalRows.filter((r) => r.ledger && r.billReferences?.length).flatMap((r) => r.billReferences!.map((b) => ({ ...b, ledger_id: r.ledger!.ledger_id })));
       } else if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType)) {
         if (rows.partyLedger && meta.partyBillReferences.length > 0) {
@@ -496,6 +527,15 @@ export function useVoucherForm(
         const isInventoryOnly = ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Stock Journal", "Manufacturing Journal"].includes(effectiveVoucherType);
         const isOrderVoucher = ["Purchase Order", "Sales Order", "Job Work In Order", "Job Work Out Order"].includes(effectiveVoucherType);
         const hasAccountingEntries = ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(effectiveVoucherType);
+        // Memorandum: non-accounting. Store its Dr/Cr entries but mark the voucher
+        // optional so it is excluded from all ledger-balance and report queries
+        // (which already filter out is_optional = 1) — it must not affect the books.
+        const isNonAccounting = effectiveVoucherType === "Memorandum";
+        // Reversing Journal: a balanced accounting entry (server validates Dr=Cr) but
+        // non-posting — like Tally's scenario vouchers it shows in the Day Book yet is
+        // excluded from ledger balances/reports (is_optional = 1). Carries an
+        // "Applicable Upto" date.
+        const isReversingJournal = effectiveVoucherType === "Reversing Journal";
         const partyLedgerTypes = ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Purchase Order", "Sales Order", "Job Work In Order", "Job Work Out Order"];
         const payload: any = {
           company_id: companyId!,
@@ -511,11 +551,13 @@ export function useVoucherForm(
           narration: meta.narration || null,
           party_ledger_id: effectiveVoucherType === "Payroll" || partyLedgerTypes.includes(effectiveVoucherType) ? rows.partyLedger?.ledger_id ?? null : null,
           party_name: effectiveVoucherType === "Payroll" || partyLedgerTypes.includes(effectiveVoucherType) ? rows.partyLedger?.name ?? null : null,
-          is_accounting_voucher: (isInventoryOnly || isOrderVoucher) ? 0 : 1,
+          is_accounting_voucher: (isInventoryOnly || isOrderVoucher || isNonAccounting) ? 0 : 1,
           is_invoice: hasAccountingEntries ? 1 : 0,
           is_inventory_voucher: (isInventoryOnly || isOrderVoucher || hasAccountingEntries) ? 1 : 0,
           is_order_voucher: (["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType) || isOrderVoucher) ? 1 : 0,
+          is_optional: (isNonAccounting || isReversingJournal) ? 1 : 0,
           is_post_dated: meta.status === "Post-Dated" ? 1 : 0,
+          applicable_upto: isReversingJournal ? (meta.applicableUpto || meta.date) : null,
           entries: (isInventoryOnly || isOrderVoucher) ? [] : entries,
           stock_entries,
           bill_references: finalBillReferences.length > 0 ? finalBillReferences : undefined,
@@ -598,6 +640,8 @@ export function useVoucherForm(
     dateDisplay: meta.dateDisplay,
     status: meta.status,
     setStatus: meta.setStatus,
+    applicableUpto: meta.applicableUpto,
+    setApplicableUpto: meta.setApplicableUpto,
     supplierInvoiceNo: meta.supplierInvoiceNo,
     setSupplierInvoiceNo: meta.setSupplierInvoiceNo,
     supplierInvoiceDate: meta.supplierInvoiceDate,
@@ -671,6 +715,8 @@ export function useVoucherForm(
     stockBalances: ledgers.stockBalances,
     godownBalances,
     fetchGodownBalances,
+    activeBatches,
+    fetchActiveBatches,
     allGodowns: ledgers.allGodowns,
     allUnits: ledgers.allUnits,
     allEmployees: ledgers.allEmployees,

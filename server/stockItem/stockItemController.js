@@ -90,4 +90,10 @@ module.exports = {
   getStockBalancesByGodown: async (event, { company_id, item_id }) => {
     return await stockItemService.getStockBalancesByGodown(company_id, item_id);
   },
+  getLastPurchaseRate: async (event, { company_id, item_id }) => {
+    return await stockItemService.getLastPurchaseRate(company_id, item_id);
+  },
+  getActiveBatches: async (event, { company_id, item_id }) => {
+    return await stockItemService.getActiveBatches(company_id, item_id);
+  },
 };

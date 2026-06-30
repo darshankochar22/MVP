@@ -12,6 +12,8 @@ interface LedgerListPanelProps {
   createLabel: string;
   /** When provided (stock-item selection), shows an "End of List" row that ends item entry. */
   onEndOfList?: () => void;
+  /** Enter while the search is empty → skip selection (e.g. Physical Stock: go to next item). */
+  onEnterEmpty?: () => void;
   height?: string;
   stockBalances?: Record<number, number>;
   /** Per-godown balances (keyed by godown_id) for the item being entered — shown in the godown picker. */
@@ -31,6 +33,7 @@ export default function LedgerListPanel({
   onCreateNew,
   createLabel,
   onEndOfList,
+  onEnterEmpty,
   height = "h-full",
   stockBalances,
   godownBalances,
@@ -63,11 +66,15 @@ export default function LedgerListPanel({
       if (e.key === "Escape") { e.preventDefault(); onClose(); return; }
       if (e.key === "ArrowDown") { e.preventDefault(); setHi((p) => Math.min(p + 1, filtered.length - 1)); }
       if (e.key === "ArrowUp") { e.preventDefault(); setHi((p) => Math.max(p - 1, 0)); }
-      if (e.key === "Enter") { e.preventDefault(); if (filtered[hi]) onSelect(filtered[hi]); }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (!searchTerm.trim() && onEnterEmpty) { onEnterEmpty(); return; }
+        if (filtered[hi]) onSelect(filtered[hi]);
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [filtered, hi, onSelect, onClose]);
+  }, [filtered, hi, onSelect, onClose, searchTerm, onEnterEmpty]);
 
   return (
     <div className={`w-64 border-l border-black flex flex-col shrink-0 bg-white ${height}`}>

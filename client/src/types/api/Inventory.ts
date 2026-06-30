@@ -30,5 +30,7 @@ export interface InventoryAPI {
     getByCategory: ( args: { company_id: number; category_id: number } ) => Promise<{ success: boolean; stockItems?: StockItemType[]; error?: string }>;
     getStockBalances: ( company_id: number ) => Promise<{ success: boolean; balances?: Record<number, number>; error?: string }>;
     getStockBalancesByGodown: ( args: { company_id: number; item_id: number } ) => Promise<{ success: boolean; balances?: Record<number, number>; error?: string }>;
+    getLastPurchaseRate: ( args: { company_id: number; item_id: number } ) => Promise<{ success: boolean; rate?: number | null; error?: string }>;
+    getActiveBatches: ( args: { company_id: number; item_id: number } ) => Promise<{ success: boolean; batches?: { name: string; expiry: string; balance: number }[]; error?: string }>;
   };
 }

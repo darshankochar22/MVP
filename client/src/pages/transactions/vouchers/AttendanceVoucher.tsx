@@ -27,7 +27,8 @@ export default function AttendanceVoucher({ form }: Props) {
         <div className="flex-1 min-w-[200px]">Employee Name</div>
         <div className="w-40">Employee Number</div>
         <div className="w-48">Attendance/Production Type</div>
-        <div className="w-32 text-right">Value</div>
+        <div className="w-24 text-right">Value</div>
+        <div className="w-16 text-right pr-2">Unit</div>
       </div>
 
       {/* Attendance Entries */}
@@ -114,7 +115,7 @@ export default function AttendanceVoucher({ form }: Props) {
               </div>
 
               {/* Value (Days / Hours) */}
-              <div className="w-32 text-right">
+              <div className="w-24 text-right">
                 <input
                   data-att-value={idx + 1}
                   type="text"
@@ -132,6 +133,11 @@ export default function AttendanceVoucher({ form }: Props) {
                     }
                   }}
                 />
+              </div>
+
+              {/* Unit */}
+              <div className="w-16 text-right pr-2 text-xs font-mono text-zinc-600 select-none">
+                {row.attendanceType ? ((row.attendanceType as any).unit_name || "Days") : ""}
               </div>
             </div>
           );

@@ -141,6 +141,8 @@ contextBridge.exposeInMainWorld('api', {
         getByCategory: ({ company_id, category_id })   => invoke('stockItem:getByCategory', { company_id, category_id }),
         getStockBalances: (company_id)                 => invoke('stockItem:getStockBalances', company_id),
         getStockBalancesByGodown: ({ company_id, item_id }) => invoke('stockItem:getStockBalancesByGodown', { company_id, item_id }),
+        getLastPurchaseRate: ({ company_id, item_id }) => invoke('stockItem:getLastPurchaseRate', { company_id, item_id }),
+        getActiveBatches: ({ company_id, item_id }) => invoke('stockItem:getActiveBatches', { company_id, item_id }),
     },
     godown: {
         create:  (data)       => invoke('godown:create', data),

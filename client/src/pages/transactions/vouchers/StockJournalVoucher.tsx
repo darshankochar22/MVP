@@ -47,6 +47,29 @@ export default function StockJournalVoucher({ form }: Props) {
     }, 50);
   };
 
+  // Auto-fill the rate from the item's purchase history once a quantity is entered,
+  // but only when the user hasn't typed a rate themselves. The amount then computes
+  // automatically (qty × rate) in the row update handler. With no purchase history the
+  // rate is left blank for the user to type. Keyed by row id so a late response still
+  // lands on the right row regardless of where focus has moved.
+  const autofillRateFromPurchase = async (rowId: string, side: "source" | "dest") => {
+    const rows = side === "source" ? form.sourceStockEntries : form.destinationStockEntries;
+    const row = rows.find((r) => r.id === rowId);
+    if (!row?.stockItem?.item_id || !form.companyId) return;
+    if (row.rateRaw && Number(row.rateRaw) > 0) return; // respect a user-entered rate
+    try {
+      const res = await window.api.stockItem.getLastPurchaseRate({
+        company_id: form.companyId,
+        item_id: row.stockItem.item_id,
+      });
+      if (!res?.success || !res.rate) return;
+      const update = side === "source" ? form.handleUpdateSourceStockRow : form.handleUpdateDestinationStockRow;
+      update(rowId, { rateRaw: String(res.rate) });
+    } catch {
+      /* leave rate blank on lookup failure */
+    }
+  };
+
   return (
     <div className="flex flex-1 divide-x divide-zinc-300 min-h-0 bg-white select-none">
       {/* LEFT SIDE: Source (Consumption) */}
@@ -152,6 +175,7 @@ export default function StockJournalVoucher({ form }: Props) {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
+                        autofillRateFromPurchase(row.id, "source");
                         focusSourceRate(idx);
                       }
                     }}
@@ -314,6 +338,7 @@ export default function StockJournalVoucher({ form }: Props) {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
+                        autofillRateFromPurchase(row.id, "dest");
                         focusDestRate(idx);
                       }
                     }}

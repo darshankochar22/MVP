@@ -36,6 +36,8 @@ const vouchers = pgTable('vouchers', {
   isCancelled: boolean('is_cancelled').default(false),
   isOptional: boolean('is_optional').default(false),
   isPostDated: boolean('is_post_dated').default(false),
+  // Reversing Journal: date up to which the (non-posting) entry is applicable.
+  applicableUpto: date('applicable_upto'),
   createdAt: timestamp('created_at', { withTimezone: true }).default(sql`now()`),
   updatedAt: timestamp('updated_at', { withTimezone: true }).default(sql`now()`),
 });

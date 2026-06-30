@@ -9,11 +9,11 @@ interface Props {
   proceedToNextStockRow: (idx: number) => void;
 }
 
-export default function ReceiptNoteVoucher({ handleAmountConfirm: _ignored, ...props }: Props) {
-  // Receipt Note mirrors the Purchase layout: Party + Purchase ledger + an
-  // Actual/Billed item grid. Godown/qty/rate are captured in the Stock Item
-  // Allocations popup that opens on item select, so the inline godown column is
-  // hidden (see Vouchers.tsx handleLedgerSelectWithAllocation).
+// Purchase Order mirrors the Receipt Note layout: Party + Purchase ledger + an
+// Actual/Billed item grid. Godown / Batch-Lot / qty / rate are captured in the
+// Stock Item Allocations popup that opens on item select (see Vouchers.tsx
+// handleLedgerSelectWithAllocation), so the inline godown column is hidden.
+export default function PurchaseOrderVoucher({ handleAmountConfirm: _ignored, ...props }: Props) {
   return (
     <StockTransferVoucherBody
       {...props}

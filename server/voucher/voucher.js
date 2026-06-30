@@ -23,6 +23,7 @@ const init = async (db) => {
       is_cancelled            INTEGER DEFAULT 0,
       is_optional             INTEGER DEFAULT 0,
       is_post_dated           INTEGER DEFAULT 0,
+      applicable_upto         TEXT,
       created_at              TEXT DEFAULT (datetime('now')),
       updated_at              TEXT DEFAULT (datetime('now'))
     )
@@ -316,6 +317,11 @@ const init = async (db) => {
 
   try {
     await db.execute(`ALTER TABLE vouchers ADD COLUMN supplier_invoice_date TEXT`);
+  } catch (err) {}
+
+  // Reversing Journal "Applicable Upto" date — ALTER for DBs created before it existed.
+  try {
+    await db.execute(`ALTER TABLE vouchers ADD COLUMN applicable_upto TEXT`);
   } catch (err) {}
 
   try {

@@ -52,6 +52,8 @@ export function useVoucherMeta({
   // ── Date / status ─────────────────────────────────────────────────────────────
   const [date, setDate] = useState<string>(todayStr());
   const [status, setStatus] = useState<"Regular" | "Post-Dated">("Regular");
+  // Reversing Journal — date the entry is applicable up to (defaults to voucher date).
+  const [applicableUpto, setApplicableUpto] = useState<string>("");
 
   // ── Narration / invoice fields ────────────────────────────────────────────────
   const [narration, setNarration] = useState<string>(initialNarration);
@@ -94,6 +96,7 @@ export function useVoucherMeta({
     setSupplierInvoiceDate("");
     setStatus("Regular");
     setDate(todayStr());
+    setApplicableUpto("");
     setActiveAllocation(null);
     setPartyBillReferences([]);
     setBankDetails(null);
@@ -123,6 +126,8 @@ export function useVoucherMeta({
     dateDisplay,
     status,
     setStatus,
+    applicableUpto,
+    setApplicableUpto,
     // narration / invoice
     narration,
     setNarration,

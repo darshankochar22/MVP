@@ -560,4 +560,69 @@ module.exports = {
       return { success: false, error: err.message };
     }
   },
+
+  // Rate from the item's purchase history — the most recent Purchase voucher line
+  // (with a positive rate). Used to auto-fill the rate in Stock Journal entry.
+  // Returns { rate: null } when the item has never been purchased.
+  getLastPurchaseRate: async (company_id, item_id) => {
+    try {
+      const rows = await db.all(
+        sql`
+          SELECT ${voucherStockEntries.rate} AS rate
+          FROM ${voucherStockEntries}
+          JOIN ${vouchers} ON ${vouchers.voucherId} = ${voucherStockEntries.voucherId}
+          WHERE ${voucherStockEntries.stockItemId} = ${item_id}
+            AND ${vouchers.companyId} = ${company_id}
+            AND ${vouchers.voucherType} = 'Purchase'
+            AND ${vouchers.isCancelled} = 0
+            AND COALESCE(${vouchers.isOptional}, 0) = 0
+            AND COALESCE(${vouchers.isPostDated}, 0) = 0
+            AND ${voucherStockEntries.rate} > 0
+          ORDER BY ${vouchers.date} DESC, ${vouchers.voucherId} DESC
+          LIMIT 1
+        `
+      );
+      const rate = rows.length ? Number(rows[0].rate) || 0 : 0;
+      return { success: true, rate: rate > 0 ? rate : null };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Active batches for ONE stock item — drives the Physical Stock "List of Active
+  // Batches" picker (Name / Expiry / Balance). Balance is each batch's signed
+  // movement across vouchers.
+  getActiveBatches: async (company_id, item_id) => {
+    try {
+      const stockInTypes = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In', 'Credit Note'];
+      const stockOutTypes = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out', 'Debit Note'];
+      const rows = await db.all(
+        sql`
+          SELECT vb.batch_number AS name,
+                 MAX(vb.expiry_date) AS expiry,
+                 COALESCE(SUM(
+                   CASE
+                     WHEN ${vouchers.voucherType} IN (${sql.join(stockInTypes.map((t) => sql`${t}`), sql`, `)})
+                       THEN vb.quantity
+                     WHEN ${vouchers.voucherType} IN (${sql.join(stockOutTypes.map((t) => sql`${t}`), sql`, `)})
+                       THEN -vb.quantity
+                     ELSE 0
+                   END
+                 ), 0) AS balance
+          FROM voucher_batches vb
+          JOIN ${voucherStockEntries} ON ${voucherStockEntries.stockEntryId} = vb.stock_entry_id
+          JOIN ${vouchers} ON ${vouchers.voucherId} = ${voucherStockEntries.voucherId} AND ${vouchers.isCancelled} = 0
+          WHERE ${voucherStockEntries.stockItemId} = ${item_id}
+            AND ${vouchers.companyId} = ${company_id}
+            AND vb.batch_number IS NOT NULL AND vb.batch_number != ''
+          GROUP BY vb.batch_number
+          ORDER BY vb.batch_number ASC
+        `
+      );
+      const batches = rows.map((r) => ({ name: r.name, expiry: r.expiry || '', balance: Number(r.balance) || 0 }));
+      return { success: true, batches };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
 };

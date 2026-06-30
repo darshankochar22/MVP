@@ -285,6 +285,12 @@ interface Props {
   focusStockQty: (idx: number) => void;
   focusStockRate: (idx: number) => void;
   proceedToNextStockRow: (idx: number) => void;
+  /** Hide the "Provide VAT details" toggle (irrelevant for pure goods-movement
+   *  vouchers like Delivery Note). */
+  hideVatDetails?: boolean;
+  /** Hide the item subtotal + additional tax/ledger rows (a Delivery Note is
+   *  inventory-only — additional ledger lines aren't persisted for it). */
+  hideAdditionalLedgers?: boolean;
 }
 
 export default function SalesVoucher({
@@ -293,6 +299,8 @@ export default function SalesVoucher({
   focusStockQty,
   focusStockRate,
   proceedToNextStockRow,
+  hideVatDetails = false,
+  hideAdditionalLedgers = false,
 }: Props) {
   // ASSUMED: GST Registration / Tax Unit live on selectedCompany.
   // Confirm actual field names — these are guesses based on the screenshot labels.
@@ -526,7 +534,7 @@ export default function SalesVoucher({
         ))}
 
         {/* Stock subtotal */}
-        {form.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0) > 0 && (
+        {!hideAdditionalLedgers && form.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0) > 0 && (
           <div className="flex border-t border-gray-300 border-b border-gray-300 px-3 py-0.5 bg-white">
             <div className="flex-1 text-xs text-gray-700">Subtotal</div>
             <div className="w-44" />
@@ -545,7 +553,7 @@ export default function SalesVoucher({
         )}
 
         {/* Additional ledger rows (taxes, freight, discounts) */}
-        {form.additionalEntries.map((row, idx) => {
+        {!hideAdditionalLedgers && form.additionalEntries.map((row, idx) => {
           const isAddActive =
             form.activeField?.type === "additional" &&
             form.activeField.rowId === row.id;
@@ -617,15 +625,17 @@ export default function SalesVoucher({
           );
         })}
 
-        <div className="px-3 py-1 border-b border-gray-100">
-          <button
-            type="button"
-            onClick={form.handleAddAdditionalRow}
-            className="text-xs text-gray-500 hover:text-black border border-gray-300 px-2 py-0.5"
-          >
-            + Add Tax / Ledger Row
-          </button>
-        </div>
+        {!hideAdditionalLedgers && (
+          <div className="px-3 py-1 border-b border-gray-100">
+            <button
+              type="button"
+              onClick={form.handleAddAdditionalRow}
+              className="text-xs text-gray-500 hover:text-black border border-gray-300 px-2 py-0.5"
+            >
+              + Add Tax / Ledger Row
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Grand total footer */}
@@ -641,7 +651,7 @@ export default function SalesVoucher({
         </div>
       </div>
 
-      <SalesVATDetails form={form} />
+      {!hideVatDetails && <SalesVATDetails form={form} />}
     </div>
   );
 }

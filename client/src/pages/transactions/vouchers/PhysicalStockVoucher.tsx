@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { useVoucherForm } from "../hooks/useVoucherForm";
 
 interface Props {
@@ -7,15 +8,24 @@ interface Props {
   proceedToNextStockRow: (idx: number) => void;
   /** Enter on Quantity → add another godown row for the SAME item (Tally flow). */
   physicalStockQtyEnter: (idx: number) => void;
-  /** Double-Enter on an empty next-godown row → finish item, start a new one. */
-  physicalStockGodownNewItem: (rowId: string) => void;
 }
 
 export default function PhysicalStockVoucher({
   form,
   physicalStockQtyEnter,
-  physicalStockGodownNewItem,
 }: Props) {
+  const [openBatchRow, setOpenBatchRow] = useState<string | null>(null);
+  const [newBatchRow, setNewBatchRow] = useState<string | null>(null);
+  const [newBatchValue, setNewBatchValue] = useState("");
+  const confirmNewBatch = () => {
+    if (newBatchRow === null) return;
+    const idx = form.stockEntries.findIndex((r) => r.id === newBatchRow);
+    form.handleUpdateStockRow(newBatchRow, { batchNo: newBatchValue.trim() });
+    setNewBatchRow(null);
+    setTimeout(() => {
+      (document.querySelector(`[data-stock-mfg="${idx + 1}"]`) as HTMLInputElement | null)?.focus();
+    }, 30);
+  };
   return (
     <>
       {/* Voucher heading */}
@@ -31,7 +41,6 @@ export default function PhysicalStockVoucher({
         <div className="w-24">Mfg Date</div>
         <div className="w-24">Expiry Date</div>
         <div className="w-24 text-right">Quantity</div>
-        <div className="w-24 text-right">Rate</div>
         <div className="w-28 text-right">Amount</div>
       </div>
 
@@ -107,47 +116,81 @@ export default function PhysicalStockVoucher({
                   onFocus={() =>
                     form.handleFieldFocus({ type: "stockGodown", rowId: row.id })
                   }
-                  onChange={(e) => {
-                    form.setLedgerSearchTerm(e.target.value);
-                  }}
+                  onChange={(e) => form.setLedgerSearchTerm(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key !== "Enter") return;
-                    if (row.godown) {
+                    // Godown picked → next field. Enter on an EMPTY godown is handled by
+                    // the List of Godowns (onEnterEmpty → next item; End of List → narration).
+                    if (e.key === "Enter" && row.godown) {
                       e.preventDefault();
                       const sel = isBatch ? `[data-stock-batch="${idx + 1}"]` : `[data-stock-qty="${idx + 1}"]`;
                       (document.querySelector(sel) as HTMLInputElement | null)?.focus();
-                      return;
                     }
-                    if (form.ledgerSearchTerm) return; // typing a godown name → let the panel select it
-                    // Empty godown: 1st Enter closes the List of Godowns, 2nd Enter starts a new item.
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (isGodownActive) form.handleFieldBlur();
-                    else physicalStockGodownNewItem(row.id);
                   }}
                   autoComplete="off"
                 />
               </div>
 
-              {/* Batch / Lot — batch-tracked items only */}
-              <div className="w-24">
+              {/* Batch / Lot — batch-tracked items only; opens List of Active Batches */}
+              <div className="w-24 relative">
                 {isBatch && (
-                  <input
-                    data-stock-batch={idx + 1}
-                    type="text"
-                    className="w-full text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
-                    value={row.batchNo || ""}
-                    placeholder="Batch No…"
-                    onChange={(e) =>
-                      form.handleUpdateStockRow(row.id, { batchNo: e.target.value })
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        (document.querySelector(`[data-stock-mfg="${idx + 1}"]`) as HTMLInputElement | null)?.focus();
-                      }
-                    }}
-                  />
+                  <>
+                    <input
+                      data-stock-batch={idx + 1}
+                      type="text"
+                      className="w-full text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
+                      value={row.batchNo || ""}
+                      placeholder="Batch No…"
+                      onFocus={() => { setOpenBatchRow(row.id); form.fetchActiveBatches(row.stockItem?.item_id); }}
+                      onChange={(e) => form.handleUpdateStockRow(row.id, { batchNo: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          setOpenBatchRow(null);
+                          (document.querySelector(`[data-stock-mfg="${idx + 1}"]`) as HTMLInputElement | null)?.focus();
+                        }
+                        if (e.key === "Escape") setOpenBatchRow(null);
+                      }}
+                      autoComplete="off"
+                    />
+                    {openBatchRow === row.id && (
+                      <>
+                        <div className="fixed inset-0 z-20" onClick={() => setOpenBatchRow(null)} />
+                        <div className="absolute left-0 top-full mt-0.5 z-30 w-64 bg-white border border-zinc-500 shadow-xl">
+                          <div className="bg-zinc-800 text-white text-[11px] font-bold px-2 py-1 flex justify-between items-center">
+                            <span>List of Active Batches</span>
+                            <button type="button" onMouseDown={(e) => { e.preventDefault(); setOpenBatchRow(null); setNewBatchValue(""); setNewBatchRow(row.id); }} className="hover:underline">New Number</button>
+                          </div>
+                          <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 px-2 py-0.5 text-[10px] font-semibold border-b border-zinc-300 text-zinc-700">
+                            <span>Name</span><span className="text-right">Expiry</span><span className="text-right">Balance</span>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto">
+                            {form.activeBatches.filter((b) => !row.batchNo || b.name.toLowerCase().includes((row.batchNo || "").toLowerCase())).length === 0 && (
+                              <div className="px-2 py-1 text-xs text-zinc-400 italic">No active batches — type a New Number</div>
+                            )}
+                            {form.activeBatches
+                              .filter((b) => !row.batchNo || b.name.toLowerCase().includes((row.batchNo || "").toLowerCase()))
+                              .map((b) => (
+                                <button
+                                  key={b.name}
+                                  type="button"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    form.handleUpdateStockRow(row.id, { batchNo: b.name, expiryDate: b.expiry || row.expiryDate });
+                                    setOpenBatchRow(null);
+                                    (document.querySelector(`[data-stock-mfg="${idx + 1}"]`) as HTMLInputElement | null)?.focus();
+                                  }}
+                                  className="grid grid-cols-[1fr_auto_auto] gap-x-3 w-full text-left px-2 py-1 text-xs hover:bg-zinc-100"
+                                >
+                                  <span className="truncate font-semibold">{b.name}</span>
+                                  <span className="text-right font-mono">{b.expiry}</span>
+                                  <span className="text-right font-mono">{b.balance ? `${b.balance.toLocaleString("en-IN")}${row.unit?.symbol ? ` ${row.unit.symbol}` : ""}` : ""}</span>
+                                </button>
+                              ))}
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -216,26 +259,6 @@ export default function PhysicalStockVoucher({
                 />
               </div>
 
-              {/* Rate (optional valuation) */}
-              <div className="w-24 text-right pr-1">
-                <input
-                  data-stock-rate={idx + 1}
-                  type="text"
-                  inputMode="decimal"
-                  className="w-full text-right text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
-                  value={row.rateRaw}
-                  onChange={(e) =>
-                    form.handleUpdateStockRow(row.id, { rateRaw: e.target.value })
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      physicalStockQtyEnter(idx);
-                    }
-                  }}
-                />
-              </div>
-
               {/* Amount */}
               <div className="w-28 text-right text-xs font-semibold font-mono text-zinc-900 select-none">
                 {row.amountRaw
@@ -257,6 +280,32 @@ export default function PhysicalStockVoucher({
           />
         ))}
       </div>
+
+      {/* New Number — create a new batch number */}
+      {newBatchRow !== null && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/30">
+          <div className="bg-white border border-black shadow-2xl w-80">
+            <div className="border-b border-black px-3 py-1 text-center text-sm font-bold">New Number</div>
+            <div className="p-4">
+              <input
+                autoFocus
+                type="text"
+                value={newBatchValue}
+                onChange={(e) => setNewBatchValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); confirmNewBatch(); }
+                  if (e.key === "Escape") { e.preventDefault(); setNewBatchRow(null); }
+                }}
+                className="w-full text-sm border border-gray-400 px-1 py-1 outline-none focus:border-black bg-yellow-50"
+              />
+            </div>
+            <div className="border-t border-black px-3 py-2 flex justify-end gap-2 bg-gray-50">
+              <button onClick={() => setNewBatchRow(null)} className="text-xs px-3 py-1 border border-black hover:bg-gray-100">Cancel</button>
+              <button onClick={confirmNewBatch} className="text-xs px-4 py-1 bg-black text-white hover:bg-gray-800">Accept</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

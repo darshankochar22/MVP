@@ -13,6 +13,9 @@ export interface StockTransferVoucherConfig {
   sourceGodownLabel?: string;
   /** Hide the per-row Godown column (godown chosen in the allocation popup). */
   hideGodownColumn?: boolean;
+  /** Purchase-style grid: Quantity split into Actual/Billed, plus per & Disc %
+   *  columns (used by Receipt Note — qty/rate flow through the allocation popup). */
+  showActualBilled?: boolean;
 }
 
 interface Props {
@@ -113,13 +116,37 @@ export default function StockTransferVoucherBody({
       )}
 
       {/* Stock Items Table Header */}
-      <div className="flex border-b border-black shrink-0 px-3 py-0.5 bg-zinc-100 text-xs font-bold text-zinc-800">
-        <div className="flex-1 min-w-[200px]">Name of Item</div>
-        {!config?.hideGodownColumn && <div className="w-24">Godown</div>}
-        <div className="w-20 text-right">Quantity</div>
-        <div className="w-20 text-right">Rate</div>
-        <div className="w-24 text-right">Amount</div>
-      </div>
+      {config?.showActualBilled ? (
+        <div className="border-b border-black shrink-0 bg-zinc-100 text-zinc-800">
+          <div className="flex px-3 py-0.5 text-xs font-bold">
+            <div className="flex-1 min-w-[200px]">Name of Item</div>
+            <div className="w-44 text-center">Quantity</div>
+            <div className="w-20 text-right">Rate</div>
+            <div className="w-12 text-center">per</div>
+            <div className="w-16 text-right">Disc %</div>
+            <div className="w-24 text-right">Amount</div>
+          </div>
+          <div className="flex px-3 py-0.5 border-t border-zinc-200 text-[11px] text-zinc-600">
+            <div className="flex-1 min-w-[200px]" />
+            <div className="w-44 flex">
+              <div className="flex-1 text-center">Actual</div>
+              <div className="flex-1 text-center">Billed</div>
+            </div>
+            <div className="w-20" />
+            <div className="w-12" />
+            <div className="w-16" />
+            <div className="w-24" />
+          </div>
+        </div>
+      ) : (
+        <div className="flex border-b border-black shrink-0 px-3 py-0.5 bg-zinc-100 text-xs font-bold text-zinc-800">
+          <div className="flex-1 min-w-[200px]">Name of Item</div>
+          {!config?.hideGodownColumn && <div className="w-24">Godown</div>}
+          <div className="w-20 text-right">Quantity</div>
+          <div className="w-20 text-right">Rate</div>
+          <div className="w-24 text-right">Amount</div>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto min-h-0 bg-white">
         {form.stockEntries.map((row, idx) => {
@@ -199,55 +226,134 @@ export default function StockTransferVoucherBody({
               </div>
               )}
 
-              {/* Quantity */}
-              <div className="w-20 text-right pr-1">
-                <input
-                  data-stock-qty={idx + 1}
-                  type="text"
-                  inputMode="decimal"
-                  className="w-full text-right text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono font-semibold"
-                  value={row.quantityRaw}
-                  onChange={(e) =>
-                    form.handleUpdateStockRow(row.id, { quantityRaw: e.target.value })
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      focusStockRate(idx);
-                    }
-                  }}
-                />
-              </div>
+              {config?.showActualBilled ? (
+                <>
+                  {/* Quantity: Actual / Billed split (entry flows through the allocation popup) */}
+                  <div className="w-44 flex">
+                    <div className="flex-1 text-right pr-1">
+                      <input
+                        data-stock-qty={idx + 1}
+                        type="text"
+                        inputMode="decimal"
+                        className="w-full text-right text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono font-semibold"
+                        value={row.quantityRaw}
+                        onChange={(e) =>
+                          form.handleUpdateStockRow(row.id, { quantityRaw: e.target.value })
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") { e.preventDefault(); focusStockRate(idx); }
+                        }}
+                      />
+                    </div>
+                    <div className="flex-1 text-right pr-1">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        className="w-full text-right text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
+                        value={row.billedQtyRaw ?? row.quantityRaw}
+                        onChange={(e) =>
+                          form.handleUpdateStockRow(row.id, { billedQtyRaw: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
 
-              {/* Rate */}
-              <div className="w-20 text-right pr-1">
-                <input
-                  data-stock-rate={idx + 1}
-                  type="text"
-                  inputMode="decimal"
-                  className="w-full text-right text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
-                  value={row.rateRaw}
-                  onChange={(e) =>
-                    form.handleUpdateStockRow(row.id, { rateRaw: e.target.value })
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      proceedToNextStockRow(idx);
-                    }
-                  }}
-                />
-              </div>
+                  {/* Rate */}
+                  <div className="w-20 text-right pr-1">
+                    <input
+                      data-stock-rate={idx + 1}
+                      type="text"
+                      inputMode="decimal"
+                      className="w-full text-right text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
+                      value={row.rateRaw}
+                      onChange={(e) =>
+                        form.handleUpdateStockRow(row.id, { rateRaw: e.target.value })
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); proceedToNextStockRow(idx); }
+                      }}
+                    />
+                  </div>
 
-              {/* Amount */}
-              <div className="w-24 text-right text-xs font-semibold font-mono text-zinc-900 select-none">
-                {row.amountRaw
-                  ? Number(row.amountRaw).toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })
-                  : ""}
-              </div>
+                  {/* per (unit) */}
+                  <div className="w-12 text-center text-xs text-zinc-500">{row.unit?.symbol ?? ""}</div>
+
+                  {/* Disc % */}
+                  <div className="w-16 text-right pr-1">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className="w-full text-right text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
+                      value={row.discPercentRaw ?? ""}
+                      onChange={(e) =>
+                        form.handleUpdateStockRow(row.id, { discPercentRaw: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  {/* Amount */}
+                  <div className="w-24 text-right text-xs font-semibold font-mono text-zinc-900 select-none">
+                    {row.amountRaw
+                      ? Number(row.amountRaw).toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })
+                      : ""}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Quantity */}
+                  <div className="w-20 text-right pr-1">
+                    <input
+                      data-stock-qty={idx + 1}
+                      type="text"
+                      inputMode="decimal"
+                      className="w-full text-right text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono font-semibold"
+                      value={row.quantityRaw}
+                      onChange={(e) =>
+                        form.handleUpdateStockRow(row.id, { quantityRaw: e.target.value })
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          focusStockRate(idx);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Rate */}
+                  <div className="w-20 text-right pr-1">
+                    <input
+                      data-stock-rate={idx + 1}
+                      type="text"
+                      inputMode="decimal"
+                      className="w-full text-right text-xs bg-transparent outline-none px-1 border border-transparent focus:border-zinc-800 font-mono"
+                      value={row.rateRaw}
+                      onChange={(e) =>
+                        form.handleUpdateStockRow(row.id, { rateRaw: e.target.value })
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          proceedToNextStockRow(idx);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Amount */}
+                  <div className="w-24 text-right text-xs font-semibold font-mono text-zinc-900 select-none">
+                    {row.amountRaw
+                      ? Number(row.amountRaw).toLocaleString("en-IN", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })
+                      : ""}
+                  </div>
+                </>
+              )}
             </div>
           );
         })}

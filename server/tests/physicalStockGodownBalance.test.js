@@ -86,4 +86,30 @@ describe("Physical Stock — per-godown balance", () => {
     expect(res.success).toBe(true);
     expect(Object.keys(res.balances).length).toBe(0);
   });
+
+  it("returns active batches (name / expiry / balance) for an item", async () => {
+    await voucherService.create({
+      company_id: companyId, fy_id: fyId, voucher_type: "Material In",
+      date: "2026-04-15", party_name: "ABC Suppliers", is_inventory_voucher: 1, entries: [],
+      stock_entries: [
+        { stock_item_id: itemId, item_name: "Fan", quantity: 10, rate: 100,
+          batches: [{ batch_number: "B-1", expiry_date: "9 Days", quantity: 10, rate: 100 }] },
+      ],
+    });
+    await voucherService.create({
+      company_id: companyId, fy_id: fyId, voucher_type: "Material Out",
+      date: "2026-04-16", party_name: "XYZ Customer", is_inventory_voucher: 1, entries: [],
+      stock_entries: [
+        { stock_item_id: itemId, item_name: "Fan", quantity: 3, rate: 100,
+          batches: [{ batch_number: "B-1", quantity: 3, rate: 100 }] },
+      ],
+    });
+
+    const res = await stockItemService.getActiveBatches(companyId, itemId);
+    expect(res.success).toBe(true);
+    const b1 = res.batches.find((b) => b.name === "B-1");
+    expect(b1).toBeTruthy();
+    expect(Number(b1.balance)).toBe(7); // 10 in − 3 out
+    expect(b1.expiry).toBe("9 Days");
+  });
 });

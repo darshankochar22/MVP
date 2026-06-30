@@ -80,7 +80,7 @@ export function useVoucherRows({
   );
 
   const debitTotal = useMemo(() => {
-    if (voucherType === "Journal" && acct.journalEntryMode === "double") {
+    if (((voucherType === "Journal" || voucherType === "Reversing Journal") && acct.journalEntryMode === "double") || voucherType === "Memorandum") {
       return acct.journalRows.reduce((sum, r) => sum + (r.type === "Dr" ? Number(r.amountRaw) || 0 : 0), 0);
     }
     if (voucherType === "Contra" && acct.contraEntryMode === "double") {
@@ -107,7 +107,7 @@ export function useVoucherRows({
   ]);
 
   const creditTotal = useMemo(() => {
-    if (voucherType === "Journal" && acct.journalEntryMode === "double") {
+    if (((voucherType === "Journal" || voucherType === "Reversing Journal") && acct.journalEntryMode === "double") || voucherType === "Memorandum") {
       return acct.journalRows.reduce((sum, r) => sum + (r.type === "Cr" ? Number(r.amountRaw) || 0 : 0), 0);
     }
     if (voucherType === "Contra" && acct.contraEntryMode === "double") {
@@ -137,7 +137,8 @@ export function useVoucherRows({
     if (voucherType === "Receipt") return acct.receiptEntryMode === "double" ? debitTotal : particularsTotal;
     if (voucherType === "Payment") return acct.paymentEntryMode === "double" ? debitTotal : particularsTotal;
     if (voucherType === "Contra") return acct.contraEntryMode === "double" ? debitTotal : particularsTotal;
-    if (voucherType === "Journal") return acct.journalEntryMode === "single" ? particularsTotal : debitTotal;
+    if (voucherType === "Journal" || voucherType === "Reversing Journal") return acct.journalEntryMode === "single" ? particularsTotal : debitTotal;
+    if (voucherType === "Memorandum") return debitTotal;
     if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(voucherType)) {
       const stockSum = inv.stockEntries.reduce((s, r) => s + (Number(r.amountRaw) || 0), 0);
       const adjSum = inv.additionalEntries.reduce((s, r) => {
@@ -199,7 +200,7 @@ export function useVoucherRows({
           break;
         case "particular": {
           const ledger = item as LedgerType;
-          if (voucherType === "Journal") {
+          if (voucherType === "Journal" || voucherType === "Reversing Journal") {
             acct.handleUpdateJournalRow(activeField.rowId, { ledger });
           } else if (voucherType === "Contra" && acct.contraEntryMode === "double") {
             acct.handleUpdateContraDoubleRow(activeField.rowId, { ledger });

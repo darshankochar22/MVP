@@ -19,9 +19,12 @@ interface Props {
   initialDetails?: OrderDetails | null;
   onClose: () => void;
   onSave: (details: OrderDetails) => void;
+  /** Inward vouchers (e.g. Receipt Note) label the 2nd block "Receipt Details"
+   *  with "Receipt Doc No." instead of the outward "Dispatch Details". */
+  receiptVariant?: boolean;
 }
 
-export default function OrderDetailsPopup({ initialDetails, onClose, onSave }: Props) {
+export default function OrderDetailsPopup({ initialDetails, onClose, onSave, receiptVariant }: Props) {
   const [form, setForm] = useState<OrderDetails>({
     order_nos: initialDetails?.order_nos ?? "",
     order_date: initialDetails?.order_date ?? "",
@@ -112,15 +115,15 @@ export default function OrderDetailsPopup({ initialDetails, onClose, onSave }: P
           </div>
         </div>
 
-        {/* Section: Dispatch Details */}
+        {/* Section: Dispatch / Receipt Details */}
         <div className="bg-white text-black px-3 py-1 flex justify-center items-center select-none border-y border-gray-300">
-          <span className="text-sm font-bold">Dispatch Details</span>
+          <span className="text-sm font-bold">{receiptVariant ? "Receipt Details" : "Dispatch Details"}</span>
         </div>
 
         <div className="p-4">
           <div className="w-[620px] space-y-2">
             <div className="flex items-center gap-2">
-              <span className={dispLabel}>Dispatch Doc No.</span>
+              <span className={dispLabel}>{receiptVariant ? "Receipt Doc No." : "Dispatch Doc No."}</span>
               <span className="text-sm text-black shrink-0">:</span>
               <input type="text" className={inputCls} value={form.challan_nos ?? ""} onChange={(e) => set("challan_nos", e.target.value)} />
             </div>

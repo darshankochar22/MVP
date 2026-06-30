@@ -4,6 +4,7 @@ import { useCompany } from "../../context/CompanyContext";
 
 import { useVoucherForm } from "./hooks/useVoucherForm";
 import { hydrateVoucherForm } from "./hooks/hydrateVoucherForm";
+import { formatDateDisplay } from "./hooks/useVoucherMeta";
 import type { BatchAllocation } from "./types";
 import { makeStockRow } from "./utils/rowFactories";
 import { AlertBanner, PageTitleBar } from "../../components/ui";
@@ -49,6 +50,7 @@ import MaterialOutVoucher from "./vouchers/MaterialOutVoucher";
 import ManufacturingJournalVoucher from "./vouchers/ManufacturingJournalVoucher";
 import AttendanceVoucher from "./vouchers/AttendanceVoucher";
 import PayrollVoucher from "./vouchers/PayrollVoucher";
+import PurchaseOrderVoucher from "./vouchers/PurchaseOrderVoucher";
 
 function RightSidebar({
   voucherType,
@@ -337,6 +339,7 @@ export default function Vouchers() {
   const effectiveVoucherType = resolveEffectiveVoucherType(form.voucherType);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showApplicableUptoPicker, setShowApplicableUptoPicker] = useState(false);
   const [showDispatchDetails, setShowDispatchDetails] = useState(false);
   const [showReceiptDetails, setShowReceiptDetails] = useState(false);
   const [showPartyDetails, setShowPartyDetails] = useState(false);
@@ -359,6 +362,7 @@ export default function Vouchers() {
   const hasAutoOpenedDeliveryDispatch = useRef(false);
   const hasAutoOpenedReceiptNote = useRef(false);
   const hasAutoOpenedMaterialIn = useRef(false);
+  const hasAutoOpenedPurchaseOrder = useRef(false);
 
   const acceptRef = useRef<() => void>(() => {});
 
@@ -443,10 +447,15 @@ export default function Vouchers() {
       );
     }
 
-    if (effectiveVoucherType === "Manufacturing Journal") {
+    if (effectiveVoucherType === "Stock Journal" || effectiveVoucherType === "Manufacturing Journal") {
       const filledSource = form.sourceStockEntries.some((s) => !!s.stockItem && (Number(s.quantityRaw) || 0) > 0);
       const filledDest = form.destinationStockEntries.some((s) => !!s.stockItem && (Number(s.quantityRaw) || 0) > 0);
       return filledSource || filledDest;
+    }
+
+    // Physical Stock: inventory-only, no party/ledger — valid once any item has a quantity.
+    if (effectiveVoucherType === "Physical Stock") {
+      return form.stockEntries.some((s) => !!s.stockItem && (Number(s.quantityRaw) || 0) > 0);
     }
 
     // Order vouchers: party + at least one stock item with quantity
@@ -458,7 +467,13 @@ export default function Vouchers() {
     }
 
     if (effectiveVoucherType === "Memorandum") {
-      return true;
+      const filled = form.journalRows.filter(
+        (r) => !!r.ledger && (Number(r.amountRaw) || 0) > 0
+      );
+      return (
+        filled.length >= 2 &&
+        Math.abs(form.debitTotal - form.creditTotal) < 0.01
+      );
     }
 
     if (effectiveVoucherType === "Reversing Journal") {
@@ -511,6 +526,8 @@ export default function Vouchers() {
     form.partyLedger,
     form.salesPurchaseLedger,
     form.stockEntries,
+    form.sourceStockEntries,
+    form.destinationStockEntries,
     form.attendanceEntries,
     form.payrollEntries,
   ]);
@@ -546,14 +563,28 @@ export default function Vouchers() {
   useEffect(() => {
     if (effectiveVoucherType === "Delivery Note" && form.partyLedger && !hasAutoOpenedDeliveryDispatch.current) {
       hasAutoOpenedDeliveryDispatch.current = true;
-      setShowDispatchDetails(true);
+      // Tally Delivery Note: party → Order Details → Party Details. The Order
+      // Details popup also carries the dispatch fields; handleSaveOrderDetails
+      // then chains to the Party Details popup.
+      setShowOrderDetails(true);
     }
   }, [form.partyLedger, effectiveVoucherType]);
 
   useEffect(() => {
     if (effectiveVoucherType === "Receipt Note" && form.partyLedger && !hasAutoOpenedReceiptNote.current) {
       hasAutoOpenedReceiptNote.current = true;
-      setShowReceiptDetails(true);
+      // Tally Receipt Note: party select → Order Details, then Party Details
+      // (chained in handleSaveOrderDetails).
+      setShowOrderDetails(true);
+    }
+  }, [form.partyLedger, effectiveVoucherType]);
+
+  useEffect(() => {
+    if (effectiveVoucherType === "Purchase Order" && form.partyLedger && !hasAutoOpenedPurchaseOrder.current) {
+      hasAutoOpenedPurchaseOrder.current = true;
+      // Tally Purchase Order: party select → Order Details, then Party Details
+      // (chained in handleSaveOrderDetails).
+      setShowOrderDetails(true);
     }
   }, [form.partyLedger, effectiveVoucherType]);
 
@@ -573,6 +604,7 @@ export default function Vouchers() {
       hasAutoOpenedDeliveryDispatch.current = false;
       hasAutoOpenedReceiptNote.current = false;
       hasAutoOpenedMaterialIn.current = false;
+      hasAutoOpenedPurchaseOrder.current = false;
     }
   }, [form.partyLedger]);
 
@@ -692,7 +724,7 @@ export default function Vouchers() {
 
   const proceedToNextRow = useCallback(
     (idx: number) => {
-      const isJDouble = effectiveVoucherType === "Journal" && form.journalEntryMode === "double";
+      const isJDouble = (effectiveVoucherType === "Journal" || effectiveVoucherType === "Reversing Journal" || effectiveVoucherType === "Memorandum") && form.journalEntryMode === "double";
       const isJSingle = effectiveVoucherType === "Journal" && form.journalEntryMode === "single";
       const isPayDouble = effectiveVoucherType === "Payment" && form.paymentEntryMode === "double";
       const isInv = ["Sales", "Purchase"].includes(effectiveVoucherType);
@@ -804,7 +836,7 @@ export default function Vouchers() {
 
   // Inward voucher types — mirrors the backend INWARD_TYPES; determines whether
   // the batch popup label reads Inward (new lots) or Outward (consume balances).
-  const INWARD_VOUCHER_TYPES = ["Purchase", "Receipt Note", "Rejection In", "Material In"];
+  const INWARD_VOUCHER_TYPES = ["Purchase", "Receipt Note", "Rejection In", "Material In", "Purchase Order"];
 
   const proceedToNextStockRow = useCallback(
     (idx: number) => {
@@ -852,27 +884,18 @@ export default function Vouchers() {
     [form.stockEntries, form.setStockEntries, advanceStockRow]
   );
 
-  // Physical Stock: "End of List" on the godown picker ends ALL item entry — drop
-  // the empty trailing godown row and move to the Narration field.
-  const handleGodownEndOfList = useCallback(() => {
-    const af = form.activeField;
-    if (af?.type !== "stockGodown") return;
-    const rowId = af.rowId;
-    form.setStockEntries((prev) => {
-      if (prev.length <= 1) return prev;
-      const row = prev.find((r) => r.id === rowId);
-      if (row && !row.godown && !Number(row.quantityRaw)) return prev.filter((r) => r.id !== rowId);
-      return prev;
-    });
+  // Physical Stock: end item entry (End of List / empty Enter on an item row) →
+  // move to the Narration field.
+  const physicalStockEndEntry = useCallback(() => {
     form.handleFieldBlur();
     setTimeout(() => {
       (document.querySelector(`[data-narration="true"]`) as HTMLInputElement | null)?.focus();
     }, 50);
-  }, [form.activeField, form.setStockEntries, form.handleFieldBlur]);
+  }, [form.handleFieldBlur]);
 
-  // Physical Stock: double-Enter on an empty next-godown row finishes the current
-  // item and starts a new one — the row becomes a fresh item row and the List of
-  // Stock Items opens.
+  // Physical Stock: "End of List" (or empty Enter) on a godown row finishes the
+  // current item and starts a new one — the row becomes a fresh item row and the
+  // List of Stock Items opens.
   const physicalStockGodownNewItem = useCallback((rowId: string) => {
     const idx = form.stockEntries.findIndex((r) => r.id === rowId);
     form.setStockEntries((prev) =>
@@ -884,11 +907,66 @@ export default function Vouchers() {
     }, 50);
   }, [form.stockEntries, form.setStockEntries, form.handleFieldBlur]);
 
+  // Stock Journal / Manufacturing Journal: a blank Enter on an empty item row means
+  // "done with this side". From a Source row → jump to the Destination's first item;
+  // from a Destination row → finish and move to Narration (ready to Accept).
+  const handleStockJournalItemEndOfList = useCallback(() => {
+    const af = form.activeField;
+    if (af?.type !== "stockItem") return;
+    const onSource = form.sourceStockEntries.some((r) => r.id === af.rowId);
+    form.handleFieldBlur();
+    setTimeout(() => {
+      const sel = onSource ? `[data-dest-item="1"]` : `[data-narration="true"]`;
+      (document.querySelector(sel) as HTMLInputElement | null)?.focus();
+    }, 50);
+  }, [form.activeField, form.sourceStockEntries, form.handleFieldBlur]);
+
   const handleSaveBatchAllocations = useCallback(
     (allocations: BatchAllocation[]) => {
       const alloc = form.activeAllocation;
       if (alloc?.type !== "batch") return;
       const rowId = alloc.rowId;
+
+      // Stock Journal / Manufacturing Journal keep Source & Destination in separate
+      // arrays — derive line qty/rate from the batch rows, write back to the side that
+      // owns this row, then advance to the next item row on that same side.
+      const sjSrcIdx = form.sourceStockEntries.findIndex((e) => e.id === rowId);
+      const sjDestIdx = form.destinationStockEntries.findIndex((e) => e.id === rowId);
+      if (
+        (effectiveVoucherType === "Stock Journal" || effectiveVoucherType === "Manufacturing Journal") &&
+        (sjSrcIdx >= 0 || sjDestIdx >= 0)
+      ) {
+        const onSource = sjSrcIdx >= 0;
+        const totalBilled = allocations.reduce((s, a) => s + (Number(a.quantity) || 0), 0);
+        const totalAmt = allocations.reduce(
+          (s, a) => s + (Number(a.quantity) || 0) * (Number(a.rate) || 0) * (1 - (Number(a.disc_percent) || 0) / 100),
+          0
+        );
+        const effRate = totalBilled > 0 ? totalAmt / totalBilled : 0;
+        const firstGodownName = allocations.find((a) => a.godown)?.godown;
+        const godownObj = firstGodownName
+          ? (form.allGodowns.find((g: any) => g.name === firstGodownName) ?? null)
+          : null;
+        const updateRow = onSource ? form.handleUpdateSourceStockRow : form.handleUpdateDestinationStockRow;
+        updateRow(rowId, {
+          batchAllocations: allocations,
+          quantityRaw: totalBilled ? String(totalBilled) : "",
+          rateRaw: effRate ? String(effRate) : "",
+          ...(godownObj ? { godown: godownObj } : {}),
+        });
+        form.setActiveAllocation(null);
+        const list = onSource ? form.sourceStockEntries : form.destinationStockEntries;
+        const idx = onSource ? sjSrcIdx : sjDestIdx;
+        if (idx === list.length - 1) {
+          (onSource ? form.handleAddSourceStockRow : form.handleAddDestinationStockRow)();
+        }
+        const sideAttr = onSource ? "source" : "dest";
+        setTimeout(() => {
+          (document.querySelector(`[data-${sideAttr}-item="${idx + 2}"]`) as HTMLInputElement | null)?.focus();
+        }, 50);
+        return;
+      }
+
       if (alloc.quantityDriven) {
         // Line qty (actual/billed) & rate are derived from the batch rows. The
         // effective rate folds in per-batch discount so the line amount matches
@@ -923,7 +1001,13 @@ export default function Vouchers() {
       }
       if (idx >= 0) advanceStockRow(idx);
     },
-    [form.activeAllocation, form.handleUpdateStockRow, form.setActiveAllocation, form.stockEntries, effectiveVoucherType, advanceStockRow]
+    [
+      form.activeAllocation, form.handleUpdateStockRow, form.setActiveAllocation, form.stockEntries,
+      effectiveVoucherType, advanceStockRow,
+      form.sourceStockEntries, form.destinationStockEntries,
+      form.handleUpdateSourceStockRow, form.handleUpdateDestinationStockRow,
+      form.handleAddSourceStockRow, form.handleAddDestinationStockRow, form.allGodowns,
+    ]
   );
 
   const handleSaveMaterialInAllocations = useCallback(
@@ -1033,6 +1117,18 @@ export default function Vouchers() {
       const field = form.activeField;
       form.handleLedgerPanelSelect(item);
 
+      // Attendance: pick employee → Attendance/Production Type field; pick type → Value.
+      if (effectiveVoucherType === "Attendance" && (field?.type === "employee" || field?.type === "attendanceType")) {
+        const idx = form.attendanceEntries.findIndex((r) => r.id === field.rowId);
+        if (idx >= 0) {
+          const sel = field.type === "employee" ? `[data-att-type="${idx + 1}"]` : `[data-att-value="${idx + 1}"]`;
+          setTimeout(() => {
+            (document.querySelector(sel) as HTMLInputElement | null)?.focus();
+          }, 50);
+          return;
+        }
+      }
+
       // Physical Stock: pick item → open the godown picker (with per-godown balances);
       // pick godown → move to Batch (batch item) or Quantity.
       if (effectiveVoucherType === "Physical Stock" && field?.type === "stockItem" && item?.item_id) {
@@ -1054,6 +1150,47 @@ export default function Vouchers() {
         return;
       }
 
+      // Stock Journal / Manufacturing Journal: pick item → godown picker (or, for a
+      // batch-tracked item, the Stock Item Allocations popup); pick godown → quantity.
+      // Rows live in two arrays (source = Consumption, destination = Production), so
+      // resolve which side owns the active row to target the right field / direction.
+      if (
+        (effectiveVoucherType === "Stock Journal" || effectiveVoucherType === "Manufacturing Journal") &&
+        (field?.type === "stockItem" || field?.type === "stockGodown")
+      ) {
+        const srcIdx = form.sourceStockEntries.findIndex((r) => r.id === field.rowId);
+        const onSource = srcIdx >= 0;
+        const side = onSource ? "source" : "dest";
+        const idx = onSource ? srcIdx : form.destinationStockEntries.findIndex((r) => r.id === field.rowId);
+        if (idx >= 0) {
+          // Batch-tracked item → Stock Item Allocations popup (Godown + Batch/Lot + Qty + Rate).
+          if (field.type === "stockItem" && item?.item_id && Number(item?.track_batches) === 1) {
+            const unit = form.allUnits.find((u: any) => u.unit_id === item.unit_id) ?? null;
+            form.setActiveAllocation({
+              type: "batch",
+              rowId: field.rowId,
+              itemId: item.item_id,
+              itemName: item.name,
+              quantity: 0,
+              rate: 0,
+              unitSymbol: unit?.symbol,
+              trackMfg: Number(item.track_date_of_manufacturing) === 1,
+              trackExpiry: Number(item.track_expiry) === 1,
+              // Source consumes existing stock (outward); Destination produces it (inward).
+              isInward: !onSource,
+              showBatch: true,
+              quantityDriven: true,
+            });
+            return;
+          }
+          const col = field.type === "stockItem" ? "godown" : "qty";
+          setTimeout(() => {
+            (document.querySelector(`[data-${side}-${col}="${idx + 1}"]`) as HTMLInputElement | null)?.focus();
+          }, 50);
+          return;
+        }
+      }
+
       // Material In / Material Out (job work): order-tracked Stock Item Allocations
       // popup. Batch items additionally get Batch/Lot No. + Mfg/Expiry columns.
       if ((effectiveVoucherType === "Material In" || effectiveVoucherType === "Material Out") && field?.type === "stockItem" && item?.item_id) {
@@ -1073,12 +1210,13 @@ export default function Vouchers() {
         return;
       }
 
-      // Sales / Purchase / Credit Note / Debit Note (Tally behaviour): the moment
-      // a stock item is picked, open the Stock Item Allocations popup. Items that
-      // "maintain in batches" get the Batch/Lot columns; others get a godown-only
-      // allocation. Quantity & rate are entered inside and written back on Accept.
+      // Sales / Purchase / Credit Note / Debit Note / Receipt Note (Tally behaviour):
+      // the moment a stock item is picked, open the Stock Item Allocations popup.
+      // Items that "maintain in batches" get the Batch/Lot columns; others get a
+      // godown-only allocation (Godown + Tracking No.). Quantity & rate are entered
+      // inside and written back on Accept.
       if (
-        ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(effectiveVoucherType) &&
+        ["Sales", "Purchase", "Credit Note", "Debit Note", "Receipt Note", "Delivery Note", "Purchase Order"].includes(effectiveVoucherType) &&
         field?.type === "stockItem" &&
         item?.item_id
       ) {
@@ -1095,7 +1233,8 @@ export default function Vouchers() {
           trackMfg: isBatch && Number(item.track_date_of_manufacturing) === 1,
           trackExpiry: isBatch && Number(item.track_expiry) === 1,
           // Credit Note (sales return) brings stock in; Debit Note (purchase return) sends it out.
-          isInward: ["Purchase", "Receipt Note", "Rejection In", "Material In", "Credit Note"].includes(effectiveVoucherType),
+          // Purchase Order is inward — lets you allocate to a new/existing batch lot.
+          isInward: ["Purchase", "Receipt Note", "Rejection In", "Material In", "Credit Note", "Purchase Order"].includes(effectiveVoucherType),
           showBatch: isBatch,
           quantityDriven: true,
         });
@@ -1111,7 +1250,7 @@ export default function Vouchers() {
           ? form.receiptDoubleRows
           : effectiveVoucherType === "Payment" && form.paymentEntryMode === "double"
           ? form.paymentDoubleRows
-          : effectiveVoucherType === "Journal" && form.journalEntryMode === "double"
+          : (effectiveVoucherType === "Journal" || effectiveVoucherType === "Reversing Journal" || effectiveVoucherType === "Memorandum") && form.journalEntryMode === "double"
           ? form.journalRows
           : null;
       if (!dbl) return;
@@ -1154,6 +1293,9 @@ export default function Vouchers() {
       form.handleLedgerPanelSelect,
       form.checkIsBank,
       form.checkIsParty,
+      form.sourceStockEntries,
+      form.destinationStockEntries,
+      form.attendanceEntries,
       form.contraDoubleRows,
       form.receiptDoubleRows,
       form.paymentDoubleRows,
@@ -1185,7 +1327,7 @@ export default function Vouchers() {
       const alloc = form.activeAllocation;
       if (!alloc || !("rowId" in alloc)) return;
       const { rowId } = alloc;
-      const isJDouble = effectiveVoucherType === "Journal" && form.journalEntryMode === "double";
+      const isJDouble = (effectiveVoucherType === "Journal" || effectiveVoucherType === "Reversing Journal" || effectiveVoucherType === "Memorandum") && form.journalEntryMode === "double";
       const isJSingle = effectiveVoucherType === "Journal" && form.journalEntryMode === "single";
       const isPayDouble = effectiveVoucherType === "Payment" && form.paymentEntryMode === "double";
       const isInv = ["Sales", "Purchase"].includes(effectiveVoucherType);
@@ -1247,7 +1389,7 @@ export default function Vouchers() {
       const alloc = form.activeAllocation;
       if (!alloc || !("rowId" in alloc)) return;
       const { rowId } = alloc;
-      const isJDouble = effectiveVoucherType === "Journal" && form.journalEntryMode === "double";
+      const isJDouble = (effectiveVoucherType === "Journal" || effectiveVoucherType === "Reversing Journal" || effectiveVoucherType === "Memorandum") && form.journalEntryMode === "double";
       const isJSingle = effectiveVoucherType === "Journal" && form.journalEntryMode === "single";
       const isPayDouble = effectiveVoucherType === "Payment" && form.paymentEntryMode === "double";
       const isInv = ["Sales", "Purchase"].includes(effectiveVoucherType);
@@ -1691,6 +1833,7 @@ const handleSaveVatDetails = useCallback(
         !form.activeField &&
         !form.activeAllocation &&
         !showDatePicker &&
+        !showApplicableUptoPicker &&
         !showDispatchDetails &&
         !showReceiptDetails &&
         !showCreditNoteDetails &&
@@ -1721,6 +1864,7 @@ const handleSaveVatDetails = useCallback(
     canAccept,
     handleAccept,
     showDatePicker,
+    showApplicableUptoPicker,
     showDispatchDetails,
     showReceiptDetails,
     showCreditNoteDetails,
@@ -1770,8 +1914,9 @@ const handleSaveVatDetails = useCallback(
 
       {/* ── Title bar ── */}
       <PageTitleBar
-        title={`${effectiveVoucherType === "Attendance" ? "Attendance" : effectiveVoucherType === "Payroll" ? "Payroll" : ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Physical Stock", "Stock Journal", "Manufacturing Journal"].includes(effectiveVoucherType) ? "Inventory" : "Accounting"} Voucher ${editVoucherId ? "Alteration" : "Creation"}`}
+        title={`${effectiveVoucherType === "Attendance" ? "Attendance" : effectiveVoucherType === "Payroll" ? "Payroll" : ["Purchase Order", "Sales Order", "Job Work In Order", "Job Work Out Order"].includes(effectiveVoucherType) ? "Order" : ["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out", "Physical Stock", "Stock Journal", "Manufacturing Journal"].includes(effectiveVoucherType) ? "Inventory" : "Accounting"} Voucher ${editVoucherId ? "Alteration" : "Creation"}`}
         subtitle={selectedCompany?.name ?? ""}
+        subtitleCenter={["Stock Journal", "Manufacturing Journal", "Attendance"].includes(effectiveVoucherType)}
         actions={
           <button
             onClick={() => navigate("/")}
@@ -1782,15 +1927,15 @@ const handleSaveVatDetails = useCallback(
         }
       />
     {/* ── GST Registration / Tax Unit ── */}
-    {["Sales", "Purchase", "Contra", "Payment", "Journal", "Receipt","Credit Note","Debit Note","Physical Stock"].includes(effectiveVoucherType) && (
+    {["Sales", "Purchase", "Contra", "Payment", "Journal", "Receipt","Credit Note","Debit Note","Physical Stock","Stock Journal","Manufacturing Journal","Attendance"].includes(effectiveVoucherType) && (
       <div className="flex justify-center gap-2 px-3 py-1 border-b border-zinc-200 bg-white shrink-0 text-sm">
         <div className="text-right text-zinc-500">
           <div>GST Registration</div>
-          {["Sales", "Purchase"].includes(effectiveVoucherType) && <div>Tax Unit</div>}
+          {["Sales", "Purchase", "Stock Journal", "Manufacturing Journal"].includes(effectiveVoucherType) && <div>Tax Unit</div>}
         </div>
         <div className="text-zinc-500">
           <div>:</div>
-          {["Sales", "Purchase"].includes(effectiveVoucherType) && <div>:</div>}
+          {["Sales", "Purchase", "Stock Journal", "Manufacturing Journal"].includes(effectiveVoucherType) && <div>:</div>}
         </div>
         <div className="font-semibold text-black">
           <div>
@@ -1800,7 +1945,7 @@ const handleSaveVatDetails = useCallback(
                   : (form.gstRegistration.legal_name ?? form.gstRegistration.trade_name ?? form.gstRegistration.name ?? form.gstRegistration.gstin))
             : "♦ Not Applicable"}
           </div>
-          {["Sales", "Purchase"].includes(effectiveVoucherType) && (
+          {["Sales", "Purchase", "Stock Journal", "Manufacturing Journal"].includes(effectiveVoucherType) && (
             <div>{form.taxUnit ? form.taxUnit.name : "♦ Not Applicable"}</div>
           )}
         </div>
@@ -1887,19 +2032,24 @@ const handleSaveVatDetails = useCallback(
               focusStockRate={focusStockRate}
               proceedToNextStockRow={proceedToNextStockRow}
               physicalStockQtyEnter={handlePhysicalStockQtyEnter}
-              physicalStockGodownNewItem={physicalStockGodownNewItem}
             />
           )}
           {effectiveVoucherType === "Stock Journal" && (
             <StockJournalVoucher form={form} />
           )}
           {effectiveVoucherType === "Delivery Note" && (
-            <DeliveryNoteVoucher
+            // Tally Delivery Note uses the sales-invoice layout (Party + Sales
+            // ledger + Actual/Billed/Rate/Disc%/Amount). Reuse SalesVoucher, hiding
+            // the Sales-only VAT toggle and additional-ledger rows (a Delivery Note
+            // is inventory-only — those lines aren't persisted for it).
+            <SalesVoucher
               form={form}
               handleAmountConfirm={handleAmountConfirm}
               focusStockQty={focusStockQty}
               focusStockRate={focusStockRate}
               proceedToNextStockRow={proceedToNextStockRow}
+              hideVatDetails
+              hideAdditionalLedgers
             />
           )}
           {effectiveVoucherType === "Receipt Note" && (
@@ -1955,7 +2105,7 @@ const handleSaveVatDetails = useCallback(
             <PayrollVoucher form={form} />
           )}
           {effectiveVoucherType === "Purchase Order" && (
-            <DeliveryNoteVoucher
+            <PurchaseOrderVoucher
               form={form}
               handleAmountConfirm={handleAmountConfirm}
               focusStockQty={focusStockQty}
@@ -1997,6 +2147,21 @@ const handleSaveVatDetails = useCallback(
             <JournalVoucher form={form} handleAmountConfirm={handleAmountConfirm} />
           )}
 
+          {/* ── Reversing Journal: Applicable Upto date ── */}
+          {effectiveVoucherType === "Reversing Journal" && (
+            <div className="flex items-center border-t border-black shrink-0 px-3 py-1 bg-white">
+              <span className="text-sm text-black shrink-0">Applicable Upto</span>
+              <span className="text-sm text-black shrink-0 mx-2">:</span>
+              <button
+                onClick={() => setShowApplicableUptoPicker(true)}
+                className="text-sm font-semibold text-black hover:underline focus:outline-none"
+                title="Change Applicable Upto date"
+              >
+                {formatDateDisplay(form.applicableUpto || form.date)}
+              </button>
+            </div>
+          )}
+
           {/* ── Narration + grand total ── */}
           <div className="flex items-center border-t border-black shrink-0 px-3 py-1 bg-white">
             <span className="text-sm text-black shrink-0 w-24">Narration</span>
@@ -2008,6 +2173,18 @@ const handleSaveVatDetails = useCallback(
              value={form.narration}
             onChange={(e) => form.setNarration(e.target.value)}
             onFocus={() => form.handleFieldBlur()}
+            onKeyDown={(e) => {
+              // Stock Journal / Manufacturing Journal: Enter at Narration accepts the
+              // voucher, completing the keyboard flow (source → destination → narration).
+              if (
+                e.key === "Enter" &&
+                ["Stock Journal", "Manufacturing Journal"].includes(effectiveVoucherType) &&
+                canAccept && !form.isSubmitting
+              ) {
+                e.preventDefault();
+                handleAccept();
+              }
+            }}
              />
             {form.totalAmount > 0 && (effectiveVoucherType !== "Contra" || form.contraEntryMode === "double") && (
               <span className="text-sm font-semibold text-black ml-4 shrink-0 tabular-nums">
@@ -2064,9 +2241,19 @@ const handleSaveVatDetails = useCallback(
             }
             onEndOfList={
               form.activeField?.type === "stockItem"
-                ? () => form.handleFieldBlur()
+                ? (effectiveVoucherType === "Physical Stock" ? physicalStockEndEntry : () => form.handleFieldBlur())
                 : (form.activeField?.type === "stockGodown" && effectiveVoucherType === "Physical Stock")
-                ? handleGodownEndOfList
+                ? () => physicalStockGodownNewItem((form.activeField as any).rowId)
+                : undefined
+            }
+            onEnterEmpty={
+              form.activeField?.type === "stockGodown" && effectiveVoucherType === "Physical Stock"
+                ? () => physicalStockGodownNewItem((form.activeField as any).rowId)
+                : (form.activeField?.type === "stockItem" && effectiveVoucherType === "Physical Stock")
+                ? physicalStockEndEntry
+                : (form.activeField?.type === "stockItem" &&
+                   (effectiveVoucherType === "Stock Journal" || effectiveVoucherType === "Manufacturing Journal"))
+                ? handleStockJournalItemEndOfList
                 : undefined
             }
             stockBalances={form.activeField?.type === "stockItem" ? form.stockBalances : undefined}
@@ -2132,6 +2319,14 @@ const handleSaveVatDetails = useCallback(
           label="Voucher Date"
         />
       )}
+      {showApplicableUptoPicker && (
+        <DatePickerPopup
+          initialDate={form.applicableUpto || form.date}
+          onClose={() => setShowApplicableUptoPicker(false)}
+          onConfirm={form.setApplicableUpto}
+          label="Applicable Upto"
+        />
+      )}
       {showTaxRegistrationPopup && (
   <CompanyTaxRegistrationPopup
     gstRegistrations={form.allGstRegistrations}
@@ -2164,6 +2359,7 @@ const handleSaveVatDetails = useCallback(
       {showOrderDetails && form.partyLedger && (
         <OrderDetailsPopup
           initialDetails={form.orderDetails}
+          receiptVariant={effectiveVoucherType === "Receipt Note" || effectiveVoucherType === "Purchase Order"}
           onClose={() => setShowOrderDetails(false)}
           onSave={handleSaveOrderDetails}
         />
