@@ -75,91 +75,75 @@ export default function CashBankSummaryLayout() {
       }
 
       const allGroups = groupsRes.groups;
-      
-      // Target names to match case-insensitively
-      const cashInHandGroup = allGroups.find(
-        (g: any) => g.name.toLowerCase().trim() === "cash-in-hand"
-      );
-      const bankAccountsGroup = allGroups.find(
-        (g: any) => g.name.toLowerCase().trim() === "bank accounts"
-      );
-      const bankODGroup = allGroups.find((g: any) => {
-        const name = g.name.toLowerCase().trim();
-        return name === "bank od a/c" || name === "bank od accounts" || name === "bank od account";
-      });
 
-      // Prepare target group fetches
-      const targets = [
-        { group: cashInHandGroup, defaultName: "Cash-in-Hand" },
-        { group: bankAccountsGroup, defaultName: "Bank Accounts" },
-        { group: bankODGroup, defaultName: "Bank OD A/c" },
+      // Exactly three sections: Cash-in-Hand, Bank Accounts, and a single
+      // overdraft section that merges Bank OD A/c + Bank OCC A/c (treated as the
+      // same per Tally's Cash/Bank Book).
+      const findGroup = (names: string[]) =>
+        allGroups.find((g: any) => names.includes(g.name.toLowerCase().trim()));
+      const findGroups = (names: string[]) =>
+        allGroups.filter((g: any) => names.includes(g.name.toLowerCase().trim()));
+
+      const cashInHandGroup = findGroup(["cash-in-hand", "cash in hand"]);
+      const bankAccountsGroup = findGroup(["bank accounts", "bank account"]);
+      const overdraftGroups = findGroups([
+        "bank od a/c", "bank od accounts", "bank od account",
+        "bank occ a/c", "bank occ accounts", "bank occ account",
+      ]);
+
+      const sections: { label: string; groups: any[] }[] = [
+        { label: cashInHandGroup?.name || "Cash-in-Hand", groups: cashInHandGroup ? [cashInHandGroup] : [] },
+        { label: bankAccountsGroup?.name || "Bank Accounts", groups: bankAccountsGroup ? [bankAccountsGroup] : [] },
+        { label: "Bank OD A/c", groups: overdraftGroups },
       ];
 
       const flatList: FlattenedRow[] = [];
 
-      for (const target of targets) {
-        if (!target.group) continue;
-        
-        const gRes: GroupSummaryResponse = await (window as any).api.report.groupSummaryDrilldown(
-          selectedCompany.company_id,
-          activeFY.fy_id,
-          target.group.group_id
-        );
+      for (const section of sections) {
+        if (section.groups.length === 0) continue;
 
-        if (gRes.success) {
-          // Calculate the parent group's total dr/cr based on children elements
-          // (which matches Tally's behavior of showing the sum of child balances, not net)
-          let totalDr = 0;
-          let totalCr = 0;
-          
-          gRes.childGroups.forEach(cg => {
+        // Aggregate across every group in the section (the OD section spans both
+        // Bank OD A/c and Bank OCC A/c). Totals are gross (sum of child balances),
+        // matching Tally.
+        let totalDr = 0;
+        let totalCr = 0;
+        const childRows: FlattenedRow[] = [];
+        const ledgerRows: FlattenedRow[] = [];
+
+        for (const g of section.groups) {
+          const gRes: GroupSummaryResponse = await (window as any).api.report.groupSummaryDrilldown(
+            selectedCompany.company_id,
+            activeFY.fy_id,
+            g.group_id
+          );
+          if (!gRes.success) continue;
+
+          gRes.childGroups.forEach((cg) => {
             totalDr += cg.dr;
             totalCr += cg.cr;
+            childRows.push({ id: `group-${cg.group_id}`, name: cg.group_name, type: "child-group", rawId: cg.group_id, dr: cg.dr, cr: cg.cr });
           });
-          gRes.ledgers.forEach(l => {
+          gRes.ledgers.forEach((l) => {
             totalDr += l.dr;
             totalCr += l.cr;
+            ledgerRows.push({ id: `ledger-${l.ledger_id}`, name: l.ledger_name, type: "ledger", rawId: l.ledger_id, dr: l.dr, cr: l.cr });
           });
-
-          // Only display the group if it has transactions/balances
-          if (totalDr !== 0 || totalCr !== 0) {
-            const parentRowId = `group-${target.group.group_id}`;
-            flatList.push({
-              id: parentRowId,
-              name: target.group.name,
-              type: "parent-group",
-              rawId: target.group.group_id,
-              dr: totalDr,
-              cr: totalCr,
-            });
-
-            // Add Child Groups
-            gRes.childGroups.forEach((cg) => {
-              flatList.push({
-                id: `group-${cg.group_id}`,
-                name: cg.group_name,
-                type: "child-group",
-                rawId: cg.group_id,
-                dr: cg.dr,
-                cr: cg.cr,
-                parentGroupId: target.group.group_id,
-              });
-            });
-
-            // Add Ledgers
-            gRes.ledgers.forEach((l) => {
-              flatList.push({
-                id: `ledger-${l.ledger_id}`,
-                name: l.ledger_name,
-                type: "ledger",
-                rawId: l.ledger_id,
-                dr: l.dr,
-                cr: l.cr,
-                parentGroupId: target.group.group_id,
-              });
-            });
-          }
         }
+
+        // Only display the section if it has transactions/balances
+        if (totalDr === 0 && totalCr === 0) continue;
+
+        const parentGroup = section.groups[0];
+        flatList.push({
+          id: `group-${parentGroup.group_id}`,
+          name: section.label,
+          type: "parent-group",
+          rawId: parentGroup.group_id,
+          dr: totalDr,
+          cr: totalCr,
+        });
+        childRows.forEach((r) => flatList.push({ ...r, parentGroupId: parentGroup.group_id }));
+        ledgerRows.forEach((r) => flatList.push({ ...r, parentGroupId: parentGroup.group_id }));
       }
 
       setRows(flatList);
@@ -319,18 +303,12 @@ export default function CashBankSummaryLayout() {
                         ? "hover:bg-black/[0.04] text-black font-bold text-xs"
                         : isChildGroup
                         ? "hover:bg-black/[0.04] text-black font-semibold"
-                        : "hover:bg-black/[0.04] text-black italic"
+                        : "hover:bg-black/[0.04] text-black"
                     }`}
                     onClick={() => setFocusedIndex(idx)}
                     onDoubleClick={() => handleDrilldown(row)}
                   >
-                    <td className={`px-4 py-1.5 text-left ${!isParent ? "pl-8" : ""}`}>
-                      {isChildGroup && (
-                        <span className="mr-1.5 text-black/60 text-[9px]">▶</span>
-                      )}
-                      {!isParent && !isChildGroup && (
-                        <span className="mr-3 text-black/60">–</span>
-                      )}
+                    <td className={`px-4 py-1.5 text-left ${isChildGroup ? "pl-8" : !isParent ? "pl-10" : ""}`}>
                       {row.name}
                     </td>
                     <td className="text-right">
