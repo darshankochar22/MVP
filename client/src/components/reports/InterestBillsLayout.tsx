@@ -186,7 +186,7 @@ export default function InterestBillsLayout({ mode }: InterestBillsLayoutProps) 
       </div>
 
       {/* Summary Bar */}
-      <div className="bg-[#fafafa] border-b border-zinc-200 px-3 py-1.5 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
+      <div className="bg-white border-b border-zinc-200 px-3 py-1.5 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
         <span>
           <span className="font-bold text-zinc-800">Total Principal:</span> {fmtTotal(totalPrincipal)}
         </span>

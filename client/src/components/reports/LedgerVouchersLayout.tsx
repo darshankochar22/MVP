@@ -146,7 +146,7 @@ const fetchLedgerReport = React.useCallback(async () => {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
+      <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">
         Loading Ledger Vouchers...
       </div>
     );
@@ -154,7 +154,7 @@ const fetchLedgerReport = React.useCallback(async () => {
 
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">
+      <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">
         {error}
       </div>
     );
@@ -162,7 +162,7 @@ const fetchLedgerReport = React.useCallback(async () => {
 
   if (!data) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
+      <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">
         No data available.
       </div>
     );
@@ -177,7 +177,7 @@ const fetchLedgerReport = React.useCallback(async () => {
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
-          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
+          <thead className="sticky top-0 bg-white border-b border-black z-10 text-black">
             <tr>
               <th className="px-4 py-2 text-left font-bold" rowSpan={3}>
                 Date
@@ -185,12 +185,12 @@ const fetchLedgerReport = React.useCallback(async () => {
               <th className="px-4 py-2 text-left font-bold" rowSpan={3}>
                 Particulars
               </th>
-              <th className="px-4 py-0.5 text-center font-bold border-b border-zinc-200" colSpan={5}>
+              <th className="px-4 py-0.5 text-center font-bold border-b border-black/10" colSpan={5}>
                 {data.ledger_name} / {selectedCompany?.name || "No Company"}
               </th>
             </tr>
             <tr>
-              <th className="px-4 py-0.5 text-center font-normal italic text-zinc-500" colSpan={5}>
+              <th className="px-4 py-0.5 text-center font-normal italic text-black/60" colSpan={5}>
                 {periodLabel}
               </th>
             </tr>
@@ -204,7 +204,7 @@ const fetchLedgerReport = React.useCallback(async () => {
           </thead>
           <tbody>
             {/* Opening Balance Row */}
-            <tr className="border-b border-zinc-100 font-semibold text-zinc-600">
+            <tr className="border-b border-black/10 font-semibold text-black">
               <td className="px-4 py-1.5 text-left" />
               <td className="px-4 py-1.5 text-left italic">Opening Balance</td>
               <td className="px-4 py-1.5 text-left" />
@@ -218,7 +218,7 @@ const fetchLedgerReport = React.useCallback(async () => {
 
             {/* Voucher Transaction Rows */}
             {data.rows.length === 0 ? (
-              <tr className="border-b border-zinc-100 text-zinc-400 italic">
+              <tr className="border-b border-black/10 text-black/60 italic">
                 <td className="px-4 py-1.5 text-center" colSpan={7}>
                   No vouchers found for this period.
                 </td>
@@ -229,10 +229,10 @@ const fetchLedgerReport = React.useCallback(async () => {
                 return (
                   <tr
                     key={idx}
-                    className={`border-b border-zinc-100 cursor-pointer transition-colors ${
+                    className={`border-b border-black/10 cursor-pointer transition-colors ${
                       isFocused
-                        ? "bg-[#e4e4e7] text-zinc-950 font-bold"
-                        : "hover:bg-zinc-50 text-zinc-800"
+                        ? "bg-black/10 text-black font-bold"
+                        : "hover:bg-black/[0.04] text-black"
                     }`}
                     onClick={() => {
                       setFocusedIndex(idx);
@@ -265,7 +265,7 @@ const fetchLedgerReport = React.useCallback(async () => {
       </div>
 
       {/* Grand Total Bar */}
-      <div className="border-t border-zinc-300 bg-[#f4f4f5] px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-zinc-900 select-none shrink-0">
+      <div className="border-t border-black bg-white px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-black select-none shrink-0">
         <span className="w-24">Grand Total</span>
         <div className="flex-1 flex justify-end gap-0">
           <span className="w-24 text-right" /> {/* Vch Type spacer */}

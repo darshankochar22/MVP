@@ -172,7 +172,7 @@ export default function InterestBillWiseLayout() {
           <span className="ml-auto">Select a ledger to view bill-wise interest calculation</span>
         </div>
         {/* Search */}
-        <div className="px-3 py-1.5 border-b border-zinc-200 bg-[#fafafa]">
+        <div className="px-3 py-1.5 border-b border-zinc-200 bg-white">
           <input
             autoFocus
             type="text"
@@ -182,7 +182,7 @@ export default function InterestBillWiseLayout() {
               setSearch(e.target.value);
               setPickerFocus(0);
             }}
-            className="w-full text-[11px] font-mono border border-zinc-300 px-2 py-1 rounded outline-none focus:border-zinc-800 bg-white"
+            className="w-full text-[11px] font-mono border border-zinc-300 px-2 py-1 rounded outline-none focus:border-black bg-white"
           />
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -256,7 +256,7 @@ export default function InterestBillWiseLayout() {
       </div>
 
       {/* Opening Balance Bar */}
-      <div className="bg-[#fafafa] border-b border-zinc-200 px-3 py-1.5 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
+      <div className="bg-white border-b border-zinc-200 px-3 py-1.5 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
         <span>
           <span className="font-bold text-zinc-800">Total Principal:</span> {fmtTotal(totalPrincipal)}
         </span>

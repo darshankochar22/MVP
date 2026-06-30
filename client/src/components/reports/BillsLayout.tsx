@@ -114,7 +114,7 @@ export default function BillsLayout({ mode }: Props) {
       </div>
 
       {/* Ageing summary bar */}
-      <div className="bg-[#fafafa] border-b border-zinc-200 px-3 py-1 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
+      <div className="bg-white border-b border-zinc-200 px-3 py-1 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
         {BUCKETS.map(b => (
           <span key={b}>
             <span className="font-bold text-zinc-800">{b} days:</span>{" "}

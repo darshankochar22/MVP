@@ -133,26 +133,26 @@ export default function CostCentreLedgerLayout() {
   if (!costCentreId) {
     return (
       <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
-        <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
+        <div className="bg-white border-b border-black px-3 py-1 text-[10px] font-mono text-black flex gap-6 select-none">
           <span className="font-bold">Cost Centre Ledger</span>
           <span className="ml-auto">Select a cost centre to view details</span>
         </div>
-        <div className="px-3 py-1.5 border-b border-zinc-200 bg-[#fafafa]">
+        <div className="px-3 py-1.5 border-b border-black/10 bg-white">
           <input
             autoFocus
             type="text"
             placeholder="Type to search cost centre..."
             value={search}
             onChange={e => { setSearch(e.target.value); setPickerFocus(0); }}
-            className="w-full text-[11px] font-mono border border-zinc-300 px-2 py-1 rounded outline-none focus:border-zinc-800 bg-white"
+            className="w-full text-[11px] font-mono border border-black px-2 py-1 rounded outline-none focus:border-black bg-white"
           />
         </div>
         <div className="flex-1 overflow-y-auto">
           {filteredCentres.map((c, idx) => (
             <div
               key={c.cc_id}
-              className={`px-4 py-2 text-[11px] cursor-pointer select-none border-b border-zinc-100 ${
-                pickerFocus === idx ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
+              className={`px-4 py-2 text-[11px] cursor-pointer select-none border-b border-black/10 ${
+                pickerFocus === idx ? "bg-black/10 text-black font-bold" : "hover:bg-black/[0.04] text-black"
               }`}
               onClick={() => { setCostCentreId(c.cc_id); setCostCentreName(c.name); }}
             >
@@ -160,15 +160,15 @@ export default function CostCentreLedgerLayout() {
             </div>
           ))}
           {filteredCentres.length === 0 && (
-            <div className="text-center py-8 text-zinc-400 italic text-[11px]">No cost centres found.</div>
+            <div className="text-center py-8 text-black/60 italic text-[11px]">No cost centres found.</div>
           )}
         </div>
       </div>
     );
   }
 
-  if (loading) return <div className="flex-1 flex items-center justify-center text-zinc-500 font-mono text-xs">Loading Ledger...</div>;
-  if (error) return <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs">{error}</div>;
+  if (loading) return <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">Loading Ledger...</div>;
+  if (error) return <div className="flex-1 flex items-center justify-center text-black font-mono text-xs">{error}</div>;
 
   const totalDebit = filteredRows.reduce((s, r) => s + (Number(r.debit) || 0), 0);
   const totalCredit = filteredRows.reduce((s, r) => s + (Number(r.credit) || 0), 0);
@@ -176,26 +176,26 @@ export default function CostCentreLedgerLayout() {
 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
-      <div className="bg-[#f4f4f5] border-b border-zinc-300 px-3 py-1 text-[10px] font-mono text-zinc-700 flex gap-6 select-none">
+      <div className="bg-white border-b border-black px-3 py-1 text-[10px] font-mono text-black flex gap-6 select-none">
         <span className="font-bold">Cost Centre Ledger: {costCentreName}{ledgerFilter ? ` (${ledgerFilter})` : ""}</span>
       </div>
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
-          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700 select-none">
+          <thead className="sticky top-0 bg-white border-b border-black z-10 text-black select-none">
             <tr>
               <th className="px-4 py-2 text-left font-bold w-24">Date</th>
               <th className="px-4 py-2 text-left font-bold">Particulars</th>
               <th className="px-4 py-2 text-left font-bold w-28">Vch Type</th>
               <th className="px-4 py-2 text-left font-bold w-24">Vch No.</th>
-              <th className="w-32 text-right px-4 py-2 font-bold border-l border-zinc-200">Debit</th>
-              <th className="w-32 text-right px-4 py-2 font-bold border-l border-zinc-200">Credit</th>
-              <th className="w-32 text-right px-4 py-2 font-bold border-l border-zinc-200">Balance</th>
+              <th className="w-32 text-right px-4 py-2 font-bold border-l border-black/10">Debit</th>
+              <th className="w-32 text-right px-4 py-2 font-bold border-l border-black/10">Credit</th>
+              <th className="w-32 text-right px-4 py-2 font-bold border-l border-black/10">Balance</th>
             </tr>
           </thead>
           <tbody>
             {filteredRows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">No transactions found for the selected period.</td>
+                <td colSpan={7} className="px-4 py-8 text-center text-black/60 italic">No transactions found for the selected period.</td>
               </tr>
             ) : (
               filteredRows.map((row, idx) => {
@@ -203,8 +203,8 @@ export default function CostCentreLedgerLayout() {
                 return (
                   <tr
                     key={idx}
-                    className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${
-                      isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800 font-semibold"
+                    className={`border-b border-black/10 cursor-pointer select-none transition-colors ${
+                      isFocused ? "bg-black/10 text-black font-bold" : "hover:bg-black/[0.04] text-black font-semibold"
                     }`}
                     onClick={() => setFocusedIndex(idx)}
                   >
@@ -212,9 +212,9 @@ export default function CostCentreLedgerLayout() {
                     <td className="px-4 py-1.5 text-left">{row.ledger_name}</td>
                     <td className="px-4 py-1.5 text-left">{row.voucher_type}</td>
                     <td className="px-4 py-1.5 text-left">{row.voucher_number}</td>
-                    <td className="w-32 text-right px-4 py-1.5 border-l border-zinc-100">{fmt(row.debit)}</td>
-                    <td className="w-32 text-right px-4 py-1.5 border-l border-zinc-100">{fmt(row.credit)}</td>
-                    <td className="w-32 text-right px-4 py-1.5 border-l border-zinc-100">
+                    <td className="w-32 text-right px-4 py-1.5 border-l border-black/10">{fmt(row.debit)}</td>
+                    <td className="w-32 text-right px-4 py-1.5 border-l border-black/10">{fmt(row.credit)}</td>
+                    <td className="w-32 text-right px-4 py-1.5 border-l border-black/10">
                       {fmt(row.balance)} {row.balance >= 0 ? "Dr" : "Cr"}
                     </td>
                   </tr>
@@ -223,12 +223,12 @@ export default function CostCentreLedgerLayout() {
             )}
           </tbody>
           {filteredRows.length > 0 && (
-            <tfoot className="sticky bottom-0 bg-[#f4f4f5] border-t border-zinc-300 z-10 font-bold text-zinc-800">
+            <tfoot className="sticky bottom-0 bg-white border-t border-black z-10 font-bold text-black">
               <tr>
                 <td colSpan={4} className="px-4 py-2 text-left">Grand Total</td>
-                <td className="w-32 text-right px-4 py-2 border-l border-zinc-300">{fmtTotal(totalDebit)}</td>
-                <td className="w-32 text-right px-4 py-2 border-l border-zinc-300">{fmtTotal(totalCredit)}</td>
-                <td className="w-32 text-right px-4 py-2 border-l border-zinc-300">
+                <td className="w-32 text-right px-4 py-2 border-l border-black">{fmtTotal(totalDebit)}</td>
+                <td className="w-32 text-right px-4 py-2 border-l border-black">{fmtTotal(totalCredit)}</td>
+                <td className="w-32 text-right px-4 py-2 border-l border-black">
                   {fmtTotal(closingBalance)} {closingBalance >= 0 ? "Dr" : "Cr"}
                 </td>
               </tr>

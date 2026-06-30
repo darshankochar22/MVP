@@ -99,7 +99,7 @@ export default function VoucherClarificationLayout() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
+      <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">
         Loading...
       </div>
     );
@@ -107,7 +107,7 @@ export default function VoucherClarificationLayout() {
 
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">
+      <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">
         {error}
       </div>
     );
@@ -119,7 +119,7 @@ export default function VoucherClarificationLayout() {
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
-          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700 select-none">
+          <thead className="sticky top-0 bg-white border-b border-black z-10 text-black select-none">
             <tr>
               <th className="px-4 py-2 text-left font-bold">Particulars</th>
               <th className="w-48 text-right px-4 py-2 font-bold">Need Clarification</th>
@@ -132,10 +132,10 @@ export default function VoucherClarificationLayout() {
               return (
                 <tr
                   key={item.key}
-                  className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${
+                  className={`border-b border-black/10 cursor-pointer select-none transition-colors ${
                     isFocused
-                      ? "bg-[#e4e4e7] text-zinc-950 font-bold"
-                      : "hover:bg-zinc-50 text-zinc-800 font-semibold"
+                      ? "bg-black/10 text-black font-bold"
+                      : "hover:bg-black/[0.04] text-black font-semibold"
                   }`}
                   onClick={() => setFocusedIndex(idx)}
                   onDoubleClick={() => handleDrilldown(item.key)}
@@ -149,7 +149,7 @@ export default function VoucherClarificationLayout() {
         </table>
       </div>
 
-      <div className="border-t-2 border-double border-zinc-400 bg-[#f4f4f5] px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-zinc-900 select-none">
+      <div className="border-t-2 border-double border-black bg-white px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-black select-none">
         <span className="flex-1">Grand Total</span>
         <span className="w-48 text-right pr-0">{fmt(total)}</span>
       </div>

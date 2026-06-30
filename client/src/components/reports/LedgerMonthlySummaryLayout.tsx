@@ -209,21 +209,21 @@ export default function LedgerMonthlySummaryLayout() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
+      <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">
         Loading Ledger Monthly Summary...
       </div>
     );
   }
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">
+      <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">
         {error}
       </div>
     );
   }
   if (!data) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
+      <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">
         No data available.
       </div>
     );
@@ -237,23 +237,23 @@ export default function LedgerMonthlySummaryLayout() {
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
-          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700 select-none">
+          <thead className="sticky top-0 bg-white border-b border-black z-10 text-black select-none">
             <tr>
               <th className="px-4 py-2 text-left font-bold" rowSpan={3}>Particulars</th>
-              <th className="px-4 py-0.5 text-center font-bold border-b border-zinc-200" colSpan={3}>
+              <th className="px-4 py-0.5 text-center font-bold border-b border-black/10" colSpan={3}>
                 {data.ledger_name} / {selectedCompany?.name || "No Company"}
               </th>
             </tr>
             <tr>
-              <th className="px-4 py-0.5 text-center font-normal italic text-zinc-500" colSpan={3}>
+              <th className="px-4 py-0.5 text-center font-normal italic text-black/60" colSpan={3}>
                 {periodLabel}
               </th>
             </tr>
             <tr>
-              <th className="px-4 py-0.5 text-center font-bold border-r border-zinc-200" colSpan={2}>
-                <div className="border-b border-zinc-200 pb-0.5 mb-0.5">Transactions</div>
+              <th className="px-4 py-0.5 text-center font-bold border-r border-black/10" colSpan={2}>
+                <div className="border-b border-black/10 pb-0.5 mb-0.5">Transactions</div>
                 <div className="flex w-full">
-                  <span className="w-28 text-right pr-4 border-r border-zinc-200">Debit</span>
+                  <span className="w-28 text-right pr-4 border-r border-black/10">Debit</span>
                   <span className="w-28 text-right pr-4">Credit</span>
                 </div>
               </th>
@@ -264,11 +264,11 @@ export default function LedgerMonthlySummaryLayout() {
           </thead>
           <tbody>
             {/* Opening Balance Row */}
-            <tr className="border-b border-zinc-100 font-semibold select-none text-zinc-600">
+            <tr className="border-b border-black/10 font-semibold select-none text-black">
               <td className="px-4 py-1.5 text-left italic">Opening Balance</td>
               <td className="text-right" colSpan={2}>
                 <div className="flex w-full justify-end font-mono">
-                  <span className="w-28 border-r border-zinc-100 pr-4" />
+                  <span className="w-28 border-r border-black/10 pr-4" />
                   <span className="w-28 pr-4" />
                 </div>
               </td>
@@ -284,10 +284,10 @@ export default function LedgerMonthlySummaryLayout() {
               return (
                 <tr
                   key={row.month}
-                  className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${
+                  className={`border-b border-black/10 cursor-pointer select-none transition-colors ${
                     isFocused
-                      ? "bg-[#e4e4e7] text-zinc-950 font-bold"
-                      : "hover:bg-zinc-50 text-zinc-800"
+                      ? "bg-black/10 text-black font-bold"
+                      : "hover:bg-black/[0.04] text-black"
                   }`}
                   onClick={() => setFocusedIndex(idx)}
                   onDoubleClick={() => handleMonthClick(row)}
@@ -295,7 +295,7 @@ export default function LedgerMonthlySummaryLayout() {
                   <td className="px-4 py-1.5 text-left">{row.month}</td>
                   <td className="text-right" colSpan={2}>
                     <div className="flex w-full justify-end font-mono">
-                      <span className="w-28 text-right pr-4 border-r border-zinc-100">
+                      <span className="w-28 text-right pr-4 border-r border-black/10">
                         {row.debit !== 0 ? fmt(row.debit) : ""}
                       </span>
                       <span className="w-28 text-right pr-4">
@@ -315,10 +315,10 @@ export default function LedgerMonthlySummaryLayout() {
       </div>
 
       {/* Grand Total Bar */}
-      <div className="border-t border-zinc-300 bg-[#f4f4f5] px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-zinc-900 select-none">
+      <div className="border-t border-black bg-white px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-black select-none">
         <span className="flex-1">Grand Total</span>
         <div className="flex justify-end">
-          <span className="w-28 text-right pr-4 border-r border-zinc-300">
+          <span className="w-28 text-right pr-4 border-r border-black">
             {totalDebitTxn !== 0 ? fmtTotal(totalDebitTxn) : ""}
           </span>
           <span className="w-28 text-right pr-4">
@@ -332,8 +332,8 @@ export default function LedgerMonthlySummaryLayout() {
       </div>
 
       {/* TallyPrime Retro Monthly Bar Chart */}
-      <div className="border-t border-zinc-300 bg-white p-3 flex flex-col items-center justify-center select-none shrink-0 h-44">
-        <svg height={chartHeight} width={chartWidth} className="font-mono text-[9px] text-zinc-500">
+      <div className="border-t border-black bg-white p-3 flex flex-col items-center justify-center select-none shrink-0 h-44">
+        <svg height={chartHeight} width={chartWidth} className="font-mono text-[9px] text-black/60">
           {/* Grid lines */}
           <line x1={padding} y1={padding} x2={chartWidth - padding} y2={padding} stroke="#f4f4f5" strokeWidth={1} />
           <line x1={padding} y1={chartHeight / 2} x2={chartWidth - padding} y2={chartHeight / 2} stroke="#f4f4f5" strokeWidth={1} />
@@ -371,7 +371,7 @@ export default function LedgerMonthlySummaryLayout() {
                   x={d.x}
                   y={chartHeight - 4}
                   textAnchor="middle"
-                  className={`text-[8px] ${idx === focusedIndex ? "font-bold text-zinc-950" : "text-zinc-400"}`}
+                  className={`text-[8px] ${idx === focusedIndex ? "font-bold text-black" : "text-black/60"}`}
                 >
                   {d.month}
                 </text>
@@ -379,13 +379,13 @@ export default function LedgerMonthlySummaryLayout() {
             );
           })}
         </svg>
-        <div className="text-[9px] text-zinc-400 mt-1 flex gap-4">
+        <div className="text-[9px] text-black/60 mt-1 flex gap-4">
           <span className="flex items-center gap-1">
-            <span className="inline-block w-2.5 h-2.5 bg-zinc-300 border border-zinc-400" />
+            <span className="inline-block w-2.5 h-2.5 bg-white border border-black" />
             Closing Balance
           </span>
           <span className="flex items-center gap-1">
-            <span className="inline-block w-2.5 h-1 bg-zinc-700" />
+            <span className="inline-block w-2.5 h-1 bg-black" />
             Transactions
           </span>
         </div>

@@ -184,21 +184,21 @@ export default function GroupSummaryLayout() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
+      <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">
         Loading Group Summary...
       </div>
     );
   }
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">
+      <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">
         {error}
       </div>
     );
   }
   if (!data) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
+      <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">
         No data available.
       </div>
     );
@@ -208,23 +208,23 @@ export default function GroupSummaryLayout() {
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
-          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700 select-none">
+          <thead className="sticky top-0 bg-white border-b border-black z-10 text-black select-none">
             <tr>
               <th className="px-4 py-2 text-left font-bold" rowSpan={3}>Particulars</th>
-              <th className="px-4 py-0.5 text-center font-bold border-b border-zinc-200">
+              <th className="px-4 py-0.5 text-center font-bold border-b border-black/10">
                 {data.group_name} / {selectedCompany?.name || "No Company"}
               </th>
             </tr>
             <tr>
-              <th className="px-4 py-0.5 text-center font-normal italic text-zinc-500">
+              <th className="px-4 py-0.5 text-center font-normal italic text-black/60">
                 {periodLabel}
               </th>
             </tr>
             <tr>
-              <th className="px-4 py-0.5 text-center font-bold border-t border-zinc-200">
-                <div className="border-b border-zinc-200 pb-0.5 mb-0.5">Closing Balance</div>
+              <th className="px-4 py-0.5 text-center font-bold border-t border-black/10">
+                <div className="border-b border-black/10 pb-0.5 mb-0.5">Closing Balance</div>
                 <div className="flex w-full">
-                  <span className="w-32 text-right pr-4 border-r border-zinc-200">Debit</span>
+                  <span className="w-32 text-right pr-4 border-r border-black/10">Debit</span>
                   <span className="w-32 text-right pr-4">Credit</span>
                 </div>
               </th>
@@ -233,7 +233,7 @@ export default function GroupSummaryLayout() {
           <tbody>
             {flatItems.length === 0 ? (
               <tr>
-                <td colSpan={2} className="px-4 py-8 text-center text-zinc-400 italic">
+                <td colSpan={2} className="px-4 py-8 text-center text-black/60 italic">
                   No records found under this group.
                 </td>
               </tr>
@@ -243,27 +243,27 @@ export default function GroupSummaryLayout() {
                 return (
                   <tr
                     key={`${item.type}-${item.id}`}
-                    className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${
+                    className={`border-b border-black/10 cursor-pointer select-none transition-colors ${
                       isFocused
-                        ? "bg-[#e4e4e7] text-zinc-950 font-bold"
+                        ? "bg-black/10 text-black font-bold"
                         : item.type === "group"
-                        ? "hover:bg-zinc-50 text-zinc-800 font-semibold"
-                        : "hover:bg-zinc-50 text-zinc-700"
+                        ? "hover:bg-black/[0.04] text-black font-semibold"
+                        : "hover:bg-black/[0.04] text-black"
                     }`}
                     onClick={() => setFocusedIndex(idx)}
                     onDoubleClick={() => handleDrilldown(item)}
                   >
                     <td className="px-4 py-1.5 text-left">
                       {item.type === "group" ? (
-                        <span className="mr-1.5 text-zinc-400 text-[9px]">▶</span>
+                        <span className="mr-1.5 text-black/60 text-[9px]">▶</span>
                       ) : (
-                        <span className="mr-3 text-zinc-300">–</span>
+                        <span className="mr-3 text-black/60">–</span>
                       )}
                       {item.name}
                     </td>
                     <td className="text-right">
                       <div className="flex w-full justify-end font-mono">
-                        <span className="w-32 text-right pr-4 border-r border-zinc-100">
+                        <span className="w-32 text-right pr-4 border-r border-black/10">
                           {item.dr !== 0 ? fmt(item.dr) : ""}
                         </span>
                         <span className="w-32 text-right pr-4">
@@ -280,10 +280,10 @@ export default function GroupSummaryLayout() {
       </div>
 
       {/* Grand Total Bar */}
-      <div className="border-t-2 border-double border-zinc-400 bg-[#f4f4f5] px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-zinc-900 select-none">
+      <div className="border-t-2 border-double border-black bg-white px-4 py-1.5 flex justify-between font-mono text-[11px] font-bold text-black select-none">
         <span className="flex-1">Grand Total</span>
         <div className="flex justify-end pr-4">
-          <span className="w-32 text-right pr-4 border-r border-zinc-300">
+          <span className="w-32 text-right pr-4 border-r border-black">
             {data.totalDr !== 0 ? fmtTotal(data.totalDr) : ""}
           </span>
           <span className="w-32 text-right pr-4">

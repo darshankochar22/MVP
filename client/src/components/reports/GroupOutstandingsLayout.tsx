@@ -162,14 +162,14 @@ export default function GroupOutstandingsLayout() {
           <span className="font-bold">Group Outstandings</span>
           <span className="ml-auto">Select a group to view pending bills</span>
         </div>
-        <div className="px-3 py-1.5 border-b border-zinc-200 bg-[#fafafa]">
+        <div className="px-3 py-1.5 border-b border-zinc-200 bg-white">
           <input
             autoFocus
             type="text"
             placeholder="Type to search group..."
             value={search}
             onChange={e => { setSearch(e.target.value); setPickerFocus(0); }}
-            className="w-full text-[11px] font-mono border border-zinc-300 px-2 py-1 rounded outline-none focus:border-zinc-800 bg-white"
+            className="w-full text-[11px] font-mono border border-zinc-300 px-2 py-1 rounded outline-none focus:border-black bg-white"
           />
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -219,7 +219,7 @@ export default function GroupOutstandingsLayout() {
       </div>
 
       {/* Ageing summary bar */}
-      <div className="bg-[#fafafa] border-b border-zinc-200 px-3 py-1 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
+      <div className="bg-white border-b border-zinc-200 px-3 py-1 text-[10px] font-mono flex gap-8 select-none text-zinc-600">
         {BUCKETS.map(b => (
           <span key={b}><span className="font-bold text-zinc-800">{b} days:</span> {fmt(bucketTotals[b]) || "0.00"}</span>
         ))}
@@ -248,7 +248,7 @@ export default function GroupOutstandingsLayout() {
                 <React.Fragment key={row.ledger_id}>
                   {/* Ledger (party) header row */}
                   <tr
-                    className={`border-b border-zinc-200 cursor-pointer select-none transition-colors ${isFocused ? "bg-[#e4e4e7] text-zinc-950" : "bg-[#fafafa] text-zinc-900"} font-bold`}
+                    className={`border-b border-zinc-200 cursor-pointer select-none transition-colors ${isFocused ? "bg-[#e4e4e7] text-zinc-950" : "bg-white text-zinc-900"} font-bold`}
                     onClick={() => setFocused(idx)}
                     onDoubleClick={() => setExpanded(prev => {
                       const s = new Set(prev);

@@ -104,6 +104,17 @@ module.exports = {
         };
       }
 
+      // Inherit the account nature (Assets/Liabilities/Income/Expenses) from the
+      // parent group when the caller didn't supply one — Trial Balance & Balance
+      // Sheet group/classify ledgers by this, so it must never be left NULL.
+      let resolvedNature = data.nature || null;
+      if (!resolvedNature && data.group_id) {
+        const grp = await db.all(
+          sql`SELECT nature FROM ${groups} WHERE ${groups.groupId} = ${data.group_id} LIMIT 1`
+        );
+        resolvedNature = grp[0]?.nature || null;
+      }
+
       const inserted = await db
         .insert(ledgers)
         .values({
@@ -112,7 +123,7 @@ module.exports = {
           name: data.name,
           alias: data.alias || null,
           ledgerType: data.ledger_type || "General",
-          nature: data.nature || null,
+          nature: resolvedNature,
           openingBalance: data.opening_balance || 0,
           openingBalanceType: data.opening_balance_type || 'Dr',
           closingBalance: data.closing_balance || 0,
@@ -375,6 +386,23 @@ module.exports = {
         };
       }
 
+      // Keep nature in sync with the group: an explicit value wins; otherwise
+      // re-inherit from the (possibly newly chosen) group, and backfill any legacy
+      // ledger whose nature was left NULL.
+      const effectiveGroupId = data.group_id ?? ledger.group_id;
+      let resolvedNature = data.nature ?? null;
+      if (resolvedNature == null) {
+        const groupChanged = data.group_id != null && data.group_id !== ledger.group_id;
+        if ((groupChanged || ledger.nature == null) && effectiveGroupId) {
+          const grp = await db.all(
+            sql`SELECT nature FROM ${groups} WHERE ${groups.groupId} = ${effectiveGroupId} LIMIT 1`
+          );
+          resolvedNature = grp[0]?.nature ?? ledger.nature ?? null;
+        } else {
+          resolvedNature = ledger.nature ?? null;
+        }
+      }
+
       await db
         .update(ledgers)
         .set({
@@ -382,7 +410,7 @@ module.exports = {
           name: data.name ?? ledger.name,
           alias: data.alias ?? ledger.alias,
           ledgerType: data.ledger_type ?? ledger.ledger_type,
-          nature: data.nature ?? ledger.nature,
+          nature: resolvedNature,
           openingBalance: data.opening_balance ?? ledger.opening_balance,
           openingBalanceType: data.opening_balance_type ?? ledger.opening_balance_type ?? 'Dr',
           closingBalance: data.closing_balance ?? ledger.closing_balance,

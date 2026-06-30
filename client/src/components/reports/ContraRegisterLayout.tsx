@@ -177,14 +177,14 @@ export default function ContraRegisterLayout() {
 
   if (loadingMonths) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">
+      <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">
         Loading Contra Register...
       </div>
     );
   }
   if (error) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">
+      <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">
         {error}
       </div>
     );
@@ -199,7 +199,7 @@ export default function ContraRegisterLayout() {
       <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
         <div className="flex-1 overflow-y-auto">
           <table className="w-full border-collapse text-[11px] font-mono select-none">
-            <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
+            <thead className="sticky top-0 bg-white border-b border-black z-10 text-black">
               <tr>
                 <th className="px-4 py-2 text-left font-bold w-24">Date</th>
                 <th className="px-4 py-2 text-left font-bold">Particulars</th>
@@ -208,8 +208,8 @@ export default function ContraRegisterLayout() {
                 <th className="px-4 py-2 text-right font-bold w-32">Debit Amount</th>
                 <th className="px-4 py-2 text-right font-bold w-32">Credit Amount</th>
               </tr>
-              <tr className="bg-[#f4f4f5]">
-                <th colSpan={6} className="px-4 py-0.5 text-right font-normal italic text-zinc-500 border-b border-zinc-200">
+              <tr className="bg-white">
+                <th colSpan={6} className="px-4 py-0.5 text-right font-normal italic text-black/60 border-b border-black/10">
                   List of All Contra Vouchers — {selectedCompany?.name} — {selectedMonth.month}
                 </th>
               </tr>
@@ -217,13 +217,13 @@ export default function ContraRegisterLayout() {
             <tbody>
               {loadingVouchers ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-zinc-400 italic">
+                  <td colSpan={6} className="px-4 py-8 text-center text-black/60 italic">
                     Loading vouchers...
                   </td>
                 </tr>
               ) : voucherRows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-zinc-400 italic">
+                  <td colSpan={6} className="px-4 py-8 text-center text-black/60 italic">
                     No records found.
                   </td>
                 </tr>
@@ -238,8 +238,8 @@ export default function ContraRegisterLayout() {
                         const id = row.voucher_id || row.id;
                         if (id) navigate(`/transactions/voucher/${id}`);
                       }}
-                      className={`border-b border-zinc-100 cursor-pointer transition-colors ${
-                        isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
+                      className={`border-b border-black/10 cursor-pointer transition-colors ${
+                        isFocused ? "bg-black/10 text-black font-bold" : "hover:bg-black/[0.04] text-black"
                       }`}
                     >
                       <td className="px-4 py-1.5 whitespace-nowrap">{formatDate(row.date)}</td>
@@ -257,7 +257,7 @@ export default function ContraRegisterLayout() {
         </div>
 
         {/* Grand Total */}
-        <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-4 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 select-none shrink-0">
+        <div className="border-t-2 border-black bg-white px-4 py-1.5 flex font-mono text-[11px] font-bold text-black select-none shrink-0">
           <span className="flex-1">Total:</span>
           <span className="w-32 text-right pr-2">{fmtAmount(totalDebit)}</span>
           <span className="w-32 text-right pr-2">{fmtAmount(totalCredit)}</span>
@@ -274,39 +274,39 @@ export default function ContraRegisterLayout() {
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
-          <thead className="sticky top-0 bg-[#f4f4f5] text-zinc-900 border-b border-zinc-300 z-10">
-            <tr className="bg-[#f4f4f5]">
-              <th rowSpan={5} className="border-b border-r border-zinc-300 px-3 py-1.5 text-left font-bold w-[50%] align-bottom">
+          <thead className="sticky top-0 bg-white text-black border-b border-black z-10">
+            <tr className="bg-white">
+              <th rowSpan={5} className="border-b border-r border-black px-3 py-1.5 text-left font-bold w-[50%] align-bottom">
                 Particulars
               </th>
               <th colSpan={2} className="px-3 py-0.5 text-right font-normal italic">
                 Contra
               </th>
             </tr>
-            <tr className="bg-[#f4f4f5]">
-              <th colSpan={2} className="px-3 py-0.5 text-right font-bold text-zinc-800">
+            <tr className="bg-white">
+              <th colSpan={2} className="px-3 py-0.5 text-right font-bold text-black">
                 {selectedCompany?.name || "—"}
               </th>
             </tr>
-            <tr className="bg-[#f4f4f5]">
-              <th colSpan={2} className="px-3 py-0.5 text-right font-normal text-zinc-700">
+            <tr className="bg-white">
+              <th colSpan={2} className="px-3 py-0.5 text-right font-normal text-black">
                 {periodLabel}
               </th>
             </tr>
-            <tr className="bg-[#f4f4f5] border-t border-zinc-200">
-              <th colSpan={2} className="px-3 py-1 text-center font-bold border-b border-zinc-200">
+            <tr className="bg-white border-t border-black/10">
+              <th colSpan={2} className="px-3 py-1 text-center font-bold border-b border-black/10">
                 Transactions
               </th>
             </tr>
-            <tr className="bg-[#f4f4f5] border-b border-zinc-300">
-              <th className="border-r border-zinc-300 px-3 py-1 text-right font-bold w-[25%]">Total Vouchers</th>
+            <tr className="bg-white border-b border-black">
+              <th className="border-r border-black px-3 py-1 text-right font-bold w-[25%]">Total Vouchers</th>
               <th className="px-3 py-1 text-right font-bold w-[25%]">(cancelled )</th>
             </tr>
           </thead>
           <tbody>
             {monthRows.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-8 text-center text-zinc-400 italic">
+                <td colSpan={3} className="px-4 py-8 text-center text-black/60 italic">
                   No records found.
                 </td>
               </tr>
@@ -318,15 +318,15 @@ export default function ContraRegisterLayout() {
                     key={row.month}
                     onClick={() => setFocusedMonthIndex(idx)}
                     onDoubleClick={() => loadVouchersForMonth(row)}
-                    className={`border-b border-zinc-100 hover:bg-zinc-50 transition-colors cursor-pointer ${
-                      isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "text-zinc-800"
+                    className={`border-b border-black/10 hover:bg-black/[0.04] transition-colors cursor-pointer ${
+                      isFocused ? "bg-black/10 text-black font-bold" : "text-black"
                     }`}
                   >
-                    <td className="border-r border-zinc-155 px-3 py-1.5 text-left">{row.month}</td>
-                    <td className="border-r border-zinc-155 px-3 py-1.5 text-right font-mono">
+                    <td className="border-r border-black/10 px-3 py-1.5 text-left">{row.month}</td>
+                    <td className="border-r border-black/10 px-3 py-1.5 text-right font-mono">
                       {row.total_vouchers ? row.total_vouchers.toLocaleString("en-IN") : ""}
                     </td>
-                    <td className="px-3 py-1.5 text-right font-mono text-zinc-500">
+                    <td className="px-3 py-1.5 text-right font-mono text-black/60">
                       {row.cancelled && row.cancelled > 0 ? `(${row.cancelled} )` : ""}
                     </td>
                   </tr>
@@ -335,12 +335,12 @@ export default function ContraRegisterLayout() {
             )}
 
             {/* Grand Total Row */}
-            <tr className="border-t-2 border-b-2 border-zinc-300 bg-zinc-50 font-bold text-zinc-900">
-              <td className="border-r border-zinc-300 px-3 py-2 text-left">Grand Total</td>
-              <td className="border-r border-zinc-300 px-3 py-2 text-right font-mono">
+            <tr className="border-t-2 border-b-2 border-black bg-white font-bold text-black">
+              <td className="border-r border-black px-3 py-2 text-left">Grand Total</td>
+              <td className="border-r border-black px-3 py-2 text-right font-mono">
                 {totalVouchersSum > 0 ? totalVouchersSum : ""}
               </td>
-              <td className="px-3 py-2 text-right font-mono text-zinc-500">
+              <td className="px-3 py-2 text-right font-mono text-black/60">
                 {totalCancelledSum > 0 ? `(${totalCancelledSum} )` : ""}
               </td>
             </tr>

@@ -131,14 +131,14 @@ export default function CostCentreBreakupLayout() {
           <span className="font-bold">Cost Centre Break-up</span>
           <span className="ml-auto">Select a cost centre to view ledger break-up</span>
         </div>
-        <div className="px-3 py-1.5 border-b border-zinc-200 bg-[#fafafa]">
+        <div className="px-3 py-1.5 border-b border-zinc-200 bg-white">
           <input
             autoFocus
             type="text"
             placeholder="Type to search cost centre..."
             value={search}
             onChange={e => { setSearch(e.target.value); setPickerFocus(0); }}
-            className="w-full text-[11px] font-mono border border-zinc-300 px-2 py-1 rounded outline-none focus:border-zinc-800 bg-white"
+            className="w-full text-[11px] font-mono border border-zinc-300 px-2 py-1 rounded outline-none focus:border-black bg-white"
           />
         </div>
         <div className="flex-1 overflow-y-auto">

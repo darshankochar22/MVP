@@ -53,8 +53,8 @@ export default function GroupVouchersLayout() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [rows, focusedIndex, navigate]);
 
-  if (loading) return <div className="flex-1 flex items-center justify-center text-zinc-400 font-mono text-xs">Loading Group Vouchers...</div>;
-  if (error) return <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center">{error}</div>;
+  if (loading) return <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">Loading Group Vouchers...</div>;
+  if (error) return <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">{error}</div>;
 
   const totalDebit = rows.reduce((s: number, r: any) => s + (Number(r.debit) || Number(r.debit_total) || 0), 0);
   const totalCredit = rows.reduce((s: number, r: any) => s + (Number(r.credit) || Number(r.credit_total) || 0), 0);
@@ -64,7 +64,7 @@ export default function GroupVouchersLayout() {
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono select-none">
-          <thead className="sticky top-0 bg-[#f4f4f5] border-b border-zinc-300 z-10 text-zinc-700">
+          <thead className="sticky top-0 bg-white border-b border-black z-10 text-black">
             <tr>
               <th className="px-4 py-2 text-left font-bold w-24">Date</th>
               <th className="px-4 py-2 text-left font-bold">Particulars</th>
@@ -73,15 +73,15 @@ export default function GroupVouchersLayout() {
               <th className="px-4 py-2 text-right font-bold w-32">Debit</th>
               <th className="px-4 py-2 text-right font-bold w-32">Credit</th>
             </tr>
-            <tr className="bg-[#f4f4f5]">
-              <th colSpan={6} className="px-4 py-0.5 text-right font-normal italic text-zinc-500 border-b border-zinc-200">
+            <tr className="bg-white">
+              <th colSpan={6} className="px-4 py-0.5 text-right font-normal italic text-black/60 border-b border-black/10">
                 {data?.group_name || `Group ID: ${groupId}`} / {selectedCompany?.name} — {periodLabel}
               </th>
             </tr>
           </thead>
           <tbody>
             {rows.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-zinc-400 italic">No vouchers found.</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-black/60 italic">No vouchers found.</td></tr>
             ) : (
               rows.map((row: any, idx: number) => {
                 const isFocused = idx === focusedIndex;
@@ -90,7 +90,7 @@ export default function GroupVouchersLayout() {
                     key={idx}
                     onClick={() => setFocusedIndex(idx)}
                     onDoubleClick={() => { const id = row.voucher_id || row.id; if (id) navigate(`/transactions/voucher/${id}`); }}
-                    className={`border-b border-zinc-100 cursor-pointer transition-colors ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                    className={`border-b border-black/10 cursor-pointer transition-colors ${isFocused ? "bg-black/10 text-black font-bold" : "hover:bg-black/[0.04] text-black"}`}
                   >
                     <td className="px-4 py-1.5 whitespace-nowrap">{formatDate(row.date || row.voucher_date)}</td>
                     <td className="px-4 py-1.5 truncate max-w-xs">{row.particulars || row.party_name || row.narration || "—"}</td>
@@ -107,7 +107,7 @@ export default function GroupVouchersLayout() {
       </div>
 
       {/* Grand Total */}
-      <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-4 py-1.5 flex font-mono text-[11px] font-bold text-zinc-900 select-none shrink-0">
+      <div className="border-t-2 border-black bg-white px-4 py-1.5 flex font-mono text-[11px] font-bold text-black select-none shrink-0">
         <span className="flex-1">Grand Total</span>
         <span className="w-32 text-right pr-2">{fmt(totalDebit)}</span>
         <span className="w-32 text-right pr-2">{fmt(totalCredit)}</span>
