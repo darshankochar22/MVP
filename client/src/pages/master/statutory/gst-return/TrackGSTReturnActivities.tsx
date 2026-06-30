@@ -6,31 +6,68 @@ import { TableRow, TableCell } from "@/components/shadcn/table";
 import { DataTableCard } from "@/components/blocks/DataTableCard";
 import { EmptyState } from "@/components/blocks/EmptyState";
 
+interface ReturnActivity {
+  name: string;
+  corrections: number;
+  pending_upload: number | null;
+  recon_exceptions: number;
+  pending_file: number | null;
+}
+
+// 0 / empty → "No"; a positive count is shown as-is; null → blank (not applicable).
+const cntCell = (n: number | null) => (n === null ? "" : n > 0 ? String(n) : "No");
+const ynCell = (n: number | null) => (n === null ? "" : n > 0 ? "Yes" : "No");
+
 export default function TrackGSTReturnActivities() {
-  const { selectedCompany } = useCompany();
+  const { selectedCompany, activeFY } = useCompany();
   const navigate = useNavigate();
   const [registrations, setRegistrations] = useState<any[]>([]);
+  const [activities, setActivities] = useState<Record<string, ReturnActivity>>({});
+  const [periodLabel, setPeriodLabel] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    async function loadRegistrations() {
+    async function load() {
       if (!selectedCompany?.company_id) return;
       try {
         setLoading(true);
-        const res = await window.api.gstRegistration.getAll(selectedCompany.company_id);
-        if (res.success && res.gstRegistrations && res.gstRegistrations.length > 0) {
-          setRegistrations(res.gstRegistrations);
-        } else {
-          setRegistrations([]);
+        const [regRes, actRes] = await Promise.all([
+          window.api.gstRegistration.getAll(selectedCompany.company_id),
+          activeFY?.fy_id
+            ? window.api.gst.getReturnActivities({ company_id: selectedCompany.company_id, fy_id: activeFY.fy_id })
+            : Promise.resolve({ success: false } as any),
+        ]);
+        setRegistrations(regRes.success && regRes.gstRegistrations?.length ? regRes.gstRegistrations : []);
+        if (actRes.success && actRes.activities) {
+          const byName: Record<string, ReturnActivity> = {};
+          for (const r of actRes.activities.returns) byName[r.name] = r;
+          setActivities(byName);
+          setPeriodLabel(actRes.activities.period_label || "");
         }
       } catch (e) {
-        console.error("Failed to fetch registrations", e);
+        console.error("Failed to fetch GST return activities", e);
       } finally {
         setLoading(false);
       }
     }
-    loadRegistrations();
-  }, [selectedCompany]);
+    load();
+  }, [selectedCompany, activeFY]);
+
+  const renderReturnRow = (name: string, route?: string) => {
+    const a = activities[name];
+    return (
+      <TableRow
+        className={`hover:bg-[#e6f2ff] cursor-pointer${name.startsWith("GSTR-2") ? " text-gray-600" : ""}`}
+        onClick={route ? () => navigate(route, { state: { registration: registrations[0] } }) : undefined}
+      >
+        <TableCell className="px-8 py-0.5">{name}</TableCell>
+        <TableCell className="w-24 text-center py-0.5">{a ? cntCell(a.corrections) : "—"}</TableCell>
+        <TableCell className="w-24 text-center py-0.5">{a ? cntCell(a.pending_upload) : ""}</TableCell>
+        <TableCell className="w-24 text-center py-0.5">{a ? cntCell(a.recon_exceptions) : ""}</TableCell>
+        <TableCell className="w-24 text-center py-0.5">{a ? ynCell(a.pending_file) : ""}</TableCell>
+      </TableRow>
+    );
+  };
 
   return (
     <TallyReportLayout
@@ -43,7 +80,7 @@ export default function TrackGSTReturnActivities() {
         </>
       }
       rightSubtitle={
-        <div>1-Apr-26 to 30-Apr-26</div>
+        <div>{periodLabel || (activeFY ? `${activeFY.start_date} to ${activeFY.end_date}` : "")}</div>
       }
     >
       <div className="w-full font-sans text-xs">
@@ -82,45 +119,15 @@ export default function TrackGSTReturnActivities() {
                 {/* Period Row */}
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={5} className="px-4 py-1 font-bold text-black">
-                    Apr-26
+                    {periodLabel || "Current Period"}
                   </TableCell>
                 </TableRow>
 
-                {/* Returns */}
-                <TableRow
-                  className="hover:bg-[#e6f2ff] cursor-pointer"
-                  onClick={() => navigate("/master/statutory/gstr1", { state: { registration: reg } })}
-                >
-                  <TableCell className="px-8 py-0.5">GSTR-1</TableCell>
-                  <TableCell className="w-24 text-center py-0.5">No</TableCell>
-                  <TableCell className="w-24 text-center py-0.5">No</TableCell>
-                  <TableCell className="w-24 text-center py-0.5">No</TableCell>
-                  <TableCell className="w-24 text-center py-0.5">Yes</TableCell>
-                </TableRow>
-                <TableRow className="hover:bg-[#e6f2ff] cursor-pointer text-gray-600">
-                  <TableCell className="px-8 py-0.5">GSTR-2A</TableCell>
-                  <TableCell className="w-24 text-center py-0.5">No</TableCell>
-                  <TableCell className="w-24 text-center py-0.5"></TableCell>
-                  <TableCell className="w-24 text-center py-0.5">No</TableCell>
-                  <TableCell className="w-24 text-center py-0.5"></TableCell>
-                </TableRow>
-                <TableRow className="hover:bg-[#e6f2ff] cursor-pointer text-gray-600">
-                  <TableCell className="px-8 py-0.5">GSTR-2B</TableCell>
-                  <TableCell className="w-24 text-center py-0.5">No</TableCell>
-                  <TableCell className="w-24 text-center py-0.5"></TableCell>
-                  <TableCell className="w-24 text-center py-0.5">No</TableCell>
-                  <TableCell className="w-24 text-center py-0.5"></TableCell>
-                </TableRow>
-                <TableRow
-                  className="hover:bg-[#e6f2ff] cursor-pointer"
-                  onClick={() => navigate("/master/statutory/gstr3b", { state: { registration: reg } })}
-                >
-                  <TableCell className="px-8 py-0.5">GSTR-3B</TableCell>
-                  <TableCell className="w-24 text-center py-0.5">No</TableCell>
-                  <TableCell className="w-24 text-center py-0.5"></TableCell>
-                  <TableCell className="w-24 text-center py-0.5">No</TableCell>
-                  <TableCell className="w-24 text-center py-0.5">Yes</TableCell>
-                </TableRow>
+                {/* Returns — real status from books */}
+                {renderReturnRow("GSTR-1", "/master/statutory/gstr1")}
+                {renderReturnRow("GSTR-2A", "/master/statutory/gstr2a/reconciliation")}
+                {renderReturnRow("GSTR-2B", "/master/statutory/gstr2b/reconciliation")}
+                {renderReturnRow("GSTR-3B", "/master/statutory/gstr3b")}
               </Fragment>
             ))
           )}

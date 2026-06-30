@@ -127,6 +127,14 @@ export interface MasterDataAPI {
     getHSNRates: (company_id: number) => Promise<{ success: boolean; hsnRates: any[]; error?: string }>;
     upsertHSNRate: (data: any) => Promise<{ success: boolean; error?: string }>;
     deleteHSNRate: (data: { rate_id: number; company_id: number }) => Promise<{ success: boolean; error?: string }>;
+    getAnnualComputation: (data: { company_id: number; fy_id: number }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getGSTR1Reconciliation: (data: { company_id: number; fy_id: number }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getGSTR2AReconciliation: (data: { company_id: number; fy_id: number }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getGSTR2BReconciliation: (data: { company_id: number; fy_id: number }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    importGSTR2B: (data: { company_id: number; fy_id: number; return_period: string; payload: any }) => Promise<{ success: boolean; error?: string }>;
+    getIMSInwardSupplies: (data: { company_id: number; fy_id: number }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getChallanReconciliation: (data: { company_id: number; fy_id: number }) => Promise<{ success: boolean; payload?: any; error?: string }>;
+    getReturnActivities: (data: { company_id: number; fy_id: number }) => Promise<{ success: boolean; activities?: { period_label: string; returns: { name: string; corrections: number; pending_upload: number | null; recon_exceptions: number; pending_file: number | null }[] }; error?: string }>;
   };
 
   master: {

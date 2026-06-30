@@ -2,7 +2,7 @@
 
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
-const { vouchers, ledgers, gstRegistrations } = require('../db/schema');
+const { vouchers, ledgers, gstRegistrations, voucherStockEntries } = require('../db/schema');
 
 const ZERO_ROW = () => ({
   vch_count: 0,
@@ -236,6 +236,90 @@ const importGSTR2B = async (company_id, fy_id, return_period, payload) => {
   }
 };
 
+const getGSTR2AReconciliation = async (company_id, fy_id) => {
+  try {
+    const { fyStartDate, fyEndDate, fyLabel } = await getDatesForFY(fy_id);
+
+    // Books side: inward documents with their tax totalled from the stock lines
+    // (more reliable than reading aggregate columns that may not exist on the voucher row).
+    const rawVouchers = await db.all(
+      sql`SELECT v.voucher_id, v.voucher_type, v.voucher_number, v.reference_number,
+                 l.gstin AS party_gstin,
+                 COALESCE(SUM(vse.amount), 0) AS taxable_amount,
+                 COALESCE(SUM(vse.igst_amount), 0) AS igst,
+                 COALESCE(SUM(vse.cgst_amount), 0) AS cgst,
+                 COALESCE(SUM(vse.sgst_amount), 0) AS sgst,
+                 COALESCE(SUM(vse.amount + vse.cgst_amount + vse.sgst_amount + vse.igst_amount), 0) AS invoice_amount
+          FROM ${vouchers} v
+          LEFT JOIN ${voucherStockEntries} vse ON vse.voucher_id = v.voucher_id
+          LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
+          WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+            AND v.date >= ${fyStartDate} AND v.date <= ${fyEndDate}
+            AND v.voucher_type IN ('Purchase', 'Credit Note', 'Debit Note')
+          GROUP BY v.voucher_id`
+    );
+
+    const keys = ['b2b', 'amend_b2b', 'cdn', 'amend_cdn', 'isd', 'import_boe', 'import_sez_boe'];
+    const return_view = {};
+    keys.forEach((k) => { return_view[k] = ZERO_ROW(); });
+
+    // Reconcile against imported GSTR-2A portal data (if the user has imported any).
+    const portalInvoices = new Map();
+    try {
+      const importedRows = await db.all(
+        sql`SELECT * FROM gstr2a_imports WHERE company_id = ${company_id} AND fy_id = ${fy_id}`
+      );
+      for (const row of importedRows) {
+        try {
+          const payload = JSON.parse(row.payload_json);
+          for (const p of payload.b2b || []) {
+            for (const inv of p.inv || []) {
+              portalInvoices.set(`${p.ctin}-${inv.inum}`.toUpperCase(), inv);
+            }
+          }
+        } catch (_) { /* skip malformed import */ }
+      }
+    } catch (_) { /* no gstr2a_imports table yet — books-only view */ }
+
+    let reconciled = 0;
+    let unreconciled = 0;
+
+    for (const v of rawVouchers) {
+      const bucket = v.voucher_type === 'Purchase' ? 'b2b' : 'cdn';
+      const row = return_view[bucket];
+      row.vch_count++;
+      row.taxable_amount += Number(v.taxable_amount) || 0;
+      row.igst += Number(v.igst) || 0;
+      row.cgst += Number(v.cgst) || 0;
+      row.sgst += Number(v.sgst) || 0;
+      row.cess += Number(v.cess) || 0;
+      row.tax_amount += (Number(v.igst) || 0) + (Number(v.cgst) || 0) + (Number(v.sgst) || 0) + (Number(v.cess) || 0);
+      row.invoice_amount += Number(v.invoice_amount) || 0;
+
+      const key = `${v.party_gstin}-${v.reference_number || v.voucher_number}`.toUpperCase();
+      if (portalInvoices.size > 0 && portalInvoices.has(key)) {
+        row.status = 'Reconciled';
+        reconciled++;
+      } else {
+        row.status = 'Unreconciled';
+        unreconciled++;
+      }
+    }
+
+    return {
+      success: true,
+      payload: {
+        return_view,
+        voucher_status: { reconciled, unreconciled, uncertain: 0 },
+        period_label: fyLabel,
+        last_gst_activity: portalInvoices.size > 0 ? 'GSTR-2A imported' : 'No portal 2A imported',
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 const getIMSInwardSupplies = async (company_id, fy_id) => {
   try {
     const { fyStartDate, fyEndDate, fyLabel } = await getDatesForFY(fy_id);
@@ -371,10 +455,72 @@ const getChallanReconciliation = async (company_id, fy_id) => {
   }
 };
 
+// Real return-filing status for the "Track GST Return Activities" dashboard,
+// computed from books (data-quality exceptions + whether a return has been filed).
+const getReturnActivities = async (company_id, fy_id) => {
+  try {
+    const { fyLabel } = await getDatesForFY(fy_id);
+
+    // GSTR-1 corrections: outward sales invoices with a data-quality problem
+    // (registered party but missing/invalid GSTIN, or a missing place of supply).
+    const corrRows = await db.all(
+      sql`SELECT COUNT(DISTINCT v.voucher_id) AS n
+          FROM ${vouchers} v
+          LEFT JOIN ${ledgers} l ON l.ledger_id = v.party_ledger_id
+          WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+            AND v.is_invoice = 1 AND v.voucher_type = 'Sales'
+            AND (
+              (l.registration_type IS NOT NULL AND l.registration_type != 'Unregistered'
+                 AND (l.gstin IS NULL OR l.gstin = '' OR length(l.gstin) != 15))
+              OR COALESCE(v.place_of_supply, '') = ''
+            )`
+    );
+    const corrections = Number(corrRows[0]?.n || 0);
+
+    // Inward documents — treated as reconciliation exceptions until matched against
+    // imported 2A/2B portal data.
+    const purRows = await db.all(
+      sql`SELECT COUNT(DISTINCT v.voucher_id) AS n
+          FROM ${vouchers} v
+          WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
+            AND v.voucher_type IN ('Purchase', 'Credit Note', 'Debit Note')`
+    );
+    const inwardCount = Number(purRows[0]?.n || 0);
+
+    let gstr1Filed = false;
+    let gstr3bFiled = false;
+    try {
+      const r = await db.all(sql`SELECT COUNT(*) AS n FROM gstr1_exports WHERE company_id = ${company_id} AND fy_id = ${fy_id} AND status = 'Filed'`);
+      gstr1Filed = Number(r[0]?.n || 0) > 0;
+    } catch (_) { /* table may not exist */ }
+    try {
+      const r = await db.all(sql`SELECT COUNT(*) AS n FROM gstr3b_exports WHERE company_id = ${company_id} AND fy_id = ${fy_id} AND status = 'Filed'`);
+      gstr3bFiled = Number(r[0]?.n || 0) > 0;
+    } catch (_) { /* table may not exist */ }
+
+    return {
+      success: true,
+      activities: {
+        period_label: fyLabel,
+        returns: [
+          { name: 'GSTR-1', corrections, pending_upload: 0, recon_exceptions: 0, pending_file: gstr1Filed ? 0 : 1 },
+          { name: 'GSTR-2A', corrections: 0, pending_upload: null, recon_exceptions: inwardCount, pending_file: null },
+          { name: 'GSTR-2B', corrections: 0, pending_upload: null, recon_exceptions: inwardCount, pending_file: null },
+          { name: 'GSTR-3B', corrections, pending_upload: 0, recon_exceptions: 0, pending_file: gstr3bFiled ? 0 : 1 },
+        ],
+      },
+    };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 module.exports = {
   getGSTR1Reconciliation,
+  getGSTR2AReconciliation,
   getGSTR2BReconciliation,
   importGSTR2B,
   getIMSInwardSupplies,
-  getChallanReconciliation
+  getChallanReconciliation,
+  getReturnActivities,
 };

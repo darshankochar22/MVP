@@ -204,7 +204,7 @@ function ReadOnlyStockTable({ entries }: { entries: StockEntry[] }) {
   const total = entries.reduce((s, e) => s + (e.amount || 0), 0);
   return (
     <>
-      <div className="flex border-b border-black shrink-0 px-3 py-0.5 bg-white">
+      <div className="flex border-b border-gray-300 shrink-0 px-3 py-0.5 bg-white">
         <div className="flex-1 text-sm font-semibold text-black">Name of Item</div>
         <div className="w-24 text-right text-sm font-semibold text-black">Quantity</div>
         <div className="w-32 text-right text-sm font-semibold text-black">Rate per</div>
@@ -252,7 +252,7 @@ function ReadOnlyParticularsTable({ entries }: { entries: { ledger_name: string;
   const total = entries.reduce((s, e) => s + (e.amount || 0), 0);
   return (
     <>
-      <div className="flex border-b border-black shrink-0 px-3 py-0.5 bg-white">
+      <div className="flex border-b border-gray-300 shrink-0 px-3 py-0.5 bg-white">
         <div className="flex-1 text-sm font-semibold text-black">Particulars</div>
         <div className="w-40 text-right text-sm font-semibold text-black">Amount</div>
       </div>
@@ -270,7 +270,7 @@ function ReadOnlyParticularsTable({ entries }: { entries: { ledger_name: string;
           </div>
         ))}
       </div>
-      <div className="flex border-t border-black shrink-0 px-3 py-0.5 bg-white">
+      <div className="flex border-t border-gray-300 shrink-0 px-3 py-0.5 bg-white">
         <div className="flex-1 text-xs text-gray-600">
           {Math.abs(total) < 0.01 ? "" : "Total:"}
         </div>
@@ -338,7 +338,7 @@ function ReadOnlyDoubleEntryTable({
 
   return (
     <>
-      <div className="flex border-b border-black shrink-0 px-3 py-1 bg-white">
+      <div className="flex border-b border-gray-300 shrink-0 px-3 py-1 bg-white">
         <div className="flex-1 text-sm font-semibold text-black">Particulars</div>
         <div className="w-36 text-right text-sm font-semibold text-black">Debit</div>
         <div className="w-36 text-right text-sm font-semibold text-black">Credit</div>
@@ -361,7 +361,7 @@ function ReadOnlyDoubleEntryTable({
               {bal && (
                 <div className="pl-6 text-xs italic">
                   Cur Bal:{" "}
-                  <span className={bal.includes("Cr") ? "text-red-600 font-semibold" : "text-zinc-500 font-semibold"}>
+                  <span className={bal.includes("Cr") ? "text-black font-bold" : "text-zinc-500 font-semibold"}>
                     {bal}
                   </span>
                 </div>
@@ -386,7 +386,7 @@ function ReadOnlyDoubleEntryTable({
           </div>
         ))}
       </div>
-      <div className="flex border-t-2 border-double border-black shrink-0 px-3 py-1 bg-white">
+      <div className="flex border-t border-gray-300 shrink-0 px-3 py-1 bg-white">
         <div className="flex-1" />
         <div className="w-36 text-right text-sm font-bold text-black tabular-nums">{formatAmount(drTotal)}</div>
         <div className="w-36 text-right text-sm font-bold text-black tabular-nums">{formatAmount(crTotal)}</div>
@@ -399,7 +399,7 @@ function ReadOnlyPayrollTable({ entries }: { entries: PayrollEntry[] }) {
   const total = entries.reduce((s, e) => s + (e.amount || 0), 0);
   return (
     <>
-      <div className="flex border-b border-black shrink-0 px-3 py-0.5 bg-white">
+      <div className="flex border-b border-gray-300 shrink-0 px-3 py-0.5 bg-white">
         <div className="w-20 text-sm font-semibold text-black">Emp. Code</div>
         <div className="flex-1 text-sm font-semibold text-black">Employee Name</div>
         <div className="flex-1 text-sm font-semibold text-black">Pay Head</div>
@@ -419,7 +419,7 @@ function ReadOnlyPayrollTable({ entries }: { entries: PayrollEntry[] }) {
         ))}
       </div>
       {total > 0 && (
-        <div className="flex border-t border-black shrink-0 px-3 py-0.5 bg-white">
+        <div className="flex border-t border-gray-300 shrink-0 px-3 py-0.5 bg-white">
           <div className="flex-1" />
           <div className="w-32 text-right text-sm font-bold text-black">{formatAmount(total)}</div>
         </div>
@@ -458,7 +458,7 @@ function FKeyPanel({ voucherType }: { voucherType: string }) {
         key={key}
         className={cn(
           "flex items-center justify-between px-2 py-1.5 border-b border-zinc-100 text-xs",
-          active ? "bg-[#ffcc00] text-zinc-950 font-bold" : "text-zinc-700"
+          active ? "bg-zinc-900 text-white font-bold" : "text-zinc-700"
         )}
       >
         <span><span className="underline">{key[0]}</span>{key.slice(1)}: {label}</span>
@@ -468,7 +468,7 @@ function FKeyPanel({ voucherType }: { voucherType: string }) {
   };
 
   return (
-    <div className="w-56 shrink-0 border-l border-zinc-300 bg-[#e5eff5] overflow-y-auto">
+    <div className="w-56 shrink-0 border-l border-zinc-300 bg-gray-50 overflow-y-auto">
       <div className="py-1">{top.map(renderRow)}</div>
       <div className="py-1 border-t border-zinc-300">{bottom.map(renderRow)}</div>
       <div className="py-1 border-t border-zinc-300">{tail.map(renderRow)}</div>
@@ -584,7 +584,7 @@ export default function VoucherView() {
   if (error && !voucher) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-3 text-zinc-500 text-xs">
-        <span className="text-red-600">{error}</span>
+        <span className="text-black font-semibold">{error}</span>
         <Button
           onClick={() => navigate(-1)}
           variant="link"
@@ -646,16 +646,16 @@ export default function VoucherView() {
     <div className="flex-1 flex flex-col bg-white text-black text-sm select-none overflow-hidden min-h-0">
       {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
 
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-zinc-300 bg-[#bfe1f0] shrink-0">
-        <span className="text-sm font-bold text-zinc-900">{getTitle()}</span>
-        <span className="text-sm font-bold text-zinc-900">
+      <div className="flex items-center justify-between px-3 py-1.5 border-b border-black bg-zinc-900 shrink-0">
+        <span className="text-sm font-bold text-white">{getTitle()}</span>
+        <span className="text-sm font-bold text-white">
           {selectedCompany?.name ?? ""}
           {voucher.is_cancelled ? " · CANCELLED" : ""}
           {voucher.is_post_dated ? " · POST-DATED" : ""}
         </span>
         <button
           onClick={() => navigate(-1)}
-          className="text-zinc-700 text-sm font-bold hover:opacity-60 leading-none"
+          className="text-zinc-300 text-sm font-bold hover:opacity-60 leading-none"
         >
           ✕
         </button>
@@ -667,16 +667,16 @@ export default function VoucherView() {
           data-filename={`${voucher.voucher_type}_${voucher.voucher_number || voucher.voucher_id}`}
           className="flex-1 flex flex-col min-h-0 overflow-y-auto"
         >
-          <div className="flex items-center px-3 py-1.5 border-b border-black bg-white shrink-0">
-            <div className="text-sm font-bold text-white bg-[#2f7ab8] px-3 py-0.5 min-w-[90px] text-center">
+          <div className="flex items-center px-3 py-1.5 border-b border-gray-300 bg-white shrink-0">
+            <div className="text-sm font-bold text-white bg-zinc-900 px-3 py-0.5 min-w-[90px] text-center">
               {voucher.voucher_type}
             </div>
             <span className="text-sm text-black ml-3">No.</span>
             <span className="text-sm font-bold text-black ml-2 mr-6">{voucher.voucher_number}</span>
             <div className="flex-1" />
-            <div className="bg-[#ffcc00] px-3 py-0.5 text-right">
-              <div className="text-sm font-bold text-zinc-900">{dateStr}</div>
-              {dayStr && <div className="text-[10px] text-zinc-700">{dayStr}</div>}
+            <div className="border border-gray-300 px-3 py-0.5 text-right">
+              <div className="text-sm font-bold text-black">{dateStr}</div>
+              {dayStr && <div className="text-[10px] text-zinc-600">{dayStr}</div>}
             </div>
           </div>
 
@@ -710,7 +710,7 @@ export default function VoucherView() {
             />
           )}
 
-          {(hasStock || hasEntries) && <div className="border-b border-black shrink-0" />}
+          {(hasStock || hasEntries) && <div className="border-b border-gray-300 shrink-0" />}
 
           {hasStock && <ReadOnlyStockTable entries={voucher.stock_entries} />}
 
@@ -753,7 +753,7 @@ export default function VoucherView() {
           )}
 
           {/* Narration — only thing left at the bottom now */}
-          <div className="flex items-center border-t border-black shrink-0 px-3 py-1.5 bg-white">
+          <div className="flex items-center border-t border-gray-300 shrink-0 px-3 py-1.5 bg-white">
             <span className="text-sm text-black shrink-0">Narration:</span>
             <span className="flex-1 text-sm text-black ml-2">{voucher.narration || "—"}</span>
           </div>
@@ -762,7 +762,7 @@ export default function VoucherView() {
         <FKeyPanel voucherType={voucher.voucher_type} />
       </div>
 
-      <div className="flex items-center justify-between border-t border-black shrink-0 px-3 py-1.5 bg-white">
+      <div className="flex items-center justify-between border-t border-gray-300 shrink-0 px-3 py-1.5 bg-white">
         <Button
           onClick={() => navigate(-1)}
           variant="ghost"
@@ -794,7 +794,7 @@ export default function VoucherView() {
           <Button
             onClick={handleDelete}
             size="xs"
-            className="h-auto rounded-none text-sm px-3 py-0.5 bg-red-700 text-white hover:bg-red-800"
+            className="h-auto rounded-none text-sm px-3 py-0.5 bg-black text-white hover:bg-zinc-800"
           >
             <span className="underline">D</span>: Delete
           </Button>

@@ -70,8 +70,6 @@ app.whenReady().then(async () => {
         await initDB();
         require('./server/index.js');
 
-        // Dev-only: serve auto-generated API docs at http://localhost:5180/docs
-        // (uses the correctly-spelled app.isPackaged so it never ships in production builds).
         if (!app.isPackaged && !process.env.E2E_PROD) {
             require('./server/docs/server')
                 .startDocsServer({ port: 5180 })

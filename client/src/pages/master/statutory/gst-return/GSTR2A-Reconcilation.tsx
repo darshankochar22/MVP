@@ -105,8 +105,9 @@ export default function GSTR2AReconciliation() {
     try {
       setLoading(true);
       setError(null);
-      setData({ return_view: {}, voucher_status: {}, period_label: "" });
-
+      const res = await window.api.gst.getGSTR2AReconciliation({ company_id: companyId, fy_id: fyId });
+      if (res.success) setData(res.payload);
+      else setError(res.error || "Failed to load GSTR-2A reconciliation");
     } catch (e: any) {
       setError(e.message || "Unknown error");
     } finally {

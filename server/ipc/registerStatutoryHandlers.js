@@ -29,10 +29,12 @@ function register() {
   ipcMain.handle('gst:deleteHSNRate', gstController.deleteHSNRate);
   ipcMain.handle('gst:getAnnualComputation', gstController.getAnnualComputation);
   ipcMain.handle('gst:getGSTR1Reconciliation', gstController.getGSTR1Reconciliation);
+  ipcMain.handle('gst:getGSTR2AReconciliation', gstController.getGSTR2AReconciliation);
   ipcMain.handle('gst:getGSTR2BReconciliation', gstController.getGSTR2BReconciliation);
   ipcMain.handle('gst:importGSTR2B', gstController.importGSTR2B);
   ipcMain.handle('gst:getIMSInwardSupplies', gstController.getIMSInwardSupplies);
   ipcMain.handle('gst:getChallanReconciliation', gstController.getChallanReconciliation);
+  ipcMain.handle('gst:getReturnActivities', gstController.getReturnActivities);
 
   ipcMain.handle('gstRegistration:create', gstRegistrationController.create);
   ipcMain.handle('gstRegistration:getAll', gstRegistrationController.getAll);

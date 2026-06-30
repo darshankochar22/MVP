@@ -25,6 +25,7 @@ const {
   tdsNatureOfPayment,
   tcsNatureOfGoods,
 } = require('../../db/schema');
+const { getGstReport } = require('./gstReportService');
 
 // ---------------------------------------------------------------------------
 // 11. getPartyAnalysis -- party-wise analysis
@@ -265,6 +266,13 @@ const getStatutoryReport = async (company_id, fy_id, reportTypeArg = 'gstr1_b2b'
     if (reportTypeArg && typeof reportTypeArg === 'object' &&
         (reportTypeArg.statutoryType === 'einvoice' || reportTypeArg.statutoryType === 'eway')) {
       return await getEInvoiceReport(company_id, fy_id, reportTypeArg);
+    }
+    // GST reports are computed from books by the dedicated, frontend-shape-aligned
+    // engine (gstReportService). Routed by statutoryType so every gst-*.js definition
+    // lands on a real query (or an honest "needs portal data" message) instead of the
+    // generic voucher dump that the legacy switch fell through to.
+    if (reportTypeArg && typeof reportTypeArg === 'object' && reportTypeArg.statutoryType === 'gst') {
+      return await getGstReport(company_id, fy_id, reportTypeArg);
     }
     const reportType = normalizeType(reportTypeArg, 'gstr1_b2b', {
       'gstr-1-b2b': 'gstr1_b2b', 'gstr-1-b2c-large': 'gstr1_b2c_large', 'gstr-1-b2c-small': 'gstr1_b2c_small',

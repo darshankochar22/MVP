@@ -124,6 +124,10 @@ module.exports = {
     return await reconciliationService.getGSTR1Reconciliation(company_id, fy_id);
   },
 
+  getGSTR2AReconciliation: async (event, { company_id, fy_id }) => {
+    return await reconciliationService.getGSTR2AReconciliation(company_id, fy_id);
+  },
+
   getGSTR2BReconciliation: async (event, { company_id, fy_id }) => {
     return await reconciliationService.getGSTR2BReconciliation(company_id, fy_id);
   },
@@ -138,5 +142,9 @@ module.exports = {
 
   getChallanReconciliation: async (event, { company_id, fy_id }) => {
     return await reconciliationService.getChallanReconciliation(company_id, fy_id);
+  },
+
+  getReturnActivities: async (event, { company_id, fy_id }) => {
+    return await reconciliationService.getReturnActivities(company_id, fy_id);
   }
 };

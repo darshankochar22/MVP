@@ -84,6 +84,9 @@ export function ReportRunner() {
   const [rows, setRows] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  // Informational message for reports that legitimately have no book rows
+  // (e.g. GST reports that require data downloaded from the portal).
+  const [notice, setNotice] = React.useState<string | null>(null);
 
   // Configuration and View State
   const [config, setConfig] = React.useState<ReportContextConfig>({
@@ -168,6 +171,7 @@ export function ReportRunner() {
     
     setLoading(true);
     setError(null);
+    setNotice(null);
 
     try {
       if (definition.apiMethod === "editLogSummary") {
@@ -335,6 +339,7 @@ export function ReportRunner() {
             });
           }
           setRows(finalRows);
+          setNotice(finalRows.length === 0 && res.message ? res.message : null);
         } else {
           setError(res?.error || "Failed to load database report.");
           setRows([]);
@@ -629,6 +634,10 @@ export function ReportRunner() {
         ) : loading ? (
           <div className="flex-1 flex items-center justify-center text-zinc-500 font-mono text-xs">
             Loading report data...
+          </div>
+        ) : notice && rows.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center text-zinc-600 font-mono text-xs px-8 text-center animate-fade-in">
+            {notice}
           </div>
         ) :reportType === "balance-sheet" ?(
         <BalanceSheetLayout />
