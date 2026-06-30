@@ -137,8 +137,8 @@ describe("crudSweep voucher", () => {
     expect(v.narration).toBe("Payment to creditor (sweep)");
     expect(v.is_accounting_voucher).toBe(1);
     expect(v.is_cancelled).toBe(0);
-    // Auto-numbering: Payment prefix is PMT-.
-    expect(String(v.voucher_number)).toMatch(/^PMT-\d{5}$/);
+    // Auto-numbering: plain sequential numbers (no type prefix / zero-padding).
+    expect(String(v.voucher_number)).toMatch(/^\d+$/);
 
     // Entries persisted with ledger_name + currency the form sent.
     expect(Array.isArray(v.entries)).toBe(true);
@@ -233,9 +233,9 @@ describe("crudSweep voucher", () => {
       voucher_type: "Payment",
     });
     expect(res.success).toBe(true);
-    // One Payment exists (PMT-00001) → next is 2.
+    // One Payment exists ("1") → next is 2, formatted plain.
     expect(res.nextNumber).toBe(2);
-    expect(res.voucher_number).toBe("PMT-00002");
+    expect(res.voucher_number).toBe("2");
   });
 
   it("delete removes the voucher (hard delete, cascade entries)", async () => {

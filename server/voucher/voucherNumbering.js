@@ -39,17 +39,17 @@ const fetchNumberingConfig = async (company_id, voucher_type) => {
   return rows[0] || {};
 };
 
-const formatVoucherNumber = (n, voucher_type, cfg) => {
-  const explicitPrefix = (cfg.numbering_prefix || '').trim();
-  const prefix = explicitPrefix || `${prefixMap[voucher_type] || 'VCH'}-`;
+const formatVoucherNumber = (_n, _voucher_type, cfg) => {
+  const n = _n;
+  // Plain sequential numbers (1, 2, 3 …) by default — no auto type prefix, no
+  // zero-padding. A prefix/suffix or width explicitly set on the voucher type
+  // (additional-numbering sub-screen) is still honoured.
+  const prefix = (cfg.numbering_prefix || '').trim();
   const suffix = (cfg.numbering_suffix || '').trim();
-  // A configured width (from the additional-numbering sub-screen) overrides the
-  // default: pad to that width when "prefill with zero" is on, else leave plain.
-  // When unconfigured (the common case), use the app default: 5-digit zero-pad.
   const configuredWidth = Number(cfg.width_of_numerical_part) || 0;
-  const body = configuredWidth > 0
-    ? (cfg.prefill_with_zero ? String(n).padStart(configuredWidth, '0') : String(n))
-    : String(n).padStart(5, '0');
+  const body = configuredWidth > 0 && cfg.prefill_with_zero
+    ? String(n).padStart(configuredWidth, '0')
+    : String(n);
   return `${prefix}${body}${suffix}`;
 };
 

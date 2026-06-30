@@ -249,8 +249,14 @@ function ReadOnlyStockTable({ entries }: { entries: StockEntry[] }) {
   );
 }
 
-function ReadOnlyParticularsTable({ entries }: { entries: { ledger_name: string; amount: number }[] }) {
+function ReadOnlyParticularsTable({ entries, bills = [] }: { entries: VoucherEntry[]; bills?: BillReference[] }) {
   const total = entries.reduce((s, e) => s + (e.amount || 0), 0);
+  // Bill-wise allocations grouped under their ledger, shown inline (Tally-style),
+  // exactly like the entry screen — not in a separate block at the bottom.
+  const billsByLedger = bills.reduce<Record<number, BillReference[]>>((acc, b) => {
+    (acc[b.ledger_id] ??= []).push(b);
+    return acc;
+  }, {});
   return (
     <>
       <div className="flex border-b border-gray-300 shrink-0 px-3 py-0.5 bg-white">
@@ -259,12 +265,22 @@ function ReadOnlyParticularsTable({ entries }: { entries: { ledger_name: string;
       </div>
       <div className="flex-1 overflow-y-auto min-h-0">
         {entries.map((row, idx) => (
-          <div key={idx} className="flex items-center border-b border-gray-100 min-h-[22px] px-3 py-0">
-            <div className="flex-1 text-sm text-black">{row.ledger_name || "—"}</div>
-            <div className="w-40 text-right text-sm font-semibold text-black">{formatAmount(row.amount)}</div>
+          <div key={idx} className="border-b border-gray-100 px-3 py-0">
+            <div className="flex items-center min-h-[22px]">
+              <div className="flex-1 text-sm text-black">{row.ledger_name || "—"}</div>
+              <div className="w-40 text-right text-sm font-semibold text-black">{formatAmount(row.amount)}</div>
+            </div>
+            {(billsByLedger[row.ledger_id] ?? []).map((b) => (
+              <div key={b.bill_id} className="flex items-baseline pl-6 min-h-[18px] text-xs text-black">
+                <span className="w-24 text-gray-600">{b.bill_type || "—"}</span>
+                <span className="flex-1 font-medium">{b.bill_name || "—"}</span>
+                {b.due_date && <span className="text-gray-600 mr-3">Due: {formatDate(b.due_date)}</span>}
+                <span className="w-32 text-right tabular-nums font-semibold">{formatAmount(b.amount)}</span>
+              </div>
+            ))}
           </div>
         ))}
-        {Array.from({ length: Math.max(0, 10 - entries.length) }).map((_, i) => (
+        {Array.from({ length: Math.max(0, 6 - entries.length) }).map((_, i) => (
           <div key={`ep-${i}`} className="flex border-b border-gray-50 min-h-[22px]">
             <div className="flex-1 px-3" />
             <div className="w-40 pr-3" />
@@ -647,16 +663,16 @@ export default function VoucherView() {
     <div className="flex-1 flex flex-col bg-white text-black text-sm select-none overflow-hidden min-h-0">
       {error && <AlertBanner type="error" message={error} onDismiss={() => setError(null)} />}
 
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-black bg-zinc-900 shrink-0">
-        <span className="text-sm font-bold text-white">{getTitle()}</span>
-        <span className="text-sm font-bold text-white">
+      <div className="flex items-center justify-between px-3 py-0.5 border-b border-black bg-zinc-900 shrink-0">
+        <span className="text-xs font-bold text-white">{getTitle()}</span>
+        <span className="text-xs font-bold text-white">
           {selectedCompany?.name ?? ""}
           {voucher.is_cancelled ? " · CANCELLED" : ""}
           {voucher.is_post_dated ? " · POST-DATED" : ""}
         </span>
         <button
           onClick={() => navigate(-1)}
-          className="text-zinc-300 text-sm font-bold hover:opacity-60 leading-none"
+          className="text-zinc-300 text-xs font-bold hover:opacity-60 leading-none"
         >
           ✕
         </button>
@@ -735,17 +751,17 @@ export default function VoucherView() {
           )}
 
           {isSingleEntry && particulars.length > 0 && !showDoubleEntryTable && (
-            <ReadOnlyParticularsTable
-              entries={particulars.map(e => ({ ledger_name: e.ledger_name, amount: e.amount }))}
-            />
+            <ReadOnlyParticularsTable entries={particulars} bills={voucher.bill_references} />
           )}
 
           {showDoubleEntryTable && (
             <ReadOnlyDoubleEntryTable entries={voucher.entries} balances={balances} bills={voucher.bill_references} />
           )}
 
-          {/* Single-entry vouchers still list bill-wise refs separately; double-entry shows them inline above. */}
-          {voucher.bill_references?.length > 0 && !showDoubleEntryTable && (
+          {/* Bill-wise refs render inline under their ledger (double-entry table and the
+              single-entry particulars table both do this). Only the Sales/Purchase layout —
+              where the party is a header field, not a table row — still lists them here. */}
+          {voucher.bill_references?.length > 0 && !showDoubleEntryTable && !(isSingleEntry && particulars.length > 0) && (
             <ReadOnlyBillReferences bills={voucher.bill_references} ledgerNames={ledgerNames} />
           )}
 
