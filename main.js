@@ -1,14 +1,9 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
-// E2E_PROD makes `electron .` load the built client/dist (like a packaged app) so Playwright
-// can drive the real renderer without a Vite dev server.
 const isDev = !app.isPackaged && !process.env.E2E_PROD;
 
 ipcMain.handle("app:getDataPath", () => app.getPath("userData"));
-
-// Render a self-contained HTML document to a PDF file (used for invoice/voucher export).
-// Lives here because it needs Electron main APIs (offscreen window, printToPDF, save dialog).
 ipcMain.handle("export:htmlToPdf", async (event, { html, defaultFileName } = {}) => {
     if (!html || typeof html !== "string") {
         return { success: false, error: "No HTML provided." };
