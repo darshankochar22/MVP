@@ -10,5 +10,6 @@ interface Props {
 }
 
 export default function RejectionInVoucher({ handleAmountConfirm: _ignored, ...props }: Props) {
-  return <StockTransferVoucherBody {...props} config={{ salesPurchaseLabel: "Sales Ledger" }} />;
+  // Non-accounting inventory voucher — no Sales Ledger row (Tally posts nothing here).
+  return <StockTransferVoucherBody {...props} />;
 }

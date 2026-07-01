@@ -463,7 +463,7 @@ export default function Vouchers() {
       const allFilled = (effectiveVoucherType === "Credit Note" || effectiveVoucherType === "Debit Note" || effectiveVoucherType === "Rejection In" || effectiveVoucherType === "Rejection Out" || effectiveVoucherType === "Material In" || effectiveVoucherType === "Material Out")
         ? form.stockEntries.every((s) => !s.stockItem || (s.quantityRaw !== "" && s.rateRaw !== ""))
         : true;
-      const needsLedger = ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out"].includes(effectiveVoucherType);
+      const needsLedger = ["Sales", "Purchase", "Credit Note", "Debit Note"].includes(effectiveVoucherType);
       return (
         !!form.partyLedger &&
         (!needsLedger || !!form.salesPurchaseLedger) &&

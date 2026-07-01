@@ -10,14 +10,15 @@ interface Props {
 }
 
 export default function ReceiptNoteVoucher({ handleAmountConfirm: _ignored, ...props }: Props) {
-  // Receipt Note mirrors the Purchase layout: Party + Purchase ledger + an
-  // Actual/Billed item grid. Godown/qty/rate are captured in the Stock Item
-  // Allocations popup that opens on item select, so the inline godown column is
-  // hidden (see Vouchers.tsx handleLedgerSelectWithAllocation).
+  // Receipt Note mirrors the Purchase layout: Party + an Actual/Billed item grid.
+  // Non-accounting inventory voucher — no Purchase Ledger row (Tally posts nothing
+  // here). Godown/qty/rate are captured in the Stock Item Allocations popup that
+  // opens on item select, so the inline godown column is hidden (see Vouchers.tsx
+  // handleLedgerSelectWithAllocation).
   return (
     <StockTransferVoucherBody
       {...props}
-      config={{ salesPurchaseLabel: "Purchase Ledger", hideGodownColumn: true, showActualBilled: true, showReferenceRow: true }}
+      config={{ hideGodownColumn: true, showActualBilled: true, showReferenceRow: true }}
     />
   );
 }
