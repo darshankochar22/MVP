@@ -1022,6 +1022,39 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
         return { success: false, error: 'Debit and Credit amounts must be equal' };
       }
 
+      // Recompute GST the same way create() does — altering item quantity/rate
+      // (or the party/place of supply) must re-derive CGST/SGST/IGST, not keep
+      // stale amounts from when the voucher was first saved. Only runs when the
+      // caller resent both entries and stock_entries (a full alter-form save).
+      if (
+        data.is_accounting_voucher &&
+        ['Sales', 'Purchase', 'Credit Note', 'Debit Note'].includes(voucherType) &&
+        data.entries !== undefined &&
+        data.stock_entries !== undefined
+      ) {
+        try {
+          const gstTaxEngine = require('../gst/gstTaxEngine');
+          const computed = await gstTaxEngine.computeVoucherTaxLines(db, {
+            company_id: data.company_id || current.company_id,
+            date: data.date || current.date,
+            party_ledger_id: data.party_ledger_id !== undefined ? data.party_ledger_id : current.party_ledger_id,
+            place_of_supply: data.place_of_supply !== undefined ? data.place_of_supply : current.place_of_supply,
+            stock_entries: data.stock_entries,
+            entries: data.entries,
+            voucher_type: voucherType,
+          });
+          data.entries = computed.entries;
+          data.stock_entries = computed.stock_entries;
+          data.computedGST = computed;
+        } catch (gstErr) {
+          console.error("GST recalculation failed:", gstErr);
+        }
+
+        if (data.entries && data.entries.length > 0 && !validateDoubleEntry(data.entries)) {
+          return { success: false, error: 'Debit and Credit amounts must be equal' };
+        }
+      }
+
       // All edits below are atomic with the audit row (single shared connection).
       await db.execute({ sql: 'BEGIN TRANSACTION', args: [] });
 
@@ -1366,6 +1399,11 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
             sourceGodownId: nullify(od.source_godown_id) || null,
           });
         }
+      }
+
+      if (data.computedGST) {
+        const gstTaxEngine = require('../gst/gstTaxEngine');
+        await gstTaxEngine.saveVoucherTaxLines(db, data.voucher_id, data.computedGST);
       }
 
       // Entry amounts / ledgers may have changed — refresh stored ledger closing
