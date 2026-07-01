@@ -286,6 +286,102 @@ const getRecordByIRN = async (irn) => {
   }
 };
 
+// ---- developer-side (.env) path via the shared NIC client -------------------------
+// Mirrors ewayBillService: credentials come from gspConfig/.env, never the renderer.
+
+const nic = require('../integrations/nicClient');
+const { getGspConfig } = require('../integrations/gspConfig');
+const { buildIrnPayload } = require('./eInvoicePayload');
+
+const EINV = () => getGspConfig()?.einvoiceBaseUrl || SANDBOX_HOST;
+
+// Renderer-safe status (no secret) + how many IRNs exist for this company.
+const getStatus = async (company_id) => {
+  const st = nic.getStatus();
+  let records = 0;
+  try {
+    const r = await db.all(
+      sql`SELECT COUNT(*) AS n FROM ${einvoiceRecords} WHERE ${einvoiceRecords.companyId} = ${company_id}`
+    );
+    records = r[0]?.n || 0;
+  } catch (_) { /* ignore */ }
+  return { success: true, ...st, records };
+};
+
+// Build the IRN payload straight from the voucher in books and push it to the IRP.
+const generateFromVoucher = async (company_id, voucher_id) => {
+  try {
+    const vRows = await db.all(
+      sql`SELECT v.*, l.name AS party_name, l.gstin AS party_gstin, l.state AS party_state,
+                 l.address1 AS party_address, l.pincode AS party_pincode
+          FROM vouchers v
+          LEFT JOIN ledgers l ON l.ledger_id = v.party_ledger_id
+          WHERE v.voucher_id = ${voucher_id} AND v.company_id = ${company_id}`
+    );
+    if (vRows.length === 0) return { success: false, error: 'Voucher not found' };
+    const voucher = vRows[0];
+
+    voucher.stock_entries = await db.all(
+      sql`SELECT * FROM voucher_stock_entries WHERE voucher_id = ${voucher_id}`
+    );
+    if (voucher.stock_entries.length === 0) {
+      return { success: false, error: 'Voucher has no stock items — an e-Invoice needs at least one line item.' };
+    }
+
+    const compRows = await db.all(sql`SELECT * FROM companies WHERE company_id = ${company_id}`);
+    const company = compRows[0] || {};
+    const regRows = await db.all(
+      sql`SELECT * FROM gst_registrations WHERE company_id = ${company_id} AND is_active = 1 LIMIT 1`
+    );
+    const reg = regRows[0] || {};
+
+    const seller = {
+      gstin: reg.gstin || getGspConfig()?.gstin || '',
+      name: company.mailing_name || company.name || '',
+      addr: company.address1 || 'NA',
+      loc: company.state || 'NA',
+      pin: company.pincode || '',
+      state: company.state || reg.state_id || '',
+    };
+    const buyer = {
+      gstin: voucher.party_gstin || '',
+      name: voucher.party_name || '',
+      addr: voucher.party_address || 'NA',
+      loc: voucher.party_state || 'NA',
+      pin: voucher.party_pincode || '',
+      state: voucher.party_state || '',
+    };
+
+    const payload = buildIrnPayload(voucher, seller, buyer);
+    const r = await nic.authedRequest(EINV(), 'POST', '/eicore/v1.03/Invoice', payload);
+    if (!r.ok) return { success: false, error: r.error };
+
+    const d = r.body.Data || {};
+    try {
+      await db.insert(einvoiceRecords).values({
+        companyId: company_id,
+        voucherId: voucher_id,
+        invoiceNumber: payload.DocDtls?.No,
+        invoiceDate: payload.DocDtls?.Dt,
+        buyerGstin: payload.BuyerDtls?.Gstin,
+        irn: d.Irn,
+        ackNo: d.AckNo,
+        ackDt: d.AckDt,
+        signedInvoice: d.SignedInvoice,
+        signedQrCode: d.SignedQRCode,
+        ewbNo: d.EwbNo || null,
+        ewbDt: d.EwbDt || null,
+        status: 'GENERATED',
+        rawResponse: JSON.stringify(r.body),
+      });
+    } catch (_) { /* best-effort persist */ }
+
+    return { success: true, data: d };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+};
+
 module.exports = {
   authenticate,
   getGSTINDetails,
@@ -298,4 +394,6 @@ module.exports = {
   getRecordByIRN,
   isTokenValid,
   getCache,
+  getStatus,
+  generateFromVoucher,
 };

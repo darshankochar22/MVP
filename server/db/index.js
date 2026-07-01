@@ -125,6 +125,8 @@ const initDB = async () => {
   await require("../priceList/priceList").init(rawDb);
   await require("../voucherEntryActions/voucherEntryActions").init(rawDb);
   await require("../eInvoice/eInvoice").init(rawDb);
+  await require("../ewayBill/ewayBill").init(rawDb);
+  await require("../gstFiling/gstFiling").init(rawDb);
   await require("../whatsapp/whatsapp").init(rawDb);
   await require("../auditTrail/auditTrail").init(rawDb);
 

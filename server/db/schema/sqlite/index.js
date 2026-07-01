@@ -22,6 +22,8 @@ module.exports = {
   ...require('./currency'),
   ...require('./dayBookReport'),
   ...require('./eInvoice'),
+  ...require('./ewayBill'),
+  ...require('./gstFiling'),
   ...require('./exciseDutyClassification'),
   ...require('./exciseRegistrationDetails'),
   ...require('./exciseBook'),

@@ -91,4 +91,29 @@ module.exports = {
   getRecordByIRN: async (event, { irn }) => {
     return await eInvoiceService.getRecordByIRN(irn);
   },
+
+  // ---- developer-side (.env) path via the shared NIC client ----
+  getStatus: async (event, { company_id }) => {
+    return await eInvoiceService.getStatus(company_id);
+  },
+
+  generateFromVoucher: async (event, { company_id, voucher_id }) => {
+    const result = await eInvoiceService.generateFromVoucher(company_id, voucher_id);
+    if (result && result.success && result.data?.Irn) {
+      try {
+        const record = await eInvoiceService.getRecordByIRN(result.data.Irn);
+        await auditTrailService.record({
+          company_id,
+          entity_type: ENTITY_TYPE,
+          entity_id: result.data.Irn,
+          action: 'create',
+          before: null,
+          after: record.success ? record.record : result.data,
+        });
+      } catch (err) {
+        console.error('Error recording e-invoice create audit:', err);
+      }
+    }
+    return result;
+  },
 };
