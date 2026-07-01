@@ -109,28 +109,45 @@ export default function VoucherClassConfigPopup({
                 No Duties &amp; Taxes ledgers found. Create one under Ledger Create first.
               </div>
             ) : (
-              <div className="border border-zinc-200 rounded-lg overflow-hidden divide-y divide-zinc-100">
-                {([
-                  { key: "cgst_ledger_id", label: "CGST Ledger" },
-                  { key: "sgst_ledger_id", label: "SGST/UTGST Ledger" },
-                  { key: "igst_ledger_id", label: "IGST Ledger" },
-                ] as const).map((row) => (
-                  <div key={row.key} className="grid grid-cols-12 items-center px-3 py-2 bg-white gap-2">
-                    <div className="col-span-5 text-xs font-semibold text-zinc-600">{row.label}</div>
-                    <div className="col-span-7">
-                      <select
-                        className={selectCls}
-                        value={form[row.key] ?? ""}
-                        onChange={(e) => setForm((f) => ({ ...f, [row.key]: e.target.value ? Number(e.target.value) : null }))}
-                      >
-                        <option value="">Not Applicable</option>
-                        {dutyLedgers.map((l) => (
-                          <option key={l.ledger_id} value={l.ledger_id}>{l.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                ))}
+              <div className="space-y-2">
+                <div className="border border-zinc-200 rounded-lg overflow-hidden divide-y divide-zinc-100">
+                  {form.gst_ledger_ids.length === 0 ? (
+                    <div className="text-center py-4 text-zinc-400 text-xs italic">No ledgers added yet.</div>
+                  ) : (
+                    form.gst_ledger_ids.map((id) => {
+                      const ledger = dutyLedgers.find((l) => l.ledger_id === id);
+                      return (
+                        <div key={id} className="flex items-center justify-between px-3 py-2 bg-white gap-2">
+                          <span className="text-xs font-semibold text-zinc-700 truncate">{ledger?.name ?? `#${id}`}</span>
+                          <button
+                            type="button"
+                            onClick={() => setForm((f) => ({ ...f, gst_ledger_ids: f.gst_ledger_ids.filter((gid) => gid !== id) }))}
+                            className="text-zinc-300 hover:text-zinc-900 font-bold text-sm px-1"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <select
+                  className={selectCls}
+                  value=""
+                  onChange={(e) => {
+                    const id = Number(e.target.value);
+                    if (!id) return;
+                    setForm((f) => (f.gst_ledger_ids.includes(id) ? f : { ...f, gst_ledger_ids: [...f.gst_ledger_ids, id] }));
+                  }}
+                >
+                  <option value="">+ Add ledger…</option>
+                  {dutyLedgers
+                    .filter((l) => !form.gst_ledger_ids.includes(l.ledger_id!))
+                    .map((l) => (
+                      <option key={l.ledger_id} value={l.ledger_id}>{l.name}</option>
+                    ))}
+                </select>
               </div>
             )
           )}

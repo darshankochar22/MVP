@@ -390,7 +390,7 @@ const computeVoucherTaxLines = async (db, payload) => {
   // re-saving/altering a voucher doesn't duplicate or orphan tax entries. Uses the same
   // override-aware resolution so a class-mapped ledger from a prior save is stripped too.
   const existingTaxLedgers = await Promise.all(
-    ["CGST", "SGST", "IGST"].map(t => resolveOrOverride(t, { createIfMissing: false })).concat([resolveTaxLedgerId(db, company_id, "CESS")])
+    ["CGST", "SGST", "IGST", "CESS"].map(t => resolveOrOverride(t, { createIfMissing: false }))
   );
   const existingTaxLedgerIds = existingTaxLedgers.filter(Boolean).map(l => Number(l.id));
   const finalEntries = entries.filter(e => !existingTaxLedgerIds.includes(Number(e.ledger_id)));
@@ -434,7 +434,7 @@ const computeVoucherTaxLines = async (db, payload) => {
   }
 
   if (totalCess > 0) {
-    const cessLedger = await resolveTaxLedgerId(db, company_id, "CESS", { createIfMissing: true });
+    const cessLedger = await resolveOrOverride("CESS");
     finalEntries.push({
       ledger_id: cessLedger.id,
       ledger_name: cessLedger.name,

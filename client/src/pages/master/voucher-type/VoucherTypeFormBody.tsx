@@ -26,6 +26,19 @@ export const CATEGORIES = [
   "Stock Journal",
 ];
 
+// Collapses pre-rework class rows (fixed cgst_ledger_id/sgst_ledger_id/igst_ledger_id fields)
+// into the current gst_ledger_ids array so old saved classes still work once reopened.
+export function normalizeVoucherClasses(classes: VoucherClassRow[] | undefined | null): VoucherClassRow[] {
+  if (!classes) return [];
+  return classes.map((cls) => {
+    if (Array.isArray(cls.gst_ledger_ids)) return cls;
+    const legacy = cls as unknown as { cgst_ledger_id?: number | null; sgst_ledger_id?: number | null; igst_ledger_id?: number | null };
+    const gst_ledger_ids = [legacy.cgst_ledger_id, legacy.sgst_ledger_id, legacy.igst_ledger_id]
+      .filter((id): id is number => typeof id === "number");
+    return { ...cls, gst_ledger_ids };
+  });
+}
+
 export const NUMBERING_METHODS = [
   "Automatic",
   "Automatic (Manual Override)",
@@ -208,7 +221,7 @@ export function VoucherTypeFormBody({
 
   const addClass = (name: string) => {
     const id = `vc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const row = { id, name, use_for_gst_details: "No" as YN, cgst_ledger_id: null, sgst_ledger_id: null, igst_ledger_id: null };
+    const row: VoucherClassRow = { id, name, use_for_gst_details: "No" as YN, gst_ledger_ids: [] };
     setConfig((c) => ({ ...c, voucher_classes: [...c.voucher_classes, row] }));
     setConfirmingClassName(null);
     setNewClassName("");

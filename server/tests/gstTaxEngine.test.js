@@ -202,13 +202,17 @@ describe("GST tax engine — Voucher Type Class ledger override", () => {
       company_id: companyId, name: "Auto SGST @9%", group_id: dutiesGroupId,
       statutory_details: { type_of_duty_tax: "GST", gst_tax_type: "SGST/UTGST" },
     }));
-    // Distinct ledgers ONLY reachable via the Class mapping — untagged, so the normal
-    // ledger_statutory_details lookup would never pick them on its own.
+    // Also tagged CGST/SGST like the auto ones (their own gst_tax_type is what the class
+    // override now reads to know which slot they fill), but created after the auto ledgers
+    // so plain auto-resolve (lowest ledger_id first) would pick the auto ones instead —
+    // proving the class's explicit gst_ledger_ids list wins.
     classCgstId = ledgerId(await ledgerService.create({
       company_id: companyId, name: "Class-Mapped CGST", group_id: dutiesGroupId,
+      statutory_details: { type_of_duty_tax: "GST", gst_tax_type: "CGST" },
     }));
     classSgstId = ledgerId(await ledgerService.create({
       company_id: companyId, name: "Class-Mapped SGST", group_id: dutiesGroupId,
+      statutory_details: { type_of_duty_tax: "GST", gst_tax_type: "SGST/UTGST" },
     }));
 
     const party = await ledgerService.create({
@@ -233,9 +237,7 @@ describe("GST tax engine — Voucher Type Class ledger override", () => {
         id: "vc-test-1",
         name: CLASS_NAME,
         use_for_gst_details: "Yes",
-        cgst_ledger_id: classCgstId,
-        sgst_ledger_id: classSgstId,
-        igst_ledger_id: null,
+        gst_ledger_ids: [classCgstId, classSgstId],
       }],
     });
     expect(configRes.success).toBe(true);

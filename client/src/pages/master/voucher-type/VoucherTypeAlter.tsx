@@ -12,6 +12,7 @@ import {
   INITIAL_CONFIG,
   toInt,
   fromInt,
+  normalizeVoucherClasses,
   type VTForm,
   type VTConfig,
   type NumberingMethod,
@@ -171,7 +172,7 @@ export default function VoucherTypeAlter() {
           restart_numbering:              c.restart_numbering ?? [],
           prefix_details:                 c.prefix_details ?? [],
           suffix_details:                 c.suffix_details ?? [],
-          voucher_classes:                c.voucher_classes ?? [],
+          voucher_classes:                normalizeVoucherClasses(c.voucher_classes),
         });
       } else {
         setConfig({ ...INITIAL_CONFIG });

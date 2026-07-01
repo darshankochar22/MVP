@@ -9,14 +9,14 @@ export interface NumberingAffixRow {
   particulars: string;
 }
 
-// Name of Class rows — a named GST-ledger-mapping class per voucher type.
+// Name of Class rows — a named GST-ledger-mapping class per voucher type. Each ledger's own
+// gst_tax_type (CGST/SGST/IGST/Cess, set on Ledger Create) decides its role — no separate
+// per-slot naming here.
 export interface VoucherClassRow {
   id: string;
   name: string;
   use_for_gst_details: "Yes" | "No";
-  cgst_ledger_id: number | null;
-  sgst_ledger_id: number | null;
-  igst_ledger_id: number | null;
+  gst_ledger_ids: number[];
 }
 
 export interface VoucherTypeConfig {

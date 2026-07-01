@@ -1,6 +1,6 @@
 // Voucher Type — "Name of Class" sub-screen. The Voucher Type Create/Alter screen lets
 // a user define named Classes per voucher type (each optionally "Use Class for GST
-// Details" with CGST/SGST/IGST ledger mappings). This test asserts those rows round-trip
+// Details" with a direct list of GST ledgers). This test asserts those rows round-trip
 // through create → getConfig → updateConfig, same as the #143 numbering-details rows.
 
 const { setupTestDB, createTestCompany, db } = require("./helpers");
@@ -21,8 +21,8 @@ describe("Voucher Type Name of Class", () => {
       name: "Custom Sales Class Test",
       category: "Sales",
       voucher_classes: [
-        { id: "vc-1", name: "GST Sales", use_for_gst_details: "Yes", cgst_ledger_id: 11, sgst_ledger_id: 12, igst_ledger_id: 13 },
-        { id: "vc-2", name: "Export Sales", use_for_gst_details: "No", cgst_ledger_id: null, sgst_ledger_id: null, igst_ledger_id: null },
+        { id: "vc-1", name: "GST Sales", use_for_gst_details: "Yes", gst_ledger_ids: [11, 12, 13] },
+        { id: "vc-2", name: "Export Sales", use_for_gst_details: "No", gst_ledger_ids: [] },
       ],
     });
     expect(created.success).toBe(true);
@@ -31,8 +31,8 @@ describe("Voucher Type Name of Class", () => {
     const cfg = await voucherTypeService.getConfig(vtId);
     expect(cfg.success).toBe(true);
     expect(cfg.config.voucher_classes).toEqual([
-      { id: "vc-1", name: "GST Sales", use_for_gst_details: "Yes", cgst_ledger_id: 11, sgst_ledger_id: 12, igst_ledger_id: 13 },
-      { id: "vc-2", name: "Export Sales", use_for_gst_details: "No", cgst_ledger_id: null, sgst_ledger_id: null, igst_ledger_id: null },
+      { id: "vc-1", name: "GST Sales", use_for_gst_details: "Yes", gst_ledger_ids: [11, 12, 13] },
+      { id: "vc-2", name: "Export Sales", use_for_gst_details: "No", gst_ledger_ids: [] },
     ]);
 
     // getById (used by the Alter screen's initial load) also surfaces it.
@@ -52,12 +52,12 @@ describe("Voucher Type Name of Class", () => {
     const upd = await voucherTypeService.updateConfig({
       voucher_type_id: vtId,
       voucher_classes: [
-        { id: "vc-3", name: "GST Purchase", use_for_gst_details: "Yes", cgst_ledger_id: 21, sgst_ledger_id: 22, igst_ledger_id: null },
+        { id: "vc-3", name: "GST Purchase", use_for_gst_details: "Yes", gst_ledger_ids: [21, 22] },
       ],
     });
     expect(upd.success).toBe(true);
     expect(upd.config.voucher_classes).toEqual([
-      { id: "vc-3", name: "GST Purchase", use_for_gst_details: "Yes", cgst_ledger_id: 21, sgst_ledger_id: 22, igst_ledger_id: null },
+      { id: "vc-3", name: "GST Purchase", use_for_gst_details: "Yes", gst_ledger_ids: [21, 22] },
     ]);
 
     const cfg = await voucherTypeService.getConfig(vtId);
