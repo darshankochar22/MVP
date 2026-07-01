@@ -39,7 +39,7 @@ import LedgerOutstandingsLayout from "@/components/reports/LedgerOutstandingsLay
 import GroupOutstandingsLayout from "@/components/reports/GroupOutstandingsLayout";
 import InterestBillsLayout from "@/components/reports/InterestBillsLayout";
 import InterestLedgerLayout from "@/components/reports/InterestLedgerLayout";
-import InterestBillWiseLayout from "@/components/reports/InterestBillWiseLayout";
+import InterestGroupLayout from "@/components/reports/InterestGroupLayout";
 import CostCategorySummaryLayout from "@/components/reports/CostCategorySummaryLayout";
 import CostCentreSummaryLayout from "@/components/reports/CostCentreSummaryLayout";
 import CostCentreBreakupLayout from "@/components/reports/CostCentreBreakupLayout";
@@ -677,8 +677,8 @@ export function ReportRunner() {
          <InterestBillsLayout mode="payable" />
          ):reportType === "interest-calculation-ledger-wise" ? (
          <InterestLedgerLayout />
-         ):reportType === "interest-calculation-bill-wise" ? (
-         <InterestBillWiseLayout />
+         ):reportType === "interest-calculation-group-wise" ? (
+         <InterestGroupLayout />
          ):reportType === "contra-register" ? (
          <ContraRegisterLayout />
          ):reportType === "payment-register" ? (

@@ -101,6 +101,9 @@ module.exports = {
   interestPayable: async (event, { company_id, fy_id, params }) => {
     return await interestReportService.interestPayable(company_id, fy_id, params);
   },
+  groupInterest: async (event, { company_id, fy_id, params }) => {
+    return await interestReportService.groupInterest(company_id, fy_id, params);
+  },
   ledgerInterest: async (event, { company_id, fy_id, params }) => {
     return await interestReportService.ledgerInterest(company_id, fy_id, params);
   },

@@ -182,6 +182,7 @@ contextBridge.exposeInMainWorld('api', {
         billVouchers:       (company_id, fy_id, ledger_id, bill_name)           => invoke('report:billVouchers', { company_id, fy_id, ledger_id, bill_name }),
         interestReceivable: (company_id, fy_id, params)                          => invoke('report:interestReceivable', { company_id, fy_id, params }),
         interestPayable:    (company_id, fy_id, params)                          => invoke('report:interestPayable', { company_id, fy_id, params }),
+        groupInterest:      (company_id, fy_id, params)                          => invoke('report:groupInterest', { company_id, fy_id, params }),
         ledgerInterest:     (company_id, fy_id, params)                          => invoke('report:ledgerInterest', { company_id, fy_id, params }),
         billWiseInterest:   (company_id, fy_id, params)                          => invoke('report:billWiseInterest', { company_id, fy_id, params }),
         cashFlow:        (company_id, fy_id, from_date, to_date)                 => invoke('report:cashFlow', { company_id, fy_id, from_date, to_date }),

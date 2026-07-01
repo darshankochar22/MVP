@@ -67,7 +67,6 @@ export default function ReceivablesPayables() {
         "Interest Receivable",
         "Interest Payable",
         "Interest Calculation Ledger-wise",
-        "Interest Calculation Bill-wise",
       ]),
     },
     {

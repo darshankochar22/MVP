@@ -1,7 +1,6 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import BillVouchersPopup from "./BillVouchersPopup";
 
 /* ── Types ─────────────────────────────────────────────────────────── */
 interface BillRow {
@@ -16,6 +15,24 @@ interface BillRow {
   credit_period: string;
   overdue_days: number;
   ageing: string;
+}
+
+interface StockItemLine {
+  item_name: string;
+  quantity: number;
+  rate: number;
+  unit_symbol: string;
+}
+
+interface BillVoucherRow {
+  voucher_id: number;
+  date: string;
+  voucher_type: string;
+  voucher_number: string | number;
+  bill_type: string;
+  amount: number;
+  entry_type: "Dr" | "Cr";
+  stock_items: StockItemLine[];
 }
 
 type AgeingKey = "0-30" | "31-60" | "61-90" | "90+";
@@ -42,6 +59,20 @@ const fmt = (v: number) =>
 const fmtTotal = (v: number) =>
   new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(v));
 
+// "10 nos", "30 P" — quantity with its unit symbol.
+const fmtQty = (q: number, unit: string) => {
+  if (!q) return "";
+  const n = q.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+  return unit ? `${n} ${unit}` : n;
+};
+
+// "10.00/nos", "50,000.00/nos" — rate per unit.
+const fmtRate = (r: number, unit: string) => {
+  if (!r) return "";
+  const n = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(r));
+  return unit ? `${n}/${unit}` : n;
+};
+
 const BUCKETS: AgeingKey[] = ["0-30", "31-60", "61-90", "90+"];
 
 /* ── Component ─────────────────────────────────────────────────────── */
@@ -55,16 +86,24 @@ export default function BillsLayout({ mode }: Props) {
   const [loading, setLoading]         = React.useState(true);
   const [error, setError]             = React.useState<string | null>(null);
   const [focusedIndex, setFocusedIndex] = React.useState(0);
-  const [activeBill, setActiveBill]   = React.useState<BillRow | null>(null);
 
+  // Inline expansion: which bill row is expanded + its fetched vouchers (cached per bill).
+  const [expandedId, setExpandedId]   = React.useState<number | null>(null);
+  const [voucherCache, setVoucherCache] = React.useState<Record<number, BillVoucherRow[]>>({});
+  const [loadingId, setLoadingId]     = React.useState<number | null>(null);
+
+  const companyId = selectedCompany?.company_id;
+  const fyId = activeFY?.fy_id;
   const fromDate = activeFY?.start_date || "";
   const toDate   = activeFY?.end_date   || "";
 
   React.useEffect(() => {
-    if (!selectedCompany?.company_id || !activeFY?.fy_id) { setLoading(false); return; }
+    if (!companyId || !fyId) { setLoading(false); return; }
     setLoading(true);
+    setExpandedId(null);
+    setVoucherCache({});
     const method = mode === "receivable" ? "billsReceivable" : "billsPayable";
-    (window as any).api.report[method](selectedCompany.company_id, activeFY.fy_id)
+    (window as any).api.report[method](companyId, fyId)
       .then((res: any) => {
         if (res?.success) {
           const mapped: BillRow[] = (res.rows || []).map((r: any, i: number) => ({
@@ -89,24 +128,32 @@ export default function BillsLayout({ mode }: Props) {
       })
       .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [selectedCompany?.company_id, activeFY?.fy_id, mode]);
+  }, [companyId, fyId, mode]);
 
-  const openBillVouchers = React.useCallback((row: BillRow) => {
-    if (!row.ledger_id || !row.bill_name) return;
-    setActiveBill(row);
-  }, []);
+  // Toggle a bill row open/closed; lazily fetch its vouchers the first time.
+  const toggleExpand = React.useCallback((row: BillRow) => {
+    if (!companyId || !fyId) return;
+    setExpandedId(prev => (prev === row.bill_id ? null : row.bill_id));
+    if (voucherCache[row.bill_id] || !row.ledger_id || !row.bill_name) return;
+    setLoadingId(row.bill_id);
+    window.api.report.billVouchers(companyId, fyId, row.ledger_id, row.bill_name)
+      .then((res) => {
+        if (res.success) setVoucherCache(prev => ({ ...prev, [row.bill_id]: res.rows || [] }));
+      })
+      .finally(() => setLoadingId(null));
+  }, [companyId, fyId, voucherCache]);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (document.activeElement?.tagName === "INPUT" || activeBill) return;
+      if (document.activeElement?.tagName === "INPUT") return;
       if (e.key === "ArrowDown") { e.preventDefault(); setFocusedIndex(p => Math.min(rows.length - 1, p + 1)); }
       else if (e.key === "ArrowUp") { e.preventDefault(); setFocusedIndex(p => Math.max(0, p - 1)); }
-      else if (e.key === "Enter") { e.preventDefault(); if (rows[focusedIndex]) openBillVouchers(rows[focusedIndex]); }
+      else if (e.key === "Enter") { e.preventDefault(); if (rows[focusedIndex]) toggleExpand(rows[focusedIndex]); }
       else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); navigate(-1); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [rows, focusedIndex, navigate, openBillVouchers, activeBill]);
+  }, [rows, focusedIndex, navigate, toggleExpand]);
 
   const grandTotal = rows.reduce((s, r) => s + r.pending_amount, 0);
   const title = mode === "receivable" ? "Bills Receivable" : "Bills Payable";
@@ -154,23 +201,59 @@ export default function BillsLayout({ mode }: Props) {
               <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-400 italic">No pending bills found.</td></tr>
             ) : rows.map((row, idx) => {
               const isFocused = focusedIndex === idx;
+              const isExpanded = expandedId === row.bill_id;
+              const vouchers = voucherCache[row.bill_id];
               return (
-                <tr
-                  key={row.bill_id}
-                  className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
-                  onClick={() => { setFocusedIndex(idx); openBillVouchers(row); }}
-                >
-                  <td className="px-3 py-1.5">{fmtDate(row.date)}</td>
-                  <td className="px-3 py-1.5">{row.ref_no}</td>
-                  <td className="px-3 py-1.5 font-semibold">{row.party_name}</td>
-                  <td className="px-3 py-1.5 text-right">{fmt(row.pending_amount)}</td>
-                  <td className="px-3 py-1.5 text-center">{row.credit_period || ""}</td>
-                  <td className="px-3 py-1.5">{fmtDate(row.due_date)}</td>
-                  <td className={`px-3 py-1.5 text-center ${row.overdue_days > 0 ? "text-zinc-700 font-bold" : ""}`}>
-                    {row.overdue_days > 0 ? row.overdue_days : ""}
-                  </td>
-                  <td className="px-3 py-1.5 text-center text-zinc-500">{row.ageing}</td>
-                </tr>
+                <React.Fragment key={row.bill_id}>
+                  <tr
+                    className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${isFocused || isExpanded ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
+                    onClick={() => { setFocusedIndex(idx); toggleExpand(row); }}
+                  >
+                    <td className="px-3 py-1.5">{fmtDate(row.date)}</td>
+                    <td className="px-3 py-1.5">{row.ref_no}</td>
+                    <td className="px-3 py-1.5 font-semibold">{row.party_name}</td>
+                    <td className="px-3 py-1.5 text-right">{fmt(row.pending_amount)}</td>
+                    <td className="px-3 py-1.5 text-center">{row.credit_period || ""}</td>
+                    <td className="px-3 py-1.5">{fmtDate(row.due_date)}</td>
+                    <td className={`px-3 py-1.5 text-center ${row.overdue_days > 0 ? "text-zinc-700 font-bold" : ""}`}>
+                      {row.overdue_days > 0 ? row.overdue_days : ""}
+                    </td>
+                    <td className="px-3 py-1.5 text-center text-zinc-500">{row.ageing}</td>
+                  </tr>
+
+                  {/* Inline expanded voucher detail rows */}
+                  {isExpanded && loadingId === row.bill_id && (
+                    <tr className="bg-zinc-50/60"><td colSpan={8} className="px-3 py-1.5 pl-10 text-[10px] italic text-zinc-400">Loading vouchers…</td></tr>
+                  )}
+                  {isExpanded && vouchers && vouchers.length === 0 && loadingId !== row.bill_id && (
+                    <tr className="bg-zinc-50/60"><td colSpan={8} className="px-3 py-1.5 pl-10 text-[10px] italic text-zinc-400">No vouchers for this bill.</td></tr>
+                  )}
+                  {isExpanded && vouchers && vouchers.map((v) => (
+                    <React.Fragment key={v.voucher_id}>
+                      {/* Voucher line: date, voucher type, voucher no, amount Dr/Cr */}
+                      <tr
+                        className="bg-white text-zinc-700 italic cursor-pointer hover:bg-zinc-100/80"
+                        onClick={(e) => { e.stopPropagation(); navigate(`/transactions/voucher/${v.voucher_id}`); }}
+                      >
+                        <td className="px-3 py-0.5 pl-8">{fmtDate(v.date)}</td>
+                        <td className="px-3 py-0.5">{v.voucher_type}</td>
+                        <td className="px-3 py-0.5">{v.voucher_number || ""}</td>
+                        <td className="px-3 py-0.5 text-right">{fmt(v.amount)} {v.entry_type}</td>
+                        <td colSpan={4} />
+                      </tr>
+                      {/* Stock item lines under the voucher: qty + unit, item name, rate/unit */}
+                      {v.stock_items.map((s, si) => (
+                        <tr key={`${v.voucher_id}-${si}`} className="bg-white text-zinc-800 font-semibold">
+                          <td className="px-3 py-0.5" />
+                          <td className="px-3 py-0.5 pl-8">{fmtQty(s.quantity, s.unit_symbol)}</td>
+                          <td className="px-3 py-0.5">{s.item_name}</td>
+                          <td className="px-3 py-0.5 text-right">{fmtRate(s.rate, s.unit_symbol)}</td>
+                          <td colSpan={4} />
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  ))}
+                </React.Fragment>
               );
             })}
           </tbody>
@@ -183,17 +266,6 @@ export default function BillsLayout({ mode }: Props) {
         <span className="w-[16%] text-right">{fmtTotal(grandTotal)}</span>
         <span className="flex-1" />
       </div>
-
-      {activeBill && selectedCompany?.company_id && activeFY?.fy_id && (
-        <BillVouchersPopup
-          companyId={selectedCompany.company_id}
-          fyId={activeFY.fy_id}
-          ledgerId={activeBill.ledger_id}
-          billName={activeBill.bill_name}
-          onClose={() => setActiveBill(null)}
-          onOpenVoucher={(voucherId) => { setActiveBill(null); navigate(`/transactions/voucher/${voucherId}`); }}
-        />
-      )}
     </div>
   );
 }

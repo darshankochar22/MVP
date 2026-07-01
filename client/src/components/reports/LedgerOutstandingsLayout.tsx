@@ -12,8 +12,21 @@ const fmtDate = (d: string) => {
 };
 const fmt = (v: number) =>
   v === 0 ? "" : new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(v));
-const fmtTotal = (v: number) =>
-  new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(v));
+// Signed amount with a Dr / Cr suffix (Dr = positive, Cr = negative), Tally-style.
+const fmtSigned = (v: number) => (v === 0 ? "" : `${fmt(v)} ${v >= 0 ? "Dr" : "Cr"}`);
+
+// "10 nos" — quantity with its unit symbol.
+const fmtQty = (q: number, unit: string) => {
+  if (!q) return "";
+  const n = q.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 3 });
+  return unit ? `${n} ${unit}` : n;
+};
+// "1,410.00/nos" — rate per unit.
+const fmtRate = (r: number, unit: string) => {
+  if (!r) return "";
+  const n = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(r));
+  return unit ? `${n}/${unit}` : n;
+};
 
 /* ── Types ─────────────────────────────────────────────────────────── */
 interface LedgerMeta { ledger_id: number; name: string; group_name?: string }
@@ -23,10 +36,22 @@ interface BillRow {
   due_date: string;
   credit_period: string;
   overdue_days: number;
-  balance: number;
-  ageing: string;
+  opening_amount: number; // signed: Dr = +, Cr = -
+  pending_amount: number; // signed
 }
-interface AgeingTotals { "0-30": number; "31-60": number; "61-90": number; "90+": number }
+interface OnAccount { date: string; amount: number }
+interface SubTotal { opening: number; pending: number }
+interface StockItemLine { item_name: string; quantity: number; rate: number; unit_symbol: string }
+interface BillVoucherRow {
+  voucher_id: number;
+  date: string;
+  voucher_type: string;
+  voucher_number: string | number;
+  bill_type: string;
+  amount: number;
+  entry_type: "Dr" | "Cr";
+  stock_items: StockItemLine[];
+}
 
 /* ── Main Component ─────────────────────────────────────────────────── */
 export default function LedgerOutstandingsLayout() {
@@ -52,11 +77,17 @@ export default function LedgerOutstandingsLayout() {
 
   /* Drill-down state */
   const [rows, setRows]           = React.useState<BillRow[]>([]);
-  const [bucketTotals, setBuckets]  = React.useState<AgeingTotals>({ "0-30": 0, "31-60": 0, "61-90": 0, "90+": 0 });
+  const [subTotal, setSubTotal]   = React.useState<SubTotal>({ opening: 0, pending: 0 });
+  const [onAccount, setOnAccount] = React.useState<OnAccount | null>(null);
   const [as_on, setAsOn]          = React.useState("");
   const [loading, setLoading]     = React.useState(false);
   const [error, setError]         = React.useState<string | null>(null);
   const [focusedIdx, setFocused]  = React.useState(0);
+
+  /* Inline expansion: which bill is open + its fetched vouchers (cached by bill name). */
+  const [expandedBill, setExpandedBill] = React.useState<string | null>(null);
+  const [voucherCache, setVoucherCache] = React.useState<Record<string, BillVoucherRow[]>>({});
+  const [loadingBill, setLoadingBill]   = React.useState<string | null>(null);
 
   const fromDate = activeFY?.start_date || "";
   const toDate   = activeFY?.end_date   || "";
@@ -85,11 +116,14 @@ export default function LedgerOutstandingsLayout() {
     if (!ledgerId || !cid || !fyid) return;
     setLoading(true);
     setError(null);
+    setExpandedBill(null);
+    setVoucherCache({});
     (window as any).api.report.ledgerOutstandings(cid, fyid, ledgerId)
       .then((res: any) => {
         if (res?.success) {
           setRows(res.rows || []);
-          setBuckets(res.bucketTotals || { "0-30": 0, "31-60": 0, "61-90": 0, "90+": 0 });
+          setSubTotal(res.sub_total || { opening: 0, pending: 0 });
+          setOnAccount(res.on_account || null);
           setAsOn(res.as_on || "");
         } else {
           setError(res?.error || "Failed to load.");
@@ -98,6 +132,19 @@ export default function LedgerOutstandingsLayout() {
       .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false));
   }, [ledgerId, cid, fyid]);
+
+  /* ── Toggle a bill open/closed; lazily fetch its vouchers the first time ─── */
+  const toggleExpand = React.useCallback((row: BillRow) => {
+    if (!cid || !fyid || !ledgerId) return;
+    setExpandedBill(prev => (prev === row.bill ? null : row.bill));
+    if (voucherCache[row.bill] || !row.bill) return;
+    setLoadingBill(row.bill);
+    (window as any).api.report.billVouchers(cid, fyid, ledgerId, row.bill)
+      .then((res: any) => {
+        if (res?.success) setVoucherCache(prev => ({ ...prev, [row.bill]: res.rows || [] }));
+      })
+      .finally(() => setLoadingBill(null));
+  }, [cid, fyid, ledgerId, voucherCache]);
 
   /* ── Keyboard for picker ──────────────────────────────────────────── */
   const filtered = ledgers.filter(l => l.name.toLowerCase().includes(search.toLowerCase()));
@@ -127,14 +174,15 @@ export default function LedgerOutstandingsLayout() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowDown") { e.preventDefault(); setFocused(p => Math.min(rows.length - 1, p + 1)); }
       else if (e.key === "ArrowUp") { e.preventDefault(); setFocused(p => Math.max(0, p - 1)); }
+      else if (e.key === "Enter") { e.preventDefault(); if (rows[focusedIdx]) toggleExpand(rows[focusedIdx]); }
       else if (e.key === "Escape" || e.key === "Backspace") {
         e.preventDefault();
-        setLedgerId(null); setLedgerName(""); setRows([]); setFocused(0);
+        setLedgerId(null); setLedgerName(""); setRows([]); setFocused(0); setExpandedBill(null);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [ledgerId, rows, navigate]);
+  }, [ledgerId, rows, focusedIdx, toggleExpand]);
 
   /* ── Picker view ─────────────────────────────────────────────────── */
   if (!ledgerId) {
@@ -187,9 +235,6 @@ export default function LedgerOutstandingsLayout() {
   if (loading) return <div className="flex-1 flex items-center justify-center text-black/60 font-mono text-xs">Loading Ledger Outstandings...</div>;
   if (error)   return <div className="flex-1 flex items-center justify-center text-black font-mono text-xs px-8 text-center">{error}</div>;
 
-  const grandTotal = rows.reduce((s, r) => s + r.balance, 0);
-  const BUCKETS = ["0-30", "31-60", "61-90", "90+"] as const;
-
   /* ── Drill-down view ─────────────────────────────────────────────── */
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
@@ -202,56 +247,107 @@ export default function LedgerOutstandingsLayout() {
         </span>
       </div>
 
-      {/* Ageing summary bar */}
-      <div className="bg-white border-b border-black/10 px-3 py-1 text-[10px] font-mono flex gap-8 select-none text-black">
-        {BUCKETS.map(b => (
-          <span key={b}><span className="font-bold text-black">{b} days:</span> {fmt(bucketTotals[b]) || "0.00"}</span>
-        ))}
-      </div>
-
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-[11px] font-mono">
           <thead className="sticky top-0 bg-white border-b border-black z-10 select-none">
             <tr>
-              <th className="px-3 py-1.5 text-left font-bold">Bill Ref</th>
-              <th className="px-3 py-1.5 text-left font-bold w-[11%]">Bill Date</th>
-              <th className="px-3 py-1.5 text-center font-bold w-[8%]">Credit Days</th>
-              <th className="px-3 py-1.5 text-left font-bold w-[11%]">Due On</th>
-              <th className="px-3 py-1.5 text-center font-bold w-[8%]">Overdue Days</th>
-              <th className="px-3 py-1.5 text-right font-bold w-[16%]">Balance</th>
-              <th className="px-3 py-1.5 text-center font-bold w-[8%]">Ageing</th>
+              <th className="px-3 py-1.5 text-left font-bold w-[10%]">Date</th>
+              <th className="px-3 py-1.5 text-left font-bold w-[12%]">Ref. No.</th>
+              <th className="px-3 py-1.5 text-left font-bold" />
+              <th className="px-3 py-1.5 text-right font-bold w-[15%]">Opening Amount</th>
+              <th className="px-3 py-1.5 text-right font-bold w-[15%]">Pending Amount</th>
+              <th className="px-3 py-1.5 text-left font-bold w-[11%]">Due on</th>
+              <th className="px-3 py-1.5 text-center font-bold w-[9%]">Overdue<br/>by days</th>
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 ? (
+            {rows.length === 0 && !onAccount ? (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-black/60 italic">No pending bills for this ledger.</td></tr>
-            ) : rows.map((row, idx) => {
-              const isFocused = focusedIdx === idx;
-              return (
-                <tr
-                  key={idx}
-                  className={`border-b border-black/10 cursor-pointer select-none transition-colors ${isFocused ? "bg-black/10 text-black font-bold" : "hover:bg-black/[0.04] text-black"}`}
-                  onClick={() => setFocused(idx)}
-                >
-                  <td className="px-3 py-1.5 font-semibold">{row.bill}</td>
-                  <td className="px-3 py-1.5">{fmtDate(row.bill_date)}</td>
-                  <td className="px-3 py-1.5 text-center">{row.credit_period || ""}</td>
-                  <td className="px-3 py-1.5">{fmtDate(row.due_date)}</td>
-                  <td className={`px-3 py-1.5 text-center ${row.overdue_days > 0 ? "text-black font-bold" : ""}`}>{row.overdue_days > 0 ? row.overdue_days : ""}</td>
-                  <td className="px-3 py-1.5 text-right">{fmt(row.balance)}</td>
-                  <td className="px-3 py-1.5 text-center text-black/60">{row.ageing}</td>
-                </tr>
-              );
-            })}
+            ) : (
+              <>
+                {rows.map((row, idx) => {
+                  const isFocused = focusedIdx === idx;
+                  const isExpanded = expandedBill === row.bill;
+                  const vouchers = voucherCache[row.bill];
+                  return (
+                    <React.Fragment key={row.bill}>
+                      {/* Bill summary row */}
+                      <tr
+                        className={`border-b border-black/10 cursor-pointer select-none transition-colors ${isFocused || isExpanded ? "bg-black/10 text-black font-bold" : "hover:bg-black/[0.04] text-black"}`}
+                        onClick={() => { setFocused(idx); toggleExpand(row); }}
+                      >
+                        <td className="px-3 py-1.5">{fmtDate(row.bill_date)}</td>
+                        <td className="px-3 py-1.5 font-semibold">{row.bill}</td>
+                        <td />
+                        <td className="px-3 py-1.5 text-right">{fmtSigned(row.opening_amount)}</td>
+                        <td className="px-3 py-1.5 text-right">{fmtSigned(row.pending_amount)}</td>
+                        <td className="px-3 py-1.5">{fmtDate(row.due_date)}</td>
+                        <td className={`px-3 py-1.5 text-center ${row.overdue_days > 0 ? "text-black font-bold" : ""}`}>{row.overdue_days > 0 ? row.overdue_days : ""}</td>
+                      </tr>
+
+                      {/* Inline expanded voucher + stock detail */}
+                      {isExpanded && loadingBill === row.bill && (
+                        <tr className="bg-black/[0.02]"><td colSpan={7} className="px-3 py-1 pl-8 text-[10px] italic text-black/40">Loading vouchers…</td></tr>
+                      )}
+                      {isExpanded && vouchers && vouchers.length === 0 && loadingBill !== row.bill && (
+                        <tr className="bg-black/[0.02]"><td colSpan={7} className="px-3 py-1 pl-8 text-[10px] italic text-black/40">No vouchers for this bill.</td></tr>
+                      )}
+                      {isExpanded && vouchers && vouchers.map((v) => (
+                        <React.Fragment key={v.voucher_id}>
+                          {/* Voucher line: date, type, number, amount Dr/Cr */}
+                          <tr
+                            className="bg-white text-black/80 italic cursor-pointer hover:bg-black/[0.05]"
+                            onClick={(e) => { e.stopPropagation(); navigate(`/transactions/voucher/${v.voucher_id}`); }}
+                          >
+                            <td className="px-3 py-0.5 pl-8">{fmtDate(v.date)}</td>
+                            <td className="px-3 py-0.5">{v.voucher_type}</td>
+                            <td className="px-3 py-0.5">
+                              <div className="flex justify-between pr-3"><span>{v.voucher_number || ""}</span><span>{fmt(v.amount)} {v.entry_type}</span></div>
+                            </td>
+                            <td colSpan={4} />
+                          </tr>
+                          {/* Stock item lines: qty + unit, item name, rate/unit */}
+                          {v.stock_items.map((s, si) => (
+                            <tr key={`${v.voucher_id}-${si}`} className="bg-white text-black font-semibold">
+                              <td className="px-3 py-0.5 pl-8">{fmtQty(s.quantity, s.unit_symbol)}</td>
+                              <td className="px-3 py-0.5">{s.item_name}</td>
+                              <td className="px-3 py-0.5 text-right pr-3">{fmtRate(s.rate, s.unit_symbol)}</td>
+                              <td colSpan={4} />
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      ))}
+                    </React.Fragment>
+                  );
+                })}
+
+                {/* Sub Total (of the bills above) */}
+                {rows.length > 0 && (
+                  <tr className="border-t border-black font-bold text-black select-none">
+                    <td />
+                    <td />
+                    <td className="px-3 py-1.5">Sub Total</td>
+                    <td className="px-3 py-1.5 text-right">{fmtSigned(subTotal.opening)}</td>
+                    <td className="px-3 py-1.5 text-right">{fmtSigned(subTotal.pending)}</td>
+                    <td /><td />
+                  </tr>
+                )}
+
+                {/* On Account — amounts not allocated to any bill */}
+                {onAccount && (
+                  <tr className="font-bold text-black select-none">
+                    <td className="px-3 py-1.5">{fmtDate(onAccount.date)}</td>
+                    <td />
+                    <td className="px-3 py-1.5">On Account</td>
+                    <td />
+                    <td className="px-3 py-1.5 text-right">{fmtSigned(onAccount.amount)}</td>
+                    <td /><td />
+                  </tr>
+                )}
+              </>
+            )}
           </tbody>
         </table>
-      </div>
-
-      {/* Footer total */}
-      <div className="border-t-2 border-double border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold text-black select-none">
-        <span className="flex-1">Total</span>
-        <span className="w-[16%] text-right pr-3">{fmtTotal(grandTotal)}</span>
-        <span className="w-[8%]" />
       </div>
     </div>
   );

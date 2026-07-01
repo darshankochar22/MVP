@@ -283,20 +283,6 @@ export const RECEIVABLES_DEFINITIONS: Record<string, ReportConfig> = {
       { header: "Balance", field: "balance", type: "currency", align: "right" },
     ],
   },
-  "interest-calculation-bill-wise": {
-    title: "Interest Calculation Bill-wise",
-    apiMethod: "run",
-    reportId: "interest_calculation_bill_wise",
-    columns: [
-      { header: "Party/Ledger", field: "party_ledger" },
-      { header: "Bill Ref", field: "bill_ref" },
-      { header: "Bill/Due Date", field: "bill_due_date", type: "date" },
-      { header: "0-30", field: "0_30", type: "currency", align: "right" },
-      { header: "31-60", field: "31_60", type: "currency", align: "right" },
-      { header: "60+", field: "60", type: "currency", align: "right" },
-      { header: "Total Pending", field: "total_pending", type: "currency", align: "right" },
-    ],
-  },
   "collection-follow-up": {
     title: "Collection Follow-up",
     apiMethod: "run",

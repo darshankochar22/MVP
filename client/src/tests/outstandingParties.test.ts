@@ -3,6 +3,7 @@ import {
   partyGroupIds,
   filterPartyGroups,
   filterPartyLedgers,
+  partySide,
 } from "../lib/outstandingParties";
 
 // Mirrors the predefined seed: Sundry Debtors under Current Assets,
@@ -46,6 +47,17 @@ describe("filterPartyGroups", () => {
   it("keeps only party groups + sub-groups, dropping everything else", () => {
     const kept = filterPartyGroups(GROUPS).map((g) => g.name).sort();
     expect(kept).toEqual(["Local Creditors", "North Debtors", "Sundry Creditors", "Sundry Debtors"]);
+  });
+});
+
+describe("partySide", () => {
+  it("maps the debtors subtree to Dr and the creditors subtree to Cr", () => {
+    const sides = partySide(GROUPS);
+    expect(sides.get(3)).toBe("Dr"); // Sundry Debtors
+    expect(sides.get(5)).toBe("Dr"); // North Debtors (sub-group)
+    expect(sides.get(4)).toBe("Cr"); // Sundry Creditors
+    expect(sides.get(6)).toBe("Cr"); // Local Creditors (sub-group)
+    expect(sides.has(7)).toBe(false); // Bank Accounts — not a party
   });
 });
 

@@ -147,4 +147,31 @@ describe("Interest Reports", () => {
     expect(res.total_interest).toBeCloseTo(98.63, 1);
     expect(res.rows[0].bill_ref).toBe("INV-101");
   });
+
+  it("groupInterest for Sundry Debtors matches interestReceivable", async () => {
+    const debtorGroupId = await fetchGroupId("Sundry Debtors");
+    const res = await interestReportService.groupInterest(companyId, fyId, { group_id: debtorGroupId, to_date: "2026-05-01" });
+    expect(res.success).toBe(true);
+    expect(res.group_name).toBe("Sundry Debtors");
+    expect(res.nature).toBe("Assets");
+    const row = res.rows.find((r) => r.ledger_id === debtorLedgerId);
+    expect(row).toBeDefined();
+    expect(row.interest_amount).toBeCloseTo(98.63, 1);
+  });
+
+  it("groupInterest for Sundry Creditors matches interestPayable", async () => {
+    const creditorGroupId = await fetchGroupId("Sundry Creditors");
+    const res = await interestReportService.groupInterest(companyId, fyId, { group_id: creditorGroupId, to_date: "2026-05-01" });
+    expect(res.success).toBe(true);
+    expect(res.group_name).toBe("Sundry Creditors");
+    expect(res.nature).toBe("Liabilities");
+    const row = res.rows.find((r) => r.ledger_id === creditorLedgerId);
+    expect(row).toBeDefined();
+    expect(row.interest_amount).toBeCloseTo(73.97, 1);
+  });
+
+  it("groupInterest fails without a group_id", async () => {
+    const res = await interestReportService.groupInterest(companyId, fyId, {});
+    expect(res.success).toBe(false);
+  });
 });

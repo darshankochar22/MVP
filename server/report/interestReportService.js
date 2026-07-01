@@ -185,6 +185,31 @@ module.exports = {
     }
   },
 
+  // Interest for a single chosen group (the "Groups" option under Interest Calculations).
+  // Reuses the same aggregation as Receivable/Payable, keyed off the picked group's name.
+  groupInterest: async (company_id, fy_id, params = {}) => {
+    try {
+      const group_id = params.group_id;
+      if (!group_id) return { success: false, error: 'group_id is required' };
+
+      const grpRows = await db.all(
+        sql`SELECT name, nature FROM ${groups} WHERE group_id = ${group_id} AND company_id = ${company_id} LIMIT 1`
+      );
+      if (grpRows.length === 0) return { success: false, error: 'Group not found' };
+      const group_name = grpRows[0].name;
+      const nature = grpRows[0].nature || '';
+
+      const fyRows = await db.all(sql`SELECT end_date FROM ${financialYears} WHERE fy_id = ${fy_id}`);
+      const defaultToDate = fyRows?.[0]?.end_date || new Date().toISOString().slice(0, 10);
+      const toDate = params.to_date || params.as_on_date || defaultToDate;
+
+      const { rows, total_principal, total_interest } = await buildInterestOutstanding(company_id, fy_id, group_name, toDate);
+      return { success: true, rows, total_principal, total_interest, to_date: toDate, group_name, nature };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
   ledgerInterest: async (company_id, fy_id, params = {}) => {
     try {
       let ledgerId = null;

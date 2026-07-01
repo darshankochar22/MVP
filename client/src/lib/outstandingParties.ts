@@ -48,6 +48,27 @@ export function filterPartyGroups<T extends GroupLike>(groups: T[]): T[] {
   return groups.filter((g) => ids.has(g.group_id));
 }
 
+// group_id -> natural balance side: "Dr" for the Sundry Debtors subtree, "Cr" for
+// the Sundry Creditors subtree. Resolved by ancestry, so sub-groups inherit correctly.
+export function partySide(groups: GroupLike[]): Map<number, "Dr" | "Cr"> {
+  const byId = new Map<number, GroupLike>();
+  groups.forEach((g) => byId.set(g.group_id, g));
+
+  const rootName = (g: GroupLike | undefined, seen: Set<number>): string | null => {
+    if (!g || seen.has(g.group_id)) return null;
+    if ((PARTY_GROUP_NAMES as readonly string[]).includes(g.name)) return g.name;
+    seen.add(g.group_id);
+    return g.parent_group_id != null ? rootName(byId.get(g.parent_group_id), seen) : null;
+  };
+
+  const sides = new Map<number, "Dr" | "Cr">();
+  groups.forEach((g) => {
+    const root = rootName(g, new Set());
+    if (root) sides.set(g.group_id, root === "Sundry Creditors" ? "Cr" : "Dr");
+  });
+  return sides;
+}
+
 // Keep only the ledgers whose group is within the party subtree derived from `groups`.
 export function filterPartyLedgers<T extends LedgerLike>(ledgers: T[], groups: GroupLike[]): T[] {
   const ids = partyGroupIds(groups);

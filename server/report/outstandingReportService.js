@@ -1,6 +1,6 @@
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
-const { voucherBillReferences, vouchers, ledgers, groups, voucherEntries } = require('../db/schema');
+const { voucherBillReferences, vouchers, ledgers, groups, voucherEntries, voucherStockEntries, units } = require('../db/schema');
 
 // ---------------------------------------------------------------------------
 // Outstanding Report Service  (READ-ONLY)
@@ -113,29 +113,32 @@ const buildOutstanding = async (company_id, fy_id, groupName) => {
 };
 
 // Pending bills for a single ledger (used by Ledger Outstandings report).
+//
+// Mirrors TallyPrime's Ledger Outstandings columns: each bill shows an Opening
+// Amount (the original New Ref / Advance value) and a Pending Amount (the net
+// still outstanding after Agst Ref settlements). Amounts are signed off the
+// party ledger's Dr/Cr direction in each voucher (Dr = +, Cr = -) so the client
+// can render the "Dr" / "Cr" suffix directly. Unallocated amounts (bill_type
+// 'On Account') are summed separately into a single On Account line.
 const buildLedgerOutstanding = async (company_id, fy_id, ledger_id) => {
   const asOnDate = new Date().toISOString().slice(0, 10);
+
   const rows = await db.all(
     sql`
       SELECT
-        l.ledger_id              AS ledger_id,
-        l.name                   AS party_name,
         vbr.bill_name            AS bill_name,
         COALESCE(MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN v.date ELSE NULL END), MAX(v.date)) AS bill_date,
         MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.due_date ELSE NULL END) AS due_date,
         MAX(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN vbr.credit_period ELSE NULL END) AS credit_period,
         SUM(
-          CASE 
-            WHEN (g.name = 'Sundry Creditors' OR l.nature = 'Liabilities') THEN
-              CASE WHEN ve.entry_type = 'Dr' THEN -vbr.amount ELSE vbr.amount END
-            ELSE
-              CASE WHEN ve.entry_type = 'Cr' THEN -vbr.amount ELSE vbr.amount END
-          END
-        ) AS total_amount
+          CASE WHEN vbr.bill_type IN ('New Ref', 'Advance')
+               THEN (CASE WHEN ve.entry_type = 'Dr' THEN vbr.amount ELSE -vbr.amount END)
+               ELSE 0 END
+        ) AS opening_amount,
+        SUM(CASE WHEN ve.entry_type = 'Dr' THEN vbr.amount ELSE -vbr.amount END) AS pending_amount
       FROM ${voucherBillReferences} vbr
       JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
       JOIN ${ledgers} l  ON l.ledger_id = vbr.ledger_id
-      JOIN ${groups} g   ON g.group_id = l.group_id
       LEFT JOIN (
         SELECT voucher_id, ledger_id, CASE WHEN SUM(CASE WHEN type = 'Dr' THEN amount ELSE -amount END) >= 0 THEN 'Dr' ELSE 'Cr' END AS entry_type
         FROM ${voucherEntries}
@@ -149,32 +152,68 @@ const buildLedgerOutstanding = async (company_id, fy_id, ledger_id) => {
         AND vbr.bill_type IN ('New Ref', 'Advance', 'Agst Ref')
         AND vbr.ledger_id = ${ledger_id}
         AND l.is_bill_wise = 1
-      GROUP BY l.ledger_id, l.name, vbr.bill_name
+      GROUP BY vbr.bill_name
       HAVING SUM(CASE WHEN vbr.bill_type IN ('New Ref', 'Advance') THEN 1 ELSE 0 END) > 0
-         AND ABS(total_amount) > 0.01
-      ORDER BY MAX(v.date) DESC
+         AND ABS(pending_amount) > 0.01
+      ORDER BY bill_date ASC
     `
   );
 
-  const bucketTotals = AGEING_BUCKETS.reduce((acc, b) => { acc[b] = 0; return acc; }, {});
+  // On Account: amounts booked to the party but not tied to any bill reference.
+  const onAcc = await db.all(
+    sql`
+      SELECT
+        MAX(v.date) AS date,
+        SUM(CASE WHEN ve.entry_type = 'Dr' THEN vbr.amount ELSE -vbr.amount END) AS amount
+      FROM ${voucherBillReferences} vbr
+      JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
+      JOIN ${ledgers} l  ON l.ledger_id = vbr.ledger_id
+      LEFT JOIN (
+        SELECT voucher_id, ledger_id, CASE WHEN SUM(CASE WHEN type = 'Dr' THEN amount ELSE -amount END) >= 0 THEN 'Dr' ELSE 'Cr' END AS entry_type
+        FROM ${voucherEntries}
+        GROUP BY voucher_id, ledger_id
+      ) ve ON ve.voucher_id = vbr.voucher_id AND ve.ledger_id = vbr.ledger_id
+      WHERE v.company_id = ${company_id}
+        AND v.fy_id = ${fy_id}
+        AND v.is_cancelled = 0
+        AND COALESCE(v.is_optional, 0) = 0
+        AND COALESCE(v.is_post_dated, 0) = 0
+        AND vbr.bill_type = 'On Account'
+        AND vbr.ledger_id = ${ledger_id}
+        AND l.is_bill_wise = 1
+    `
+  );
+
   const resultRows = rows.map((row) => {
-    const balance = Number(row.total_amount) || 0;
+    const opening = Number(row.opening_amount) || 0;
+    const pending = Number(row.pending_amount) || 0;
     const overdueDays = row.due_date ? Math.max(0, dayDiff(row.due_date, asOnDate)) : 0;
-    const ageing = bucketFor(overdueDays);
-    bucketTotals[ageing] += balance;
     return {
       bill: row.bill_name,
       bill_date: row.bill_date,
       due_date: row.due_date,
       credit_period: row.credit_period,
       overdue_days: overdueDays,
-      balance,
-      ageing,
+      opening_amount: opening,
+      pending_amount: pending,
     };
   });
 
-  const total = resultRows.reduce((s, r) => s + r.balance, 0);
-  return { rows: resultRows, total, bucketTotals, as_on: asOnDate };
+  const oa = onAcc[0] || {};
+  const onAccountAmt = Number(oa.amount) || 0;
+  const on_account = Math.abs(onAccountAmt) > 0.01 ? { date: oa.date, amount: onAccountAmt } : null;
+
+  const subOpening = resultRows.reduce((s, r) => s + r.opening_amount, 0);
+  const subPending = resultRows.reduce((s, r) => s + r.pending_amount, 0);
+  const total = subPending + (on_account ? on_account.amount : 0);
+
+  return {
+    rows: resultRows,
+    sub_total: { opening: subOpening, pending: subPending },
+    on_account,
+    total,
+    as_on: asOnDate,
+  };
 };
 
 // Vouchers that make up a single bill (original bill + subsequent Agst Ref settlements)
@@ -208,6 +247,35 @@ const buildBillVouchers = async (company_id, fy_id, ledger_id, bill_name) => {
     `
   );
 
+  // Stock item lines (qty + unit symbol, item name, rate) for each of those vouchers,
+  // shown indented under each voucher line exactly like TallyPrime's expanded bill view.
+  const voucherIds = rows.map((r) => r.voucher_id);
+  let stockByVoucher = {};
+  if (voucherIds.length > 0) {
+    const stockRows = await db.all(
+      sql`
+        SELECT
+          vse.voucher_id  AS voucher_id,
+          vse.item_name   AS item_name,
+          vse.quantity    AS quantity,
+          vse.rate        AS rate,
+          u.symbol        AS unit_symbol
+        FROM ${voucherStockEntries} vse
+        LEFT JOIN ${units} u ON u.unit_id = vse.unit_id
+        WHERE vse.voucher_id IN (${sql.join(voucherIds.map((id) => sql`${id}`), sql`, `)})
+        ORDER BY vse.stock_entry_id ASC
+      `
+    );
+    for (const s of stockRows) {
+      (stockByVoucher[s.voucher_id] ||= []).push({
+        item_name: s.item_name || '',
+        quantity: Number(s.quantity) || 0,
+        rate: Number(s.rate) || 0,
+        unit_symbol: s.unit_symbol || '',
+      });
+    }
+  }
+
   return rows.map((r) => ({
     voucher_id: r.voucher_id,
     date: r.date,
@@ -216,6 +284,7 @@ const buildBillVouchers = async (company_id, fy_id, ledger_id, bill_name) => {
     bill_type: r.bill_type,
     amount: Number(r.amount) || 0,
     entry_type: r.entry_type || 'Dr',
+    stock_items: stockByVoucher[r.voucher_id] || [],
   }));
 };
 
@@ -310,9 +379,9 @@ module.exports = {
 
   ledgerOutstandings: async (company_id, fy_id, ledger_id) => {
     try {
-      const { rows, total, bucketTotals, as_on } =
+      const { rows, sub_total, on_account, total, as_on } =
         await buildLedgerOutstanding(company_id, fy_id, ledger_id);
-      return { success: true, as_on, rows, total, bucketTotals };
+      return { success: true, as_on, rows, sub_total, on_account, total };
     } catch (err) {
       return { success: false, error: err.message };
     }

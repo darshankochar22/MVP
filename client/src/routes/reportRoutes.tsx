@@ -192,7 +192,7 @@ export const reportRoutes: RouteConfig[] = [
   { path: "/reports/accounts/interest-receivable", element: <ReportRunner /> },
   { path: "/reports/accounts/interest-payable", element: <ReportRunner /> },
   { path: "/reports/accounts/interest-calculation-ledger-wise", element: <ReportRunner /> },
-  { path: "/reports/accounts/interest-calculation-bill-wise", element: <ReportRunner /> },
+  { path: "/reports/accounts/interest-calculation-group-wise", element: <ReportRunner /> },
   { path: "/reports/accounts/cost-centre-summary", element: <CostCentreSummary /> },
   { path: "/reports/accounts/cost-category-summary", element: <CostCategorySummary /> },
   { path: "/reports/accounts/cost-centre-break-up", element: <ReportRunner /> },

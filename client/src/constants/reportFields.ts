@@ -22,7 +22,7 @@ export const LAYOUT_ONLY_REPORTS = new Set([
   "interest-receivable",
   "interest-payable",
   "interest-calculation-ledger-wise",
-  "interest-calculation-bill-wise",
+  "interest-calculation-group-wise",
   "cost-category-summary",
   "cost-centre-summary",
   "cost-centre-break-up",

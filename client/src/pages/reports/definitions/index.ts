@@ -197,7 +197,6 @@ export const REPORT_CATEGORIES: Record<string, { slug: string; title: string }[]
     { slug: "interest-receivable", title: "Interest Receivable" },
     { slug: "interest-payable", title: "Interest Payable" },
     { slug: "interest-calculation-ledger-wise", title: "Interest Calculation Ledger-wise" },
-    { slug: "interest-calculation-bill-wise", title: "Interest Calculation Bill-wise" },
     { slug: "collection-follow-up", title: "Collection Follow-up" },
     { slug: "payment-follow-up", title: "Payment Follow-up" },
     { slug: "promise-to-pay-report", title: "Promise-to-Pay Report" },
