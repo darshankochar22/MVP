@@ -654,8 +654,8 @@ export default function Vouchers() {
   const handleAccept = useCallback(() => {
     // ── Sales / Purchase / Credit Note / Debit Note: bill-wise for party ──────
     if (
-      // Receipt Note is a non-accounting inventory voucher — no bill-wise prompt.
-      ["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Rejection In", "Rejection Out"].includes(effectiveVoucherType) &&
+      // Delivery Note & Receipt Note are non-accounting inventory vouchers — no bill-wise prompt.
+      ["Sales", "Purchase", "Credit Note", "Debit Note", "Rejection In", "Rejection Out"].includes(effectiveVoucherType) &&
       form.partyLedger?.is_bill_wise === 1 &&
       form.partyBillReferences.length === 0
     ) {

@@ -32,7 +32,9 @@ interface CompRow {
   id: number;
   item_name: string;
   unit_symbol: string;
+  isBatch: boolean;
   showTrackDD: boolean;
+  showGodownDD: boolean;
   track: "Pending to Issue" | "Pending to Receive" | "";
   due_on: string;
   godown: string;
@@ -48,7 +50,9 @@ const newRow = (voucherDate: string): CompRow => ({
   id: ++_cRowId,
   item_name: "",
   unit_symbol: "",
+  isBatch: false,
   showTrackDD: false,
+  showGodownDD: false,
   track: "",
   due_on: voucherDate,
   godown: "",
@@ -75,26 +79,30 @@ export default function ComponentsAllocationPopup({
 
   const [rows, setRows] = useState<CompRow[]>(() => {
     if (initialRows?.length) {
-      return initialRows.map((r) => ({
-        id: ++_cRowId,
-        item_name: r.item_name,
-        unit_symbol: r.unit_symbol ?? "",
-        showTrackDD: false,
-        track: r.track || "",
-        due_on: r.due_on || voucherDate,
-        godown: r.godown,
-        batch_lot: r.batch_lot ?? "",
-        actual_qty: r.actual_qty ? String(r.actual_qty) : "",
-        as_per_bom: r.as_per_bom ? String(r.as_per_bom) : "",
-        rate: r.rate ? String(r.rate) : "",
-        amount: r.amount,
-      }));
+      return initialRows.map((r) => {
+        const si = allStockItems.find((s: any) => s.name === r.item_name);
+        return {
+          id: ++_cRowId,
+          item_name: r.item_name,
+          unit_symbol: r.unit_symbol ?? "",
+          isBatch: si ? Boolean(Number(si.track_batches)) : false,
+          showTrackDD: false,
+          showGodownDD: false,
+          track: r.track || "",
+          due_on: r.due_on || voucherDate,
+          godown: r.godown,
+          batch_lot: r.batch_lot ?? "",
+          actual_qty: r.actual_qty ? String(r.actual_qty) : "",
+          as_per_bom: r.as_per_bom ? String(r.as_per_bom) : "",
+          rate: r.rate ? String(r.rate) : "",
+          amount: r.amount,
+        };
+      });
     }
     return [newRow(voucherDate)];
   });
 
   const [showItemDD, setShowItemDD] = useState<number | null>(null);
-  const [showGodownDD, setShowGodownDD] = useState<number | null>(null);
   const [itemSearch, setItemSearch] = useState<Record<number, string>>({});
 
   const update = (id: number, patch: Partial<CompRow>) =>
@@ -240,7 +248,16 @@ export default function ComponentsAllocationPopup({
                     }}
                     onFocus={() => { setShowItemDD(idx); setItemSearch((p) => ({ ...p, [row.id]: "" })); }}
                     onBlur={() => setTimeout(() => setShowItemDD(null), 150)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); focusEl(`[data-ca-track="${idx}"]`); }}}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        if (!row.item_name.trim()) {
+                          const filled = rows.filter((r) => r.item_name.trim());
+                          if (filled.length > 0) { handleAccept(); return; }
+                        }
+                        focusEl(`[data-ca-track="${idx}"]`);
+                      }
+                    }}
                     placeholder="Select item…"
                     className={`${inputCls} bg-yellow-50 font-semibold`}
                   />
@@ -252,7 +269,13 @@ export default function ComponentsAllocationPopup({
                           onMouseDown={(e) => {
                             e.preventDefault();
                             const unit = allUnits.find((u: any) => u.unit_id === s.unit_id);
-                            update(row.id, { item_name: s.name, unit_symbol: unit?.symbol ?? "" });
+                            const autoRate = (s as any).purchase_rate || (s as any).last_cost || (s as any).standard_rate || 0;
+                            update(row.id, {
+                              item_name: s.name,
+                              unit_symbol: unit?.symbol ?? "",
+                              isBatch: Boolean(Number(s.track_batches)),
+                              rate: autoRate ? String(autoRate) : "",
+                            });
                             setShowItemDD(null);
                             focusEl(`[data-ca-track="${idx}"]`);
                           }}
@@ -282,7 +305,7 @@ export default function ComponentsAllocationPopup({
                           onMouseDown={(e) => {
                             e.preventDefault();
                             update(row.id, { track: t, showTrackDD: false });
-                            focusEl(`[data-ca-due="${idx}"]`);
+                            focusEl(`[data-ca-godown="${idx}"]`);
                           }}
                           className={`block w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 ${t === row.track ? "font-bold" : ""}`}>
                           {t === row.track ? `♦ ${t}` : t}
@@ -302,60 +325,78 @@ export default function ComponentsAllocationPopup({
                 <div className={`${cell} ${W.amount}`} />
               </div>
 
-              {/* Sub-line: Due on + Godown + Batch + Qty (Actual/BoM) + Rate + Amount */}
+              {/* Sub-line: Due on (name col) | spacer (track col) | Godown | Batch? | Qty (Actual/BoM) | Rate | Amount */}
               <div className="flex items-center px-4 pb-1 gap-2">
-                {/* Due on (in name column area) */}
-                <div className={`${cell} ${W.name} text-[10px] text-zinc-500 italic flex items-center gap-1 shrink-0`}>
-                  Due on :
+                {/* Due on — stays in the Name column */}
+                <div className={`${cell} ${W.name} text-[10px] text-zinc-500 italic flex items-center gap-0.5 shrink-0`}>
+                  <span className="shrink-0">Due on :</span>
                   <input
                     type="date"
                     data-ca-due={idx}
                     value={row.due_on}
                     onChange={(e) => update(row.id, { due_on: e.target.value })}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); focusEl(`[data-ca-godown="${idx}"]`); }}}
-                    className="text-[10px] border-b border-zinc-300 outline-none bg-transparent w-22 ml-0.5"
+                    className="text-[10px] border-b border-zinc-300 outline-none bg-transparent min-w-0 flex-1 ml-0.5"
                     title={fmtDate(row.due_on)}
                   />
                 </div>
 
-                {/* Godown */}
-                <div className={`${cell} ${W.track} relative`}>
+                {/* Empty spacer — aligns with Track column */}
+                <div className={`${cell} ${W.track}`} />
+
+                {/* Godown — aligned under the Godown column header */}
+                <div className={`${cell} ${W.godown} relative`}>
                   <input
                     type="text"
                     data-ca-godown={idx}
                     value={row.godown}
                     onChange={(e) => update(row.id, { godown: e.target.value })}
-                    onFocus={() => setShowGodownDD(idx)}
-                    onBlur={() => setTimeout(() => setShowGodownDD(null), 150)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); focusEl(`[data-ca-actual="${idx}"]`); }}}
+                    onFocus={() => update(row.id, { showGodownDD: true })}
+                    onBlur={() => setTimeout(() => update(row.id, { showGodownDD: false }), 150)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        focusEl(row.isBatch ? `[data-ca-batch="${idx}"]` : `[data-ca-actual="${idx}"]`);
+                      }
+                    }}
                     placeholder="Location"
                     className={inputCls}
                   />
-                  {showGodownDD === idx && (
+                  {row.showGodownDD && (
                     <div className="absolute left-0 top-full mt-0.5 w-44 bg-white border border-zinc-400 shadow-xl z-40 max-h-40 overflow-y-auto">
                       <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-0.5">List of Godowns</div>
-                      {allGodowns.map((g: any) => (
-                        <button key={g.godown_id ?? g.name} type="button"
-                          onMouseDown={(e) => { e.preventDefault(); update(row.id, { godown: g.name }); setShowGodownDD(null); focusEl(`[data-ca-actual="${idx}"]`); }}
-                          className="block w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 font-semibold">
-                          {g.name}
-                        </button>
-                      ))}
+                      {allGodowns
+                        .filter((g) => !row.godown || g.name.toLowerCase().includes(row.godown.toLowerCase()))
+                        .map((g: any) => (
+                          <button key={g.godown_id ?? g.name} type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              update(row.id, { godown: g.name, showGodownDD: false });
+                              focusEl(row.isBatch ? `[data-ca-batch="${idx}"]` : `[data-ca-actual="${idx}"]`);
+                            }}
+                            className="block w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 font-semibold">
+                            {g.name}
+                          </button>
+                        ))}
                     </div>
                   )}
                 </div>
 
-                {/* Batch/Lot No. */}
-                <div className={`${cell} ${W.godown}`}>
-                  <input
-                    type="text"
-                    data-ca-batch={idx}
-                    value={row.batch_lot}
-                    onChange={(e) => update(row.id, { batch_lot: e.target.value })}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); focusEl(`[data-ca-actual="${idx}"]`); }}}
-                    placeholder="Any"
-                    className={inputCls}
-                  />
+                {/* Batch/Lot No. — only active for batch-tracked component items */}
+                <div className={`${cell} ${W.batch}`}>
+                  {row.isBatch ? (
+                    <input
+                      type="text"
+                      data-ca-batch={idx}
+                      value={row.batch_lot}
+                      onChange={(e) => update(row.id, { batch_lot: e.target.value })}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); focusEl(`[data-ca-actual="${idx}"]`); }}}
+                      placeholder="Any"
+                      className={inputCls}
+                    />
+                  ) : (
+                    <div className="text-[11px] text-zinc-300 px-1 text-center">—</div>
+                  )}
                 </div>
 
                 {/* Actual Qty */}
@@ -368,9 +409,26 @@ export default function ComponentsAllocationPopup({
                     onChange={(e) => {
                       const v = e.target.value;
                       const amt = (Number(v) || 0) * (Number(row.rate) || 0);
-                      update(row.id, { actual_qty: v, amount: amt });
+                      update(row.id, { actual_qty: v, as_per_bom: row.as_per_bom || v, amount: amt });
                     }}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); focusEl(`[data-ca-bom="${idx}"]`); }}}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        // If rate already autofilled, skip BoM and rate and go to next row/accept
+                        if (row.rate) {
+                          const amt = (Number(e.currentTarget.value) || 0) * (Number(row.rate) || 0);
+                          update(row.id, { as_per_bom: e.currentTarget.value, amount: amt });
+                          if (idx === rows.length - 1) {
+                            setRows((prev) => [...prev, newRow(voucherDate)]);
+                            setTimeout(() => focusEl(`[data-ca-item="${idx + 1}"]`), 40);
+                          } else {
+                            focusEl(`[data-ca-item="${idx + 1}"]`);
+                          }
+                        } else {
+                          focusEl(`[data-ca-rate="${idx}"]`);
+                        }
+                      }
+                    }}
                     className={`${inputCls} text-right font-mono`}
                   />
                 </div>

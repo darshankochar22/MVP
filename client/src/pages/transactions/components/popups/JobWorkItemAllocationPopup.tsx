@@ -350,11 +350,16 @@ export default function JobWorkItemAllocationPopup({
           initialRows={rows.find((r) => r.id === compPopupData.rowId)?.components ?? []}
           onClose={() => setCompPopupData(null)}
           onSave={(compRows) => {
-            update(compPopupData.rowId, { components: compRows });
+            // Autofill rate & amount from component totals
+            const totalCompAmount = compRows.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+            const mainQty = compPopupData.quantity; // qty entered before opening popup
+            const autoRate = mainQty > 0 ? totalCompAmount / mainQty : 0;
+            update(compPopupData.rowId, {
+              components: compRows,
+              rate: String(Math.round(autoRate * 100) / 100),
+              amount: totalCompAmount,
+            });
             setCompPopupData(null);
-            // Re-focus rate field
-            const rowIdx = rows.findIndex((r) => r.id === compPopupData.rowId);
-            if (rowIdx !== -1) focusEl(`[data-jw-rate="${rowIdx}"]`);
           }}
         />
       )}
