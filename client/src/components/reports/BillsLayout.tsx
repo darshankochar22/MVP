@@ -1,10 +1,13 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import BillVouchersPopup from "./BillVouchersPopup";
 
 /* ── Types ─────────────────────────────────────────────────────────── */
 interface BillRow {
   bill_id: number;
+  ledger_id: number;
+  bill_name: string;
   date: string;
   ref_no: string;
   party_name: string;
@@ -52,6 +55,7 @@ export default function BillsLayout({ mode }: Props) {
   const [loading, setLoading]         = React.useState(true);
   const [error, setError]             = React.useState<string | null>(null);
   const [focusedIndex, setFocusedIndex] = React.useState(0);
+  const [activeBill, setActiveBill]   = React.useState<BillRow | null>(null);
 
   const fromDate = activeFY?.start_date || "";
   const toDate   = activeFY?.end_date   || "";
@@ -65,6 +69,8 @@ export default function BillsLayout({ mode }: Props) {
         if (res?.success) {
           const mapped: BillRow[] = (res.rows || []).map((r: any, i: number) => ({
             bill_id:        i,
+            ledger_id:      Number(r.ledger_id ?? 0),
+            bill_name:      String(r.bill || r.ref_no || ""),
             date:           r.bill_date || r.date || "",
             ref_no:         String(r.bill || r.ref_no || ""),
             party_name:     r.party || r.party_name || "",
@@ -85,16 +91,22 @@ export default function BillsLayout({ mode }: Props) {
       .finally(() => setLoading(false));
   }, [selectedCompany?.company_id, activeFY?.fy_id, mode]);
 
+  const openBillVouchers = React.useCallback((row: BillRow) => {
+    if (!row.ledger_id || !row.bill_name) return;
+    setActiveBill(row);
+  }, []);
+
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (document.activeElement?.tagName === "INPUT") return;
+      if (document.activeElement?.tagName === "INPUT" || activeBill) return;
       if (e.key === "ArrowDown") { e.preventDefault(); setFocusedIndex(p => Math.min(rows.length - 1, p + 1)); }
       else if (e.key === "ArrowUp") { e.preventDefault(); setFocusedIndex(p => Math.max(0, p - 1)); }
+      else if (e.key === "Enter") { e.preventDefault(); if (rows[focusedIndex]) openBillVouchers(rows[focusedIndex]); }
       else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); navigate(-1); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [rows, navigate]);
+  }, [rows, focusedIndex, navigate, openBillVouchers, activeBill]);
 
   const grandTotal = rows.reduce((s, r) => s + r.pending_amount, 0);
   const title = mode === "receivable" ? "Bills Receivable" : "Bills Payable";
@@ -146,7 +158,7 @@ export default function BillsLayout({ mode }: Props) {
                 <tr
                   key={row.bill_id}
                   className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"}`}
-                  onClick={() => setFocusedIndex(idx)}
+                  onClick={() => { setFocusedIndex(idx); openBillVouchers(row); }}
                 >
                   <td className="px-3 py-1.5">{fmtDate(row.date)}</td>
                   <td className="px-3 py-1.5">{row.ref_no}</td>
@@ -171,6 +183,17 @@ export default function BillsLayout({ mode }: Props) {
         <span className="w-[16%] text-right">{fmtTotal(grandTotal)}</span>
         <span className="flex-1" />
       </div>
+
+      {activeBill && selectedCompany?.company_id && activeFY?.fy_id && (
+        <BillVouchersPopup
+          companyId={selectedCompany.company_id}
+          fyId={activeFY.fy_id}
+          ledgerId={activeBill.ledger_id}
+          billName={activeBill.bill_name}
+          onClose={() => setActiveBill(null)}
+          onOpenVoucher={(voucherId) => { setActiveBill(null); navigate(`/transactions/voucher/${voucherId}`); }}
+        />
+      )}
     </div>
   );
 }

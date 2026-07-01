@@ -92,6 +92,9 @@ module.exports = {
   groupOutstandings: async (event, { company_id, fy_id, group_id }) => {
     return await outstandingReportService.groupOutstandings(company_id, fy_id, group_id);
   },
+  billVouchers: async (event, { company_id, fy_id, ledger_id, bill_name }) => {
+    return await outstandingReportService.billVouchers(company_id, fy_id, ledger_id, bill_name);
+  },
   interestReceivable: async (event, { company_id, fy_id, params }) => {
     return await interestReportService.interestReceivable(company_id, fy_id, params);
   },

@@ -177,6 +177,48 @@ const buildLedgerOutstanding = async (company_id, fy_id, ledger_id) => {
   return { rows: resultRows, total, bucketTotals, as_on: asOnDate };
 };
 
+// Vouchers that make up a single bill (original bill + subsequent Agst Ref settlements)
+// — the drill-down from a Bills Receivable/Payable row before opening a specific voucher.
+const buildBillVouchers = async (company_id, fy_id, ledger_id, bill_name) => {
+  const rows = await db.all(
+    sql`
+      SELECT
+        v.voucher_id     AS voucher_id,
+        v.date           AS date,
+        v.voucher_type   AS voucher_type,
+        v.voucher_number AS voucher_number,
+        vbr.bill_type    AS bill_type,
+        vbr.amount       AS amount,
+        ve.entry_type    AS entry_type
+      FROM ${voucherBillReferences} vbr
+      JOIN ${vouchers} v ON v.voucher_id = vbr.voucher_id
+      LEFT JOIN (
+        SELECT voucher_id, ledger_id, CASE WHEN SUM(CASE WHEN type = 'Dr' THEN amount ELSE -amount END) >= 0 THEN 'Dr' ELSE 'Cr' END AS entry_type
+        FROM ${voucherEntries}
+        GROUP BY voucher_id, ledger_id
+      ) ve ON ve.voucher_id = vbr.voucher_id AND ve.ledger_id = vbr.ledger_id
+      WHERE vbr.ledger_id = ${ledger_id}
+        AND vbr.bill_name = ${bill_name}
+        AND v.company_id = ${company_id}
+        AND v.fy_id = ${fy_id}
+        AND v.is_cancelled = 0
+        AND COALESCE(v.is_optional, 0) = 0
+        AND COALESCE(v.is_post_dated, 0) = 0
+      ORDER BY v.date ASC, v.voucher_id ASC
+    `
+  );
+
+  return rows.map((r) => ({
+    voucher_id: r.voucher_id,
+    date: r.date,
+    voucher_type: r.voucher_type,
+    voucher_number: r.voucher_number,
+    bill_type: r.bill_type,
+    amount: Number(r.amount) || 0,
+    entry_type: r.entry_type || 'Dr',
+  }));
+};
+
 // Pending bills grouped by ledger for a group (used by Group Outstandings).
 const buildGroupOutstanding = async (company_id, fy_id, group_id) => {
   const asOnDate = new Date().toISOString().slice(0, 10);
@@ -281,6 +323,15 @@ module.exports = {
       const { rows, total, bucketTotals, as_on } =
         await buildGroupOutstanding(company_id, fy_id, group_id);
       return { success: true, as_on, rows, total, bucketTotals };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  billVouchers: async (company_id, fy_id, ledger_id, bill_name) => {
+    try {
+      const rows = await buildBillVouchers(company_id, fy_id, ledger_id, bill_name);
+      return { success: true, rows };
     } catch (err) {
       return { success: false, error: err.message };
     }

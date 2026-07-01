@@ -20,6 +20,7 @@ function register() {
   ipcMain.handle('report:billsPayable', reportController.billsPayable);
   ipcMain.handle('report:ledgerOutstandings', reportController.ledgerOutstandings);
   ipcMain.handle('report:groupOutstandings', reportController.groupOutstandings);
+  ipcMain.handle('report:billVouchers', reportController.billVouchers);
   ipcMain.handle('report:interestReceivable', reportController.interestReceivable);
   ipcMain.handle('report:interestPayable', reportController.interestPayable);
   ipcMain.handle('report:ledgerInterest', reportController.ledgerInterest);
