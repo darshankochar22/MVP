@@ -209,7 +209,7 @@ describe('voucherType CRUD sweep (UI-faithful)', () => {
     expect(cfg.config.print_after_save).toBe(1);
   });
 
-  test('predefined voucher types cannot be updated or deleted', async () => {
+  test('predefined voucher types cannot be renamed, recategorized, or deleted', async () => {
     const seeded = await getSeeded();
     const predefined = seeded.find((v) => v.is_predefined === 1);
     expect(predefined).toBeTruthy();
@@ -220,8 +220,40 @@ describe('voucherType CRUD sweep (UI-faithful)', () => {
     });
     expect(upd.success).toBe(false);
 
+    const recategorized = await voucherTypeController.update(null, {
+      vt_id: predefined.vt_id,
+      category: 'Journal',
+    });
+    expect(recategorized.success).toBe(false);
+
     const del = await voucherTypeController.delete(null, predefined.vt_id);
     expect(del.success).toBe(false);
+  });
+
+  test('predefined voucher types CAN have alias/abbreviation/activate/numbering edited (Name + Category stay unchanged)', async () => {
+    const seeded = await getSeeded();
+    const predefined = seeded.find((v) => v.name === 'Payment');
+    expect(predefined).toBeTruthy();
+    expect(predefined.is_predefined).toBe(1);
+
+    const upd = await voucherTypeController.update(null, {
+      vt_id: predefined.vt_id,
+      name: predefined.name,
+      category: predefined.category,
+      alias: 'Pmt Voucher',
+      short_name: 'PmtX',
+      numbering_method: 'Manual',
+      is_active: 0,
+    });
+    expect(upd.success).toBe(true);
+    expect(upd.voucherType.alias).toBe('Pmt Voucher');
+    expect(upd.voucherType.short_name).toBe('PmtX');
+    expect(upd.voucherType.numbering_method).toBe('Manual');
+    expect(upd.voucherType.is_active).toBe(0);
+    // Untouched identity fields.
+    expect(upd.voucherType.name).toBe('Payment');
+    expect(upd.voucherType.category).toBe('Payment');
+    expect(upd.voucherType.is_predefined).toBe(1);
   });
 
   test('delete soft-removes a custom voucher type (is_active=0, gone from getAll)', async () => {

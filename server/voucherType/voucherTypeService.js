@@ -295,7 +295,18 @@ module.exports = {
     try {
       const c = await findVoucherTypeRow(sql`${voucherTypes.vtId} = ${data.vt_id}`);
       if (!c) return { success: false, error: 'Voucher Type not found' };
-      if (c.is_predefined) return { success: false, error: 'Cannot edit predefined voucher types' };
+      // Predefined types (Sales, Purchase, Payment, ...) allow editing alias,
+      // abbreviation, activate, and numbering settings — but not the Name or
+      // Category, which are hardcoded as strings across the GST engine, reports,
+      // and voucher rendering elsewhere in the app.
+      if (c.is_predefined) {
+        if (data.name !== undefined && data.name !== c.name) {
+          return { success: false, error: 'Cannot rename a predefined voucher type' };
+        }
+        if (data.category !== undefined && data.category !== c.category) {
+          return { success: false, error: 'Cannot change the category of a predefined voucher type' };
+        }
+      }
 
       await db
         .update(voucherTypes)

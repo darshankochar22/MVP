@@ -179,6 +179,11 @@ export function VoucherTypeFormBody({
   setConfig: React.Dispatch<React.SetStateAction<VTConfig>>;
   showCategoryPanel: boolean;
   setShowCategoryPanel: (v: boolean) => void;
+  /** Predefined voucher types (Sales, Purchase, Payment, ...) lock only Name +
+   *  "Select type of voucher" — those two strings are hardcoded across GST calc,
+   *  reports, and voucher rendering elsewhere in the app, so renaming/recategorizing
+   *  a predefined type would silently break them. Everything else (alias,
+   *  abbreviation, activate, numbering method) stays editable even when locked. */
   lockIdentity?: boolean;
   nameAutoFocus?: boolean;
   categories?: string[];
@@ -220,8 +225,7 @@ export function VoucherTypeFormBody({
           <FormRow label="(alias)" labelWidth="w-40" className="flex items-center min-h-[26px]">
             <input
               ref={aliasRef}
-              disabled={lockIdentity}
-              className={`${nameInputCls} ${lockIdentity ? lockedCls : ""}`}
+              className={nameInputCls}
               value={form.alias}
               onChange={(e) => setF("alias")(e.target.value)}
               onKeyDown={(e) => { if (e.key !== "Enter") return; e.preventDefault(); if (!lockIdentity) { setShowCategoryPanel(true); categoryBtnRef.current?.focus(); } else { abbreviationRef.current?.focus(); } }}
@@ -253,8 +257,7 @@ export function VoucherTypeFormBody({
               <FormRow label="Abbreviation" labelWidth="w-56" className="flex items-center min-h-[26px]">
                 <input
                   ref={abbreviationRef}
-                  disabled={lockIdentity}
-                  className={`${inputCls} ${lockIdentity ? lockedCls : ""}`}
+                  className={inputCls}
                   value={form.short_name}
                   onChange={(e) => setF("short_name")(e.target.value)}
                   maxLength={6}
@@ -262,13 +265,12 @@ export function VoucherTypeFormBody({
               </FormRow>
 
               <FormRow label="Activate this Voucher Type" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                <YesNoSelect value={form.is_active} onChange={setF("is_active") as (v: YN) => void} disabled={lockIdentity} />
+                <YesNoSelect value={form.is_active} onChange={setF("is_active") as (v: YN) => void} />
               </FormRow>
 
               <FormRow label="Method of Voucher Numbering" labelWidth="w-56" className="flex items-center min-h-[26px]">
                 <select
-                  disabled={lockIdentity}
-                  className={`${selectCls} ${lockIdentity ? lockedCls : ""}`}
+                  className={selectCls}
                   value={form.numbering_method}
                   onChange={(e) => setF("numbering_method")(e.target.value)}
                 >

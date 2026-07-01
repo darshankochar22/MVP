@@ -197,7 +197,11 @@ export default function VoucherTypeAlter() {
     setLoading(true);
     setError(null);
     try {
-      if (!selectedVT.is_predefined) {
+      {
+        // Predefined types (Sales, Purchase, Payment, ...) keep Name + "Select
+        // type of voucher" disabled in the form above, so those two always
+        // round-trip unchanged here — everything else (alias, abbreviation,
+        // activate, numbering method) is editable even for predefined types.
         const payload: VoucherTypeUpdatePayload = {
           vt_id:            selectedVT.vt_id!,
           name:             form.name.trim(),
@@ -329,7 +333,7 @@ export default function VoucherTypeAlter() {
 
       {isPredefined && (
         <div className="px-3 py-1.5 border-b border-zinc-200 bg-zinc-50 text-zinc-500 text-[10px] uppercase font-bold shrink-0 select-none">
-          Predefined — identity is locked, configurations below can still be changed.
+          Predefined — Name and Type of Voucher are locked, everything else can be changed.
         </div>
       )}
 
