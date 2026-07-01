@@ -44,6 +44,9 @@ export default function UnitCreate() {
   const [unitsLoading, setUnitsLoading] = useState(false);
   const [showUqc, setShowUqc] = useState(false);
   const uqcAnchorRef = useRef<HTMLButtonElement>(null);
+  const symbolRef = useRef<HTMLInputElement>(null);
+  const formalNameRef = useRef<HTMLInputElement>(null);
+  const decimalRef = useRef<HTMLSelectElement>(null);
 
   useEffect(() => {
     if (!companyId) return;
@@ -192,10 +195,10 @@ export default function UnitCreate() {
             {!isCompound && (
               <>
                 <FormRow label="Symbol" required labelWidth="w-56" className="flex items-center min-h-[26px]">
-                  <input autoFocus className={inputCls} value={form.symbol} onChange={setField("symbol")} placeholder="e.g. Kg" />
+                  <input autoFocus ref={symbolRef} className={inputCls} value={form.symbol} onChange={setField("symbol")} placeholder="e.g. Kg" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); formalNameRef.current?.focus(); }} />
                 </FormRow>
                 <FormRow label="Formal Name" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                  <input className={inputCls} value={form.formal_name} onChange={setField("formal_name")} placeholder="e.g. Kilogram" />
+                  <input ref={formalNameRef} className={inputCls} value={form.formal_name} onChange={setField("formal_name")} placeholder="e.g. Kilogram" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); uqcAnchorRef.current?.focus(); }} />
                 </FormRow>
                 <FormRow label="Unit Quantity Code (UQC)" labelWidth="w-56" className="flex items-center min-h-[26px] relative">
                   <button
@@ -203,19 +206,20 @@ export default function UnitCreate() {
                     type="button"
                     className="flex-1 text-left text-sm px-1 py-0.5 hover:bg-zinc-50 focus:bg-zinc-100 outline-none transition-colors"
                     onClick={() => setShowUqc(v => !v)}
+                    onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); setShowUqc(true); }}
                   >
                     ◆ {form.uqc || "Not Applicable"}
                   </button>
                   {showUqc && (
                     <UqcPopup
                       selected={form.uqc}
-                      onSelect={v => { setForm(f => ({ ...f, uqc: v })); setShowUqc(false); }}
+                      onSelect={v => { setForm(f => ({ ...f, uqc: v })); setShowUqc(false); setTimeout(() => decimalRef.current?.focus(), 0); }}
                       onClose={() => setShowUqc(false)}
                     />
                   )}
                 </FormRow>
                 <FormRow label="Number of Decimal Places" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                  <select className={selectCls} value={form.decimal_places} onChange={setField("decimal_places")}>
+                  <select ref={decimalRef} className={selectCls} value={form.decimal_places} onChange={setField("decimal_places")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); handleSubmit(); }}>
                     {[0, 1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </FormRow>

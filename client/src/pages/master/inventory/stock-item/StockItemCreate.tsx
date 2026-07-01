@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar, RightActionPanel, FormRow, MasterFormFooter } from "@/components/ui";
@@ -39,6 +39,11 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
   const [activePanel, setActivePanel] = useState<PanelType>(null);
   const [showAllocationModal, setShowAllocationModal] = useState(false);
   const [showOtherStatutory, setShowOtherStatutory] = useState(false);
+
+  const nameRef = useRef<HTMLInputElement>(null);
+  const aliasRef = useRef<HTMLInputElement>(null);
+  const openingQtyRef = useRef<HTMLInputElement>(null);
+  const openingRateRef = useRef<HTMLInputElement>(null);
 
   const updateFormFields = useCallback((updater: (prev: FormData) => Partial<FormData>) => {
     setForm(f => ({ ...f, ...updater(f) }));
@@ -225,10 +230,10 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
         <div className="flex flex-col flex-1 min-w-0">
           <div className="p-3 space-y-1 border-b border-zinc-100">
             <FormRow label="Name" labelWidth="w-20" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={form.name} onChange={e => setVal("name", e.target.value)} />
+              <input autoFocus ref={nameRef} className={inputCls} value={form.name} onChange={e => setVal("name", e.target.value)} onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); aliasRef.current?.focus(); }} />
             </FormRow>
             <FormRow label="(alias)" labelWidth="w-20" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.alias} onChange={e => setVal("alias", e.target.value)} />
+              <input ref={aliasRef} className={inputCls} value={form.alias} onChange={e => setVal("alias", e.target.value)} onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); setActivePanel(p => p === "group" ? null : "group"); }} />
             </FormRow>
           </div>
 
@@ -373,8 +378,10 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
                   <input
                     className="w-24 bg-transparent text-sm outline-none py-0.5 text-right tabular-nums font-mono"
                     type="number" min="0" step="0.001"
+                    ref={openingQtyRef}
                     value={form.opening_quantity}
                     onChange={e => setVal("opening_quantity", e.target.value)}
+                    onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); openingRateRef.current?.focus(); }}
                     placeholder="0"
                   />
                   {form.unit_id && <span className="text-xs text-zinc-500 shrink-0 font-sans">{selectedUnitLabel}</span>}
@@ -392,8 +399,10 @@ export default function StockItemCreate({ onDone, onCancel }: StockItemCreatePro
                   <input
                     className="w-full bg-transparent text-sm outline-none py-0.5 text-right tabular-nums pr-1 font-mono"
                     type="number" min="0" step="0.01"
+                    ref={openingRateRef}
                     value={form.opening_rate}
                     onChange={e => setVal("opening_rate", e.target.value)}
+                    onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); handleSubmit(); }}
                     placeholder="0.00"
                   />
                 </div>

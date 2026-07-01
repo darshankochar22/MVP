@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
@@ -47,6 +47,11 @@ export default function AttendanceTypeCreate() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [units, setUnits] = useState<PayrollUnitType[]>([]);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const aliasRef = useRef<HTMLInputElement>(null);
+  const typeRef = useRef<HTMLSelectElement>(null);
+  const unitRef = useRef<HTMLSelectElement>(null);
+  const periodRef = useRef<HTMLSelectElement>(null);
 
   useEffect(() => {
     if (!companyId) return;
@@ -118,30 +123,30 @@ export default function AttendanceTypeCreate() {
         <div className="flex-1 flex flex-col min-w-0 bg-white border-r border-zinc-100">
           <div className="p-3 space-y-1.5 max-w-2xl">
             <FormRow label="Name" required labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} placeholder="e.g. Present" />
+              <input autoFocus ref={nameRef} className={inputCls} value={form.name} onChange={setField("name")} placeholder="e.g. Present" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); aliasRef.current?.focus(); }} />
             </FormRow>
             <FormRow label="(alias)" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.alias} onChange={setField("alias")} />
+              <input ref={aliasRef} className={inputCls} value={form.alias} onChange={setField("alias")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); typeRef.current?.focus(); }} />
             </FormRow>
             <FormRow label="Under" labelWidth="w-56" className="flex items-center min-h-[26px]">
               <span className="text-sm font-semibold text-zinc-800">Primary</span>
             </FormRow>
             <FormRow label="Attendance Type" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={form.type} onChange={setField("type")}>
+              <select ref={typeRef} className={selectCls} value={form.type} onChange={setField("type")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); (form.type === 'Production' ? unitRef : periodRef).current?.focus(); }}>
                 {ATTENDANCE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </FormRow>
             {/* Production → Unit only; all other types → Period only */}
             {form.type === "Production" ? (
               <FormRow label="Unit" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                <select className={selectCls} value={form.unit_id} onChange={setField("unit_id")}>
+                <select ref={unitRef} className={selectCls} value={form.unit_id} onChange={setField("unit_id")}>
                   <option value="">Select</option>
                   {units.map(u => <option key={u.payroll_unit_id} value={u.payroll_unit_id}>{u.name}</option>)}
                 </select>
               </FormRow>
             ) : (
               <FormRow label="Period" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                <select className={selectCls} value={form.period} onChange={setField("period")}>
+                <select ref={periodRef} className={selectCls} value={form.period} onChange={setField("period")}>
                   <option value="Per Day">Per Day</option>
                   <option value="Per Month">Per Month</option>
                   <option value="Per Year">Per Year</option>

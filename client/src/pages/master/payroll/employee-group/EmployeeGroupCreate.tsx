@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, MasterFormFooter, AlertBanner } from "@/components/ui";
@@ -33,6 +33,10 @@ export default function EmployeeGroupCreate() {
   const [showSalaryModal, setShowSalaryModal] = useState(false);
   const [salaryRows, setSalaryRows] = useState<SalaryRow[]>([]);
   const [salaryEffectiveFrom, setSalaryEffectiveFrom] = useState(fyStartISO());
+
+  const nameRef = useRef<HTMLInputElement>(null);
+  const aliasRef = useRef<HTMLInputElement>(null);
+  const defineSalaryRef = useRef<HTMLSelectElement>(null);
 
   useEffect(() => {
     if (!companyId) return;
@@ -114,6 +118,7 @@ export default function EmployeeGroupCreate() {
             setSelectedParent(node);
             setForm(f => ({ ...f, parent_group_id: node.employee_group_id || null }));
             setShowGroupPanel(false);
+            setTimeout(() => defineSalaryRef.current?.focus(), 50);
           }}
         >
           {node.is_predefined ? "◆ " : "◇ "}{node.name}
@@ -134,10 +139,10 @@ export default function EmployeeGroupCreate() {
         <div className="flex-1 flex flex-col min-w-0 bg-white border-r border-zinc-100">
           <div className="p-3 space-y-1 max-w-2xl">
             <FormRow label="Name" required labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} placeholder="e.g. Management" />
+              <input autoFocus ref={nameRef} className={inputCls} value={form.name} onChange={setField("name")} placeholder="e.g. Management" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); aliasRef.current?.focus(); }} />
             </FormRow>
             <FormRow label="(alias)" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.alias} onChange={setField("alias")} />
+              <input ref={aliasRef} className={inputCls} value={form.alias} onChange={setField("alias")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); setShowGroupPanel(true); }} />
             </FormRow>
           </div>
 
@@ -152,6 +157,7 @@ export default function EmployeeGroupCreate() {
           <div className="p-3 border-t border-zinc-100 space-y-1 max-w-2xl">
             <FormRow label="Define salary details" labelWidth="w-56" className="flex items-center min-h-[26px]">
               <select
+                ref={defineSalaryRef}
                 className={selectCls}
                 value={defineSalary ? "Yes" : "No"}
                 onChange={(e) => {

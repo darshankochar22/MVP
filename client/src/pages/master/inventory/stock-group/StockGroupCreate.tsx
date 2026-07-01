@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
@@ -101,6 +101,10 @@ export default function StockGroupCreate() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showPanel, setShowPanel] = useState(false);
+
+  const nameRef = useRef<HTMLInputElement>(null);
+  const aliasRef = useRef<HTMLInputElement>(null);
+  const quantityRef = useRef<HTMLSelectElement>(null);
 
   const companyId = selectedCompany?.company_id;
 
@@ -210,11 +214,24 @@ export default function StockGroupCreate() {
           <div className="p-3 space-y-1 max-w-2xl">
 
             <FormRow label="Name" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} />
+              <input
+                autoFocus
+                ref={nameRef}
+                className={inputCls}
+                value={form.name}
+                onChange={setField("name")}
+                onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); aliasRef.current?.focus(); }}
+              />
             </FormRow>
 
             <FormRow label="(alias)" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.alias} onChange={setField("alias")} />
+              <input
+                ref={aliasRef}
+                className={inputCls}
+                value={form.alias}
+                onChange={setField("alias")}
+                onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); setShowPanel(true); }}
+              />
             </FormRow>
 
             {/* Under — opens group panel */}
@@ -230,7 +247,7 @@ export default function StockGroupCreate() {
             </div>
 
             <FormRow label="Should quantities of items be added" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={form.should_quantities_be_added} onChange={setField("should_quantities_be_added")}>
+              <select ref={quantityRef} className={selectCls} value={form.should_quantities_be_added} onChange={setField("should_quantities_be_added")}>
                 <option value="1">Yes</option>
                 <option value="0">No</option>
               </select>
@@ -259,7 +276,7 @@ export default function StockGroupCreate() {
           <GroupListPanel
             groups={stockGroups}
             selected={form.parent_group_id}
-            onSelect={val => setForm(f => ({ ...f, parent_group_id: val }))}
+            onSelect={val => { setForm(f => ({ ...f, parent_group_id: val })); setTimeout(() => quantityRef.current?.focus(), 0); }}
             onClose={() => setShowPanel(false)}
             onCreate={() => { setShowPanel(false); navigate("/master/create/stock-group"); }}
           />

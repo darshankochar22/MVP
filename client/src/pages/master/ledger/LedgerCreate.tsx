@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import GroupFlatList from "@/components/GroupFlatList";
@@ -122,6 +122,9 @@ export default function LedgerCreate() {
     vatTaxRateDetails,
     setVatTaxRateDetails,
   } = useLedgerForm({ mode: "create" });
+
+  const nameRef = useRef<HTMLInputElement>(null);
+  const aliasRef = useRef<HTMLInputElement>(null);
 
   const groupName = selectedGroup?.name || groupLineage.primaryGroupName || "";
   const currentConfig = getLedgerConfig(groupName, groupLineage.primaryGroupName);
@@ -441,10 +444,23 @@ export default function LedgerCreate() {
           {/* Name / alias */}
           <div className="p-3 space-y-1">
             <FormRow label="Name" labelWidth="w-20" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={form.name || ""} onChange={setField("name")} />
+              <input
+                autoFocus
+                ref={nameRef}
+                className={inputCls}
+                value={form.name || ""}
+                onChange={setField("name")}
+                onKeyDown={(e) => { if (e.key !== "Enter") return; e.preventDefault(); aliasRef.current?.focus(); }}
+              />
             </FormRow>
             <FormRow label="(alias)" labelWidth="w-20" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.alias || ""} onChange={setField("alias")} />
+              <input
+                ref={aliasRef}
+                className={inputCls}
+                value={form.alias || ""}
+                onChange={setField("alias")}
+                onKeyDown={(e) => { if (e.key !== "Enter") return; e.preventDefault(); setShowGroupPanel(true); }}
+              />
             </FormRow>
           </div>
 

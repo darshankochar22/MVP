@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
@@ -19,6 +19,12 @@ export default function PayHeadCreate() {
   const navigate = useNavigate();
   const { selectedCompany } = useCompany();
   const companyId = selectedCompany?.company_id;
+  const nameRef = useRef<HTMLInputElement>(null);
+  const aliasRef = useRef<HTMLInputElement>(null);
+  const payHeadTypeRef = useRef<HTMLSelectElement>(null);
+  const payslipDisplayNameRef = useRef<HTMLInputElement>(null);
+  const registrationNumberRef = useRef<HTMLInputElement>(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -228,17 +234,17 @@ export default function PayHeadCreate() {
         <div className="flex-1 flex flex-col min-w-0 shrink-0 bg-white">
           <div className="p-3 space-y-1.5">
             <FormRow label="Name" required labelWidth="w-44" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Basic Salary" />
+              <input autoFocus ref={nameRef} className={inputCls} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Basic Salary" onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); aliasRef.current?.focus(); }} />
             </FormRow>
             <FormRow label="(alias)" labelWidth="w-44" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={alias} onChange={e => setAlias(e.target.value)} />
+              <input ref={aliasRef} className={inputCls} value={alias} onChange={e => setAlias(e.target.value)} onKeyDown={e => { if (e.key !== 'Enter') return; e.preventDefault(); payHeadTypeRef.current?.focus(); }} />
             </FormRow>
           </div>
 
           <div className="p-3 border-t border-zinc-100 space-y-1.5">
             <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Pay Head Information</div>
             <FormRow label="Pay Head Type" labelWidth="w-44" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={pay_head_type} onChange={e => onPayHeadTypeChange(e.target.value)}>
+              <select ref={payHeadTypeRef} className={selectCls} value={pay_head_type} onChange={e => onPayHeadTypeChange(e.target.value)}>
                 {PAY_HEAD_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
               </select>
             </FormRow>
@@ -283,13 +289,13 @@ export default function PayHeadCreate() {
 
             {pay_head_type !== "Not Applicable" && pay_head_type !== "Gratuity" && (
               <FormRow label="Name to Display in Payslip" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={payslip_display_name} onChange={e => setPayslipDisplayName(e.target.value)} />
+                <input ref={payslipDisplayNameRef} className={inputCls} value={payslip_display_name} onChange={e => setPayslipDisplayName(e.target.value)} />
               </FormRow>
             )}
 
             {statutory_pay_type === "Professional Tax" && (
               <FormRow label="Registration Number" labelWidth="w-44" className="flex items-center min-h-[26px]">
-                <input className={inputCls} value={registration_number} onChange={e => setRegistrationNumber(e.target.value)} />
+                <input ref={registrationNumberRef} className={inputCls} value={registration_number} onChange={e => setRegistrationNumber(e.target.value)} />
               </FormRow>
             )}
 

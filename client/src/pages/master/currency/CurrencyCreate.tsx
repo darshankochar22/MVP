@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
@@ -36,6 +36,16 @@ export default function CurrencyCreate() {
   const [form, setForm] = useState<FormData>(
     INITIAL
   );
+  const symbolRef = useRef<HTMLInputElement>(null);
+  const formalNameRef = useRef<HTMLInputElement>(null);
+  const isoCodeRef = useRef<HTMLInputElement>(null);
+  const decimalPlacesRef = useRef<HTMLInputElement>(null);
+  const showMillionsRef = useRef<HTMLSelectElement>(null);
+  const suffixSymbolRef = useRef<HTMLSelectElement>(null);
+  const addSpaceRef = useRef<HTMLSelectElement>(null);
+  const wordAfterDecimalRef = useRef<HTMLInputElement>(null);
+  const decimalPlacesWordsRef = useRef<HTMLInputElement>(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -141,23 +151,23 @@ export default function CurrencyCreate() {
         <div className="flex-1 flex flex-col min-w-0 bg-white">
           <div className="p-3 space-y-1.5 max-w-2xl">
             <FormRow label="Symbol" required labelWidth="w-72" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={form.symbol} onChange={setField("symbol")} placeholder="e.g. ₹" />
+              <input autoFocus ref={symbolRef} className={inputCls} value={form.symbol} onChange={setField("symbol")} placeholder="e.g. ₹" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); formalNameRef.current?.focus(); }} />
             </FormRow>
 
             <div className="h-3" />
             <FormRow label="Formal name" required labelWidth="w-72" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.formal_name} onChange={setField("formal_name")} placeholder="e.g. Indian Rupee" />
+              <input ref={formalNameRef} className={inputCls} value={form.formal_name} onChange={setField("formal_name")} placeholder="e.g. Indian Rupee" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); isoCodeRef.current?.focus(); }} />
             </FormRow>
             <FormRow label="ISO Currency Code" required labelWidth="w-72" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.iso_code} onChange={setField("iso_code")} placeholder="e.g. INR" maxLength={3} />
+              <input ref={isoCodeRef} className={inputCls} value={form.iso_code} onChange={setField("iso_code")} placeholder="e.g. INR" maxLength={3} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); decimalPlacesRef.current?.focus(); }} />
             </FormRow>
 
             <div className="h-3" />
             <FormRow label="Number of decimal places" labelWidth="w-72" className="flex items-center min-h-[26px]">
-              <input className={inputCls} type="number" min="0" max="10" value={form.decimal_places} onChange={setField("decimal_places")} />
+              <input ref={decimalPlacesRef} className={inputCls} type="number" min="0" max="10" value={form.decimal_places} onChange={setField("decimal_places")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); showMillionsRef.current?.focus(); }} />
             </FormRow>
             <FormRow label="Show amount in millions" labelWidth="w-72" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={form.show_amount_in_millions} onChange={setField("show_amount_in_millions")}>
+              <select ref={showMillionsRef} className={selectCls} value={form.show_amount_in_millions} onChange={setField("show_amount_in_millions")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); suffixSymbolRef.current?.focus(); }}>
                 <option>No</option>
                 <option>Yes</option>
               </select>
@@ -165,13 +175,13 @@ export default function CurrencyCreate() {
 
             <div className="h-3" />
             <FormRow label="Suffix symbol to amount" labelWidth="w-72" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={form.suffix_symbol_to_amount} onChange={setField("suffix_symbol_to_amount")}>
+              <select ref={suffixSymbolRef} className={selectCls} value={form.suffix_symbol_to_amount} onChange={setField("suffix_symbol_to_amount")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); addSpaceRef.current?.focus(); }}>
                 <option>No</option>
                 <option>Yes</option>
               </select>
             </FormRow>
             <FormRow label="Add space between amount and symbol" labelWidth="w-72" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={form.add_space_between_amount_and_symbol} onChange={setField("add_space_between_amount_and_symbol")}>
+              <select ref={addSpaceRef} className={selectCls} value={form.add_space_between_amount_and_symbol} onChange={setField("add_space_between_amount_and_symbol")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); wordAfterDecimalRef.current?.focus(); }}>
                 <option>No</option>
                 <option>Yes</option>
               </select>
@@ -179,10 +189,10 @@ export default function CurrencyCreate() {
 
             <div className="h-3" />
             <FormRow label="Word representing amount after decimal" labelWidth="w-72" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.word_representing_amount_after_decimal} onChange={setField("word_representing_amount_after_decimal")} placeholder="e.g. Paise" />
+              <input ref={wordAfterDecimalRef} className={inputCls} value={form.word_representing_amount_after_decimal} onChange={setField("word_representing_amount_after_decimal")} placeholder="e.g. Paise" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); decimalPlacesWordsRef.current?.focus(); }} />
             </FormRow>
             <FormRow label="No. of decimal places for amount in words" labelWidth="w-72" className="flex items-center min-h-[26px]">
-              <input className={inputCls} type="number" min="0" max="10" value={form.decimal_places_in_words} onChange={setField("decimal_places_in_words")} />
+              <input ref={decimalPlacesWordsRef} className={inputCls} type="number" min="0" max="10" value={form.decimal_places_in_words} onChange={setField("decimal_places_in_words")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); handleSubmit(); }} />
             </FormRow>
           </div>
           <div className="flex-1" />

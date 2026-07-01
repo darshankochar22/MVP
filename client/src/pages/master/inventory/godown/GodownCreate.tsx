@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel, SideSelectionPanel } from "@/components/ui";
@@ -36,6 +36,9 @@ export default function GodownCreate() {
   const [success, setSuccess] = useState<string | null>(null);
   const [showGodownPanel, setShowGodownPanel] = useState(false);
   const [showTaxUnitPanel, setShowTaxUnitPanel] = useState(false);
+
+  const nameRef = useRef<HTMLInputElement>(null);
+  const aliasRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!companyId) return;
@@ -139,11 +142,11 @@ export default function GodownCreate() {
           <div className="max-w-2xl space-y-1">
 
             <FormRow label="Name" required labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} />
+              <input ref={nameRef} autoFocus className={inputCls} value={form.name} onChange={setField("name")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); aliasRef.current?.focus(); }} />
             </FormRow>
 
             <FormRow label="(alias)" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.alias} onChange={setField("alias")} />
+              <input ref={aliasRef} className={inputCls} value={form.alias} onChange={setField("alias")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); setShowGodownPanel(true); }} />
             </FormRow>
 
             <div

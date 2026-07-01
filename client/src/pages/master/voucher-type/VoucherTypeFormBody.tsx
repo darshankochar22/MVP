@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { FormRow } from "@/components/ui";
 import type { NumberingRestartRow, NumberingAffixRow } from "@/types/entities/VoucherType";
 import AdditionalNumberingPopup from "./AdditionalNumberingPopup";
@@ -188,6 +188,11 @@ export function VoucherTypeFormBody({
 
   const [showNumberingPopup, setShowNumberingPopup] = useState(false);
 
+  const nameRef = useRef<HTMLInputElement>(null);
+  const aliasRef = useRef<HTMLInputElement>(null);
+  const abbreviationRef = useRef<HTMLInputElement>(null);
+  const categoryBtnRef = useRef<HTMLButtonElement>(null);
+
   const method = form.numbering_method;
   const isAuto = method === "Automatic" || method === "Multi-user Auto";
   const isManualOverride = method === "Automatic (Manual Override)";
@@ -202,20 +207,24 @@ export function VoucherTypeFormBody({
           {/* Identity — Name + alias */}
           <FormRow label="Name" required labelWidth="w-40" className="flex items-center min-h-[26px]">
             <input
+              ref={nameRef}
               autoFocus={nameAutoFocus}
               disabled={lockIdentity}
               className={`${nameInputCls} ${lockIdentity ? lockedCls : ""}`}
               value={form.name}
               onChange={(e) => setF("name")(e.target.value)}
               placeholder="e.g. Cash Payment"
+              onKeyDown={(e) => { if (e.key !== "Enter") return; e.preventDefault(); aliasRef.current?.focus(); }}
             />
           </FormRow>
           <FormRow label="(alias)" labelWidth="w-40" className="flex items-center min-h-[26px]">
             <input
+              ref={aliasRef}
               disabled={lockIdentity}
               className={`${nameInputCls} ${lockIdentity ? lockedCls : ""}`}
               value={form.alias}
               onChange={(e) => setF("alias")(e.target.value)}
+              onKeyDown={(e) => { if (e.key !== "Enter") return; e.preventDefault(); if (!lockIdentity) { setShowCategoryPanel(true); categoryBtnRef.current?.focus(); } else { abbreviationRef.current?.focus(); } }}
             />
           </FormRow>
 
@@ -230,8 +239,10 @@ export function VoucherTypeFormBody({
                   <span className={`${inputCls} ${lockedCls}`}>{form.category}</span>
                 ) : (
                   <button
+                    ref={categoryBtnRef}
                     type="button"
                     onClick={() => setShowCategoryPanel(!showCategoryPanel)}
+                    onKeyDown={(e) => { if (e.key !== "Enter") return; e.preventDefault(); setShowCategoryPanel(true); }}
                     className="flex-1 text-left text-sm px-1.5 py-0.5 border border-transparent hover:border-zinc-200 focus:border-zinc-800 focus:outline-none rounded bg-white/50 transition-colors"
                   >
                     {form.category || <span className="text-zinc-400">Select…</span>}
@@ -241,6 +252,7 @@ export function VoucherTypeFormBody({
 
               <FormRow label="Abbreviation" labelWidth="w-56" className="flex items-center min-h-[26px]">
                 <input
+                  ref={abbreviationRef}
                   disabled={lockIdentity}
                   className={`${inputCls} ${lockIdentity ? lockedCls : ""}`}
                   value={form.short_name}

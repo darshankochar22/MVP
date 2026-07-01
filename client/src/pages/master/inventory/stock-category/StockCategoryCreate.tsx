@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel } from "@/components/ui";
@@ -73,6 +73,8 @@ export default function StockCategoryCreate() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [showPanel, setShowPanel] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const aliasRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const company_id = selectedCompany?.company_id;
@@ -173,10 +175,10 @@ export default function StockCategoryCreate() {
         <div className="flex-1 flex flex-col min-w-0 bg-white">
           <div className="p-3 space-y-1 max-w-2xl">
             <FormRow label="Name" labelWidth="w-48" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} />
+              <input autoFocus ref={nameRef} className={inputCls} value={form.name} onChange={setField("name")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); aliasRef.current?.focus(); }} />
             </FormRow>
             <FormRow label="(alias)" labelWidth="w-48" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.alias} onChange={setField("alias")} />
+              <input ref={aliasRef} className={inputCls} value={form.alias} onChange={setField("alias")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); setShowPanel(true); }} />
             </FormRow>
             <div
               className="flex items-center min-h-[26px] cursor-pointer hover:bg-zinc-50 select-none text-sm"

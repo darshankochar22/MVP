@@ -160,24 +160,47 @@ const resolveTaxRate = async (db, { company_id, stock_item_id, ledger_id, hsn_co
 };
 
 /**
- * Resolves or creates a Duties & Taxes ledger for a specific tax type.
+ * Maps the internal tax component key to the exact label the Ledger Create/Alter
+ * screen stores in ledger_statutory_details.gst_tax_type (see DutyTaxSection's
+ * "Tax type" dropdown in client/src/pages/master/ledger/components/LedgerTaxPanel.tsx).
  */
-const resolveOrCreateTaxLedger = async (db, company_id, tax_type) => {
-  // Try to find an existing ledger under "Duties & Taxes" group or name matching tax_type
-  // Typed sql: multi-table join with a correlated IN-subquery — kept as Drizzle sql.
-  const ledgerRows = await db.all(
-    sql`SELECT l.ledger_id FROM ${ledgers} l
-        LEFT JOIN ${groups} g ON g.group_id = l.group_id
+const GST_TAX_TYPE_LABELS = {
+  CGST: "CGST",
+  SGST: "SGST/UTGST",
+  IGST: "IGST",
+  CESS: "Cess",
+};
+
+/**
+ * Resolves the Duties & Taxes ledger a user configured for a given GST tax
+ * component (matched on ledger_statutory_details.type_of_duty_tax = 'GST' AND
+ * gst_tax_type = <component>), falling back to an exact-name match for legacy
+ * ledgers, and optionally auto-creating one (correctly tagged) if neither exists.
+ */
+const resolveTaxLedgerId = async (db, company_id, tax_type, { createIfMissing = false } = {}) => {
+  const gstTaxTypeLabel = GST_TAX_TYPE_LABELS[tax_type] || tax_type;
+
+  const configuredRows = await db.all(
+    sql`SELECT l.ledger_id, l.name FROM ${ledgers} l
+        JOIN ${ledgerStatutoryDetails} sd ON sd.ledger_id = l.ledger_id
         WHERE l.company_id = ${company_id} AND l.is_active = 1
-        AND (LOWER(l.name) = LOWER(${tax_type}) OR LOWER(COALESCE(l.ledger_type, '')) = LOWER(${tax_type}) OR l.ledger_id IN (
-          SELECT ledger_id FROM ${ledgerStatutoryDetails} WHERE type_of_duty_tax = ${tax_type}
-        ))
+          AND sd.type_of_duty_tax = 'GST' AND sd.gst_tax_type = ${gstTaxTypeLabel}
+        ORDER BY l.ledger_id ASC LIMIT 1`
+  );
+  if (configuredRows.length > 0) {
+    return { id: configuredRows[0].ledger_id, name: configuredRows[0].name };
+  }
+
+  const namedRows = await db.all(
+    sql`SELECT l.ledger_id, l.name FROM ${ledgers} l
+        WHERE l.company_id = ${company_id} AND l.is_active = 1 AND LOWER(l.name) = LOWER(${tax_type})
         LIMIT 1`
   );
-
-  if (ledgerRows.length > 0) {
-    return ledgerRows[0].ledger_id;
+  if (namedRows.length > 0) {
+    return { id: namedRows[0].ledger_id, name: namedRows[0].name };
   }
+
+  if (!createIfMissing) return null;
 
   // Find the group_id for "Duties & Taxes"
   const groupRows = await db.all(
@@ -209,17 +232,19 @@ const resolveOrCreateTaxLedger = async (db, company_id, tax_type) => {
 
   const ledger_id = Number(insertedLedger[0].id);
 
-  // Insert statutory details
+  // Insert statutory details — tagged the same way the Ledger Create/Alter screen
+  // would, so this ledger is found by name (or by a user editing it later).
   await db
     .insert(ledgerStatutoryDetails)
     .values({
       ledgerId: ledger_id,
       gstApplicability: 'Applicable',
-      typeOfDutyTax: tax_type,
+      typeOfDutyTax: 'GST',
+      gstTaxType: gstTaxTypeLabel,
       percentageOfCalculation: 0,
     });
 
-  return ledger_id;
+  return { id: ledger_id, name };
 };
 
 /**
@@ -346,21 +371,21 @@ const computeVoucherTaxLines = async (db, payload) => {
   const taxEntryType = isPurchase ? 'Dr' : 'Cr';
   const partyEntryType = isPurchase ? 'Cr' : 'Dr';
 
-  // Strip existing tax entries (under Duties & Taxes) to calculate fresh
-  const finalEntries = entries.filter(e => {
-    // Keep entries that are NOT tax ledgers
-    // Let's identify tax ledgers by checking name/type if possible or just filter them out dynamically
-    const nameLower = (e.ledger_name || "").toLowerCase();
-    return !nameLower.includes("cgst") && !nameLower.includes("sgst") && !nameLower.includes("igst") && !nameLower.includes("cess");
-  });
+  // Strip prior tax postings by resolved ledger id (not fragile name matching) so
+  // re-saving/altering a voucher doesn't duplicate or orphan tax entries.
+  const existingTaxLedgers = await Promise.all(
+    ["CGST", "SGST", "IGST", "CESS"].map(t => resolveTaxLedgerId(db, company_id, t))
+  );
+  const existingTaxLedgerIds = existingTaxLedgers.filter(Boolean).map(l => Number(l.id));
+  const finalEntries = entries.filter(e => !existingTaxLedgerIds.includes(Number(e.ledger_id)));
 
   // Inject CGST, SGST, IGST lines
   if (!isInterState) {
     if (totalCGST > 0) {
-      const cgstLedgerId = await resolveOrCreateTaxLedger(db, company_id, "CGST");
+      const cgstLedger = await resolveTaxLedgerId(db, company_id, "CGST", { createIfMissing: true });
       finalEntries.push({
-        ledger_id: cgstLedgerId,
-        ledger_name: "CGST",
+        ledger_id: cgstLedger.id,
+        ledger_name: cgstLedger.name,
         type: taxEntryType,
         amount: totalCGST,
         amount_forex: totalCGST,
@@ -368,10 +393,10 @@ const computeVoucherTaxLines = async (db, payload) => {
       });
     }
     if (totalSGST > 0) {
-      const sgstLedgerId = await resolveOrCreateTaxLedger(db, company_id, "SGST");
+      const sgstLedger = await resolveTaxLedgerId(db, company_id, "SGST", { createIfMissing: true });
       finalEntries.push({
-        ledger_id: sgstLedgerId,
-        ledger_name: "SGST",
+        ledger_id: sgstLedger.id,
+        ledger_name: sgstLedger.name,
         type: taxEntryType,
         amount: totalSGST,
         amount_forex: totalSGST,
@@ -380,10 +405,10 @@ const computeVoucherTaxLines = async (db, payload) => {
     }
   } else {
     if (totalIGST > 0) {
-      const igstLedgerId = await resolveOrCreateTaxLedger(db, company_id, "IGST");
+      const igstLedger = await resolveTaxLedgerId(db, company_id, "IGST", { createIfMissing: true });
       finalEntries.push({
-        ledger_id: igstLedgerId,
-        ledger_name: "IGST",
+        ledger_id: igstLedger.id,
+        ledger_name: igstLedger.name,
         type: taxEntryType,
         amount: totalIGST,
         amount_forex: totalIGST,
@@ -393,10 +418,10 @@ const computeVoucherTaxLines = async (db, payload) => {
   }
 
   if (totalCess > 0) {
-    const cessLedgerId = await resolveOrCreateTaxLedger(db, company_id, "CESS");
+    const cessLedger = await resolveTaxLedgerId(db, company_id, "CESS", { createIfMissing: true });
     finalEntries.push({
-      ledger_id: cessLedgerId,
-      ledger_name: "CESS",
+      ledger_id: cessLedger.id,
+      ledger_name: cessLedger.name,
       type: taxEntryType,
       amount: totalCess,
       amount_forex: totalCess,

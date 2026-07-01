@@ -40,6 +40,11 @@ export default function PayrollUnitCreate() {
   const [success, setSuccess] = useState<string | null>(null);
   const [showUqc, setShowUqc] = useState(false);
   const uqcAnchorRef = useRef<HTMLButtonElement>(null);
+  const symbolRef = useRef<HTMLInputElement>(null);
+  const formalNameRef = useRef<HTMLInputElement>(null);
+  const firstUnitRef = useRef<HTMLInputElement>(null);
+  const conversionRef = useRef<HTMLInputElement>(null);
+  const secondUnitRef = useRef<HTMLInputElement>(null);
 
   const setField = (key: keyof FormData) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -104,10 +109,10 @@ export default function PayrollUnitCreate() {
               </select>
             </FormRow>
             <FormRow label="Symbol" required labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={form.symbol} onChange={setField("symbol")} placeholder="e.g. Days" />
+              <input autoFocus ref={symbolRef} className={inputCls} value={form.symbol} onChange={setField("symbol")} placeholder="e.g. Days" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); formalNameRef.current?.focus(); }} />
             </FormRow>
             <FormRow label="Formal Name" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.formal_name} onChange={setField("formal_name")} placeholder="e.g. Number of Days" />
+              <input ref={formalNameRef} className={inputCls} value={form.formal_name} onChange={setField("formal_name")} placeholder="e.g. Number of Days" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); setShowUqc(true); uqcAnchorRef.current?.focus(); }} />
             </FormRow>
             <FormRow label="Unit Quantity Code (UQC)" labelWidth="w-56" className="flex items-center min-h-[26px] relative">
               <button
@@ -136,13 +141,13 @@ export default function PayrollUnitCreate() {
               <div className="pt-2 mt-2 border-t border-zinc-100 space-y-1">
                 <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Compound Unit</div>
                 <FormRow label="First Unit" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                  <input className={inputCls} value={form.first_unit} onChange={setField("first_unit")} placeholder="e.g. Hours" />
+                  <input ref={firstUnitRef} className={inputCls} value={form.first_unit} onChange={setField("first_unit")} placeholder="e.g. Hours" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); conversionRef.current?.focus(); }} />
                 </FormRow>
                 <FormRow label="Conversion" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                  <input className={inputCls} value={form.conversion} onChange={setField("conversion")} type="number" placeholder="e.g. 60" />
+                  <input ref={conversionRef} className={inputCls} value={form.conversion} onChange={setField("conversion")} type="number" placeholder="e.g. 60" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); secondUnitRef.current?.focus(); }} />
                 </FormRow>
                 <FormRow label="Second Unit" labelWidth="w-56" className="flex items-center min-h-[26px]">
-                  <input className={inputCls} value={form.second_unit} onChange={setField("second_unit")} placeholder="e.g. Minutes" />
+                  <input ref={secondUnitRef} className={inputCls} value={form.second_unit} onChange={setField("second_unit")} placeholder="e.g. Minutes" />
                 </FormRow>
               </div>
             )}

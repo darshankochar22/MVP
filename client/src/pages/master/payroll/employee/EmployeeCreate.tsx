@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
@@ -39,6 +39,8 @@ export default function EmployeeCreate() {
   const [selectedGroup, setSelectedGroup] = useState<EmployeeGroupType | null>(null);
   const [showGroupPanel, setShowGroupPanel] = useState(false);
   const [showSalaryModal, setShowSalaryModal] = useState(false);
+  const nameRef = useRef<HTMLInputElement>(null);
+  const aliasRef = useRef<HTMLInputElement>(null);
   const [salaryRows, setSalaryRows] = useState<SalaryRow[]>([]);
   const [salaryEffectiveFrom, setSalaryEffectiveFrom] = useState(fyStartISO());
 
@@ -225,10 +227,10 @@ export default function EmployeeCreate() {
         <div className="flex-1 flex flex-col min-w-0 shrink-0 bg-white">
           <div className="p-3 space-y-1.5">
             <FormRow label="Name" required labelWidth="w-44" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={base.name} onChange={setBaseField("name")} />
+              <input autoFocus ref={nameRef} className={inputCls} value={base.name} onChange={setBaseField("name")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); aliasRef.current?.focus(); }} />
             </FormRow>
             <FormRow label="(alias)" labelWidth="w-44" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={base.alias || ""} onChange={setBaseField("alias")} />
+              <input ref={aliasRef} className={inputCls} value={base.alias || ""} onChange={setBaseField("alias")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); setShowGroupPanel(true); }} />
             </FormRow>
           </div>
 

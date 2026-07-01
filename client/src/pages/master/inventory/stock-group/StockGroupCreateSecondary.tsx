@@ -541,6 +541,10 @@ export default function StockGroupCreateSecondary() {
   // can merge it into the draft synchronously before pushing.
   const pendingParentIdRef = useRef<string | null>(null);
 
+  const nameRef = useRef<HTMLInputElement>(null);
+  const aliasRef = useRef<HTMLInputElement>(null);
+  const shouldQtyRef = useRef<HTMLSelectElement>(null);
+
   const [form, setForm] = useState<FormData>(INITIAL);
   const [stockGroups, setStockGroups] = useState<StockGroupType[]>([]);
   const [loading, setLoading] = useState(false);
@@ -732,17 +736,21 @@ export default function StockGroupCreateSecondary() {
             <FormRow label="Name" labelWidth="w-56" className="flex items-center min-h-[26px]">
               <input
                 autoFocus
+                ref={nameRef}
                 className={inputCls}
                 value={form.name}
                 onChange={setField("name")}
+                onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); aliasRef.current?.focus(); }}
               />
             </FormRow>
 
             <FormRow label="(alias)" labelWidth="w-56" className="flex items-center min-h-[26px]">
               <input
+                ref={aliasRef}
                 className={inputCls}
                 value={form.alias}
                 onChange={setField("alias")}
+                onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); setShowPanel(true); }}
               />
             </FormRow>
 
@@ -763,6 +771,7 @@ export default function StockGroupCreateSecondary() {
               className="flex items-center min-h-[26px]"
             >
               <select
+                ref={shouldQtyRef}
                 className={selectCls}
                 value={form.should_quantities_be_added}
                 onChange={setField("should_quantities_be_added")}
@@ -864,8 +873,8 @@ export default function StockGroupCreateSecondary() {
           <GroupListPanel
             groups={stockGroups}
             selected={form.parent_group_id}
-            onSelect={(val) => setForm((f) => ({ ...f, parent_group_id: val }))}
-            onClose={() => setShowPanel(false)}
+            onSelect={(val) => { setForm((f) => ({ ...f, parent_group_id: val })); setTimeout(() => shouldQtyRef.current?.focus(), 0); }}
+            onClose={() => { setShowPanel(false); setTimeout(() => shouldQtyRef.current?.focus(), 0); }}
             onCreate={handleCreateSubGroup}
           />
         )}

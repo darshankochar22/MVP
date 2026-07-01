@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { FormRow, PageTitleBar, RightActionPanel, MasterFormFooter, AlertBanner } from "@/components/ui";
@@ -27,6 +27,10 @@ export default function EmployeeCategoryCreate() {
   const [form, setForm] = useState<FormData>(
     INITIAL
   );
+  const nameRef = useRef<HTMLInputElement>(null);
+  const aliasRef = useRef<HTMLInputElement>(null);
+  const allocateRevenueRef = useRef<HTMLSelectElement>(null);
+  const allocateNonRevenueRef = useRef<HTMLSelectElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -95,19 +99,19 @@ export default function EmployeeCategoryCreate() {
         <div className="flex-1 flex flex-col min-w-0 bg-white">
           <div className="p-3 space-y-1.5 max-w-2xl">
             <FormRow label="Name" required labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input autoFocus className={inputCls} value={form.name} onChange={setField("name")} placeholder="e.g. Primary Category" />
+              <input autoFocus ref={nameRef} className={inputCls} value={form.name} onChange={setField("name")} placeholder="e.g. Primary Category" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); aliasRef.current?.focus(); }} />
             </FormRow>
             <FormRow label="(alias)" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <input className={inputCls} value={form.alias} onChange={setField("alias")} />
+              <input ref={aliasRef} className={inputCls} value={form.alias} onChange={setField("alias")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); allocateRevenueRef.current?.focus(); }} />
             </FormRow>
             <FormRow label="Allocate Revenue Items" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={form.allocate_revenue} onChange={setField("allocate_revenue")}>
+              <select ref={allocateRevenueRef} className={selectCls} value={form.allocate_revenue} onChange={setField("allocate_revenue")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); allocateNonRevenueRef.current?.focus(); }}>
                 <option>No</option>
                 <option>Yes</option>
               </select>
             </FormRow>
             <FormRow label="Allocate Non-Revenue Items" labelWidth="w-56" className="flex items-center min-h-[26px]">
-              <select className={selectCls} value={form.allocate_non_revenue} onChange={setField("allocate_non_revenue")}>
+              <select ref={allocateNonRevenueRef} className={selectCls} value={form.allocate_non_revenue} onChange={setField("allocate_non_revenue")} onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); handleSubmit(); }}>
                 <option>No</option>
                 <option>Yes</option>
               </select>

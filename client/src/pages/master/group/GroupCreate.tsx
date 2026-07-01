@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { PageTitleBar } from "@/components/ui";
@@ -73,6 +73,10 @@ export default function GroupCreate() {
   const [showClassPanel, setShowClassPanel] = useState<"hsn" | "gst" | null>(null);
 
   const [form, setForm] = useState<Partial<GroupType>>(INITIAL_FORM);
+
+  const nameRef = useRef<HTMLInputElement>(null);
+  const aliasRef = useRef<HTMLInputElement>(null);
+  const natureRef = useRef<HTMLSelectElement>(null);
 
   // Escape key handler
   useEffect(() => {
@@ -313,10 +317,10 @@ export default function GroupCreate() {
           <div>
             <div className="border rounded overflow-hidden">
               <Row label="Name" required>
-                <input autoFocus className={inputCls} value={form.name || ""} onChange={setField("name")} placeholder="" />
+                <input autoFocus ref={nameRef} className={inputCls} value={form.name || ""} onChange={setField("name")} placeholder="" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); aliasRef.current?.focus(); }} />
               </Row>
               <Row label="(alias)">
-                <input className={inputCls} value={form.alias || ""} onChange={setField("alias")} placeholder="" />
+                <input ref={aliasRef} className={inputCls} value={form.alias || ""} onChange={setField("alias")} placeholder="" onKeyDown={(e) => { if (e.key !== 'Enter') return; e.preventDefault(); setShowGroupPanel(true); }} />
               </Row>
               <Row label="Under" onClick={() => setShowGroupPanel(!showGroupPanel)}>
                 <span className="text-sm py-1 font-medium text-zinc-800">
@@ -328,7 +332,7 @@ export default function GroupCreate() {
               </Row>
               {isPrimarySelected && (
                 <Row label="Nature of Group" required>
-                  <select className={selectCls} value={form.nature || "Liabilities"} onChange={setField("nature")}>
+                  <select ref={natureRef} className={selectCls} value={form.nature || "Liabilities"} onChange={setField("nature")}>
                     {NATURES.map((n) => <option key={n} value={n}>{n}</option>)}
                   </select>
                 </Row>
