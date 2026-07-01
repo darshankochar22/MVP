@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { useVoucherForm } from "../hooks/useVoucherForm";
 
 /**
@@ -16,6 +16,24 @@ export interface StockTransferVoucherConfig {
   /** Purchase-style grid: Quantity split into Actual/Billed, plus per & Disc %
    *  columns (used by Receipt Note — qty/rate flow through the allocation popup). */
   showActualBilled?: boolean;
+  /** Order vouchers: show an "Order no." field on the right of the Party row. */
+  showOrderNo?: boolean;
+  /** Sales Order: show a "Price Level" dropdown just above the Order no. field. */
+  showPriceLevel?: boolean;
+  /** Receipt Note: render a "Reference No. / Date" row under the voucher header,
+   *  and show ledger balances as Tally-style "Current balance" sub-rows. */
+  showReferenceRow?: boolean;
+}
+
+// Raw signed balance (e.g. "-242000") → Tally label "2,42,000.00 Cr".
+// Backend convention: positive = Dr, negative = Cr (voucherLedgerHelpers.js).
+function fmtBalance(raw: string | number | null | undefined): string {
+  if (raw === "" || raw == null) return "";
+  const n = Number(raw);
+  if (!isFinite(n)) return String(raw);
+  if (Math.abs(n) < 0.01) return "0.00";
+  const amt = Math.abs(n).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${amt} ${n > 0 ? "Dr" : "Cr"}`;
 }
 
 interface Props {
@@ -34,8 +52,33 @@ export default function StockTransferVoucherBody({
   config,
 }: Props) {
   const [showGodownList, setShowGodownList] = useState(false);
+  const [showPriceLevelList, setShowPriceLevelList] = useState(false);
+  const priceLevelRef = useRef<HTMLDivElement>(null);
   return (
     <>
+      {/* Reference No. / Date (Receipt Note) */}
+      {config?.showReferenceRow && (
+        <div className="flex items-center border-b border-zinc-200 px-3 py-1 bg-white shrink-0">
+          <span className="text-xs text-zinc-600 w-24 shrink-0">Reference No.</span>
+          <span className="text-xs text-zinc-400 mr-2">:</span>
+          <input
+            type="text"
+            className="w-44 text-xs bg-transparent outline-none px-1 border-b border-zinc-300 focus:border-zinc-800 font-mono font-semibold"
+            value={form.referenceNumber ?? ""}
+            onChange={(e) => form.setReferenceNumber(e.target.value)}
+            autoComplete="off"
+          />
+          <span className="text-xs text-zinc-600 ml-8 mr-2 shrink-0">Date</span>
+          <span className="text-xs text-zinc-400 mr-2">:</span>
+          <input
+            type="date"
+            className="text-xs bg-transparent outline-none px-1 border-b border-zinc-300 focus:border-zinc-800 font-mono"
+            value={form.referenceDate ?? ""}
+            onChange={(e) => form.setReferenceDate(e.target.value)}
+          />
+        </div>
+      )}
+
       {/* Party A/c Name */}
       <div className="flex items-center border-b border-zinc-200 px-3 py-1 bg-white shrink-0">
         <span className="text-xs text-zinc-600 w-24 shrink-0">Party A/c Name</span>
@@ -51,10 +94,71 @@ export default function StockTransferVoucherBody({
           }}
           autoComplete="off"
         />
-        {form.partyBalance && (
-          <span className="text-xs text-zinc-500 ml-2 shrink-0 tabular-nums">{form.partyBalance}</span>
+        {!config?.showReferenceRow && form.partyBalance && (
+          <span className="text-xs text-zinc-500 ml-2 shrink-0 tabular-nums">{fmtBalance(form.partyBalance)}</span>
+        )}
+        {(config?.showPriceLevel || config?.showOrderNo) && (
+          <div className="flex flex-col gap-0.5 ml-4 shrink-0">
+            {config?.showPriceLevel && (
+              <div className="flex items-center relative" ref={priceLevelRef}>
+                <span className="text-xs text-zinc-600 mr-2 shrink-0">Price Level</span>
+                <span className="text-xs text-zinc-400 mr-1">:</span>
+                <button
+                  type="button"
+                  className="text-xs bg-transparent outline-none font-mono font-semibold text-zinc-700 hover:underline"
+                  onClick={() => setShowPriceLevelList((v) => !v)}
+                >
+                  {form.priceLevel || "♦ Not Applicable"}
+                </button>
+                {showPriceLevelList && (
+                  <div className="absolute right-0 top-full z-50 w-52 bg-white border border-zinc-400 shadow-xl">
+                    <div className="bg-zinc-900 text-white text-[11px] font-bold px-2 py-1">List of Price Levels</div>
+                    <div className="max-h-48 overflow-y-auto">
+                      <div
+                        className="px-2 py-1 text-xs hover:bg-zinc-100 cursor-pointer"
+                        onClick={() => { form.setPriceLevel(""); setShowPriceLevelList(false); }}
+                      >
+                        ♦ Not Applicable
+                      </div>
+                      {(form.allPriceLevels ?? []).map((name: string) => (
+                        <div
+                          key={name}
+                          className="px-2 py-1 text-xs hover:bg-zinc-100 cursor-pointer"
+                          onClick={() => { form.setPriceLevel(name); setShowPriceLevelList(false); }}
+                        >
+                          {name}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+            {config?.showOrderNo && (
+              <div className="flex items-center">
+                <span className="text-xs text-zinc-600 mr-2 shrink-0">Order no.</span>
+                <input
+                  type="text"
+                  className="w-24 text-xs bg-transparent outline-none px-1 border-b border-zinc-300 focus:border-zinc-800 font-mono font-semibold text-right"
+                  value={form.orderDetails?.order_nos ?? ""}
+                  onChange={(e) => form.setOrderDetails({ ...(form.orderDetails || {}), order_nos: e.target.value })}
+                  placeholder="1"
+                  autoComplete="off"
+                />
+              </div>
+            )}
+          </div>
         )}
       </div>
+
+      {/* Current balance (Tally sub-row) */}
+      {config?.showReferenceRow && form.partyBalance && (
+        <div className="flex items-center border-b border-zinc-200 px-3 py-0.5 bg-white shrink-0">
+          <span className="text-xs italic text-zinc-500 w-24 shrink-0 pl-2">Current balance</span>
+          <span className="text-xs text-zinc-400 mr-2">:</span>
+          <span className="text-xs text-zinc-600 font-mono tabular-nums">{fmtBalance(form.partyBalance)}</span>
+        </div>
+      )}
 
       {/* Source Godown (optional) */}
       {config?.sourceGodownLabel && (
@@ -95,6 +199,7 @@ export default function StockTransferVoucherBody({
 
       {/* Sales / Purchase Ledger (optional) */}
       {config?.salesPurchaseLabel && (
+        <>
         <div className="flex items-center border-b border-zinc-200 px-3 py-1 bg-white shrink-0">
           <span className="text-xs text-zinc-600 w-24 shrink-0">{config.salesPurchaseLabel}</span>
           <span className="text-xs text-zinc-400 mr-2">:</span>
@@ -109,10 +214,18 @@ export default function StockTransferVoucherBody({
             }}
             autoComplete="off"
           />
-          {form.salesPurchaseBalance && (
-            <span className="text-xs text-zinc-500 ml-2 shrink-0 tabular-nums">{form.salesPurchaseBalance}</span>
+          {!config?.showReferenceRow && form.salesPurchaseBalance && (
+            <span className="text-xs text-zinc-500 ml-2 shrink-0 tabular-nums">{fmtBalance(form.salesPurchaseBalance)}</span>
           )}
         </div>
+        {config?.showReferenceRow && form.salesPurchaseBalance && (
+          <div className="flex items-center border-b border-zinc-200 px-3 py-0.5 bg-white shrink-0">
+            <span className="text-xs italic text-zinc-500 w-24 shrink-0 pl-2">Current balance</span>
+            <span className="text-xs text-zinc-400 mr-2">:</span>
+            <span className="text-xs text-zinc-600 font-mono tabular-nums">{fmtBalance(form.salesPurchaseBalance)}</span>
+          </div>
+        )}
+        </>
       )}
 
       {/* Stock Items Table Header */}

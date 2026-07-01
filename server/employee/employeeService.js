@@ -1,6 +1,6 @@
 const { db } = require('../db/index');
 const { sql, eq, and } = require('drizzle-orm');
-const { employees } = require('../db/schema');
+const { employees, employeeGroups, employeeCategories } = require('../db/schema');
 
 // Fetch a single employee row in the legacy snake_case shape (or undefined).
 const findRow = async (whereSql) => {
@@ -29,7 +29,10 @@ module.exports = {
         if (exists.length > 0) return { success: false, error: 'Employee code already exists' };
       }
 
-      const employee_code = data.employee_code || await generateEmployeeCode(data.company_id);
+      // Do NOT auto-generate an employee code — if the user left it blank, keep it
+      // blank (it shows blank on the Attendance voucher too). Tally only assigns one
+      // when the user types it.
+      const employee_code = (data.employee_code && String(data.employee_code).trim()) || null;
 
       const inserted = await db
         .insert(employees)
@@ -86,10 +89,16 @@ module.exports = {
 
   getAll: async (company_id) => {
     try {
+      // Join the group + category names so the List of Employees can show them
+      // (raw FK ids alone aren't enough). group_name/category_name are additive —
+      // every existing employee_* column is still returned by e.*.
       const rows = await db.all(
-        sql`SELECT * FROM ${employees}
-            WHERE ${employees.companyId} = ${company_id}
-              AND ${employees.isActive} = 1`
+        sql`SELECT e.*, g.name AS group_name, c.name AS category_name
+            FROM ${employees} e
+            LEFT JOIN ${employeeGroups} g ON g.employee_group_id = e.employee_group_id
+            LEFT JOIN ${employeeCategories} c ON c.employee_category_id = e.employee_category_id
+            WHERE e.company_id = ${company_id}
+              AND e.is_active = 1`
       );
       return { success: true, employees: rows };
     } catch (err) {

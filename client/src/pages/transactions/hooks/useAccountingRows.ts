@@ -303,11 +303,16 @@ export function useAccountingRows({
   }, []);
 
   // ─── Reset accounting rows ────────────────────────────────────────────────
-  const resetAccountingRows = useCallback((defaultParticular: "Dr" | "Cr") => {
+  const resetAccountingRows = useCallback((defaultParticular: "Dr" | "Cr", currentVoucherType?: string) => {
     setAccountLedger(null);
     setAccountBalance("");
     setParticulars([makeParticularRow(defaultParticular)]);
-    setJournalRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
+    // Memorandum lists Dr above Cr (TallyPrime order); Journal keeps Cr above Dr.
+    setJournalRows(
+      currentVoucherType === "Memorandum"
+        ? [makeParticularRow("Dr"), makeParticularRow("Cr")]
+        : [makeParticularRow("Cr"), makeParticularRow("Dr")]
+    );
     setContraDoubleRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
     setReceiptDoubleRows([makeParticularRow("Cr"), makeParticularRow("Dr")]);
     setPaymentDoubleRows([makeParticularRow("Dr"), makeParticularRow("Cr")]);

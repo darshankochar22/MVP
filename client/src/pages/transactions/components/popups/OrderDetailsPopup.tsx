@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import NewNumberPopup from "./NewNumberPopup";
 
 export interface OrderDetails {
   order_nos?: string;
@@ -40,10 +41,24 @@ export default function OrderDetailsPopup({ initialDetails, onClose, onSave, rec
     motor_vehicle_no: initialDetails?.motor_vehicle_no ?? "",
   });
 
+  const [showOrderList, setShowOrderList] = useState(false);
+  const [showNewNumber, setShowNewNumber] = useState(false);
+  const [createdOrders, setCreatedOrders] = useState<string[]>([]);
+
   const set = (field: keyof OrderDetails, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
   const handleSave = () => onSave(form);
+
+  // Close the "List of Orders" dropdown on an outside click.
+  useEffect(() => {
+    if (!showOrderList) return;
+    const onDown = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest("[data-od-dd]")) setShowOrderList(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [showOrderList]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -70,7 +85,7 @@ export default function OrderDetailsPopup({ initialDetails, onClose, onSave, rec
         <div className="p-4 flex gap-8">
           {/* Left — Order No(s) + Date */}
           <div className="w-56 shrink-0 space-y-2">
-            <div>
+            <div data-od-dd className="relative">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-sm text-black shrink-0">Order No(s)</span>
                 <span className="text-sm text-black shrink-0">:</span>
@@ -79,9 +94,40 @@ export default function OrderDetailsPopup({ initialDetails, onClose, onSave, rec
                 type="text"
                 className="w-full text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-yellow-50"
                 value={form.order_nos ?? ""}
+                onFocus={() => setShowOrderList(true)}
                 onChange={(e) => set("order_nos", e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") setShowOrderList(false); }}
                 autoFocus
               />
+              {showOrderList && (
+                <div className="absolute left-0 top-full mt-0.5 w-full bg-white border border-zinc-400 shadow-xl z-40">
+                  <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-0.5">List of Orders</div>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); setShowOrderList(false); setShowNewNumber(true); }}
+                    className="block w-full text-right text-sm px-2 py-1 hover:bg-zinc-100 font-semibold border-b border-zinc-50"
+                  >
+                    New Number
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); set("order_nos", "♦ Not Applicable"); setShowOrderList(false); }}
+                    className="block w-full text-left text-sm px-2 py-1 hover:bg-zinc-100"
+                  >
+                    &#9670; Not Applicable
+                  </button>
+                  {createdOrders.filter((o) => o !== form.order_nos).map((o) => (
+                    <button
+                      key={o}
+                      type="button"
+                      onMouseDown={(e) => { e.preventDefault(); set("order_nos", o); setShowOrderList(false); }}
+                      className="block w-full text-left text-sm px-2 py-1 hover:bg-zinc-100 border-t border-zinc-50 font-semibold"
+                    >
+                      {o}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-black shrink-0">Date</span>
@@ -172,6 +218,19 @@ export default function OrderDetailsPopup({ initialDetails, onClose, onSave, rec
           </div>
         </div>
       </div>
+
+      {showNewNumber && (
+        <NewNumberPopup
+          title="New Order Number"
+          label="Order No."
+          onClose={() => setShowNewNumber(false)}
+          onConfirm={(value) => {
+            setCreatedOrders((c) => (c.includes(value) ? c : [...c, value]));
+            set("order_nos", value);
+            setShowNewNumber(false);
+          }}
+        />
+      )}
     </div>
   );
 }

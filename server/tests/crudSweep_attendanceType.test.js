@@ -25,6 +25,7 @@
 
 const { setupTestDB, createTestCompany } = require('./helpers');
 const attendanceTypeController = require('../attendanceType/attendanceTypeController');
+const attendanceTypeService = require('../attendanceType/attendanceTypeService');
 const payrollUnitController = require('../payrollUnit/payrollUnitController');
 
 describe('attendanceType CRUD sweep (UI-faithful)', () => {
@@ -37,6 +38,9 @@ describe('attendanceType CRUD sweep (UI-faithful)', () => {
     company = await createTestCompany('AttendanceType CRUD Co.');
     companyId = company.company_id ?? company.id;
     expect(companyId).toBeTruthy();
+    // Attendance types are no longer auto-seeded on company creation; this sweep
+    // exercises the predefined rows, so seed them explicitly here.
+    await attendanceTypeService.seedDefaultAttendanceTypes(companyId);
 
     // Resolve a FK parent payroll_unit from the seeded data (createTestCompany seeds
     // predefined units like "Days"). Fall back to creating one if absent.

@@ -125,6 +125,12 @@ module.exports = {
   batchBalances: async (event, { company_id, item_id }) => {
     return await stockSummaryReportService.batchBalances(company_id, item_id);
   },
+  trackingNumbers: async (event, { company_id, item_id }) => {
+    return await stockSummaryReportService.trackingNumbers(company_id, item_id);
+  },
+  orderNumbers: async (event, { company_id, item_id }) => {
+    return await stockSummaryReportService.orderNumbers(company_id, item_id);
+  },
   batchesForItem: async (event, { company_id, item_id }) => {
     return await stockSummaryReportService.batchesForItem(company_id, item_id);
   },

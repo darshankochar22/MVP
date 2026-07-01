@@ -78,7 +78,7 @@ describe("Purchase Order persistence", () => {
           stock_item_id: medId, item_name: "Paracetamol",
           quantity: 7, rate: 750, amount: 5250,
           batches: [
-            { batch_number: "7889", godown: "Any", mfg_date: "2026-03-02", expiry_date: "2027-03-02", quantity: 7, actual_quantity: 7, rate: 750 },
+            { batch_number: "7889", godown: "Any", due_on: "2026-04-15", mfg_date: "2026-03-02", expiry_date: "2027-03-02", quantity: 7, actual_quantity: 7, rate: 750 },
           ],
         },
       ],
@@ -130,5 +130,7 @@ describe("Purchase Order persistence", () => {
     expect(med.batches[0].batch_number).toBe("7889");
     expect(med.batches[0].expiry_date).toBe("2027-03-02");
     expect(Number(med.batches[0].quantity)).toBe(7);
+    // "Due on" (order due date) captured in the allocation popup round-trips.
+    expect(med.batches[0].due_on).toBe("2026-04-15");
   });
 });

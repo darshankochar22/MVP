@@ -17,7 +17,7 @@ export default function ReceiptNoteVoucher({ handleAmountConfirm: _ignored, ...p
   return (
     <StockTransferVoucherBody
       {...props}
-      config={{ salesPurchaseLabel: "Purchase Ledger", hideGodownColumn: true, showActualBilled: true }}
+      config={{ salesPurchaseLabel: "Purchase Ledger", hideGodownColumn: true, showActualBilled: true, showReferenceRow: true }}
     />
   );
 }

@@ -311,6 +311,80 @@ module.exports = {
     }
   },
 
+  // Distinct tracking numbers used for an item (TallyPrime "List of Tracking
+  // Numbers" in the Stock Item Allocations sub-screen). Balance = total tracked
+  // quantity so far; godown/date/rate are the most recent values seen.
+  trackingNumbers: async (company_id, item_id) => {
+    try {
+      const { voucherBatches } = require('../db/schema');
+      const rows = await db.all(
+        sql`SELECT vb.tracking_no      AS name,
+                   MAX(vb.batch_number) AS batch,
+                   MAX(vb.godown)      AS godown,
+                   MAX(v.date)         AS date,
+                   MAX(vb.rate)        AS rate,
+                   SUM(COALESCE(vb.quantity, 0)) AS balance
+            FROM ${voucherBatches} vb
+            INNER JOIN ${voucherStockEntries} vse ON vse.stock_entry_id = vb.stock_entry_id
+            INNER JOIN ${vouchers} v ON v.voucher_id = vb.voucher_id
+            WHERE v.company_id = ${company_id}
+              AND vse.stock_item_id = ${item_id}
+              AND vb.tracking_no IS NOT NULL AND vb.tracking_no <> ''
+              AND v.is_cancelled = 0
+              AND COALESCE(v.is_optional, 0) = 0
+            GROUP BY vb.tracking_no
+            ORDER BY vb.tracking_no`
+      );
+      const trackingNumbers = rows.map((r) => ({
+        name: r.name,
+        batch: r.batch ?? null,
+        godown: r.godown ?? null,
+        date: r.date ?? null,
+        rate: Number(r.rate) || 0,
+        balance: Number(r.balance) || 0,
+      }));
+      return { success: true, trackingNumbers };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Distinct order numbers used for an item (TallyPrime "List of Orders" in the
+  // Stock Item Allocations sub-screen). Balance = total ordered quantity so far;
+  // godown/due_on are the most recent values seen.
+  orderNumbers: async (company_id, item_id) => {
+    try {
+      const { voucherBatches } = require('../db/schema');
+      const rows = await db.all(
+        sql`SELECT vb.order_no       AS name,
+                   MAX(vb.batch_number) AS batch,
+                   MAX(vb.godown)    AS godown,
+                   MAX(vb.due_on)    AS due_on,
+                   SUM(COALESCE(vb.quantity, 0)) AS balance
+            FROM ${voucherBatches} vb
+            INNER JOIN ${voucherStockEntries} vse ON vse.stock_entry_id = vb.stock_entry_id
+            INNER JOIN ${vouchers} v ON v.voucher_id = vb.voucher_id
+            WHERE v.company_id = ${company_id}
+              AND vse.stock_item_id = ${item_id}
+              AND vb.order_no IS NOT NULL AND vb.order_no <> ''
+              AND v.is_cancelled = 0
+              AND COALESCE(v.is_optional, 0) = 0
+            GROUP BY vb.order_no
+            ORDER BY vb.order_no`
+      );
+      const orders = rows.map((r) => ({
+        name: r.name,
+        batch: r.batch ?? null,
+        godown: r.godown ?? null,
+        due_on: r.due_on ?? null,
+        balance: Number(r.balance) || 0,
+      }));
+      return { success: true, orders };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
   // Distinct batches recorded against a stock item, each with its manufacturing
   // and expiry dates (Level-2 "List of Batches": Name | Mfg Date | Expiry Date).
   batchesForItem: async (company_id, item_id) => {

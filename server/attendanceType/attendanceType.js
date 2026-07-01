@@ -21,6 +21,15 @@ const init = async (db) => {
   for (const col of ['alias', 'period', 'carry_forward', 'encashment', 'max_days']) {
     try { await db.execute(`ALTER TABLE attendance_types ADD COLUMN ${col} TEXT`); } catch (_) {}
   }
+
+  // One-time cleanup: attendance/production types are no longer pre-seeded — users
+  // create their own. Retire any predefined types left over from an older company
+  // seed so they neither appear in the list nor block creating a same-named type.
+  // Deactivate (not delete) to preserve references from any existing attendance
+  // voucher. Idempotent: once retired they no longer match.
+  try {
+    await db.execute(`UPDATE attendance_types SET is_active = 0 WHERE is_predefined = 1 AND is_active = 1`);
+  } catch (_) {}
 };
 
 module.exports = { init };

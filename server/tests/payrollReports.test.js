@@ -201,8 +201,9 @@ describe("Payroll Report Service — Attendance Sheet (#127)", () => {
     });
     employeeId = emp.employee.employee_id;
 
-    // createTestCompany seeds default attendance types (Present, Absent,
-    // Paid Leave, …) — look up their IDs rather than creating duplicates.
+    // Attendance types are no longer auto-seeded on company creation — seed the
+    // defaults here, then look up their IDs rather than creating duplicates.
+    await attendanceTypeService.seedDefaultAttendanceTypes(companyId);
     const types = await attendanceTypeService.getAll(companyId);
     expect(types.success).toBe(true);
     const byName = (n) =>

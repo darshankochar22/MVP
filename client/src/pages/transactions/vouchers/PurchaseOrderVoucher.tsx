@@ -17,7 +17,7 @@ export default function PurchaseOrderVoucher({ handleAmountConfirm: _ignored, ..
   return (
     <StockTransferVoucherBody
       {...props}
-      config={{ salesPurchaseLabel: "Purchase Ledger", hideGodownColumn: true, showActualBilled: true }}
+      config={{ salesPurchaseLabel: "Purchase Ledger", hideGodownColumn: true, showActualBilled: true, showOrderNo: true }}
     />
   );
 }

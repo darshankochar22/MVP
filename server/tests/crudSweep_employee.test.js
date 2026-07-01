@@ -123,8 +123,9 @@ describe("Employee CRUD sweep (UI parity)", () => {
     expect(e.is_active).toBe(1);
   });
 
-  it("create with no employee_code auto-generates EMP-##### numbering", async () => {
-    // EmployeeCreate sends employee_code: undefined when the form field is blank.
+  it("create with no employee_code leaves it blank (no auto-generation)", async () => {
+    // EmployeeCreate sends employee_code: undefined when the form field is blank;
+    // the app must NOT invent a code — it stays blank (matches Tally).
     const payload = {
       company_id: companyId,
       name: "No Code Person",
@@ -137,7 +138,7 @@ describe("Employee CRUD sweep (UI parity)", () => {
     };
     const res = await employeeController.create(null, payload);
     expect(res.success).toBe(true);
-    expect(res.employee.employee_code).toMatch(/^EMP-\d{5}$/);
+    expect(res.employee.employee_code == null || res.employee.employee_code === "").toBe(true);
     expect(res.employee.define_salary_details).toBe(0);
   });
 

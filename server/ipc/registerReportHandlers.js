@@ -30,6 +30,8 @@ function register() {
   ipcMain.handle('report:stockItemMonthly', reportController.stockItemMonthly);
   ipcMain.handle('report:batchItems', reportController.batchItems);
   ipcMain.handle('report:batchBalances', reportController.batchBalances);
+  ipcMain.handle('report:trackingNumbers', reportController.trackingNumbers);
+  ipcMain.handle('report:orderNumbers', reportController.orderNumbers);
   ipcMain.handle('report:batchesForItem', reportController.batchesForItem);
   ipcMain.handle('report:batchVouchers', reportController.batchVouchers);
   ipcMain.handle('report:godownItems', reportController.godownItems);

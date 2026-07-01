@@ -162,7 +162,9 @@ export function useVoucherForm(
 
   const validate = useCallback((): string | null => {
     if (!companyId) return "No company selected.";
-    if (!fyId) return "No active financial year.";
+    // Attendance vouchers are stored in their own table and don't use the financial
+    // year, so a not-yet-loaded FY must not block saving them.
+    if (!fyId && effectiveVoucherType !== "Attendance") return "No active financial year.";
 
     if (effectiveVoucherType === "Receipt") {
       if (rows.receiptEntryMode === "single") {
@@ -370,6 +372,21 @@ export function useVoucherForm(
           entries.push(...rows.particulars.filter((p) => p.ledger && Number(p.amountRaw) > 0).map((p) => ({ ledger_id: p.ledger!.ledger_id, ledger_name: p.ledger!.name, type: p.type, amount: Number(p.amountRaw), currency: "INR", cost_centres: p.costCentres })));
         } else {
           entries = rows.journalRows.filter((r) => r.ledger && Number(r.amountRaw) > 0).map((r) => ({ ledger_id: r.ledger!.ledger_id, ledger_name: r.ledger!.name, type: r.type, amount: Number(r.amountRaw), currency: "INR", cost_centres: r.costCentres }));
+          // Inventory-affecting ledgers (Purchase/Sales A/c) carry stock lines entered
+          // via the Inventory Allocations sub-screen — flatten them into the voucher's
+          // stock entries (persisted generically by the backend).
+          stock_entries = rows.journalRows
+            .filter((r) => r.inventoryAllocations?.length)
+            .flatMap((r) => r.inventoryAllocations!.map((it) => ({
+              stock_item_id: it.stock_item_id,
+              item_name: it.item_name,
+              godown_id: it.godown_id ?? null,
+              unit_id: it.unit_id ?? null,
+              quantity: it.quantity,
+              rate: it.rate,
+              amount: it.amount,
+              batches: it.batches && it.batches.length ? it.batches : undefined,
+            })));
         }
       } else if (["Sales", "Purchase", "Credit Note", "Debit Note", "Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType)) {
         const filledItems = rows.stockEntries.filter((r) => r.stockItem && Number(r.quantityRaw) > 0 && Number(r.rateRaw) > 0);
@@ -553,7 +570,7 @@ export function useVoucherForm(
           party_name: effectiveVoucherType === "Payroll" || partyLedgerTypes.includes(effectiveVoucherType) ? rows.partyLedger?.name ?? null : null,
           is_accounting_voucher: (isInventoryOnly || isOrderVoucher || isNonAccounting) ? 0 : 1,
           is_invoice: hasAccountingEntries ? 1 : 0,
-          is_inventory_voucher: (isInventoryOnly || isOrderVoucher || hasAccountingEntries) ? 1 : 0,
+          is_inventory_voucher: (isInventoryOnly || isOrderVoucher || hasAccountingEntries || stock_entries.length > 0) ? 1 : 0,
           is_order_voucher: (["Delivery Note", "Receipt Note", "Rejection In", "Rejection Out", "Material In", "Material Out"].includes(effectiveVoucherType) || isOrderVoucher) ? 1 : 0,
           is_optional: (isNonAccounting || isReversingJournal) ? 1 : 0,
           is_post_dated: meta.status === "Post-Dated" ? 1 : 0,
@@ -565,7 +582,7 @@ export function useVoucherForm(
           cash_denominations: meta.cashDenominations || undefined,
           receipt_details: effectiveVoucherType === "Receipt Note" ? meta.receiptDetails || undefined : undefined,
           party_details: meta.partyDetails || undefined,
-          dispatch_details: effectiveVoucherType === "Delivery Note" ? meta.dispatchDetails || undefined : undefined,
+          dispatch_details: (effectiveVoucherType === "Delivery Note" || effectiveVoucherType === "Job Work In Order" || effectiveVoucherType === "Job Work Out Order") ? meta.dispatchDetails || undefined : undefined,
           credit_note_details: meta.creditNoteDetails || undefined,
           debit_note_details: meta.debitNoteDetails || undefined,
           excise_details: meta.exciseDetails || undefined,

@@ -190,6 +190,8 @@ contextBridge.exposeInMainWorld('api', {
         stockItemMonthly: (company_id, fy_id, item_id)                           => invoke('report:stockItemMonthly', { company_id, fy_id, item_id }),
         batchItems:      (company_id)                                            => invoke('report:batchItems', { company_id }),
         batchBalances:   (company_id, item_id)                                   => invoke('report:batchBalances', { company_id, item_id }),
+        trackingNumbers: (company_id, item_id)                                   => invoke('report:trackingNumbers', { company_id, item_id }),
+        orderNumbers:    (company_id, item_id)                                   => invoke('report:orderNumbers', { company_id, item_id }),
         batchesForItem:  (company_id, item_id)                                   => invoke('report:batchesForItem', { company_id, item_id }),
         batchVouchers:   (company_id, fy_id, item_id, batch, from_date, to_date) => invoke('report:batchVouchers', { company_id, fy_id, item_id, batch, from_date, to_date }),
         godownItems:       (company_id, fy_id, godown_id, as_on_date)              => invoke('report:godownItems', { company_id, fy_id, godown_id, as_on_date }),

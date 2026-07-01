@@ -1,0 +1,348 @@
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import type { StockItemType, GodownType, UnitType } from "@/types/api";
+import type { BatchAllocation, InventoryAllocationItem } from "../../types";
+import BatchAllocationPopup from "./BatchAllocationPopup";
+import CostCentreAllocationPopup from "./CostCentreAllocationPopup";
+
+// TallyPrime "Inventory Allocations for : <ledger>" sub-screen. Opened when an
+// inventory-affecting ledger (Purchase/Sales A/c) is selected in a Journal /
+// Reversing Journal. Holds the stock lines for that ledger; each item drills into
+// the Item Allocations (godown/batch) popup and then the Cost Centre popup, both
+// reused as-is. Strict grayscale per UI.md.
+
+interface Props {
+  companyId: number;
+  ledgerName: string;
+  dcType: "Dr" | "Cr";
+  /** Purchase ledger brings stock in (inward); Sales sends it out (outward). Only
+   *  affects the batch popup's New-Number label. */
+  isInward: boolean;
+  /** Ledger has "cost centres are applicable" — chain into the Cost Centre popup
+   *  after each item's allocation (Tally only prompts cost centres when enabled). */
+  allowCostCentres: boolean;
+  voucherDate: string;        // ISO yyyy-mm-dd
+  allStockItems: StockItemType[];
+  allGodowns: GodownType[];
+  allUnits: UnitType[];
+  initialItems?: InventoryAllocationItem[];
+  onClose: () => void;
+  onSave: (items: InventoryAllocationItem[]) => void;
+}
+
+const num = (v: number) =>
+  v ? v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+
+export default function InventoryAllocationPopup({
+  companyId, ledgerName, dcType, isInward, allowCostCentres, voucherDate,
+  allStockItems, allGodowns, allUnits, initialItems = [],
+  onClose, onSave,
+}: Props) {
+  const [items, setItems] = useState<InventoryAllocationItem[]>(initialItems.map((i) => ({ ...i })));
+  const [search, setSearch] = useState("");
+  const [showList, setShowList] = useState(false);
+  // Item Allocations (godown/batch) popup context. editIndex = row being edited,
+  // or null when the item is being freshly added.
+  const [batchFor, setBatchFor] = useState<{ item: StockItemType; editIndex: number | null } | null>(null);
+  // Cost Centre popup for items[index].
+  const [costFor, setCostFor] = useState<{ index: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [ccNames, setCcNames] = useState<Record<number, string>>({});
+  const listRef = useRef<HTMLDivElement | null>(null);
+
+  // Cost-centre names, for enriching allocations so the main voucher can show them.
+  useEffect(() => {
+    if (!companyId) return;
+    window.api.costCentre.getAll(companyId).then((res: any) => {
+      if (res?.success) {
+        const map: Record<number, string> = {};
+        (res.costCentres ?? []).forEach((c: any) => { map[c.cc_id] = c.name; });
+        setCcNames(map);
+      }
+    }).catch(() => {});
+  }, [companyId]);
+
+  useEffect(() => {
+    if (!showList) return;
+    const onDown = (e: MouseEvent) => {
+      if (listRef.current && !listRef.current.contains(e.target as Node)) setShowList(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [showList]);
+
+  const totalActual = items.reduce((s, i) => s + (Number(i.actual_quantity) || 0), 0);
+  const totalBilled = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
+  const totalAmount = items.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return allStockItems.filter((s) => !q || s.name.toLowerCase().includes(q));
+  }, [allStockItems, search]);
+
+  // Build an item line from its godown/batch split.
+  const buildItem = useCallback(
+    (stockItem: StockItemType, allocations: BatchAllocation[], keepCostCentres?: InventoryAllocationItem["cost_centres"]): InventoryAllocationItem => {
+      const actual = allocations.reduce((s, a) => s + (Number(a.actual_quantity ?? a.quantity) || 0), 0);
+      const billed = allocations.reduce((s, a) => s + (Number(a.quantity) || 0), 0);
+      const amount = allocations.reduce(
+        (s, a) => s + (Number(a.quantity) || 0) * (Number(a.rate) || 0) * (1 - (Number(a.disc_percent) || 0) / 100),
+        0
+      );
+      const rate = billed > 0 ? amount / billed : 0;
+      const firstGodown = allocations.find((a) => a.godown)?.godown;
+      const godown = firstGodown ? allGodowns.find((g) => g.name === firstGodown) : null;
+      const unit = allUnits.find((u) => u.unit_id === (stockItem as any).unit_id) ?? null;
+      return {
+        stock_item_id: (stockItem as any).item_id,
+        item_name: stockItem.name,
+        godown_id: godown?.godown_id ?? null,
+        unit_id: unit?.unit_id ?? null,
+        unit_symbol: unit?.symbol,
+        actual_quantity: actual,
+        quantity: billed,
+        rate,
+        amount,
+        batches: allocations,
+        cost_centres: keepCostCentres,
+      };
+    },
+    [allGodowns, allUnits]
+  );
+
+  const pickItem = (stockItem: StockItemType) => {
+    setSearch("");
+    setShowList(false);
+    setError(null);
+    setBatchFor({ item: stockItem, editIndex: null });
+  };
+
+  const editItem = (index: number) => {
+    const it = items[index];
+    const stockItem = allStockItems.find((s) => (s as any).item_id === it.stock_item_id);
+    if (stockItem) setBatchFor({ item: stockItem, editIndex: index });
+  };
+
+  const removeItem = (index: number) => {
+    setItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleBatchSave = (allocations: BatchAllocation[]) => {
+    if (!batchFor) return;
+    const { item, editIndex } = batchFor;
+    const prevCostCentres = editIndex !== null ? items[editIndex]?.cost_centres : undefined;
+    const built = buildItem(item, allocations, prevCostCentres);
+    let targetIndex: number;
+    if (editIndex !== null) {
+      setItems((prev) => prev.map((r, i) => (i === editIndex ? built : r)));
+      targetIndex = editIndex;
+    } else {
+      targetIndex = items.length;
+      setItems((prev) => [...prev, built]);
+    }
+    setBatchFor(null);
+    // Chain into Cost Centre allocation when the ledger has cost centres applicable
+    // OR the company has any cost centres defined (so it still appears even when the
+    // ledger flag isn't set). Skipped only when there are no cost centres at all.
+    if (allowCostCentres || Object.keys(ccNames).length > 0) setCostFor({ index: targetIndex });
+  };
+
+  const handleCostSave = (ccs: { cost_centre_id: number; amount: number }[]) => {
+    if (!costFor) return;
+    const enriched = ccs.map((c) => ({ ...c, cost_centre_name: ccNames[c.cost_centre_id] }));
+    setItems((prev) => prev.map((r, i) => (i === costFor.index ? { ...r, cost_centres: enriched } : r)));
+    setCostFor(null);
+  };
+
+  const handleAccept = useCallback(() => {
+    if (items.length === 0) { setError("Add at least one stock item."); return; }
+    onSave(items);
+  }, [items, onSave]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (batchFor || costFor) return;   // child popups handle their own keys
+      if (e.key === "Escape") { e.preventDefault(); onClose(); }
+      if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); handleAccept(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [batchFor, costFor, onClose, handleAccept]);
+
+  const cell = "shrink-0";
+  const W = { name: "flex-1 min-w-[160px]", qty: "w-40", rate: "w-24", per: "w-10", amount: "w-28", del: "w-5" };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 pt-12 select-none">
+      <div className="bg-white border border-black shadow-2xl w-[720px] flex flex-col max-h-[88vh]">
+        {/* Header */}
+        <div className="relative border-b border-black px-4 py-2">
+          <span className="absolute left-3 top-2 text-[9px] font-bold uppercase tracking-wider text-zinc-400">Inventory Allocations</span>
+          <button onClick={onClose} className="absolute right-3 top-1.5 text-zinc-500 hover:text-black font-bold text-sm">&times;</button>
+          <div className="text-center text-sm">
+            Inventory Allocations for : <span className="font-bold">{ledgerName}</span>
+          </div>
+        </div>
+
+        <div className="p-4 flex-1 overflow-y-auto min-h-0 space-y-3">
+          {error && (
+            <div className="border border-zinc-400 text-zinc-900 text-xs px-3 py-2 flex justify-between items-center font-semibold">
+              <span>• {error}</span>
+              <button onClick={() => setError(null)} className="font-bold">&times;</button>
+            </div>
+          )}
+
+          <div className="border border-zinc-300">
+            {/* Header row 1 */}
+            <div className="flex bg-zinc-100 px-3 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600 gap-2">
+              <div className={`${cell} ${W.name}`}>Name of Item</div>
+              <div className={`${cell} ${W.qty} text-center`}>Quantity</div>
+              <div className={`${cell} ${W.rate} text-right`}>Rate</div>
+              <div className={`${cell} ${W.per} text-center`}>per</div>
+              <div className={`${cell} ${W.amount} text-right`}>Amount</div>
+              <div className={`${cell} ${W.del}`} />
+            </div>
+            {/* Header row 2 */}
+            <div className="flex bg-zinc-100 border-b border-zinc-300 px-3 pb-1.5 text-[9px] font-bold uppercase tracking-wide text-zinc-500 gap-2">
+              <div className={`${cell} ${W.name}`} />
+              <div className={`${cell} ${W.qty} flex gap-1`}>
+                <div className="flex-1 text-right">Actual</div>
+                <div className="flex-1 text-right">Billed</div>
+              </div>
+              <div className={`${cell} ${W.rate}`} />
+              <div className={`${cell} ${W.per}`} />
+              <div className={`${cell} ${W.amount}`} />
+              <div className={`${cell} ${W.del}`} />
+            </div>
+
+            {/* Item rows */}
+            <div className="divide-y divide-zinc-100">
+              {items.map((it, i) => (
+                <div key={i}>
+                  <div className="flex items-center px-3 py-1.5 gap-2 text-xs">
+                    <button type="button" onClick={() => editItem(i)}
+                      className={`${cell} ${W.name} text-left font-semibold text-zinc-900 hover:underline`}>
+                      {it.item_name}
+                    </button>
+                    <div className={`${cell} ${W.qty} flex gap-1 font-mono`}>
+                      <div className="flex-1 text-right">{it.actual_quantity || ""} {it.unit_symbol ?? ""}</div>
+                      <div className="flex-1 text-right">{it.quantity || ""} {it.unit_symbol ?? ""}</div>
+                    </div>
+                    <div className={`${cell} ${W.rate} text-right font-mono`}>{num(it.rate)}</div>
+                    <div className={`${cell} ${W.per} text-center font-mono text-zinc-600`}>{it.unit_symbol ?? ""}</div>
+                    <div className={`${cell} ${W.amount} text-right font-mono font-semibold`}>{num(it.amount)}</div>
+                    <div className={`${cell} ${W.del} text-center`}>
+                      <button type="button" onClick={() => removeItem(i)} className="text-zinc-400 hover:text-zinc-900 text-sm font-bold">&times;</button>
+                    </div>
+                  </div>
+                  {/* Cost centre sub-lines */}
+                  {it.cost_centres?.length ? (
+                    <div className="pl-4 pb-1.5 text-[10px] text-zinc-600 leading-tight">
+                      <div className="italic text-zinc-500">Primary Cost Category</div>
+                      {it.cost_centres.map((cc, ci) => (
+                        <div key={ci} className="flex justify-between pr-16">
+                          <span className="pl-3 font-semibold">{cc.cost_centre_name ?? ccNames[cc.cost_centre_id] ?? `#${cc.cost_centre_id}`}</span>
+                          <span className="font-mono">{num(cc.amount)} {dcType}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+
+              {/* New-item entry row */}
+              <div className="flex items-center px-3 py-1.5 gap-2 relative" ref={listRef}>
+                <div className={`${cell} ${W.name}`}>
+                  <input
+                    type="text"
+                    value={search}
+                    placeholder="Select item…"
+                    onChange={(e) => { setSearch(e.target.value); setShowList(true); }}
+                    onFocus={() => setShowList(true)}
+                    className="w-full text-xs px-1.5 py-1 border border-zinc-300 outline-none focus:border-zinc-800"
+                    autoComplete="off"
+                  />
+                  {showList && (
+                    <div className="absolute left-3 top-full mt-1 w-[280px] bg-white border border-zinc-400 shadow-xl z-40 max-h-56 overflow-y-auto">
+                      <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-1 sticky top-0">List of Stock Items</div>
+                      {filtered.length === 0 ? (
+                        <div className="px-2 py-2 text-[11px] text-zinc-500 italic">No items</div>
+                      ) : filtered.map((s) => (
+                        <button key={(s as any).item_id} type="button" onClick={() => pickItem(s)}
+                          className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 font-semibold">
+                          {s.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className={`${cell} ${W.qty}`} />
+                <div className={`${cell} ${W.rate}`} />
+                <div className={`${cell} ${W.per}`} />
+                <div className={`${cell} ${W.amount}`} />
+                <div className={`${cell} ${W.del}`} />
+              </div>
+            </div>
+
+            {/* Totals row */}
+            <div className="flex items-center px-3 py-2 bg-zinc-100 border-t-2 border-zinc-300 gap-2 font-bold text-xs font-mono">
+              <div className={`${cell} ${W.name}`} />
+              <div className={`${cell} ${W.qty} flex gap-1`}>
+                <div className="flex-1 text-right">{totalActual || ""}</div>
+                <div className="flex-1 text-right">{totalBilled || ""}</div>
+              </div>
+              <div className={`${cell} ${W.rate}`} />
+              <div className={`${cell} ${W.per}`} />
+              <div className={`${cell} ${W.amount} text-right`}>{num(totalAmount)}</div>
+              <div className={`${cell} ${W.del}`} />
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-zinc-200 p-3 bg-zinc-50 flex justify-between items-center">
+          <span className="text-[10px] text-zinc-500">Alt+A: Accept · Esc: Close</span>
+          <div className="flex gap-2">
+            <button onClick={onClose}
+              className="text-xs px-3 py-1.5 border border-zinc-300 text-zinc-700 bg-white hover:bg-zinc-100 font-semibold">Cancel</button>
+            <button onClick={handleAccept}
+              className="text-xs px-5 py-1.5 bg-zinc-900 text-white hover:bg-zinc-700 font-semibold">Accept</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Item Allocations (godown / batch) — reused as-is. Batch column shown only
+          for items that maintain batches (showBatch), godown-only otherwise. */}
+      {batchFor && (
+        <BatchAllocationPopup
+          companyId={companyId}
+          itemId={(batchFor.item as any).item_id}
+          itemName={batchFor.item.name}
+          totalQuantity={0}
+          rate={0}
+          unitSymbol={allUnits.find((u) => u.unit_id === (batchFor.item as any).unit_id)?.symbol}
+          voucherDate={voucherDate}
+          trackMfg={Number((batchFor.item as any).track_date_of_manufacturing) === 1}
+          trackExpiry={Number((batchFor.item as any).track_expiry) === 1}
+          isInward={isInward}
+          godowns={allGodowns.map((g) => ({ godown_id: g.godown_id, name: g.name }))}
+          initialAllocations={batchFor.editIndex !== null ? items[batchFor.editIndex]?.batches : undefined}
+          quantityDriven
+          showBatch={Number((batchFor.item as any).track_batches) === 1}
+          onClose={() => setBatchFor(null)}
+          onSave={handleBatchSave}
+        />
+      )}
+
+      {/* Cost Centre allocation — reused as-is. Opens right after Item Allocations. */}
+      {costFor && (
+        <CostCentreAllocationPopup
+          companyId={companyId}
+          ledgerName={items[costFor.index]?.item_name ?? ledgerName}
+          totalAmount={items[costFor.index]?.amount ?? 0}
+          initialAllocations={items[costFor.index]?.cost_centres?.map((c) => ({ cost_centre_id: c.cost_centre_id, amount: c.amount }))}
+          onClose={() => setCostFor(null)}
+          onSave={handleCostSave}
+        />
+      )}
+    </div>
+  );
+}

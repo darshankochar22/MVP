@@ -93,6 +93,7 @@ const init = async (db) => {
   try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN due_on TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN component_of TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN consider_as_scrap TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN tracking_no TEXT`); } catch (err) {}
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS voucher_item_excise (

@@ -35,6 +35,54 @@ const {
   validateDoubleEntry,
 } = require('./voucherLedgerHelpers');
 
+// Attendance vouchers live in their own table (attendance_vouchers), so the regular
+// voucher queries never return them. This maps them into the shared Day Book / Voucher
+// Register row shape so they show up alongside normal vouchers. voucher_id is negated
+// to avoid colliding with real voucher ids (the UI skips navigation for negatives).
+// Pass a from/to range to filter by date (Day Book); omit it for the full list.
+async function fetchAttendanceVoucherRows(company_id, fy_id, from = null, to = null) {
+  let rows = [];
+  try {
+    const dateCond = (from && to) ? sql` AND av.date >= ${from} AND av.date <= ${to}` : sql``;
+    rows = await db.all(
+      sql`SELECT av.attendance_voucher_id AS aid, av.voucher_number, av.date, av.narration,
+            (SELECT emp.name FROM attendance_voucher_entries e
+             LEFT JOIN employees emp ON emp.employee_id = e.employee_id
+             WHERE e.attendance_voucher_id = av.attendance_voucher_id
+             ORDER BY e.entry_id ASC LIMIT 1) AS first_employee,
+            (SELECT COUNT(*) FROM attendance_voucher_entries e
+             WHERE e.attendance_voucher_id = av.attendance_voucher_id) AS entry_count
+          FROM attendance_vouchers av
+          WHERE av.company_id = ${company_id}${dateCond}`
+    );
+  } catch (_) { return []; }
+  return rows.map((a) => {
+    const cnt = Number(a.entry_count) || 0;
+    const particulars = a.first_employee
+      ? (cnt > 1 ? `${a.first_employee} + ${cnt - 1} more` : a.first_employee)
+      : (a.narration || null);
+    return {
+      voucher_id: -Number(a.aid),
+      company_id,
+      fy_id,
+      voucher_type: 'Attendance',
+      voucher_number: a.voucher_number,
+      date: a.date,
+      narration: a.narration,
+      party_name: particulars,
+      ledger_names: particulars,
+      is_cancelled: 0,
+      is_optional: 0,
+      debit_amount: 0,
+      credit_amount: 0,
+      inwards_qty: 0,
+      outwards_qty: 0,
+      stock_item_name: null,
+      stock_unit: null,
+    };
+  });
+}
+
 module.exports = {
   create: async (data) => {
     try {
@@ -239,6 +287,7 @@ module.exports = {
                 voucherId: voucher_id,
                 stockEntryId: Number(insertedStock[0].id),
                 batchNumber: nullify(b.batch_number) || null,
+                trackingNo: nullify(b.tracking_no) || null,
                 mfgDate: nullify(b.mfg_date) || null,
                 expiryDate: nullify(b.expiry_date) || null,
                 quantity: b.quantity || item.quantity,
@@ -665,7 +714,12 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
             WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0
             ORDER BY v.date DESC, v.voucher_id DESC`
       );
-      return { success: true, vouchers: rows };
+      // Attendance vouchers live in their own table — merge them into the register.
+      const attMapped = await fetchAttendanceVoucherRows(company_id, fy_id);
+      const merged = [...rows, ...attMapped].sort(
+        (a, b) => String(b.date).localeCompare(String(a.date))
+      );
+      return { success: true, vouchers: merged };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -813,7 +867,13 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
       AND v.date >= ${from} AND v.date <= ${to}
       ORDER BY v.date ASC, v.voucher_id ASC`
 );
-      return { success: true, vouchers: rows };
+
+      // Attendance vouchers live in their own table — merge them in (date-filtered).
+      const attMapped = await fetchAttendanceVoucherRows(company_id, fy_id, from, to);
+      const merged = [...rows, ...attMapped].sort(
+        (a, b) => String(a.date).localeCompare(String(b.date))
+      );
+      return { success: true, vouchers: merged };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -845,6 +905,11 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
             WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.voucher_type = ${voucher_type} AND v.is_cancelled = 0
             ORDER BY v.date DESC, v.voucher_id DESC`
       );
+      // Attendance is stored separately — when that filter is chosen, return those rows.
+      if (voucher_type === 'Attendance') {
+        const attMapped = await fetchAttendanceVoucherRows(company_id, fy_id);
+        return { success: true, vouchers: attMapped };
+      }
       return { success: true, vouchers: rows };
     } catch (err) {
       return { success: false, error: err.message };
@@ -1140,6 +1205,7 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
                 voucherId: data.voucher_id,
                 stockEntryId: Number(insertedStock[0].id),
                 batchNumber: nullify(b.batch_number) || null,
+                trackingNo: nullify(b.tracking_no) || null,
                 mfgDate: nullify(b.mfg_date) || null,
                 expiryDate: nullify(b.expiry_date) || null,
                 quantity: b.quantity || item.quantity,

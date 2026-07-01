@@ -37,6 +37,20 @@ module.exports = {
 
   create: async (data) => {
     try {
+      // A predefined type left over from an older company seed must NOT block the user
+      // from creating their own type of the same name. Retire any such predefined row
+      // first (so it stops occupying the name), then only real user-created duplicates
+      // are rejected. This works immediately, without needing an app restart.
+      await db
+        .update(attendanceTypes)
+        .set({ isActive: 0 })
+        .where(and(
+          eq(attendanceTypes.companyId, data.company_id),
+          eq(attendanceTypes.isPredefined, 1),
+          eq(attendanceTypes.isActive, 1),
+          sql`LOWER(${attendanceTypes.name}) = LOWER(${data.name})`
+        ));
+
       const exists = await db.all(
         sql`SELECT * FROM ${attendanceTypes}
             WHERE ${attendanceTypes.companyId} = ${data.company_id}

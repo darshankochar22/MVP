@@ -23,6 +23,8 @@ describe("Payroll and Employee Management Service Tests", () => {
     await setupTestDB();
     const company = await createTestCompany("Payroll Test Co");
     companyId = company.company_id;
+    // Attendance types are no longer auto-seeded on company creation — seed them here.
+    await attendanceTypeService.seedDefaultAttendanceTypes(companyId);
   });
 
   describe("Employee Categories", () => {
@@ -258,8 +260,9 @@ describe("Payroll and Employee Management Service Tests", () => {
       });
       expect(res.success).toBe(true);
       expect(res.employee.employee_id).toBeDefined();
-      expect(res.employee.employee_code).toBe("EMP-00001");
       employeeId = res.employee.employee_id;
+      // No employee code was supplied → the app leaves it blank (no auto-generation).
+      expect(res.employee.employee_code == null || res.employee.employee_code === "").toBe(true);
     });
 
     it("should update employee details", async () => {

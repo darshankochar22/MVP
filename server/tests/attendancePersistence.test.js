@@ -6,26 +6,32 @@ const { setupTestDB, createTestCompany } = require("./helpers");
 const attendanceService = require("../attendance/attendanceService");
 const attendanceTypeService = require("../attendanceType/attendanceTypeService");
 const employeeService = require("../employee/employeeService");
+const employeeGroupService = require("../employeeGroup/employeeGroupService");
 
 describe("Attendance voucher persistence", () => {
-  let companyId, empId, presentTypeId, voucherId;
+  let companyId, empId, primaryGroupId, voucherId, presentTypeId;
 
   beforeAll(async () => {
     await setupTestDB();
     const company = await createTestCompany("Attendance Co");
     companyId = company.company_id;
 
+    // Place the employee in a group so the List of Employees join can show it.
+    const groups = await employeeGroupService.getAll(companyId);
+    primaryGroupId = groups.employeeGroups.find((g) => g.name === "Primary")?.employee_group_id ?? null;
+
     const emp = await employeeService.create({
-      company_id: companyId, name: "Amit Kumar", employee_code: "1001", designation: "Telecalling",
+      company_id: companyId, name: "Amit Kumar", employee_code: "1001",
+      designation: "Telecalling", employee_group_id: primaryGroupId,
     });
     empId = emp.employee?.employee_id ?? emp.employeeId ?? emp.id;
 
-    // Attendance types are seeded on company creation — pick "Present".
-    const typesRes = await attendanceTypeService.getAll(companyId);
-    expect(typesRes.success).toBe(true);
-    const present = typesRes.attendanceTypes.find((t) => t.name === "Present");
-    expect(present).toBeTruthy();
-    presentTypeId = present.attendance_type_id;
+    // Attendance types are user-created (no longer auto-seeded) — create "Present".
+    const typeRes = await attendanceTypeService.create({
+      company_id: companyId, name: "Present", type: "Attendance",
+    });
+    expect(typeRes.success).toBe(true);
+    presentTypeId = typeRes.attendanceType.attendance_type_id;
 
     const res = await attendanceService.create({
       company_id: companyId,
@@ -48,5 +54,26 @@ describe("Attendance voucher persistence", () => {
     expect(e.employee_number).toBe("1001");
     expect(e.attendance_type_name).toBe("Present");
     expect(Number(e.value)).toBe(27);
+  });
+
+  it("does NOT auto-generate an employee code when left blank", async () => {
+    const res = await employeeService.create({ company_id: companyId, name: "No Code Emp" });
+    expect(res.success).toBe(true);
+    // Blank in — blank out (no "EMP-00001" assigned by the app).
+    expect(res.employee.employee_code == null || res.employee.employee_code === "").toBe(true);
+
+    const back = await employeeService.getById(res.employee.employee_id);
+    expect(back.employee.employee_code == null || back.employee.employee_code === "").toBe(true);
+  });
+
+  it("employee.getAll joins the group name (for the List of Employees popup)", async () => {
+    const all = await employeeService.getAll(companyId);
+    expect(all.success).toBe(true);
+    const row = all.employees.find((r) => r.employee_id === empId);
+    expect(row).toBeTruthy();
+    expect(row.employee_code).toBe("1001");
+    if (primaryGroupId) expect(row.group_name).toBe("Primary");
+    // category_name is null here (no category assigned) but the column key exists.
+    expect("category_name" in row).toBe(true);
   });
 });

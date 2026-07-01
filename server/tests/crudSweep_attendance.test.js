@@ -26,6 +26,8 @@ describe("Attendance voucher CRUD sweep (UI parity)", () => {
     await setupTestDB();
     const company = await createTestCompany("Attendance CRUD Sweep Co");
     companyId = company.company_id;
+    // Attendance types are no longer auto-seeded on company creation — seed them here.
+    await attendanceTypeService.seedDefaultAttendanceTypes(companyId);
 
     // Resolve the FK parent for employees: the seeded "Primary" employee group.
     const gRes = await employeeGroupService.getAll(companyId);

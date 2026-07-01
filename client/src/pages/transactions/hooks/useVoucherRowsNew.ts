@@ -200,7 +200,7 @@ export function useVoucherRows({
           break;
         case "particular": {
           const ledger = item as LedgerType;
-          if (voucherType === "Journal" || voucherType === "Reversing Journal") {
+          if (voucherType === "Journal" || voucherType === "Reversing Journal" || voucherType === "Memorandum") {
             acct.handleUpdateJournalRow(activeField.rowId, { ledger });
           } else if (voucherType === "Contra" && acct.contraEntryMode === "double") {
             acct.handleUpdateContraDoubleRow(activeField.rowId, { ledger });
@@ -301,7 +301,7 @@ export function useVoucherRows({
         currentVoucherType === "Receipt" ? "Cr"
         : currentVoucherType === "Payment" ? "Dr"
         : "Dr";
-      acct.resetAccountingRows(defaultParticular);
+      acct.resetAccountingRows(defaultParticular, currentVoucherType);
       inv.resetInventoryRows();
       setActiveField(null);
       setLedgerSearchTerm("");

@@ -1,5 +1,12 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, type ReactNode } from "react";
 import type { UnitType } from "../../../types/api";
+
+export interface PanelColumn {
+  header: string;
+  render: (item: any) => ReactNode;
+  /** Width + alignment classes shared by header and cell, e.g. "w-16 text-right". */
+  className?: string;
+}
 
 interface LedgerListPanelProps {
   title: string;
@@ -21,6 +28,9 @@ interface LedgerListPanelProps {
   /** Unit symbol appended to godown balances (the current item's unit). */
   balanceUnit?: string;
   allUnits?: UnitType[];
+  /** Multi-column layout (employee / attendance-type pickers). When set, rows render
+   *  these columns under a header instead of the plain name, and the panel widens. */
+  columns?: PanelColumn[];
 }
 
 export default function LedgerListPanel({
@@ -39,6 +49,7 @@ export default function LedgerListPanel({
   godownBalances,
   balanceUnit,
   allUnits,
+  columns,
 }: LedgerListPanelProps) {
   const [hi, setHi] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
@@ -77,7 +88,7 @@ export default function LedgerListPanel({
   }, [filtered, hi, onSelect, onClose, searchTerm, onEnterEmpty]);
 
   return (
-    <div className={`w-64 border-l border-black flex flex-col shrink-0 bg-white ${height}`}>
+    <div className={`${columns ? "w-[440px]" : "w-64"} border-l border-black flex flex-col shrink-0 bg-white ${height}`}>
       <div className="bg-black text-white px-2 py-1 text-xs font-semibold select-none flex justify-between items-center">
         <span>{title}</span>
         <button
@@ -115,12 +126,22 @@ export default function LedgerListPanel({
         </div>
       )}
 
+      {columns && (
+        <div className="flex gap-2 px-2 py-1 border-b border-gray-300 bg-gray-100 text-[10px] font-bold uppercase tracking-wide text-gray-600 select-none">
+          {columns.map((col, ci) => (
+            <div key={ci} className={col.className ?? "flex-1 min-w-0"}>{col.header}</div>
+          ))}
+        </div>
+      )}
+
       <div ref={listRef} className="flex-1 overflow-y-auto min-h-0">
         {filtered.map((item, idx) => (
           <div
             key={item.ledger_id ?? item.item_id ?? item.godown_id ?? item.employee_id ?? item.attendance_type_id ?? item.pay_head_id ?? idx}
             data-hi={idx === hi ? "true" : undefined}
-            className={`px-2 py-0.5 text-xs cursor-pointer select-none flex justify-between items-center ${
+            className={`px-2 py-0.5 text-xs cursor-pointer select-none flex items-center gap-2 ${
+              columns ? "" : "justify-between"
+            } ${
               idx === hi
                 ? "bg-[#f0c040] text-black font-semibold"
                 : "text-black hover:bg-gray-50"
@@ -128,17 +149,25 @@ export default function LedgerListPanel({
             onClick={() => onSelect(item)}
             onMouseEnter={() => setHi(idx)}
           >
-            <span>{item.name}</span>
-            {stockBalances && item.item_id != null && (
-              <span className="text-[10px] text-gray-500 tabular-nums">
-                {Number(stockBalances[item.item_id] ?? 0).toFixed(2)}{" "}
-                {allUnits?.find((u) => u.unit_id === item.unit_id)?.symbol ?? ""}
-              </span>
-            )}
-            {godownBalances && item.godown_id != null && (
-              <span className="text-[10px] text-gray-500 tabular-nums">
-                {Number(godownBalances[item.godown_id] ?? 0).toLocaleString("en-IN")}{balanceUnit ? ` ${balanceUnit}` : ""}
-              </span>
+            {columns ? (
+              columns.map((col, ci) => (
+                <div key={ci} className={`${col.className ?? "flex-1 min-w-0"} truncate`}>{col.render(item)}</div>
+              ))
+            ) : (
+              <>
+                <span>{item.name}</span>
+                {stockBalances && item.item_id != null && (
+                  <span className="text-[10px] text-gray-500 tabular-nums">
+                    {Number(stockBalances[item.item_id] ?? 0).toFixed(2)}{" "}
+                    {allUnits?.find((u) => u.unit_id === item.unit_id)?.symbol ?? ""}
+                  </span>
+                )}
+                {godownBalances && item.godown_id != null && (
+                  <span className="text-[10px] text-gray-500 tabular-nums">
+                    {Number(godownBalances[item.godown_id] ?? 0).toLocaleString("en-IN")}{balanceUnit ? ` ${balanceUnit}` : ""}
+                  </span>
+                )}
+              </>
             )}
           </div>
         ))}

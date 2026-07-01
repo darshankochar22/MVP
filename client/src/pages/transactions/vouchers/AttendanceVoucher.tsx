@@ -12,12 +12,14 @@ export default function AttendanceVoucher({ form }: Props) {
   };
 
   const proceedToNextRow = (idx: number) => {
-    if (idx === form.attendanceEntries.length - 1) {
+    // Add a fresh row whenever we're on (or past) the last one, so Enter on Value
+    // always opens the next employee line.
+    if (idx >= form.attendanceEntries.length - 1) {
       form.handleAddAttendanceRow();
     }
     setTimeout(() => {
       (document.querySelector(`[data-employee="${idx + 2}"]`) as HTMLInputElement | null)?.focus();
-    }, 50);
+    }, 60);
   };
 
   return (
@@ -83,9 +85,10 @@ export default function AttendanceVoucher({ form }: Props) {
                 )}
               </div>
 
-              {/* Employee Number */}
+              {/* Employee Number — blank when the employee has no code (Tally leaves it
+                  blank rather than auto-assigning one). */}
               <div className="w-40 text-xs font-mono text-zinc-500 select-none">
-                {row.employee?.employee_code || "—"}
+                {row.employee?.employee_code || ""}
               </div>
 
               {/* Attendance/Production Type */}
@@ -143,8 +146,24 @@ export default function AttendanceVoucher({ form }: Props) {
           );
         })}
 
+        {/* Add another employee row — reliable alternative to Enter on Value.
+            Focuses the new row's Employee field (opens List of Employees). */}
+        <button
+          type="button"
+          onClick={() => {
+            const nextIdx = form.attendanceEntries.length; // new row's index
+            form.handleAddAttendanceRow();
+            setTimeout(() => {
+              (document.querySelector(`[data-employee="${nextIdx + 1}"]`) as HTMLInputElement | null)?.focus();
+            }, 50);
+          }}
+          className="flex items-center gap-1 px-3 py-1 text-xs text-black hover:bg-zinc-100 border-b border-zinc-100 w-full text-left select-none"
+        >
+          <span className="font-bold">+</span> Add Row
+        </button>
+
         {/* Filler rows */}
-        {Array.from({ length: Math.max(0, 10 - form.attendanceEntries.length) }).map((_, i) => (
+        {Array.from({ length: Math.max(0, 9 - form.attendanceEntries.length) }).map((_, i) => (
           <div
             key={`att-f-${i}`}
             className="flex border-b border-zinc-50 min-h-[26px] px-3"

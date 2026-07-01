@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { BatchAllocation } from "../../types";
+import NewNumberPopup from "./NewNumberPopup";
 
 // Stock Item Allocations sub-screen (TallyPrime "Batch / Lot" allocation).
 // Splits a line quantity across one or more godown + batch rows, each with
@@ -13,9 +14,29 @@ interface ActiveBatch {
   balance: number;
 }
 
+interface TrackingOption {
+  name: string;
+  batch?: string | null;
+  godown?: string | null;
+  date?: string | null;
+  balance?: number;
+  rate?: number;
+}
+
+interface OrderOption {
+  name: string;
+  batch?: string | null;
+  godown?: string | null;
+  due_on?: string | null;
+  balance?: number;
+}
+
+const NOT_APPLICABLE = "◆ Not Applicable";
+
 interface GodownOption {
   godown_id?: number;
   name: string;
+  parent_godown_id?: number;
 }
 
 interface Props {
@@ -25,17 +46,13 @@ interface Props {
   totalQuantity: number;
   rate: number;
   unitSymbol?: string;
-  voucherDate: string;        // ISO yyyy-mm-dd
+  voucherDate: string;
   trackMfg: boolean;
   trackExpiry: boolean;
   isInward: boolean;
   godowns?: GodownOption[];
   initialAllocations?: BatchAllocation[];
-  /** When true, totalQuantity is not a fixed target — the line quantity is the
-   *  sum of the batch rows entered here (popup opened on item selection). */
   quantityDriven?: boolean;
-  /** Show the Batch / Lot No. (+ Mfg/Expiry) column. False = godown-only
-   *  allocation for items that don't maintain batches. */
   showBatch?: boolean;
   onClose: () => void;
   onSave: (allocations: BatchAllocation[]) => void;
@@ -54,8 +71,6 @@ function toIso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// Accept a real date OR a period like "2 years" / "2 Months" / "2 Days" and
-// resolve it to an ISO date relative to `baseIso` (img 15-18).
 function parseExpiry(input: string, baseIso: string): string {
   const raw = (input || "").trim();
   if (!raw) return "";
@@ -75,7 +90,7 @@ function parseExpiry(input: string, baseIso: string): string {
     else base.setDate(base.getDate() + n);
     return toIso(base);
   }
-  return ""; // unrecognised — leave blank, user can retype
+  return "";
 }
 
 const num = (v: number | undefined) =>
@@ -102,11 +117,36 @@ export default function BatchAllocationPopup({
     initialAllocations.length ? initialAllocations.map((a) => ({ ...a })) : [emptyRow()]
   );
   const [activeBatches, setActiveBatches] = useState<ActiveBatch[]>([]);
-  const [openListRow, setOpenListRow] = useState<number | null>(null);
+  const [createdBatches, setCreatedBatches] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const listRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // Load existing batches (with balances) for the "List of Active Batches".
+  // Side panel — "godown" or "batch", plus which row is active
+  const [activePanel, setActivePanel] = useState<null | "godown" | "batch">(null);
+  const [activePanelRow, setActivePanelRow] = useState<number | null>(null);
+  const [godownSearch, setGodownSearch] = useState("");
+  const [panelHi, setPanelHi] = useState(0);
+  const panelListRef = useRef<HTMLDivElement>(null);
+  const godownSearchRef = useRef<HTMLInputElement>(null);
+
+  // NewNumber popup for batch
+  const [batchNumberRow, setBatchNumberRow] = useState<number | null>(null);
+
+  // Tracking No.
+  const [trackingList, setTrackingList] = useState<TrackingOption[]>([]);
+  const [trackingNo, setTrackingNo] = useState<string>(initialAllocations[0]?.tracking_no || NOT_APPLICABLE);
+  const [showTrackingList, setShowTrackingList] = useState(false);
+  const [trackingNewNumber, setTrackingNewNumber] = useState(false);
+  const trackingRef = useRef<HTMLDivElement | null>(null);
+
+  // Order No. + Due on (batch items) — mirrors Tracking No.
+  const [orderList, setOrderList] = useState<OrderOption[]>([]);
+  const [orderNo, setOrderNo] = useState<string>(initialAllocations[0]?.order_no || NOT_APPLICABLE);
+  const [dueOn, setDueOn] = useState<string>(initialAllocations[0]?.due_on || "");
+  const [showOrderList, setShowOrderList] = useState(false);
+  const [orderNewNumber, setOrderNewNumber] = useState(false);
+  const orderRef = useRef<HTMLDivElement | null>(null);
+
+  // Load existing batches
   useEffect(() => {
     if (!companyId || !itemId) return;
     (window as any).api.report.batchBalances(companyId, itemId).then((res: any) => {
@@ -114,16 +154,116 @@ export default function BatchAllocationPopup({
     }).catch(() => {});
   }, [companyId, itemId]);
 
-  // Close the active-batches dropdown on outside click.
+  // Load tracking numbers
   useEffect(() => {
-    if (openListRow === null) return;
+    if (!companyId || !itemId) return;
+    (window as any).api.report.trackingNumbers?.(companyId, itemId).then((res: any) => {
+      if (res?.success) setTrackingList(res.trackingNumbers ?? []);
+    }).catch(() => {});
+  }, [companyId, itemId]);
+
+  // Load order numbers
+  useEffect(() => {
+    if (!companyId || !itemId) return;
+    (window as any).api.report.orderNumbers?.(companyId, itemId).then((res: any) => {
+      if (res?.success) setOrderList(res.orders ?? []);
+    }).catch(() => {});
+  }, [companyId, itemId]);
+
+  // Close tracking dropdown on outside click
+  useEffect(() => {
+    if (!showTrackingList) return;
     const onDown = (e: MouseEvent) => {
-      const el = listRefs.current[openListRow];
-      if (el && !el.contains(e.target as Node)) setOpenListRow(null);
+      if (trackingRef.current && !trackingRef.current.contains(e.target as Node)) setShowTrackingList(false);
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
-  }, [openListRow]);
+  }, [showTrackingList]);
+
+  // Close order dropdown on outside click
+  useEffect(() => {
+    if (!showOrderList) return;
+    const onDown = (e: MouseEvent) => {
+      if (orderRef.current && !orderRef.current.contains(e.target as Node)) setShowOrderList(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [showOrderList]);
+
+  // Auto-focus godown search when godown panel opens
+  useEffect(() => {
+    if (activePanel === "godown") {
+      setTimeout(() => godownSearchRef.current?.focus(), 30);
+    }
+  }, [activePanel]);
+
+  // Reset highlight when panel or search changes
+  useEffect(() => { setPanelHi(0); }, [activePanel, godownSearch, activePanelRow]);
+
+  const closePanel = () => {
+    setActivePanel(null);
+    setActivePanelRow(null);
+    setGodownSearch("");
+    setPanelHi(0);
+  };
+
+  // Resolve parent name from godowns list
+  const parentName = (g: GodownOption): string => {
+    if (!g.parent_godown_id) return "Primary";
+    const p = godowns.find((x) => x.godown_id === g.parent_godown_id);
+    return p?.name ?? "Primary";
+  };
+
+  // Filtered lists for side panels
+  const filteredGodowns = godowns.filter((g) =>
+    !godownSearch || g.name.toLowerCase().includes(godownSearch.toLowerCase())
+  );
+
+  const batchSearchTerm =
+    activePanelRow !== null ? (rows[activePanelRow]?.batch_number ?? "") : "";
+  const filteredBatches = [
+    ...activeBatches,
+    ...createdBatches
+      .filter((n) => !activeBatches.some((b) => b.name === n))
+      .map((n) => ({ name: n, mfg_date: null, expiry_date: null, balance: 0 })),
+  ].filter(
+    (b) =>
+      !batchSearchTerm ||
+      batchSearchTerm === "Any" ||
+      b.name.toLowerCase().includes(batchSearchTerm.toLowerCase())
+  );
+
+  // Panel keyboard nav
+  const godownPanelItems = filteredGodowns;
+  const batchPanelItems = filteredBatches;
+  const panelLength =
+    activePanel === "godown" ? godownPanelItems.length + 1 /* Any */ : batchPanelItems.length;
+
+  useEffect(() => {
+    if (!activePanel) return;
+    const el = panelListRef.current?.querySelectorAll("[data-panel-item]")[panelHi] as HTMLElement | null;
+    el?.scrollIntoView({ block: "nearest" });
+  }, [panelHi, activePanel]);
+
+  const selectTracking = (name: string) => { setTrackingNo(name); setShowTrackingList(false); };
+  const addTrackingNumber = (value: string) => {
+    setTrackingList((prev) => (prev.some((t) => t.name === value) ? prev : [...prev, { name: value }]));
+    setTrackingNo(value);
+    setTrackingNewNumber(false);
+    setShowTrackingList(false);
+  };
+
+  const selectOrder = (name: string) => {
+    setOrderNo(name);
+    setShowOrderList(false);
+    if (name === NOT_APPLICABLE) setDueOn("");
+  };
+  const addOrderNumber = (value: string) => {
+    setOrderList((prev) => (prev.some((o) => o.name === value) ? prev : [...prev, { name: value }]));
+    setOrderNo(value);
+    setOrderNewNumber(false);
+    setShowOrderList(false);
+  };
 
   const billed = (r: BatchAllocation) => Number(r.quantity) || 0;
   const actual = (r: BatchAllocation) => Number(r.actual_quantity ?? r.quantity) || 0;
@@ -140,7 +280,6 @@ export default function BatchAllocationPopup({
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   };
 
-  // Actual drives Billed until the user overrides Billed independently.
   const setActual = (i: number, v: number) => {
     setError(null);
     setRows((prev) =>
@@ -152,9 +291,14 @@ export default function BatchAllocationPopup({
     );
   };
 
-  const pickExisting = (i: number, b: ActiveBatch) => {
+  const pickBatch = (i: number, b: ActiveBatch) => {
     update(i, { batch_number: b.name, mfg_date: b.mfg_date ?? undefined, expiry_date: b.expiry_date ?? undefined });
-    setOpenListRow(null);
+    closePanel();
+  };
+
+  const pickGodown = (i: number, name: string) => {
+    update(i, { godown: name });
+    closePanel();
   };
 
   const addRow = () => {
@@ -173,16 +317,18 @@ export default function BatchAllocationPopup({
       return;
     }
     if (quantityDriven) {
-      if (totalBilled <= 0) {
-        setError("Enter a quantity for at least one batch.");
-        return;
-      }
+      if (totalBilled <= 0) { setError("Enter a quantity for at least one batch."); return; }
     } else if (Math.abs(remaining) >= 0.0001) {
       setError(`Allocated ${totalBilled} of ${totalQuantity} ${unitSymbol ?? ""} — remaining ${remaining} must be zero.`);
       return;
     }
+    const trk = trackingNo && trackingNo !== NOT_APPLICABLE ? trackingNo : undefined;
+    const ord = showBatch && orderNo && orderNo !== NOT_APPLICABLE ? orderNo : undefined;
     onSave(rows.map((r) => ({
       batch_number: r.batch_number.trim(),
+      tracking_no: trk,
+      order_no: ord,
+      due_on: ord ? (dueOn || undefined) : undefined,
       godown: r.godown || undefined,
       mfg_date: trackMfg ? (r.mfg_date || undefined) : undefined,
       expiry_date: trackExpiry ? (r.expiry_date || undefined) : undefined,
@@ -191,18 +337,39 @@ export default function BatchAllocationPopup({
       rate: Number(r.rate) || rate,
       disc_percent: Number(r.disc_percent) || 0,
     })));
-  }, [rows, remaining, totalBilled, totalQuantity, unitSymbol, trackMfg, trackExpiry, rate, quantityDriven, showBatch, onSave]);
+  }, [rows, remaining, totalBilled, totalQuantity, unitSymbol, trackMfg, trackExpiry, rate, quantityDriven, showBatch, onSave, trackingNo, orderNo, dueOn]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (batchNumberRow !== null || trackingNewNumber || orderNewNumber) return;
+
+      // Panel keyboard nav
+      if (activePanel) {
+        if (e.key === "Escape") { e.preventDefault(); closePanel(); return; }
+        if (e.key === "ArrowDown") { e.preventDefault(); setPanelHi((p) => Math.min(p + 1, panelLength - 1)); return; }
+        if (e.key === "ArrowUp") { e.preventDefault(); setPanelHi((p) => Math.max(p - 1, 0)); return; }
+        if (e.key === "Enter" && activePanelRow !== null) {
+          e.preventDefault();
+          if (activePanel === "godown") {
+            if (panelHi === 0) { pickGodown(activePanelRow, ""); }
+            else { const g = godownPanelItems[panelHi - 1]; if (g) pickGodown(activePanelRow, g.name); }
+          } else {
+            const b = batchPanelItems[panelHi]; if (b) pickBatch(activePanelRow, b);
+          }
+          return;
+        }
+        return;
+      }
+
+      if (showTrackingList || showOrderList) return;
       if (e.key === "Escape") { e.preventDefault(); onClose(); }
       if (e.altKey && (e.key === "a" || e.key === "A")) { e.preventDefault(); handleSave(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, handleSave]);
+  }, [onClose, handleSave, batchNumberRow, trackingNewNumber, orderNewNumber, activePanel, activePanelRow, panelHi,
+      panelLength, godownPanelItems, batchPanelItems, showTrackingList, showOrderList]);
 
-  // Shared column widths — header rows, data rows and totals must match.
   const cell = "shrink-0";
   const W = {
     godown: "w-28",
@@ -217,261 +384,500 @@ export default function BatchAllocationPopup({
   const inputCls = "text-xs px-1.5 py-1 border border-zinc-300 w-full outline-none focus:border-zinc-800";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-zinc-900/40 pt-16 select-none">
-      <div className={`bg-white border border-zinc-400 shadow-2xl ${showBatch ? "w-[900px]" : "w-[660px]"} flex flex-col max-h-[82vh]`}>
-        {/* Title bar */}
-        <div className="bg-zinc-900 px-4 py-2 text-white flex justify-between items-center">
-          <span className="text-xs font-bold uppercase tracking-wider">Stock Item Allocations</span>
-          <button onClick={onClose} className="text-zinc-400 hover:text-white font-bold text-sm">&times;</button>
-        </div>
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 pt-12 select-none">
+      {/* Outer flex: [main popup] [side panel] */}
+      <div className="flex items-start">
 
-        <div className="px-4 py-2 border-b border-zinc-200 text-center">
-          <div className="text-sm font-semibold">
-            Item Allocations for : <span className="font-bold">{itemName}</span>
-          </div>
-          <div className="text-[11px] text-zinc-600 mt-0.5">
-            {isInward ? "Inward" : "Outward"} ·{" "}
-            {quantityDriven ? "Enter batch quantities" : `Up to ${totalQuantity} ${unitSymbol ?? ""} @ ${rate}`}
-          </div>
-        </div>
+        {/* ── Main popup ── */}
+        <div className={`bg-white border border-black shadow-2xl ${showBatch ? "w-[760px]" : "w-[560px]"} flex flex-col max-h-[88vh]`}>
 
-        <div className="p-4 flex-1 overflow-y-auto min-h-0 space-y-3">
-          {error && (
-            <div className="border border-zinc-400 text-zinc-900 text-xs px-3 py-2 flex justify-between items-center font-semibold">
-              <span>• {error}</span>
-              <button onClick={() => setError(null)} className="font-bold">&times;</button>
+          {/* Header */}
+          <div className="relative border-b border-black px-4 py-2 shrink-0">
+            <span className="absolute left-3 top-2 text-[9px] font-bold uppercase tracking-wider text-zinc-400">Stock Item Allocations</span>
+            <button onClick={onClose} className="absolute right-3 top-1.5 text-zinc-500 hover:text-black font-bold text-sm">&times;</button>
+            <div className="text-center text-sm">
+              Item Allocations for : <span className="font-bold">{itemName}</span>
             </div>
-          )}
+          </div>
 
-          <div className="border border-zinc-300">
-            {/* Header row 1 — column groups */}
-            <div className="flex bg-zinc-100 px-3 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600 gap-2">
-              <div className={`${cell} ${W.godown}`}>Godown</div>
-              {showBatch && <div className={`${cell} ${W.batch} text-center`}>Batch / Lot No.</div>}
-              <div className={`${cell} ${W.qty} text-center`}>Quantity</div>
-              <div className={`${cell} ${W.rate} text-right`}>Rate</div>
-              <div className={`${cell} ${W.per} text-center`}>per</div>
-              <div className={`${cell} ${W.disc} text-right`}>Disc %</div>
-              <div className={`${cell} ${W.amount} text-right`}>Amount</div>
-              <div className={`${cell} ${W.del}`} />
-            </div>
-            {/* Header row 2 — sub-columns */}
-            <div className="flex bg-zinc-100 border-b border-zinc-300 px-3 pb-1.5 text-[9px] font-bold uppercase tracking-wide text-zinc-500 gap-2">
-              <div className={`${cell} ${W.godown}`} />
-              {showBatch && (
-                <div className={`${cell} ${W.batch} flex gap-1`}>
-                  <div className="flex-1">{trackMfg ? "Mfg Dt." : ""}</div>
-                  <div className="flex-1">{trackExpiry ? "Expiry Date" : ""}</div>
-                </div>
-              )}
-              <div className={`${cell} ${W.qty} flex gap-1`}>
-                <div className="flex-1 text-right">Actual</div>
-                <div className="flex-1 text-right">Billed</div>
+          <div className="p-4 flex-1 overflow-y-auto min-h-0 space-y-3">
+            {error && (
+              <div className="border border-zinc-400 text-zinc-900 text-xs px-3 py-2 flex justify-between items-center font-semibold">
+                <span>• {error}</span>
+                <button onClick={() => setError(null)} className="font-bold">&times;</button>
               </div>
-              <div className={`${cell} ${W.rate}`} />
-              <div className={`${cell} ${W.per}`} />
-              <div className={`${cell} ${W.disc}`} />
-              <div className={`${cell} ${W.amount}`} />
-              <div className={`${cell} ${W.del}`} />
-            </div>
+            )}
 
-            {/* Data rows */}
-            <div className="divide-y divide-zinc-100">
-              {rows.map((row, i) => {
-                const baseIso = (trackMfg && row.mfg_date) ? row.mfg_date : voucherDate;
-                return (
-                  <div key={i} className="flex items-start px-3 py-2 gap-2">
-                    {/* Godown */}
-                    <div className={`${cell} ${W.godown}`}>
-                      {godowns.length > 0 ? (
-                        <select
-                          value={row.godown ?? ""}
-                          onChange={(e) => update(i, { godown: e.target.value })}
-                          className={`${inputCls} bg-white`}
-                        >
-                          <option value="" />
-                          {godowns.map((g) => (
-                            <option key={g.godown_id ?? g.name} value={g.name}>{g.name}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          type="text"
-                          value={row.godown ?? ""}
-                          onChange={(e) => update(i, { godown: e.target.value })}
-                          placeholder="Location"
-                          className={inputCls}
-                        />
-                      )}
-                    </div>
-
-                    {/* Batch / Lot No. + Mfg Dt. / Expiry Date (stacked) */}
-                    {showBatch && (
-                    <div className={`${cell} ${W.batch} relative`} ref={(el) => { listRefs.current[i] = el; }}>
-                      <input
-                        type="text"
-                        value={row.batch_number}
-                        onChange={(e) => update(i, { batch_number: e.target.value })}
-                        onFocus={() => setOpenListRow(i)}
-                        placeholder="New Number…"
-                        className={`${inputCls} font-semibold`}
-                      />
-                      {(trackMfg || trackExpiry) && (
-                        <div className="flex gap-1 mt-1">
-                          <div className="flex-1">
-                            {trackMfg && (
-                              <input
-                                type="date"
-                                value={row.mfg_date ?? ""}
-                                onChange={(e) => update(i, { mfg_date: e.target.value })}
-                                className={`${inputCls} font-mono`}
-                              />
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            {trackExpiry && (
-                              <input
-                                type="text"
-                                defaultValue={row.expiry_date ? fmtDate(row.expiry_date) : ""}
-                                onBlur={(e) => {
-                                  const iso = parseExpiry(e.target.value, baseIso);
-                                  update(i, { expiry_date: iso || undefined });
-                                  e.target.value = iso ? fmtDate(iso) : e.target.value;
-                                }}
-                                placeholder="date / 2 years"
-                                className={`${inputCls} font-mono`}
-                              />
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      {openListRow === i && activeBatches.length > 0 && (
-                        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-zinc-400 shadow-xl z-30 max-h-44 overflow-y-auto">
-                          <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-1 sticky top-0">List of Active Batches</div>
-                          <div className="flex bg-zinc-100 text-[9px] font-bold text-zinc-600 px-2 py-1 border-b border-zinc-200">
-                            <div className="flex-1">Name</div>
-                            <div className="w-20">Expiry</div>
-                            <div className="w-16 text-right">Balance</div>
-                          </div>
-                          {activeBatches.map((b) => (
-                            <button
-                              key={b.name}
-                              type="button"
-                              onClick={() => pickExisting(i, b)}
-                              className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 last:border-0"
-                            >
-                              <div className="flex-1 font-semibold">{b.name}</div>
-                              <div className="w-20 font-mono">{fmtDate(b.expiry_date)}</div>
-                              <div className="w-16 text-right font-mono">{b.balance}</div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    )}
-
-                    {/* Quantity — Actual / Billed */}
-                    <div className={`${cell} ${W.qty} flex gap-1`}>
-                      <input
-                        type="number"
-                        step="any"
-                        value={row.actual_quantity || ""}
-                        onChange={(e) => setActual(i, Number(e.target.value) || 0)}
-                        className={`${inputCls} text-right font-mono`}
-                      />
-                      <input
-                        type="number"
-                        step="any"
-                        value={row.quantity || ""}
-                        onChange={(e) => update(i, { quantity: Number(e.target.value) || 0 })}
-                        className={`${inputCls} text-right font-mono`}
-                      />
-                    </div>
-
-                    {/* Rate */}
-                    <div className={`${cell} ${W.rate}`}>
-                      <input
-                        type="number"
-                        step="any"
-                        value={row.rate || ""}
-                        onChange={(e) => update(i, { rate: Number(e.target.value) || 0 })}
-                        className={`${inputCls} text-right font-mono`}
-                      />
-                    </div>
-
-                    {/* per (unit) */}
-                    <div className={`${cell} ${W.per} text-center text-[11px] text-zinc-600 pt-1.5 font-mono`}>
-                      {unitSymbol ?? ""}
-                    </div>
-
-                    {/* Disc % */}
-                    <div className={`${cell} ${W.disc}`}>
-                      <input
-                        type="number"
-                        step="any"
-                        value={row.disc_percent || ""}
-                        onChange={(e) => update(i, { disc_percent: Number(e.target.value) || 0 })}
-                        className={`${inputCls} text-right font-mono`}
-                      />
-                    </div>
-
-                    {/* Amount */}
-                    <div className={`${cell} ${W.amount} text-right text-xs font-mono font-semibold pt-1.5`}>
-                      {num(lineAmount(row))}
-                    </div>
-
-                    {/* Remove */}
-                    <div className={`${cell} ${W.del} text-center pt-1`}>
-                      <button type="button" onClick={() => removeRow(i)} className="text-zinc-400 hover:text-zinc-900 text-sm font-bold">&times;</button>
-                    </div>
+            <div className="border border-zinc-300">
+              {/* Header row 1 */}
+              <div className="flex bg-zinc-100 px-3 pt-1.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600 gap-2">
+                <div className={`${cell} ${W.godown}`}>Godown</div>
+                {showBatch && <div className={`${cell} ${W.batch} text-center`}>Batch / Lot No.</div>}
+                <div className={`${cell} ${W.qty} text-center`}>Quantity</div>
+                <div className={`${cell} ${W.rate} text-right`}>Rate</div>
+                <div className={`${cell} ${W.per} text-center`}>per</div>
+                <div className={`${cell} ${W.disc} text-right`}>Disc %</div>
+                <div className={`${cell} ${W.amount} text-right`}>Amount</div>
+                <div className={`${cell} ${W.del}`} />
+              </div>
+              {/* Header row 2 — sub-columns */}
+              <div className="flex bg-zinc-100 border-b border-zinc-300 px-3 pb-1.5 text-[9px] font-bold uppercase tracking-wide text-zinc-500 gap-2">
+                <div className={`${cell} ${W.godown}`} />
+                {showBatch && (
+                  <div className={`${cell} ${W.batch} flex gap-1`}>
+                    <div className="flex-1">{trackMfg ? "Mfg Dt." : ""}</div>
+                    <div className="flex-1">{trackExpiry ? "Expiry Date" : ""}</div>
                   </div>
-                );
-              })}
+                )}
+                <div className={`${cell} ${W.qty} flex gap-1`}>
+                  <div className="flex-1 text-right">Actual</div>
+                  <div className="flex-1 text-right">Billed</div>
+                </div>
+                <div className={`${cell} ${W.rate}`} />
+                <div className={`${cell} ${W.per}`} />
+                <div className={`${cell} ${W.disc}`} />
+                <div className={`${cell} ${W.amount}`} />
+                <div className={`${cell} ${W.del}`} />
+              </div>
+
+              {/* Order-tracking header — Tracking No. / Order No. / Due on (Tally).
+                  Order No. + Due on show for batch items. Each list has only the
+                  default (◆ Not Applicable) + New Number + existing entries. */}
+              <div className="flex items-center bg-white px-3 py-1.5 text-[11px] border-b border-zinc-100 gap-4">
+                {/* Tracking No. */}
+                <div className="flex items-center gap-1 relative" ref={trackingRef}>
+                  <span className="italic text-zinc-600 shrink-0">Tracking No.</span>
+                  <span className="text-zinc-400">:</span>
+                  <button
+                    type="button"
+                    onClick={() => { setShowOrderList(false); setShowTrackingList((s) => !s); }}
+                    className="min-w-[90px] text-left font-semibold text-zinc-900 border-b border-dashed border-zinc-300 hover:border-zinc-800 px-1"
+                  >
+                    {trackingNo}
+                  </button>
+                  {showTrackingList && (
+                    <div className="absolute left-0 top-full mt-1 w-[400px] bg-white border border-zinc-400 shadow-xl z-40 max-h-56 overflow-y-auto">
+                      <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-1 sticky top-0 flex justify-between items-center">
+                        <span>List of Tracking Numbers</span>
+                        <button type="button" onClick={() => { setShowTrackingList(false); setTrackingNewNumber(true); }} className="hover:underline font-semibold">New Number</button>
+                      </div>
+                      <div className="flex bg-zinc-100 text-[9px] font-bold text-zinc-600 px-2 py-1 border-b border-zinc-200 gap-1">
+                        <div className="flex-1">Name</div>
+                        <div className="w-16">Batch</div>
+                        <div className="w-16">Godown</div>
+                        <div className="w-16">Date</div>
+                        <div className="w-14 text-right">Balance</div>
+                      </div>
+                      <button type="button" onClick={() => selectTracking(NOT_APPLICABLE)}
+                        className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 font-semibold">
+                        {NOT_APPLICABLE}
+                      </button>
+                      {trackingList.map((t) => (
+                        <button key={t.name} type="button" onClick={() => selectTracking(t.name)}
+                          className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 gap-1">
+                          <div className="flex-1 font-semibold">{t.name}</div>
+                          <div className="w-16 font-mono truncate">{t.batch ?? ""}</div>
+                          <div className="w-16 font-mono truncate">{t.godown ?? ""}</div>
+                          <div className="w-16 font-mono">{fmtDate(t.date)}</div>
+                          <div className="w-14 text-right font-mono">{t.balance ?? ""}</div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Order No. — batch items only */}
+                {showBatch && (
+                  <div className="flex items-center gap-1 relative" ref={orderRef}>
+                    <span className="italic text-zinc-600 shrink-0">Order No.</span>
+                    <span className="text-zinc-400">:</span>
+                    <button
+                      type="button"
+                      onClick={() => { setShowTrackingList(false); setShowOrderList((s) => !s); }}
+                      className="min-w-[90px] text-left font-semibold text-zinc-900 border-b border-dashed border-zinc-300 hover:border-zinc-800 px-1"
+                    >
+                      {orderNo}
+                    </button>
+                    {showOrderList && (
+                      <div className="absolute left-0 top-full mt-1 w-[400px] bg-white border border-zinc-400 shadow-xl z-40 max-h-56 overflow-y-auto">
+                        <div className="bg-zinc-900 text-white text-[10px] font-bold px-2 py-1 sticky top-0 flex justify-between items-center">
+                          <span>List of Orders</span>
+                          <button type="button" onClick={() => { setShowOrderList(false); setOrderNewNumber(true); }} className="hover:underline font-semibold">New Number</button>
+                        </div>
+                        <div className="flex bg-zinc-100 text-[9px] font-bold text-zinc-600 px-2 py-1 border-b border-zinc-200 gap-1">
+                          <div className="flex-1">Name</div>
+                          <div className="w-16">Batch</div>
+                          <div className="w-16">Godown</div>
+                          <div className="w-16">Due On</div>
+                          <div className="w-14 text-right">Balance</div>
+                        </div>
+                        <button type="button" onClick={() => selectOrder(NOT_APPLICABLE)}
+                          className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 font-semibold">
+                          {NOT_APPLICABLE}
+                        </button>
+                        {orderList.map((o) => (
+                          <button key={o.name} type="button" onClick={() => selectOrder(o.name)}
+                            className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-zinc-100 border-b border-zinc-50 gap-1">
+                            <div className="flex-1 font-semibold">{o.name}</div>
+                            <div className="w-16 font-mono truncate">{o.batch ?? ""}</div>
+                            <div className="w-16 font-mono truncate">{o.godown ?? ""}</div>
+                            <div className="w-16 font-mono truncate">{o.due_on ?? ""}</div>
+                            <div className="w-14 text-right font-mono">{o.balance ?? ""}</div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Due on — shown once an order is chosen */}
+                {showBatch && orderNo !== NOT_APPLICABLE && (
+                  <div className="flex items-center gap-1">
+                    <span className="italic text-zinc-600 shrink-0">Due on</span>
+                    <span className="text-zinc-400">:</span>
+                    <input
+                      type="text"
+                      value={dueOn}
+                      onChange={(e) => setDueOn(e.target.value)}
+                      placeholder="e.g. 5 Days"
+                      className="w-24 text-xs border border-zinc-300 px-1 py-0.5 outline-none focus:border-zinc-800 font-mono"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Data rows */}
+              <div className="divide-y divide-zinc-100">
+                {rows.map((row, i) => {
+                  const baseIso = (trackMfg && row.mfg_date) ? row.mfg_date : voucherDate;
+                  const godownActive = activePanel === "godown" && activePanelRow === i;
+                  const batchActive = activePanel === "batch" && activePanelRow === i;
+                  return (
+                    <div key={i} className="flex items-start px-3 py-2 gap-2">
+
+                      {/* Godown — button that opens side panel */}
+                      <div className={`${cell} ${W.godown}`}>
+                        <button
+                          type="button"
+                          className={`${inputCls} bg-white text-left truncate ${godownActive ? "border-zinc-800 bg-zinc-50" : ""}`}
+                          onClick={() => {
+                            if (godownActive) { closePanel(); }
+                            else { setActivePanel("godown"); setActivePanelRow(i); setGodownSearch(""); }
+                          }}
+                        >
+                          {row.godown || <span className="text-zinc-400">Location…</span>}
+                        </button>
+                      </div>
+
+                      {/* Batch / Lot No. + Mfg Dt. / Expiry Date */}
+                      {showBatch && (
+                        <div className={`${cell} ${W.batch}`}>
+                          <input
+                            type="text"
+                            value={row.batch_number}
+                            onChange={(e) => update(i, { batch_number: e.target.value })}
+                            onFocus={() => { setActivePanel("batch"); setActivePanelRow(i); }}
+                            placeholder="Batch / Lot No.…"
+                            className={`${inputCls} font-semibold ${batchActive ? "border-zinc-800 bg-zinc-50" : ""}`}
+                          />
+                          {(trackMfg || trackExpiry) && (
+                            <div className="flex gap-1 mt-1">
+                              <div className="flex-1">
+                                {trackMfg && (
+                                  <input
+                                    type="date"
+                                    value={row.mfg_date ?? ""}
+                                    onChange={(e) => update(i, { mfg_date: e.target.value })}
+                                    className={`${inputCls} font-mono`}
+                                  />
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                {trackExpiry && (
+                                  <input
+                                    type="text"
+                                    defaultValue={row.expiry_date ? fmtDate(row.expiry_date) : ""}
+                                    onBlur={(e) => {
+                                      const iso = parseExpiry(e.target.value, baseIso);
+                                      update(i, { expiry_date: iso || undefined });
+                                      e.target.value = iso ? fmtDate(iso) : e.target.value;
+                                    }}
+                                    placeholder="date / 2 years"
+                                    className={`${inputCls} font-mono`}
+                                  />
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Quantity — Actual / Billed */}
+                      <div className={`${cell} ${W.qty} flex gap-1`}>
+                        <input
+                          type="number"
+                          step="any"
+                          value={row.actual_quantity || ""}
+                          onChange={(e) => setActual(i, Number(e.target.value) || 0)}
+                          onFocus={closePanel}
+                          className={`${inputCls} text-right font-mono`}
+                        />
+                        <input
+                          type="number"
+                          step="any"
+                          value={row.quantity || ""}
+                          onChange={(e) => update(i, { quantity: Number(e.target.value) || 0 })}
+                          onFocus={closePanel}
+                          className={`${inputCls} text-right font-mono`}
+                        />
+                      </div>
+
+                      {/* Rate */}
+                      <div className={`${cell} ${W.rate}`}>
+                        <input
+                          type="number"
+                          step="any"
+                          value={row.rate || ""}
+                          onChange={(e) => update(i, { rate: Number(e.target.value) || 0 })}
+                          onFocus={closePanel}
+                          className={`${inputCls} text-right font-mono`}
+                        />
+                      </div>
+
+                      {/* per */}
+                      <div className={`${cell} ${W.per} text-center text-[11px] text-zinc-600 pt-1.5 font-mono`}>
+                        {unitSymbol ?? ""}
+                      </div>
+
+                      {/* Disc % */}
+                      <div className={`${cell} ${W.disc}`}>
+                        <input
+                          type="number"
+                          step="any"
+                          value={row.disc_percent || ""}
+                          onChange={(e) => update(i, { disc_percent: Number(e.target.value) || 0 })}
+                          onFocus={closePanel}
+                          className={`${inputCls} text-right font-mono`}
+                        />
+                      </div>
+
+                      {/* Amount */}
+                      <div className={`${cell} ${W.amount} text-right text-xs font-mono font-semibold pt-1.5`}>
+                        {num(lineAmount(row))}
+                      </div>
+
+                      {/* Remove */}
+                      <div className={`${cell} ${W.del} text-center pt-1`}>
+                        <button type="button" onClick={() => removeRow(i)} className="text-zinc-400 hover:text-zinc-900 text-sm font-bold">&times;</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Totals row */}
+              <div className="flex items-center px-3 py-2 bg-zinc-100 border-t-2 border-zinc-300 gap-2 font-bold text-xs font-mono">
+                <div className={`${cell} ${W.godown}`} />
+                {showBatch && <div className={`${cell} ${W.batch}`} />}
+                <div className={`${cell} ${W.qty} flex gap-1`}>
+                  <div className="flex-1 text-right">{totalActual || ""}</div>
+                  <div className="flex-1 text-right">{totalBilled || ""}</div>
+                </div>
+                <div className={`${cell} ${W.rate}`} />
+                <div className={`${cell} ${W.per}`} />
+                <div className={`${cell} ${W.disc}`} />
+                <div className={`${cell} ${W.amount} text-right`}>{num(totalAmount)}</div>
+                <div className={`${cell} ${W.del}`} />
+              </div>
             </div>
 
-            {/* Totals row */}
-            <div className="flex items-center px-3 py-2 bg-zinc-100 border-t-2 border-zinc-300 gap-2 font-bold text-xs font-mono">
-              <div className={`${cell} ${W.godown}`} />
-              {showBatch && <div className={`${cell} ${W.batch}`} />}
-              <div className={`${cell} ${W.qty} flex gap-1`}>
-                <div className="flex-1 text-right">{totalActual || ""}</div>
-                <div className="flex-1 text-right">{totalBilled || ""}</div>
-              </div>
-              <div className={`${cell} ${W.rate}`} />
-              <div className={`${cell} ${W.per}`} />
-              <div className={`${cell} ${W.disc}`} />
-              <div className={`${cell} ${W.amount} text-right`}>{num(totalAmount)}</div>
-              <div className={`${cell} ${W.del}`} />
+            <div className="flex justify-between items-center">
+              <button onClick={addRow}
+                className="text-[10px] uppercase tracking-wide font-bold text-zinc-600 hover:text-zinc-900 border border-zinc-300 px-2.5 py-1 hover:bg-zinc-50">
+                + Add Batch
+              </button>
+              {quantityDriven ? (
+                <span className="text-xs font-mono font-semibold text-zinc-900">
+                  Total: {totalBilled} {unitSymbol ?? ""}
+                </span>
+              ) : (
+                <span className={`text-xs font-mono font-semibold ${Math.abs(remaining) < 0.0001 ? "text-zinc-500" : "text-zinc-900"}`}>
+                  Remaining: {remaining} {unitSymbol ?? ""}
+                </span>
+              )}
             </div>
           </div>
 
-          <div className="flex justify-between items-center">
-            <button onClick={addRow}
-              className="text-[10px] uppercase tracking-wide font-bold text-zinc-600 hover:text-zinc-900 border border-zinc-300 px-2.5 py-1 hover:bg-zinc-50">
-              + Add Batch
-            </button>
-            {quantityDriven ? (
-              <span className="text-xs font-mono font-semibold text-zinc-900">
-                Total: {totalBilled} {unitSymbol ?? ""}
-              </span>
+          <div className="border-t border-zinc-200 p-3 bg-zinc-50 flex justify-between items-center shrink-0">
+            <span className="text-[10px] text-zinc-500">Alt+A: Accept · Esc: Close</span>
+            <div className="flex gap-2">
+              <button onClick={onClose}
+                className="text-xs px-3 py-1.5 border border-zinc-300 text-zinc-700 bg-white hover:bg-zinc-100 font-semibold">Cancel</button>
+              <button onClick={handleSave}
+                className="text-xs px-5 py-1.5 bg-zinc-900 text-white hover:bg-zinc-700 font-semibold">Accept</button>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Side panel: List of Godowns or List of Active Batches ── */}
+        {activePanel !== null && (
+          <div className="w-60 border border-black border-l-0 flex flex-col bg-white max-h-[88vh]" style={{ marginTop: 0 }}>
+
+            {activePanel === "godown" ? (
+              <>
+                {/* Godown panel header */}
+                <div className="bg-black text-white text-xs font-bold px-2 py-1 flex justify-between items-center shrink-0">
+                  <span>List of Godowns</span>
+                  <button onClick={closePanel} className="text-white hover:text-zinc-300 font-bold leading-none">&times;</button>
+                </div>
+
+                {/* Search */}
+                <div className="border-b border-zinc-300 shrink-0">
+                  <input
+                    ref={godownSearchRef}
+                    type="text"
+                    className="w-full text-xs outline-none px-2 py-1 bg-white"
+                    value={godownSearch}
+                    onChange={(e) => setGodownSearch(e.target.value)}
+                    placeholder="Search..."
+                  />
+                </div>
+
+                {/* Create */}
+                <div
+                  className="px-2 py-1 text-xs cursor-pointer hover:bg-zinc-100 border-b border-zinc-200 text-black select-none font-semibold"
+                  onClick={closePanel}
+                >
+                  Create
+                </div>
+
+                {/* Godown items */}
+                <div ref={panelListRef} className="flex-1 overflow-y-auto min-h-0">
+                  {/* Any */}
+                  <div
+                    data-panel-item
+                    className={`px-2 py-0.5 text-xs cursor-pointer select-none flex items-center justify-between ${panelHi === 0 ? "bg-[#f0c040] font-semibold" : "hover:bg-zinc-50"}`}
+                    onClick={() => activePanelRow !== null && pickGodown(activePanelRow, "")}
+                    onMouseEnter={() => setPanelHi(0)}
+                  >
+                    <span>&#9670; Any</span>
+                  </div>
+
+                  {filteredGodowns.map((g, idx) => (
+                    <div
+                      key={g.godown_id ?? g.name}
+                      data-panel-item
+                      className={`px-2 py-0.5 text-xs cursor-pointer select-none flex items-center justify-between ${panelHi === idx + 1 ? "bg-[#f0c040] font-semibold" : "hover:bg-zinc-50"}`}
+                      onClick={() => activePanelRow !== null && pickGodown(activePanelRow, g.name)}
+                      onMouseEnter={() => setPanelHi(idx + 1)}
+                    >
+                      <span className="truncate">{g.name}</span>
+                      <span className="text-zinc-500 text-[10px] shrink-0 ml-2">&#9670; {parentName(g)}</span>
+                    </div>
+                  ))}
+
+                  {filteredGodowns.length === 0 && (
+                    <div className="px-2 py-2 text-xs text-zinc-400 italic">No godowns</div>
+                  )}
+                </div>
+
+                <div className="border-t border-zinc-200 px-2 py-1 text-[10px] text-zinc-500 select-none bg-zinc-50 shrink-0">
+                  ↑↓ Navigate &nbsp;·&nbsp; Enter Select
+                </div>
+              </>
             ) : (
-              <span className={`text-xs font-mono font-semibold ${Math.abs(remaining) < 0.0001 ? "text-zinc-500" : "text-zinc-900"}`}>
-                Remaining: {remaining} {unitSymbol ?? ""}
-              </span>
+              <>
+                {/* Batch panel header — "New Number" on the right */}
+                <div className="bg-black text-white text-xs font-bold px-2 py-1 flex justify-between items-center shrink-0">
+                  <span>List of Active Batches</span>
+                  {/* New Number — always available (Tally shows it for outward too). */}
+                  <button
+                    type="button"
+                    title={isInward ? "Create a new lot" : "Type a batch number to issue"}
+                    className="text-white hover:text-zinc-300 font-semibold text-[10px] underline"
+                    onClick={() => {
+                      if (activePanelRow !== null) {
+                        setBatchNumberRow(activePanelRow);
+                        closePanel();
+                      }
+                    }}
+                  >
+                    New Number
+                  </button>
+                </div>
+
+                {/* Column headers */}
+                <div className="flex px-2 py-1 border-b border-zinc-300 bg-zinc-100 text-[9px] font-bold uppercase tracking-wide text-zinc-600 shrink-0">
+                  <div className="flex-1">Name</div>
+                  <div className="w-16 text-center">Expiry</div>
+                  <div className="w-14 text-right">Balance</div>
+                </div>
+
+                {/* Items — New Number (header) + existing batches only, no "Any". */}
+                <div ref={panelListRef} className="flex-1 overflow-y-auto min-h-0">
+                  {filteredBatches.map((b, idx) => (
+                    <div
+                      key={b.name}
+                      data-panel-item
+                      className={`px-2 py-0.5 text-xs cursor-pointer select-none flex items-center ${panelHi === idx ? "bg-[#f0c040] font-semibold" : "hover:bg-zinc-50"}`}
+                      onClick={() => activePanelRow !== null && pickBatch(activePanelRow, b)}
+                      onMouseEnter={() => setPanelHi(idx)}
+                    >
+                      <span className="flex-1 font-mono truncate">{b.name}</span>
+                      <span className="w-16 text-center font-mono text-zinc-600">{fmtDate(b.expiry_date)}</span>
+                      <span className="w-14 text-right font-mono text-zinc-600">
+                        {b.balance ? `${b.balance}${unitSymbol ? ` ${unitSymbol}` : ""}` : ""}
+                      </span>
+                    </div>
+                  ))}
+
+                  {filteredBatches.length === 0 && (
+                    <div className="px-2 py-2 text-xs text-zinc-400 italic">No batches yet</div>
+                  )}
+                </div>
+
+                <div className="border-t border-zinc-200 px-2 py-1 text-[10px] text-zinc-500 select-none bg-zinc-50 shrink-0">
+                  ↑↓ Navigate &nbsp;·&nbsp; Enter Select
+                </div>
+              </>
             )}
           </div>
-        </div>
-
-        <div className="border-t border-zinc-200 p-3 bg-zinc-50 flex justify-between items-center">
-          <span className="text-[10px] text-zinc-500">Alt+A: Accept · Esc: Close</span>
-          <div className="flex gap-2">
-            <button onClick={onClose}
-              className="text-xs px-3 py-1.5 border border-zinc-300 text-zinc-700 bg-white hover:bg-zinc-100 font-semibold">Cancel</button>
-            <button onClick={handleSave}
-              className="text-xs px-5 py-1.5 bg-zinc-900 text-white hover:bg-zinc-700 font-semibold">Accept</button>
-          </div>
-        </div>
+        )}
       </div>
+
+      {/* New Number popup — tracking numbers (shared component, same everywhere) */}
+      {trackingNewNumber && (
+        <NewNumberPopup
+          title="New Number"
+          label="Tracking No."
+          onClose={() => setTrackingNewNumber(false)}
+          onConfirm={addTrackingNumber}
+        />
+      )}
+
+      {/* New Number popup — order numbers */}
+      {orderNewNumber && (
+        <NewNumberPopup
+          title="New Number"
+          label="Order No."
+          onClose={() => setOrderNewNumber(false)}
+          onConfirm={addOrderNumber}
+        />
+      )}
+
+      {/* New Number popup — batch numbers */}
+      {batchNumberRow !== null && (
+        <NewNumberPopup
+          title="New Number"
+          label="Batch / Lot No."
+          onClose={() => setBatchNumberRow(null)}
+          onConfirm={(value) => {
+            setCreatedBatches((c) => (c.includes(value) ? c : [...c, value]));
+            update(batchNumberRow, { batch_number: value });
+            setBatchNumberRow(null);
+          }}
+        />
+      )}
     </div>
   );
 }

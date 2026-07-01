@@ -75,7 +75,8 @@ module.exports = {
       try { await tallyFeaturesService.seedDefaultFeatures(company_id); console.log('tallyFeatures ok'); } catch(e) { console.error('tallyFeatures failed:', e.message); }
       try { await companyCreationSuccessService.seedCompanyCreationSuccess(company_id); console.log('companyCreationSuccess ok'); } catch(e) { console.error('companyCreationSuccess failed:', e.message); }
       try { await companyFeatureValuesService.seedCompanyFeatureValues(company_id); console.log('companyFeatureValues ok'); } catch(e) { console.error('companyFeatureValues failed:', e.message); }
-      try { await attendanceTypeService.seedDefaultAttendanceTypes(company_id); console.log('attendanceTypes ok'); } catch(e) { console.error('attendanceTypes failed:', e.message); }
+      // Attendance / Production types are NOT pre-seeded — the user creates their own
+      // (the List of Attendance/Production Types starts empty, with only "Create").
       try { await payHeadService.seedDefaultPayHeads(company_id); console.log('payHeads ok'); } catch(e) { console.error('payHeads failed:', e.message); }
       try { await financialYearService.seedDefaultFY(company_id, data.financial_year_beginning_from); console.log('fy ok'); } catch(e) {  console.error('fy failed:', e.message); }
 

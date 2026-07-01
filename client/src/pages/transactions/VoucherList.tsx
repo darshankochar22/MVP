@@ -185,7 +185,9 @@ export default function VoucherList() {
       }
       if (e.key === "Enter" && filtered.length > 0) {
         e.preventDefault();
-        navigate(`/transactions/voucher/${filtered[selectedIndex].voucher_id}`);
+        // Attendance rows carry a negative id (separate table) — not editable here yet.
+        if (filtered[selectedIndex].voucher_id >= 0)
+          navigate(`/transactions/voucher/${filtered[selectedIndex].voucher_id}`);
       }
       if (e.key === "Escape") {
         e.preventDefault();
@@ -234,6 +236,8 @@ export default function VoucherList() {
 
   const handleRowClick = (idx: number) => {
     setSelectedIndex(idx);
+    // Attendance rows carry a negative id (separate table) — not editable here yet.
+    if (filtered[idx].voucher_id < 0) return;
     navigate(`/transactions/voucher/${filtered[idx].voucher_id}`);
   };
 

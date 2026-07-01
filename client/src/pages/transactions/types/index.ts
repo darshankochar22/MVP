@@ -13,10 +13,33 @@ export interface ParticularRow {
     credit_period?: string;
     due_date?: string;
   }[];
+  /** Journal / Reversing Journal: stock items entered against an inventory-
+   *  affecting ledger (Purchase/Sales A/c) via the Inventory Allocations sub-screen. */
+  inventoryAllocations?: InventoryAllocationItem[];
+}
+
+/** One stock line entered inside the Inventory Allocations sub-screen for an
+ *  inventory-affecting ledger. Carries its godown/batch split and per-item cost
+ *  centre allocation, plus display fields (unit symbol, cost-centre names). */
+export interface InventoryAllocationItem {
+  stock_item_id: number;
+  item_name: string;
+  godown_id?: number | null;
+  unit_id?: number | null;
+  unit_symbol?: string;
+  actual_quantity: number;
+  quantity: number;          // billed quantity — drives the amount
+  rate: number;
+  amount: number;
+  batches?: BatchAllocation[];
+  cost_centres?: { cost_centre_id: number; cost_centre_name?: string; amount: number }[];
 }
 
 export interface BatchAllocation {
   batch_number: string;
+  /** TallyPrime tracking number linking a Delivery/Receipt Note to its later
+   *  invoice. "" or "♦ Not Applicable" means no tracking. */
+  tracking_no?: string;
   godown?: string;            // godown / location name
   mfg_date?: string;          // ISO yyyy-mm-dd
   expiry_date?: string;       // ISO yyyy-mm-dd
@@ -29,6 +52,33 @@ export interface BatchAllocation {
   due_on?: string;
   component_of?: string;
   consider_as_scrap?: string;
+}
+
+/** One component line in the Job Work Components Allocation popup. */
+export interface ComponentAllocationRow {
+  item_name: string;
+  track: "Pending to Issue" | "Pending to Receive" | "";
+  due_on: string;
+  godown: string;
+  batch_lot?: string;
+  mfg_date?: string;
+  expiry_date?: string;
+  actual_qty: number;
+  as_per_bom: number;
+  rate: number;
+  unit_symbol?: string;
+  amount: number;
+}
+
+/** One godown/qty allocation line in the Job Work Stock Item Allocations popup. */
+export interface JobWorkItemAllocationRow {
+  due_on: string;
+  godown: string;
+  quantity: number;
+  rate: number;
+  unit_symbol?: string;
+  amount: number;
+  components?: ComponentAllocationRow[];
 }
 
 export interface StockEntryRow {
@@ -47,6 +97,8 @@ export interface StockEntryRow {
   expiryDate?: string;
   /** Multi-batch split for a batch-tracked item (Stock Item Allocations sub-screen). */
   batchAllocations?: BatchAllocation[];
+  /** Job Work In/Out Order: godown+qty split with optional component sub-allocations. */
+  jobWorkAllocations?: JobWorkItemAllocationRow[];
   /** Per-item Excise Details (Credit Note, excise-applicable items). */
   exciseItemDetails?: import("../components/popups/ItemExciseDetailsPopup").ExciseItemDetails;
 }
@@ -142,6 +194,15 @@ export type ActiveAllocation =
       trackMfg?: boolean;
       trackExpiry?: boolean;
       initialAllocations?: BatchAllocation[];
+    }
+  | {
+      type: "jobWork";
+      rowId: string;
+      itemId: number;
+      itemName: string;
+      unitSymbol?: string;
+      orderNo?: string;
+      initialAllocations?: JobWorkItemAllocationRow[];
     }
   | null;
 
