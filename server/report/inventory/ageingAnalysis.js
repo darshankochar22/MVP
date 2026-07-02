@@ -1,11 +1,14 @@
 const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
 const { vouchers, stockItems, voucherStockEntries, units } = require('../../db/schema');
+const {
+  STOCK_INWARD_TYPES, STOCK_OUTWARD_TYPES, inwardCondSql, outwardCondSql,
+} = require('../services/stockMovement');
 
 // Voucher types that ADD on-hand stock (a "purchase" lot, aged by its date).
-const INWARD  = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In'];
+const INWARD  = STOCK_INWARD_TYPES;
 // Voucher types that REMOVE on-hand stock (consumed FIFO, oldest first).
-const OUTWARD = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out'];
+const OUTWARD = STOCK_OUTWARD_TYPES;
 
 // Default ageing band boundaries (in days): <45, 45-90, 90-180, >180.
 const DEFAULT_PERIODS = [45, 90, 180];
@@ -43,6 +46,16 @@ const stockAgeingAnalysis = async (company_id, fy_id, group_id, as_at, fy_start,
     // `opts.includeOpening === false` suppresses the opening-balance lot.
     const inwardTypes  = Array.isArray(opts.inwardTypes)  && opts.inwardTypes.length  ? opts.inwardTypes  : INWARD;
     const outwardTypes = Array.isArray(opts.outwardTypes) && opts.outwardTypes.length ? opts.outwardTypes : OUTWARD;
+    // Default runs also count Stock/Manufacturing Journal legs (per-entry
+    // direction via is_source); Job Work variants pass their own type lists
+    // and keep plain type matching.
+    const usingDefaults = inwardTypes === INWARD && outwardTypes === OUTWARD;
+    const inwardCond = usingDefaults
+      ? inwardCondSql('v', 'vse')
+      : sql`v.voucher_type IN (${sql.join(inwardTypes.map(t => sql`${t}`), sql`, `)})`;
+    const outwardCond = usingDefaults
+      ? outwardCondSql('v', 'vse')
+      : sql`v.voucher_type IN (${sql.join(outwardTypes.map(t => sql`${t}`), sql`, `)})`;
     const includeOpening = opts.includeOpening !== false;
     const bands = Array.isArray(periods) && periods.length === 3 ? periods : DEFAULT_PERIODS;
     const asAt = as_at || new Date().toISOString().slice(0, 10);
@@ -81,7 +94,7 @@ const stockAgeingAnalysis = async (company_id, fy_id, group_id, as_at, fy_start,
         AND v.is_cancelled = 0
         AND COALESCE(v.is_optional, 0) = 0
         AND COALESCE(v.is_post_dated, 0) = 0
-        AND v.voucher_type IN (${sql.join(inwardTypes.map(t => sql`${t}`), sql`, `)})
+        AND ${inwardCond}
       ORDER BY v.date ASC, vse.stock_entry_id ASC
     `);
 
@@ -97,7 +110,7 @@ const stockAgeingAnalysis = async (company_id, fy_id, group_id, as_at, fy_start,
         AND v.is_cancelled = 0
         AND COALESCE(v.is_optional, 0) = 0
         AND COALESCE(v.is_post_dated, 0) = 0
-        AND v.voucher_type IN (${sql.join(outwardTypes.map(t => sql`${t}`), sql`, `)})
+        AND ${outwardCond}
       GROUP BY vse.stock_item_id
     `);
 

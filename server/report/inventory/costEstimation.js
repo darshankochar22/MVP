@@ -1,8 +1,7 @@
 const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
 
-const INWARD  = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In'];
-const OUTWARD = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out'];
+const { inwardCondSql, outwardCondSql } = require('../services/stockMovement');
 
 // PRIMARY (-1) means "all stock groups" (Items Under: Primary).
 
@@ -36,8 +35,8 @@ const costEstimation = async (company_id, fy_id, group_id) => {
       LEFT JOIN units u ON u.unit_id = si.unit_id
       LEFT JOIN (
         SELECT vse.stock_item_id,
-          SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD.map(t => sql`${t}`), sql`, `)}) THEN vse.quantity ELSE 0 END) AS in_qty,
-          SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD.map(t => sql`${t}`), sql`, `)}) THEN vse.quantity ELSE 0 END) AS out_qty
+          SUM(CASE WHEN ${inwardCondSql('v', 'vse')} THEN vse.quantity ELSE 0 END) AS in_qty,
+          SUM(CASE WHEN ${outwardCondSql('v', 'vse')} THEN vse.quantity ELSE 0 END) AS out_qty
         FROM voucher_stock_entries vse
         INNER JOIN vouchers v ON v.voucher_id = vse.voucher_id
         WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id}

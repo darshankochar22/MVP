@@ -2,70 +2,100 @@ const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
 const { stockItems, stockGroups, voucherStockEntries, vouchers, units } = require('../db/schema');
 const { calculateClosingStock } = require('./stockValuationEngine');
+const {
+  entryDirection, inwardCondSql, outwardCondSql, newWAState, applyWA,
+} = require('./services/stockMovement');
 
+// Shared row-builder for the voucher registers (Stock Item Vouchers / Godown
+// Vouchers). `entries` must be chronological rows of
+// { voucher_id, date, particulars, voucher_type, voucher_number, quantity, amount, is_source }.
+// Entries before from_date roll into the weighted-average opening state; the
+// rest group into one row per voucher with PER-ENTRY direction (so a Stock
+// Journal shows its inward and outward legs instead of everything-as-outward),
+// and the running closing value consumes outward stock at weighted-average
+// COST — never at the voucher's sales value. In/out columns keep book values.
+const buildVoucherRegister = (entries, wa, from_date, to_date, includeOpeningRow) => {
+  for (const e of entries) {
+    if (!from_date || !e.date || e.date >= from_date) continue;
+    const dir = entryDirection(e.voucher_type, e.is_source);
+    if (dir) applyWA(wa, dir, e.quantity, e.amount);
+  }
+  const openingQty = wa.qty;
+  const openingValue = wa.value;
 
-const INWARD_TYPES = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In'];
-const OUTWARD_TYPES = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out'];
+  const rows = [];
+  if (includeOpeningRow && (openingQty !== 0 || openingValue !== 0)) {
+    rows.push({
+      voucher_id: null, date: from_date || null, particulars: 'Opening Balance',
+      voucher_type: '', voucher_number: '',
+      inwards_qty: openingQty, inwards_value: openingValue,
+      outwards_qty: null, outwards_value: null,
+      closing_qty: openingQty, closing_value: openingValue,
+    });
+  }
+
+  let current = null;
+  const flush = () => { if (current) { rows.push(current); current = null; } };
+  for (const e of entries) {
+    if (from_date && e.date && e.date < from_date) continue;
+    if (to_date && e.date && e.date > to_date) continue;
+    const dir = entryDirection(e.voucher_type, e.is_source);
+    if (!dir) continue;
+    if (!current || current.voucher_id !== e.voucher_id) {
+      flush();
+      current = {
+        voucher_id: e.voucher_id, date: e.date, particulars: e.particulars,
+        voucher_type: e.voucher_type, voucher_number: e.voucher_number,
+        inwards_qty: null, inwards_value: null,
+        outwards_qty: null, outwards_value: null,
+        closing_qty: wa.qty, closing_value: wa.value,
+      };
+    }
+    const qty = Number(e.quantity) || 0;
+    const amt = Number(e.amount) || 0;
+    if (dir === 'in') {
+      current.inwards_qty = (current.inwards_qty || 0) + qty;
+      current.inwards_value = (current.inwards_value || 0) + amt;
+    } else {
+      current.outwards_qty = (current.outwards_qty || 0) + qty;
+      current.outwards_value = (current.outwards_value || 0) + amt;
+    }
+    applyWA(wa, dir, qty, amt);
+    current.closing_qty = wa.qty;
+    current.closing_value = wa.value;
+  }
+  flush();
+  return { openingQty, openingValue, rows };
+};
 
 module.exports = {
 
   stockGroupItems: async (company_id, fy_id, group_id) => {
     try {
-      const { stockItems, stockGroups, voucherStockEntries, vouchers, units } = require('../db/schema');
-      const INWARD_TYPES  = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In'];
-      const OUTWARD_TYPES = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out'];
-
       const rows = await db.all(
         sql`SELECT
               si.item_id        AS item_id,
               si.name           AS item_name,
               sg.name           AS group_name,
-              u.name            AS unit_name,
-              COALESCE(si.opening_quantity, 0) AS opening_qty,
-              COALESCE(si.opening_value, 0)    AS opening_value,
-              COALESCE(mv.inwards_qty, 0)      AS inwards_qty,
-              COALESCE(mv.inwards_value, 0)    AS inwards_value,
-              COALESCE(mv.outwards_qty, 0)     AS outwards_qty,
-              COALESCE(mv.outwards_value, 0)   AS outwards_value
+              u.name            AS unit_name
             FROM ${stockItems} si
             LEFT JOIN ${stockGroups} sg ON sg.sg_id = si.group_id
             LEFT JOIN ${units} u ON u.unit_id = si.unit_id
-            LEFT JOIN (
-              SELECT
-                vse.stock_item_id AS stock_item_id,
-                SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
-                         THEN vse.quantity ELSE 0 END) AS inwards_qty,
-                SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
-                         THEN vse.amount ELSE 0 END) AS inwards_value,
-                SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})
-                         THEN vse.quantity ELSE 0 END) AS outwards_qty,
-                SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})
-                         THEN vse.amount ELSE 0 END) AS outwards_value
-              FROM ${voucherStockEntries} vse
-              INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
-              WHERE v.company_id = ${company_id}
-                AND v.fy_id = ${fy_id}
-                AND v.is_cancelled = 0
-                AND COALESCE(v.is_optional, 0) = 0
-                AND COALESCE(v.is_post_dated, 0) = 0
-              GROUP BY vse.stock_item_id
-            ) mv ON mv.stock_item_id = si.item_id
             WHERE si.company_id = ${company_id}
               AND si.is_active = 1
               AND si.group_id = ${group_id}
             ORDER BY si.name ASC`
       );
 
+      // Closing qty/value from the shared valuation engine — the same source
+      // Stock Summary uses, so the group drill always matches the summary.
+      const valuation = await calculateClosingStock(company_id, fy_id, null, 'FIFO');
+      const valMap = new Map((valuation.items || []).map(v => [v.item_id, v]));
+
       const items = rows.map(r => {
-        const opening_qty   = r.opening_qty   || 0;
-        const opening_value = r.opening_value || 0;
-        const inwards_qty   = r.inwards_qty   || 0;
-        const inwards_value = r.inwards_value || 0;
-        const outwards_qty  = r.outwards_qty  || 0;
-        const outwards_value= r.outwards_value|| 0;
-        const closing_qty   = opening_qty + inwards_qty - outwards_qty;
-        const closing_value = opening_value + inwards_value - outwards_value;
-        const rate = closing_qty !== 0 ? closing_value / closing_qty : 0;
+        const v = valMap.get(r.item_id) || { closing_qty: 0, closing_value: 0 };
+        const closing_qty = v.closing_qty || 0;
+        const closing_value = v.closing_value || 0;
         return {
           item_id: r.item_id,
           item_name: r.item_name,
@@ -73,7 +103,7 @@ module.exports = {
           unit_name: r.unit_name || '',
           closing_qty,
           closing_value,
-          rate,
+          rate: closing_qty !== 0 ? closing_value / closing_qty : 0,
         };
       });
 
@@ -94,44 +124,23 @@ module.exports = {
         sql`SELECT
               si.item_id        AS item_id,
               si.name           AS item_name,
-              u.name            AS unit_name,
-              COALESCE(si.opening_quantity, 0) AS opening_qty,
-              COALESCE(si.opening_value, 0)    AS opening_value,
-              COALESCE(mv.inwards_qty, 0)      AS inwards_qty,
-              COALESCE(mv.inwards_value, 0)    AS inwards_value,
-              COALESCE(mv.outwards_qty, 0)     AS outwards_qty,
-              COALESCE(mv.outwards_value, 0)   AS outwards_value
+              u.name            AS unit_name
             FROM ${stockItems} si
             LEFT JOIN ${units} u ON u.unit_id = si.unit_id
-            LEFT JOIN (
-              SELECT
-                vse.stock_item_id AS stock_item_id,
-                SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
-                         THEN vse.quantity ELSE 0 END) AS inwards_qty,
-                SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
-                         THEN vse.amount ELSE 0 END) AS inwards_value,
-                SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})
-                         THEN vse.quantity ELSE 0 END) AS outwards_qty,
-                SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})
-                         THEN vse.amount ELSE 0 END) AS outwards_value
-              FROM ${voucherStockEntries} vse
-              INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
-              WHERE v.company_id = ${company_id}
-                AND v.fy_id = ${fy_id}
-                AND v.is_cancelled = 0
-                AND COALESCE(v.is_optional, 0) = 0
-                AND COALESCE(v.is_post_dated, 0) = 0
-              GROUP BY vse.stock_item_id
-            ) mv ON mv.stock_item_id = si.item_id
             WHERE si.company_id = ${company_id}
               AND si.is_active = 1
               AND si.category_id = ${category_id}
             ORDER BY si.name ASC`
       );
 
+      // Same engine as Stock Summary — category drill matches the summary.
+      const valuation = await calculateClosingStock(company_id, fy_id, null, 'FIFO');
+      const valMap = new Map((valuation.items || []).map(v => [v.item_id, v]));
+
       const items = rows.map(r => {
-        const closing_qty   = (r.opening_qty || 0) + (r.inwards_qty || 0) - (r.outwards_qty || 0);
-        const closing_value = (r.opening_value || 0) + (r.inwards_value || 0) - (r.outwards_value || 0);
+        const v = valMap.get(r.item_id) || { closing_qty: 0, closing_value: 0 };
+        const closing_qty = v.closing_qty || 0;
+        const closing_value = v.closing_value || 0;
         return {
           item_id: r.item_id,
           item_name: r.item_name,
@@ -151,10 +160,6 @@ module.exports = {
 
   stockItemMonthly: async (company_id, fy_id, item_id) => {
     try {
-      const { stockItems, voucherStockEntries, vouchers } = require('../db/schema');
-      const INWARD_TYPES  = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In'];
-      const OUTWARD_TYPES = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out'];
-
       // Fetch financial year boundaries
       const fyRows = await db.all(sql`SELECT * FROM financial_years WHERE fy_id = ${fy_id}`);
       if (fyRows.length === 0) return { success: false, error: 'Financial year not found' };
@@ -169,9 +174,10 @@ module.exports = {
       if (itemRows.length === 0) return { success: false, error: 'Stock item not found' };
       const item = itemRows[0];
 
-      // Fetch all stock entries for this item in this FY
+      // All stock entries for this item in this FY, chronological (order
+      // matters for the running weighted-average cost below).
       const entries = await db.all(
-        sql`SELECT v.date, v.voucher_type, vse.quantity, vse.amount
+        sql`SELECT v.date, v.voucher_type, vse.quantity, vse.amount, vse.is_source
             FROM ${voucherStockEntries} vse
             INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
             WHERE v.company_id = ${company_id}
@@ -179,13 +185,16 @@ module.exports = {
               AND v.is_cancelled = 0
               AND COALESCE(v.is_optional, 0) = 0
               AND COALESCE(v.is_post_dated, 0) = 0
-              AND vse.stock_item_id = ${item_id}`
+              AND vse.stock_item_id = ${item_id}
+            ORDER BY v.date ASC, v.voucher_id ASC, vse.stock_entry_id ASC`
       );
 
-      // Build 12 months Apr → Mar
+      // Build 12 months Apr → Mar. Inwards/Outwards columns show BOOK values
+      // (what the vouchers say — sales at sale price); the running closing
+      // value consumes outward stock at weighted-average COST so the closing
+      // column is a true inventory value, never cost-minus-revenue.
       const MONTH_NAMES = ['April','May','June','July','August','September','October','November','December','January','February','March'];
-      let runningQty   = item.opening_quantity || 0;
-      let runningValue = item.opening_value    || 0;
+      const wa = newWAState(item.opening_quantity || 0, item.opening_value || 0);
 
       const months = MONTH_NAMES.map((name, idx) => {
         let m = idx + 4;
@@ -193,24 +202,28 @@ module.exports = {
         if (m > 12) { m -= 12; y = startYear + 1; }
         const prefix = `${y}-${String(m).padStart(2, '0')}`;
 
-        const monthEntries = entries.filter(e => e.date && e.date.startsWith(prefix));
-        const inward  = monthEntries.filter(e => INWARD_TYPES.includes(e.voucher_type));
-        const outward = monthEntries.filter(e => OUTWARD_TYPES.includes(e.voucher_type));
-
-        const in_qty    = inward.reduce((s, e)  => s + (e.quantity || 0), 0);
-        const in_value  = inward.reduce((s, e)  => s + (e.amount   || 0), 0);
-        const out_qty   = outward.reduce((s, e) => s + (e.quantity || 0), 0);
-        const out_value = outward.reduce((s, e) => s + (e.amount   || 0), 0);
-
-        runningQty   += in_qty   - out_qty;
-        runningValue += in_value - out_value;
+        let in_qty = 0, in_value = 0, out_qty = 0, out_value = 0;
+        for (const e of entries) {
+          if (!e.date || !e.date.startsWith(prefix)) continue;
+          const dir = entryDirection(e.voucher_type, e.is_source);
+          if (dir === 'in') {
+            in_qty += Number(e.quantity) || 0;
+            in_value += Number(e.amount) || 0;
+          } else if (dir === 'out') {
+            out_qty += Number(e.quantity) || 0;
+            out_value += Number(e.amount) || 0;
+          } else {
+            continue;
+          }
+          applyWA(wa, dir, e.quantity, e.amount);
+        }
 
         return {
           month: name,
           in_qty, in_value,
           out_qty, out_value,
-          closing_qty: runningQty,
-          closing_value: runningValue,
+          closing_qty: wa.qty,
+          closing_value: wa.value,
         };
       });
 
@@ -272,8 +285,9 @@ module.exports = {
         sql`SELECT COALESCE(vb.batch_number, 'Primary Batch') AS name,
                    MAX(vb.mfg_date)    AS mfg_date,
                    MAX(vb.expiry_date) AS expiry_date,
-                   SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
-                            THEN COALESCE(vb.quantity, 0) ELSE -COALESCE(vb.quantity, 0) END) AS balance
+                   SUM(CASE WHEN ${inwardCondSql('v', 'vse')} THEN COALESCE(vb.quantity, 0)
+                            WHEN ${outwardCondSql('v', 'vse')} THEN -COALESCE(vb.quantity, 0)
+                            ELSE 0 END) AS balance
             FROM ${voucherBatches} vb
             INNER JOIN ${voucherStockEntries} vse ON vse.stock_entry_id = vb.stock_entry_id
             INNER JOIN ${vouchers} v ON v.voucher_id = vb.voucher_id
@@ -332,6 +346,7 @@ module.exports = {
               AND vb.tracking_no IS NOT NULL AND vb.tracking_no <> ''
               AND v.is_cancelled = 0
               AND COALESCE(v.is_optional, 0) = 0
+              AND COALESCE(v.is_post_dated, 0) = 0
             GROUP BY vb.tracking_no
             ORDER BY vb.tracking_no`
       );
@@ -447,8 +462,10 @@ module.exports = {
               COALESCE(v.party_name, v.narration, '') AS particulars,
               v.voucher_type      AS voucher_type,
               v.voucher_number    AS voucher_number,
-              SUM(COALESCE(vb.quantity, 0))                              AS qty,
-              SUM(COALESCE(vb.quantity, 0) * COALESCE(vb.rate, vse.rate, 0)) AS value
+              SUM(CASE WHEN ${inwardCondSql('v', 'vse')} THEN COALESCE(vb.quantity, 0) ELSE 0 END) AS in_qty,
+              SUM(CASE WHEN ${inwardCondSql('v', 'vse')} THEN COALESCE(vb.quantity, 0) * COALESCE(vb.rate, vse.rate, 0) ELSE 0 END) AS in_value,
+              SUM(CASE WHEN ${outwardCondSql('v', 'vse')} THEN COALESCE(vb.quantity, 0) ELSE 0 END) AS out_qty,
+              SUM(CASE WHEN ${outwardCondSql('v', 'vse')} THEN COALESCE(vb.quantity, 0) * COALESCE(vb.rate, vse.rate, 0) ELSE 0 END) AS out_value
             FROM ${voucherBatches} vb
             INNER JOIN ${voucherStockEntries} vse ON vse.stock_entry_id = vb.stock_entry_id
             INNER JOIN ${vouchers} v ON v.voucher_id = vb.voucher_id
@@ -471,15 +488,13 @@ module.exports = {
       let inwardQty = 0;
       let inwardValue = 0;
       const result = rows.map(r => {
-        const isInward = INWARD_TYPES.includes(r.voucher_type);
-        const qty = Number(r.qty) || 0;
-        const value = Number(r.value) || 0;
-        const inwards_qty   = isInward ? qty : null;
-        const inwards_value = isInward ? value : null;
-        const outwards_qty   = isInward ? null : qty;
-        const outwards_value = isInward ? null : value;
-        if (isInward) { inwardQty += qty; inwardValue += value; }
-        runningQty += (inwards_qty || 0) - (outwards_qty || 0);
+        const in_qty = Number(r.in_qty) || 0;
+        const in_value = Number(r.in_value) || 0;
+        const out_qty = Number(r.out_qty) || 0;
+        const out_value = Number(r.out_value) || 0;
+        inwardQty += in_qty;
+        inwardValue += in_value;
+        runningQty += in_qty - out_qty;
         const avgCost = inwardQty > 0 ? inwardValue / inwardQty : 0;
         return {
           voucher_id: r.voucher_id,
@@ -487,8 +502,8 @@ module.exports = {
           particulars: r.particulars,
           voucher_type: r.voucher_type,
           voucher_number: r.voucher_number,
-          inwards_qty, inwards_value,
-          outwards_qty, outwards_value,
+          inwards_qty: in_qty || null, inwards_value: in_qty ? in_value : null,
+          outwards_qty: out_qty || null, outwards_value: out_qty ? out_value : null,
           closing_qty: runningQty,
           closing_value: runningQty * avgCost,
         };
@@ -512,23 +527,25 @@ module.exports = {
       const godown_name = godownRows.length ? godownRows[0].name : '';
       const dateCond = as_on_date ? sql` AND v.date <= ${as_on_date}` : sql``;
 
-      // Per-item voucher movement (inwards − outwards) for this godown.
+      // Per-item voucher entries for this godown, chronological — direction per
+      // entry (Stock Journal source/destination via is_source), running
+      // weighted-average COST so godown values never mix cost with revenue.
       const moveRows = await db.all(
         sql`SELECT
               vse.stock_item_id AS item_id,
               si.name           AS item_name,
+              si.group_id       AS group_id,
+              sg.name           AS group_name,
               u.name            AS unit_name,
-              SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
-                       THEN vse.quantity ELSE 0 END)
-              - SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})
-                       THEN vse.quantity ELSE 0 END) AS move_qty,
-              SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
-                       THEN vse.amount ELSE 0 END)
-              - SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})
-                       THEN vse.amount ELSE 0 END) AS move_value
+              v.date            AS date,
+              v.voucher_type    AS voucher_type,
+              vse.is_source     AS is_source,
+              vse.quantity      AS quantity,
+              vse.amount        AS amount
             FROM ${voucherStockEntries} vse
             INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
             LEFT JOIN ${stockItems} si ON si.item_id = vse.stock_item_id
+            LEFT JOIN ${stockGroups} sg ON sg.sg_id = si.group_id
             LEFT JOIN ${units} u ON u.unit_id = si.unit_id
             WHERE v.company_id = ${company_id}
               AND v.fy_id = ${fy_id}
@@ -536,7 +553,7 @@ module.exports = {
               AND v.is_cancelled = 0
               AND COALESCE(v.is_optional, 0) = 0
               AND COALESCE(v.is_post_dated, 0) = 0${dateCond}
-            GROUP BY vse.stock_item_id, si.name, u.name`
+            ORDER BY v.date ASC, v.voucher_id ASC, vse.stock_entry_id ASC`
       );
 
       // Per-item opening allocation for this godown.
@@ -544,42 +561,53 @@ module.exports = {
         sql`SELECT
               soa.item_id AS item_id,
               si.name     AS item_name,
+              si.group_id AS group_id,
+              sg.name     AS group_name,
               u.name      AS unit_name,
               SUM(COALESCE(soa.quantity, 0)) AS open_qty,
               SUM(COALESCE(soa.amount, 0))   AS open_value
             FROM stock_item_opening_allocations soa
             INNER JOIN ${stockItems} si ON si.item_id = soa.item_id
+            LEFT JOIN ${stockGroups} sg ON sg.sg_id = si.group_id
             LEFT JOIN ${units} u ON u.unit_id = si.unit_id
             WHERE si.company_id = ${company_id}
               AND soa.godown_id = ${godown_id}
-            GROUP BY soa.item_id, si.name, u.name`
+            GROUP BY soa.item_id, si.name, si.group_id, sg.name, u.name`
       );
 
       const byItem = new Map();
-      const seed = (id, name, unit) => {
-        if (!byItem.has(id)) byItem.set(id, { item_id: id, item_name: name, unit_name: unit || '', qty: 0, value: 0 });
-        return byItem.get(id);
+      const seed = (r) => {
+        if (!byItem.has(r.item_id)) {
+          byItem.set(r.item_id, {
+            item_id: r.item_id, item_name: r.item_name,
+            group_id: r.group_id ?? null, group_name: r.group_name || null,
+            unit_name: r.unit_name || '', wa: newWAState(0, 0),
+          });
+        }
+        return byItem.get(r.item_id);
       };
       for (const r of openRows) {
-        const e = seed(r.item_id, r.item_name, r.unit_name);
-        e.qty += Number(r.open_qty) || 0;
-        e.value += Number(r.open_value) || 0;
+        const e = seed(r);
+        e.wa.qty += Number(r.open_qty) || 0;
+        e.wa.value += Number(r.open_value) || 0;
       }
       for (const r of moveRows) {
-        const e = seed(r.item_id, r.item_name, r.unit_name);
-        e.qty += Number(r.move_qty) || 0;
-        e.value += Number(r.move_value) || 0;
+        const dir = entryDirection(r.voucher_type, r.is_source);
+        if (!dir) continue;
+        applyWA(seed(r).wa, dir, r.quantity, r.amount);
       }
 
       const result = [...byItem.values()]
-        .filter(e => e.qty !== 0 || e.value !== 0)
+        .filter(e => e.wa.qty !== 0 || e.wa.value !== 0)
         .map(e => ({
           item_id: e.item_id,
           item_name: e.item_name,
+          group_id: e.group_id,
+          group_name: e.group_name,
           unit_name: e.unit_name,
-          closing_qty: e.qty,
-          rate: e.qty ? e.value / e.qty : 0,
-          closing_value: e.value,
+          closing_qty: e.wa.qty,
+          rate: e.wa.qty ? e.wa.value / e.wa.qty : 0,
+          closing_value: e.wa.value,
         }))
         .sort((a, b) => (a.item_name || '').localeCompare(b.item_name || ''));
 
@@ -611,7 +639,7 @@ module.exports = {
       const opening_value = openRows.length ? Number(openRows[0].open_value) || 0 : 0;
 
       const entries = await db.all(
-        sql`SELECT v.date, v.voucher_type, vse.quantity, vse.amount
+        sql`SELECT v.date, v.voucher_type, vse.quantity, vse.amount, vse.is_source
             FROM ${voucherStockEntries} vse
             INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
             WHERE v.company_id = ${company_id}
@@ -620,25 +648,34 @@ module.exports = {
               AND vse.stock_item_id = ${item_id}
               AND v.is_cancelled = 0
               AND COALESCE(v.is_optional, 0) = 0
-              AND COALESCE(v.is_post_dated, 0) = 0`
+              AND COALESCE(v.is_post_dated, 0) = 0
+            ORDER BY v.date ASC, v.voucher_id ASC, vse.stock_entry_id ASC`
       );
 
+      // In/out columns show book values; the running closing value consumes
+      // outward stock at weighted-average COST (see stockMovement.applyWA).
       const MONTH_NAMES = ['April','May','June','July','August','September','October','November','December','January','February','March'];
-      let runningQty = opening_qty, runningValue = opening_value;
+      const wa = newWAState(opening_qty, opening_value);
       const months = MONTH_NAMES.map((name, idx) => {
         let m = idx + 4, y = startYear;
         if (m > 12) { m -= 12; y = startYear + 1; }
         const prefix = `${y}-${String(m).padStart(2, '0')}`;
-        const monthEntries = entries.filter(e => e.date && e.date.startsWith(prefix));
-        const inward  = monthEntries.filter(e => INWARD_TYPES.includes(e.voucher_type));
-        const outward = monthEntries.filter(e => OUTWARD_TYPES.includes(e.voucher_type));
-        const in_qty    = inward.reduce((s, e)  => s + (e.quantity || 0), 0);
-        const in_value  = inward.reduce((s, e)  => s + (e.amount   || 0), 0);
-        const out_qty   = outward.reduce((s, e) => s + (e.quantity || 0), 0);
-        const out_value = outward.reduce((s, e) => s + (e.amount   || 0), 0);
-        runningQty   += in_qty   - out_qty;
-        runningValue += in_value - out_value;
-        return { month: name, in_qty, in_value, out_qty, out_value, closing_qty: runningQty, closing_value: runningValue };
+        let in_qty = 0, in_value = 0, out_qty = 0, out_value = 0;
+        for (const e of entries) {
+          if (!e.date || !e.date.startsWith(prefix)) continue;
+          const dir = entryDirection(e.voucher_type, e.is_source);
+          if (dir === 'in') {
+            in_qty += Number(e.quantity) || 0;
+            in_value += Number(e.amount) || 0;
+          } else if (dir === 'out') {
+            out_qty += Number(e.quantity) || 0;
+            out_value += Number(e.amount) || 0;
+          } else {
+            continue;
+          }
+          applyWA(wa, dir, e.quantity, e.amount);
+        }
+        return { month: name, in_qty, in_value, out_qty, out_value, closing_qty: wa.qty, closing_value: wa.value };
       });
       return { success: true, item_name, opening: { qty: opening_qty, value: opening_value }, months };
     } catch (err) {
@@ -649,8 +686,7 @@ module.exports = {
   // ── Godown Vouchers: voucher register for a single godown + item ──────────
   godownVouchers: async (company_id, fy_id, godown_id, item_id, from_date, to_date) => {
     try {
-      const dateFrom = from_date ? sql` AND v.date >= ${from_date}` : sql``;
-      const dateTo   = to_date   ? sql` AND v.date <= ${to_date}`   : sql``;
+      const dateTo = to_date ? sql` AND v.date <= ${to_date}` : sql``;
 
       // Per-godown opening allocation — seeds the running balance and is shown
       // as the leading "Opening Balance" row (matches the report screenshots).
@@ -662,15 +698,18 @@ module.exports = {
       const opening_qty = openRows.length ? Number(openRows[0].open_qty) || 0 : 0;
       const opening_value = openRows.length ? Number(openRows[0].open_value) || 0 : 0;
 
-      const rows = await db.all(
+      // ALL FY entries for this godown+item (per-entry, chronological) — the
+      // register builder rolls pre-from_date movements into the opening.
+      const entries = await db.all(
         sql`SELECT
               v.voucher_id     AS voucher_id,
               v.date           AS date,
               COALESCE(v.party_name, v.narration, '') AS particulars,
               v.voucher_type   AS voucher_type,
               v.voucher_number AS voucher_number,
-              SUM(COALESCE(vse.quantity, 0)) AS qty,
-              SUM(COALESCE(vse.amount, 0))   AS value
+              vse.quantity     AS quantity,
+              vse.amount       AS amount,
+              vse.is_source    AS is_source
             FROM ${voucherStockEntries} vse
             INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
             WHERE v.company_id = ${company_id}
@@ -680,30 +719,14 @@ module.exports = {
               AND v.is_cancelled = 0
               AND COALESCE(v.is_optional, 0) = 0
               AND COALESCE(v.is_post_dated, 0) = 0
-              ${dateFrom}${dateTo}
-            GROUP BY v.voucher_id
-            ORDER BY v.date ASC, v.voucher_id ASC`
+              ${dateTo}
+            ORDER BY v.date ASC, v.voucher_id ASC, vse.stock_entry_id ASC`
       );
 
-      let runningQty = opening_qty, runningValue = opening_value;
-      const result = rows.map(r => {
-        const isInward = INWARD_TYPES.includes(r.voucher_type);
-        const qty = Number(r.qty) || 0;
-        const value = Number(r.value) || 0;
-        const inwards_qty   = isInward ? qty : null;
-        const inwards_value = isInward ? value : null;
-        const outwards_qty   = isInward ? null : qty;
-        const outwards_value = isInward ? null : value;
-        runningQty   += (inwards_qty || 0) - (outwards_qty || 0);
-        runningValue += (inwards_value || 0) - (outwards_value || 0);
-        return {
-          voucher_id: r.voucher_id, date: r.date, particulars: r.particulars,
-          voucher_type: r.voucher_type, voucher_number: r.voucher_number,
-          inwards_qty, inwards_value, outwards_qty, outwards_value,
-          closing_qty: runningQty, closing_value: runningValue,
-        };
-      });
-      return { success: true, opening: { qty: opening_qty, value: opening_value }, rows: result };
+      const wa = newWAState(opening_qty, opening_value);
+      const { openingQty, openingValue, rows: result } =
+        buildVoucherRegister(entries, wa, from_date, to_date, false);
+      return { success: true, opening: { qty: openingQty, value: openingValue }, rows: result };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -718,41 +741,23 @@ module.exports = {
       );
       const item = itemRows.length ? itemRows[0] : { name: '', opening_quantity: 0, opening_value: 0 };
 
-      // Opening Balance = FY opening + net movement strictly BEFORE from_date, so a
-      // month-scoped drill (e.g. March) opens with the running balance carried in,
-      // not the FY-start opening. With no from_date it stays at the FY opening.
-      let openingQty   = Number(item.opening_quantity) || 0;
-      let openingValue = Number(item.opening_value) || 0;
-      if (from_date) {
-        const priorRows = await db.all(
-          sql`SELECT
-                COALESCE(SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)}) THEN vse.quantity ELSE -vse.quantity END), 0) AS net_qty,
-                COALESCE(SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)}) THEN vse.amount   ELSE -vse.amount   END), 0) AS net_value
-              FROM ${voucherStockEntries} vse
-              INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
-              WHERE v.company_id = ${company_id}
-                AND v.fy_id = ${fy_id}
-                AND vse.stock_item_id = ${item_id}
-                AND v.is_cancelled = 0
-                AND COALESCE(v.is_optional, 0) = 0
-                AND COALESCE(v.is_post_dated, 0) = 0
-                AND v.date < ${from_date}`
-        );
-        openingQty   += Number(priorRows[0]?.net_qty)   || 0;
-        openingValue += Number(priorRows[0]?.net_value) || 0;
-      }
-
-      const dateFrom = from_date ? sql` AND v.date >= ${from_date}` : sql``;
-      const dateTo   = to_date   ? sql` AND v.date <= ${to_date}`   : sql``;
-      const rows = await db.all(
+      // ALL FY entries for this item (per-entry, chronological). The register
+      // builder rolls pre-from_date movements into the Opening Balance (so a
+      // month-scoped drill opens with the carried-in running balance), splits
+      // each voucher into its inward/outward legs (Stock Journal, Credit Note
+      // handled correctly), and values outward consumption at weighted-average
+      // cost for the running closing column.
+      const dateTo = to_date ? sql` AND v.date <= ${to_date}` : sql``;
+      const entries = await db.all(
         sql`SELECT
               v.voucher_id     AS voucher_id,
               v.date           AS date,
               COALESCE(v.party_name, v.narration, '') AS particulars,
               v.voucher_type   AS voucher_type,
               v.voucher_number AS voucher_number,
-              SUM(COALESCE(vse.quantity, 0)) AS qty,
-              SUM(COALESCE(vse.amount, 0))   AS value
+              vse.quantity     AS quantity,
+              vse.amount       AS amount,
+              vse.is_source    AS is_source
             FROM ${voucherStockEntries} vse
             INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
             WHERE v.company_id = ${company_id}
@@ -761,46 +766,12 @@ module.exports = {
               AND v.is_cancelled = 0
               AND COALESCE(v.is_optional, 0) = 0
               AND COALESCE(v.is_post_dated, 0) = 0
-              ${dateFrom}${dateTo}
-            GROUP BY v.voucher_id
-            ORDER BY v.date ASC, v.voucher_id ASC`
+              ${dateTo}
+            ORDER BY v.date ASC, v.voucher_id ASC, vse.stock_entry_id ASC`
       );
 
-      let runningQty = openingQty;
-      let runningValue = openingValue;
-      const result = [];
-
-      // Opening Balance row (inwards side, mirrors TallyPrime).
-      if (runningQty !== 0 || runningValue !== 0) {
-        result.push({
-          voucher_id: null,
-          date: from_date || null,
-          particulars: 'Opening Balance',
-          voucher_type: '',
-          voucher_number: '',
-          inwards_qty: runningQty, inwards_value: runningValue,
-          outwards_qty: null, outwards_value: null,
-          closing_qty: runningQty, closing_value: runningValue,
-        });
-      }
-
-      rows.forEach(r => {
-        const isInward = INWARD_TYPES.includes(r.voucher_type);
-        const qty = Number(r.qty) || 0;
-        const value = Number(r.value) || 0;
-        const inwards_qty   = isInward ? qty : null;
-        const inwards_value = isInward ? value : null;
-        const outwards_qty   = isInward ? null : qty;
-        const outwards_value = isInward ? null : value;
-        runningQty   += (inwards_qty || 0) - (outwards_qty || 0);
-        runningValue += (inwards_value || 0) - (outwards_value || 0);
-        result.push({
-          voucher_id: r.voucher_id, date: r.date, particulars: r.particulars,
-          voucher_type: r.voucher_type, voucher_number: r.voucher_number,
-          inwards_qty, inwards_value, outwards_qty, outwards_value,
-          closing_qty: runningQty, closing_value: runningValue,
-        });
-      });
+      const wa = newWAState(item.opening_quantity, item.opening_value);
+      const { rows: result } = buildVoucherRegister(entries, wa, from_date, to_date, true);
 
       return { success: true, item_name: item.name, rows: result };
     } catch (err) {
@@ -907,13 +878,13 @@ module.exports = {
             LEFT JOIN (
               SELECT
                 vse.stock_item_id AS stock_item_id,
-                SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
+                SUM(CASE WHEN ${inwardCondSql('v', 'vse')}
                          THEN vse.quantity ELSE 0 END) AS inwards_qty,
-                SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
+                SUM(CASE WHEN ${inwardCondSql('v', 'vse')}
                          THEN vse.amount ELSE 0 END) AS inwards_value,
-                SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})
+                SUM(CASE WHEN ${outwardCondSql('v', 'vse')}
                          THEN vse.quantity ELSE 0 END) AS outwards_qty,
-                SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})
+                SUM(CASE WHEN ${outwardCondSql('v', 'vse')}
                          THEN vse.amount ELSE 0 END) AS outwards_value
               FROM ${voucherStockEntries} vse
               INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
@@ -954,22 +925,32 @@ module.exports = {
         };
       });
 
-      // Run valuation engine for true closing stock valuation
+      // Closing qty AND value both come from the valuation engine so they are
+      // computed from the SAME movement classification — the SQL arithmetic
+      // above only feeds the Inwards/Outwards display columns. (Taking qty
+      // from one source and value from another made rate = value/qty nonsense
+      // whenever a Stock Journal / Credit Note existed.)
       const valuationData = await calculateClosingStock(company_id, fy_id, as_on_date, method);
       if (valuationData.success) {
         const valMap = new Map();
         for (const v of valuationData.items) {
-          valMap.set(v.item_id, v.closing_value);
+          valMap.set(v.item_id, v);
         }
         for (const it of items) {
-          if (valMap.has(it.item_id)) {
-            it.closing_value = valMap.get(it.item_id);
+          const v = valMap.get(it.item_id);
+          if (v) {
+            it.closing_qty = v.closing_qty;
+            it.closing_value = v.closing_value;
           }
         }
       } else {
-        // Fallback to simple arithmetic if valuation fails
+        // Fallback if valuation fails: qty from the (already correctly
+        // classified) movement columns; value at weighted-average COST —
+        // never opening + inwards − outwards(sales revenue).
         for (const it of items) {
-          it.closing_value = it.opening_value + it.inwards_value - it.outwards_value;
+          const availQty = it.opening_qty + it.inwards_qty;
+          const avgRate = availQty > 0 ? (it.opening_value + it.inwards_value) / availQty : 0;
+          it.closing_value = it.closing_qty > 0 ? avgRate * it.closing_qty : 0;
         }
       }
 

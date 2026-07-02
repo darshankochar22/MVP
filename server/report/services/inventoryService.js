@@ -8,10 +8,12 @@
  */
 const {
   db, sql,
-  INWARD_TYPES, OUTWARD_TYPES, sqlIn,
+  sqlIn,
   normalizeType,
   extractParams,
 } = require('./reportHelpers');
+const { inwardCondSql, outwardCondSql } = require('./stockMovement');
+const { calculateGodownClosing } = require('../stockValuationEngine');
 const {
   vouchers,
   voucherStockEntries,
@@ -60,10 +62,10 @@ const queryStockBalances = async (company_id, fy_id, as_on_date, filters = {}) =
           LEFT JOIN (
             SELECT
               vse.stock_item_id,
-              SUM(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN vse.quantity ELSE 0 END) AS in_qty,
-              SUM(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN vse.amount ELSE 0 END) AS in_value,
-              SUM(CASE WHEN v.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) THEN vse.quantity ELSE 0 END) AS out_qty,
-              SUM(CASE WHEN v.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) THEN vse.amount ELSE 0 END) AS out_value
+              SUM(CASE WHEN ${inwardCondSql('v', 'vse')} THEN vse.quantity ELSE 0 END) AS in_qty,
+              SUM(CASE WHEN ${inwardCondSql('v', 'vse')} THEN vse.amount ELSE 0 END) AS in_value,
+              SUM(CASE WHEN ${outwardCondSql('v', 'vse')} THEN vse.quantity ELSE 0 END) AS out_qty,
+              SUM(CASE WHEN ${outwardCondSql('v', 'vse')} THEN vse.amount ELSE 0 END) AS out_value
             FROM ${voucherStockEntries} vse
             INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
             WHERE v.company_id = ${company_id}
@@ -85,7 +87,11 @@ const queryStockBalances = async (company_id, fy_id, as_on_date, filters = {}) =
       const out_qty = Number(r.outwards_qty) || 0;
       const out_val = Number(r.outwards_value) || 0;
       const closing_qty = opening_qty + in_qty - out_qty;
-      const closing_value = opening_value + in_val - out_val;
+      // Closing stock at weighted-average COST — outwards_value is sale
+      // revenue, so opening + in − out(value) is NOT an inventory value.
+      const avgRate = (opening_qty + in_qty) > 0
+        ? (opening_value + in_val) / (opening_qty + in_qty) : 0;
+      const closing_value = closing_qty > 0 ? avgRate * closing_qty : 0;
       return {
         item_id: r.item_id,
         item_name: r.item_name,
@@ -153,40 +159,31 @@ const getInventoryReport = async (company_id, fy_id, reportTypeArg = 'stock_summ
       }
 
       case 'godown_summary': {
-        rows = await db.all(
-          sql`SELECT
-                g.godown_id,
-                COALESCE(g.name, 'Main Location') AS godown_name,
-                g.address,
-                g.city,
-                g.state,
-                COUNT(DISTINCT vse.stock_item_id) AS item_count,
-                COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN vse.quantity ELSE 0 END), 0)
-                  - COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) THEN vse.quantity ELSE 0 END), 0)
-                  + COALESCE((
-                      SELECT SUM(oa.quantity)
-                      FROM ${stockItemOpeningAllocations} oa
-                      WHERE oa.godown_id = g.godown_id
-                    ), 0) AS net_qty,
-                COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN vse.amount ELSE 0 END), 0)
-                  - COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) THEN vse.amount ELSE 0 END), 0)
-                  + COALESCE((
-                      SELECT SUM(oa.quantity * COALESCE(si.opening_rate, 0))
-                      FROM ${stockItemOpeningAllocations} oa
-                      LEFT JOIN ${stockItems} si ON si.item_id = oa.item_id
-                      WHERE oa.godown_id = g.godown_id
-                    ), 0) AS net_value
+        // Per-godown closing at weighted-average COST via the shared engine
+        // (per-entry direction incl. Stock Journal legs, opening allocations,
+        // outward consumption at cost — not sale value).
+        const godownRows = await db.all(
+          sql`SELECT g.godown_id, COALESCE(g.name, 'Main Location') AS godown_name,
+                     g.address, g.city, g.state
               FROM ${godowns} g
-              LEFT JOIN ${voucherStockEntries} vse ON vse.godown_id = g.godown_id
-              LEFT JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
-                AND v.company_id = ${company_id} AND v.fy_id = ${fy_id}
-                AND v.is_cancelled = 0
-                AND COALESCE(v.is_optional, 0) = 0
-                AND COALESCE(v.is_post_dated, 0) = 0${dateCond}
               WHERE g.company_id = ${company_id} AND g.is_active = 1
-              GROUP BY g.godown_id, g.name, g.address, g.city, g.state
               ORDER BY g.name ASC`
         );
+        const closing = await calculateGodownClosing(company_id, fy_id, as_on_date);
+        const byGodown = new Map((closing.godowns || []).map(g => [g.godown_id, g]));
+        rows = godownRows.map(g => {
+          const c = byGodown.get(g.godown_id) || { item_count: 0, closing_qty: 0, closing_value: 0 };
+          return {
+            godown_id: g.godown_id,
+            godown_name: g.godown_name,
+            address: g.address,
+            city: g.city,
+            state: g.state,
+            item_count: c.item_count,
+            net_qty: c.closing_qty,
+            net_value: c.closing_value,
+          };
+        });
         break;
       }
 
@@ -200,14 +197,14 @@ const getInventoryReport = async (company_id, fy_id, reportTypeArg = 'stock_summ
                 si.item_id,
                 si.name AS item_name,
                 sg.name AS group_name,
-                COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN vse.quantity ELSE 0 END), 0) AS in_qty,
-                COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN vse.amount ELSE 0 END), 0) AS in_value,
-                COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) THEN vse.quantity ELSE 0 END), 0) AS out_qty,
-                COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) THEN vse.amount ELSE 0 END), 0) AS out_value,
-                COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN vse.quantity ELSE 0 END), 0)
-                  - COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) THEN vse.quantity ELSE 0 END), 0) AS net_qty,
-                COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN vse.amount ELSE 0 END), 0)
-                  - COALESCE(SUM(CASE WHEN v.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) THEN vse.amount ELSE 0 END), 0) AS net_value
+                COALESCE(SUM(CASE WHEN ${inwardCondSql('v', 'vse')} THEN vse.quantity ELSE 0 END), 0) AS in_qty,
+                COALESCE(SUM(CASE WHEN ${inwardCondSql('v', 'vse')} THEN vse.amount ELSE 0 END), 0) AS in_value,
+                COALESCE(SUM(CASE WHEN ${outwardCondSql('v', 'vse')} THEN vse.quantity ELSE 0 END), 0) AS out_qty,
+                COALESCE(SUM(CASE WHEN ${outwardCondSql('v', 'vse')} THEN vse.amount ELSE 0 END), 0) AS out_value,
+                COALESCE(SUM(CASE WHEN ${inwardCondSql('v', 'vse')} THEN vse.quantity ELSE 0 END), 0)
+                  - COALESCE(SUM(CASE WHEN ${outwardCondSql('v', 'vse')} THEN vse.quantity ELSE 0 END), 0) AS net_qty,
+                COALESCE(SUM(CASE WHEN ${inwardCondSql('v', 'vse')} THEN vse.amount ELSE 0 END), 0)
+                  - COALESCE(SUM(CASE WHEN ${outwardCondSql('v', 'vse')} THEN vse.amount ELSE 0 END), 0) AS net_value
               FROM ${stockItems} si
               LEFT JOIN ${stockGroups} sg ON sg.sg_id = si.group_id
               LEFT JOIN ${voucherStockEntries} vse ON vse.stock_item_id = si.item_id
@@ -233,15 +230,15 @@ const getInventoryReport = async (company_id, fy_id, reportTypeArg = 'stock_summ
                   COALESCE((SELECT SUM(vse2.quantity) FROM ${voucherStockEntries} vse2
                     INNER JOIN ${vouchers} v2 ON v2.voucher_id = vse2.voucher_id
                     WHERE vse2.stock_item_id = si.item_id AND v2.company_id = ${company_id} AND v2.fy_id = ${fy_id}
-                      AND v2.voucher_type IN (${sqlIn(INWARD_TYPES)}) AND v2.is_cancelled = 0
+                      AND ${inwardCondSql('v2', 'vse2')} AND v2.is_cancelled = 0
                       AND COALESCE(v2.is_optional, 0) = 0 AND COALESCE(v2.is_post_dated, 0) = 0), 0) -
                   COALESCE((SELECT SUM(vse3.quantity) FROM ${voucherStockEntries} vse3
                     INNER JOIN ${vouchers} v3 ON v3.voucher_id = vse3.voucher_id
                     WHERE vse3.stock_item_id = si.item_id AND v3.company_id = ${company_id} AND v3.fy_id = ${fy_id}
-                      AND v3.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) AND v3.is_cancelled = 0
+                      AND ${outwardCondSql('v3', 'vse3')} AND v3.is_cancelled = 0
                       AND COALESCE(v3.is_optional, 0) = 0 AND COALESCE(v3.is_post_dated, 0) = 0), 0) AS closing_qty,
-                MAX(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN v.date ELSE NULL END) AS last_inward_date,
-                CAST(julianday(${as_on_date ?? 'now'}) - julianday(MAX(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN v.date ELSE NULL END)) AS INTEGER) AS days_since_inward
+                MAX(CASE WHEN ${inwardCondSql('v', 'vse')} THEN v.date ELSE NULL END) AS last_inward_date,
+                CAST(julianday(${as_on_date ?? 'now'}) - julianday(MAX(CASE WHEN ${inwardCondSql('v', 'vse')} THEN v.date ELSE NULL END)) AS INTEGER) AS days_since_inward
               FROM ${stockItems} si
               LEFT JOIN ${stockGroups} sg ON sg.sg_id = si.group_id
               LEFT JOIN ${voucherStockEntries} vse ON vse.stock_item_id = si.item_id
@@ -270,12 +267,12 @@ const getInventoryReport = async (company_id, fy_id, reportTypeArg = 'stock_summ
                   COALESCE((SELECT SUM(vse2.quantity) FROM ${voucherStockEntries} vse2
                     INNER JOIN ${vouchers} v2 ON v2.voucher_id = vse2.voucher_id
                     WHERE vse2.stock_item_id = si.item_id AND v2.company_id = ${company_id} AND v2.fy_id = ${fy_id}
-                      AND v2.voucher_type IN (${sqlIn(INWARD_TYPES)}) AND v2.is_cancelled = 0
+                      AND ${inwardCondSql('v2', 'vse2')} AND v2.is_cancelled = 0
                       AND COALESCE(v2.is_optional, 0) = 0 AND COALESCE(v2.is_post_dated, 0) = 0), 0) -
                   COALESCE((SELECT SUM(vse3.quantity) FROM ${voucherStockEntries} vse3
                     INNER JOIN ${vouchers} v3 ON v3.voucher_id = vse3.voucher_id
                     WHERE vse3.stock_item_id = si.item_id AND v3.company_id = ${company_id} AND v3.fy_id = ${fy_id}
-                      AND v3.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) AND v3.is_cancelled = 0
+                      AND ${outwardCondSql('v3', 'vse3')} AND v3.is_cancelled = 0
                       AND COALESCE(v3.is_optional, 0) = 0 AND COALESCE(v3.is_post_dated, 0) = 0), 0) AS closing_qty
               FROM ${stockItems} si
               LEFT JOIN ${stockGroups} sg ON sg.sg_id = si.group_id
@@ -318,10 +315,10 @@ const getInventoryReport = async (company_id, fy_id, reportTypeArg = 'stock_summ
               LEFT JOIN (
                 SELECT
                   vse.stock_item_id,
-                  SUM(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN vse.quantity ELSE 0 END) AS in_qty,
-                  SUM(CASE WHEN v.voucher_type IN (${sqlIn(INWARD_TYPES)}) THEN vse.amount ELSE 0 END) AS in_value,
-                  SUM(CASE WHEN v.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) THEN vse.quantity ELSE 0 END) AS out_qty,
-                  SUM(CASE WHEN v.voucher_type IN (${sqlIn(OUTWARD_TYPES)}) THEN vse.amount ELSE 0 END) AS out_value
+                  SUM(CASE WHEN ${inwardCondSql('v', 'vse')} THEN vse.quantity ELSE 0 END) AS in_qty,
+                  SUM(CASE WHEN ${inwardCondSql('v', 'vse')} THEN vse.amount ELSE 0 END) AS in_value,
+                  SUM(CASE WHEN ${outwardCondSql('v', 'vse')} THEN vse.quantity ELSE 0 END) AS out_qty,
+                  SUM(CASE WHEN ${outwardCondSql('v', 'vse')} THEN vse.amount ELSE 0 END) AS out_value
                 FROM ${voucherStockEntries} vse
                 INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
                 WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id}
@@ -344,7 +341,7 @@ const getInventoryReport = async (company_id, fy_id, reportTypeArg = 'stock_summ
           // `opening_value + in_value - out_value`, but out_value is sale
           // REVENUE, not cost — subtracting it understated closing inventory.
           const avgRate = (oq + iq) > 0 ? (ov + iv) / (oq + iq) : 0;
-          const closingValue = avgRate * closingQty;
+          const closingValue = closingQty > 0 ? avgRate * closingQty : 0;
           return {
             item_id: r.item_id,
             item_name: r.item_name,
@@ -364,9 +361,13 @@ const getInventoryReport = async (company_id, fy_id, reportTypeArg = 'stock_summ
                 vb.batch_number,
                 vb.expiry_date,
                 si.name AS item_name,
-                SUM(vb.quantity) AS total_qty,
+                SUM(CASE WHEN ${inwardCondSql('v', 'vse')} THEN vb.quantity
+                         WHEN ${outwardCondSql('v', 'vse')} THEN -vb.quantity
+                         ELSE 0 END) AS total_qty,
                 COALESCE(vb.rate, 0) AS rate,
-                SUM(vb.quantity) * COALESCE(vb.rate, 0) AS value
+                SUM(CASE WHEN ${inwardCondSql('v', 'vse')} THEN vb.quantity
+                         WHEN ${outwardCondSql('v', 'vse')} THEN -vb.quantity
+                         ELSE 0 END) * COALESCE(vb.rate, 0) AS value
               FROM ${voucherBatches} vb
               INNER JOIN ${voucherStockEntries} vse ON vse.stock_entry_id = vb.stock_entry_id
               INNER JOIN ${vouchers} v ON v.voucher_id = vb.voucher_id

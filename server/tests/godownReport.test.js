@@ -95,7 +95,7 @@ describe("Godowns / Excise Units Report (Inventory Books)", () => {
     expect(res.success).toBe(true);
     const fan = res.rows.find((r) => r.item_name === "Fan");
     expect(fan.closing_qty).toBe(20);          // 50 in − 30 out
-    expect(fan.closing_value).toBe(-10000);    // 50,000 in − 60,000 out
+    expect(fan.closing_value).toBe(20000);     // 20 on hand × avg cost 1,000 (never in − out-REVENUE)
   });
 
   it("godownItemMonthly seeds the running balance from the opening allocation", async () => {

@@ -1,40 +1,42 @@
 const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
-const { vouchers, stockItems, stockCategories, voucherStockEntries } = require('../../db/schema');
+const { stockItems, stockCategories } = require('../../db/schema');
+const { calculateClosingStock } = require('../stockValuationEngine');
 
-/** Stock Category Summary - closing inventory value by stock category. */
+/**
+ * Stock Category Summary — closing inventory qty/value per stock category.
+ *
+ * Values come from the shared valuation engine (opening balances included,
+ * cancelled/optional/post-dated vouchers excluded, outward consumption at
+ * cost). The old query summed voucher amounts only — no opening stock, no
+ * optional/post-dated filters, sales at sale price.
+ */
 const stockCategorySummary = async (company_id, fy_id) => {
   try {
-    const INWARD = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In'];
-    const OUTWARD = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out'];
-    const rows = await db.all(sql`
-      SELECT COALESCE(sc.name, 'No Category') AS category_name,
-             SUM(
-               COALESCE((SELECT SUM(vse2.quantity) FROM ${voucherStockEntries} vse2
-                 JOIN ${vouchers} v2 ON v2.voucher_id = vse2.voucher_id
-                 WHERE vse2.stock_item_id = si.item_id AND v2.company_id = ${company_id} AND v2.fy_id = ${fy_id}
-                   AND v2.voucher_type IN (${sql.join(INWARD.map(t => sql`${t}`), sql`, `)}) AND v2.is_cancelled = 0), 0) -
-               COALESCE((SELECT SUM(vse3.quantity) FROM ${voucherStockEntries} vse3
-                 JOIN ${vouchers} v3 ON v3.voucher_id = vse3.voucher_id
-                 WHERE vse3.stock_item_id = si.item_id AND v3.company_id = ${company_id} AND v3.fy_id = ${fy_id}
-                   AND v3.voucher_type IN (${sql.join(OUTWARD.map(t => sql`${t}`), sql`, `)}) AND v3.is_cancelled = 0), 0)
-             ) AS qty,
-             SUM(
-               COALESCE((SELECT SUM(vse4.amount) FROM ${voucherStockEntries} vse4
-                 JOIN ${vouchers} v4 ON v4.voucher_id = vse4.voucher_id
-                 WHERE vse4.stock_item_id = si.item_id AND v4.company_id = ${company_id} AND v4.fy_id = ${fy_id}
-                   AND v4.voucher_type IN (${sql.join(INWARD.map(t => sql`${t}`), sql`, `)}) AND v4.is_cancelled = 0), 0) -
-               COALESCE((SELECT SUM(vse5.amount) FROM ${voucherStockEntries} vse5
-                 JOIN ${vouchers} v5 ON v5.voucher_id = vse5.voucher_id
-                 WHERE vse5.stock_item_id = si.item_id AND v5.company_id = ${company_id} AND v5.fy_id = ${fy_id}
-                   AND v5.voucher_type IN (${sql.join(OUTWARD.map(t => sql`${t}`), sql`, `)}) AND v5.is_cancelled = 0), 0)
-             ) AS value
+    const items = await db.all(sql`
+      SELECT si.item_id, sc.name AS category_name
       FROM ${stockItems} si
       LEFT JOIN ${stockCategories} sc ON sc.sc_id = si.category_id
-      WHERE si.company_id = ${company_id} AND si.is_active = 1
-      GROUP BY sc.sc_id, sc.name
-      ORDER BY category_name ASC`
-    );
+      WHERE si.company_id = ${company_id} AND si.is_active = 1`);
+
+    const valuation = await calculateClosingStock(company_id, fy_id, null, 'FIFO');
+    const valMap = new Map((valuation.items || []).map(v => [v.item_id, v]));
+
+    const totals = new Map(); // category name -> { qty, value }
+    for (const it of items) {
+      const v = valMap.get(it.item_id);
+      if (!v) continue;
+      const name = it.category_name || 'No Category';
+      if (!totals.has(name)) totals.set(name, { qty: 0, value: 0 });
+      const t = totals.get(name);
+      t.qty += v.closing_qty || 0;
+      t.value += v.closing_value || 0;
+    }
+
+    const rows = [...totals.entries()]
+      .map(([category_name, t]) => ({ category_name, qty: t.qty, value: t.value }))
+      .sort((a, b) => a.category_name.localeCompare(b.category_name));
+
     return { success: true, rows };
   } catch (err) {
     return { success: false, error: err.message };

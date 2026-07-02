@@ -2,8 +2,7 @@ const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
 const { vouchers, stockItems, voucherStockEntries, units } = require('../../db/schema');
 
-const INWARD  = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In'];
-const OUTWARD = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out'];
+const { inwardCondSql, outwardCondSql } = require('../services/stockMovement');
 
 /** Stock Item Analysis — movement (opening/inward/outward/closing qty+value) per stock item. */
 const stockItemAnalysis = async (company_id, fy_id) => {
@@ -24,13 +23,13 @@ const stockItemAnalysis = async (company_id, fy_id) => {
       LEFT JOIN (
         SELECT
           vse.stock_item_id,
-          SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD.map(t => sql`${t}`), sql`, `)})
+          SUM(CASE WHEN ${inwardCondSql('v', 'vse')}
                    THEN vse.quantity ELSE 0 END) AS inwards_qty,
-          SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD.map(t => sql`${t}`), sql`, `)})
+          SUM(CASE WHEN ${inwardCondSql('v', 'vse')}
                    THEN vse.amount ELSE 0 END) AS inwards_value,
-          SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD.map(t => sql`${t}`), sql`, `)})
+          SUM(CASE WHEN ${outwardCondSql('v', 'vse')}
                    THEN vse.quantity ELSE 0 END) AS outwards_qty,
-          SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD.map(t => sql`${t}`), sql`, `)})
+          SUM(CASE WHEN ${outwardCondSql('v', 'vse')}
                    THEN vse.amount ELSE 0 END) AS outwards_value
         FROM ${voucherStockEntries} vse
         INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
@@ -53,7 +52,10 @@ const stockItemAnalysis = async (company_id, fy_id) => {
       const out_qty       = r.out_qty       || 0;
       const out_value     = r.out_value     || 0;
       const closing_qty   = opening_qty + in_qty - out_qty;
-      const closing_value = opening_value + in_value - out_value;
+      // Closing at weighted-average COST (out_value is sale revenue).
+      const availQty      = opening_qty + in_qty;
+      const avgRate       = availQty > 0 ? (opening_value + in_value) / availQty : 0;
+      const closing_value = closing_qty > 0 ? avgRate * closing_qty : 0;
       return { item_id: r.item_id, item_name: r.item_name, unit_name: r.unit_name || '', opening_qty, opening_value, in_qty, in_value, out_qty, out_value, closing_qty, closing_value };
     });
 

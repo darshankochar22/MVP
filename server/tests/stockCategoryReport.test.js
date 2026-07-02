@@ -61,7 +61,7 @@ describe("Stock Category Summary Report (Inventory Books)", () => {
     const laptop = res.items.find((i) => i.item_name === "Laptop");
     expect(laptop).toBeDefined();
     expect(laptop.closing_qty).toBe(20);          // 50 in − 30 out
-    expect(laptop.closing_value).toBe(-10000);    // 50,000 in − 60,000 out
+    expect(laptop.closing_value).toBe(20000);     // 20 on hand × avg cost 1,000 (never in − out-REVENUE)
     expect(res.totalClosingQty).toBe(20);
   });
 

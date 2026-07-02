@@ -1,9 +1,7 @@
 const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
 const { stockItems, voucherStockEntries, vouchers } = require('../../db/schema');
-
-const INWARD_TYPES = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In', 'Credit Note'];
-const OUTWARD_TYPES = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out', 'Debit Note'];
+const { entryDirection } = require('../services/stockMovement');
 
 module.exports = {
   run: async (company_id, fy_id, params = {}) => {
@@ -33,25 +31,12 @@ module.exports = {
         const negativeInstances = [];
 
         for (const entry of itemEntries) {
-          const type = entry.voucher_type;
           const qty = Number(entry.quantity) || 0;
-          const isSource = Number(entry.is_source) || 0;
+          const dir = entryDirection(entry.voucher_type, entry.is_source);
 
-          let isInward = false;
-          let isOutward = false;
-
-          if (INWARD_TYPES.includes(type)) {
-            isInward = true;
-          } else if (OUTWARD_TYPES.includes(type)) {
-            isOutward = true;
-          } else if (type === 'Stock Journal' || type === 'Manufacturing Journal') {
-            if (isSource === 0) isInward = true;
-            else isOutward = true;
-          }
-
-          if (isInward) {
+          if (dir === 'in') {
             runningQty += qty;
-          } else if (isOutward) {
+          } else if (dir === 'out') {
             runningQty -= qty;
           }
 

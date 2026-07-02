@@ -6,8 +6,7 @@ const {
   stockItemOpeningAllocations,
 } = require('../db/schema');
 
-const INWARD_TYPES  = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In'];
-const OUTWARD_TYPES = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out'];
+const { inwardCondSql, outwardCondSql } = require('./services/stockMovement');
 
 async function stockQuery(company_id, fy_id, item_id) {
   // ── 1. Item details ──────────────────────────────────────────────────────
@@ -33,13 +32,13 @@ async function stockQuery(company_id, fy_id, item_id) {
   // ── 2. Closing balance (qty + value) ────────────────────────────────────
   const movRows = await db.all(sql`
     SELECT
-      SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
+      SUM(CASE WHEN ${inwardCondSql('v', 'vse')}
                THEN vse.quantity ELSE 0 END) AS inward_qty,
-      SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
+      SUM(CASE WHEN ${inwardCondSql('v', 'vse')}
                THEN vse.amount   ELSE 0 END) AS inward_value,
-      SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})
+      SUM(CASE WHEN ${outwardCondSql('v', 'vse')}
                THEN vse.quantity ELSE 0 END) AS outward_qty,
-      SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})
+      SUM(CASE WHEN ${outwardCondSql('v', 'vse')}
                THEN vse.amount   ELSE 0 END) AS outward_value
     FROM ${voucherStockEntries} vse
     INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
@@ -58,8 +57,11 @@ async function stockQuery(company_id, fy_id, item_id) {
   const outward_value = mv.outward_value || 0;
   const opening_qty   = item.opening_quantity || 0;
   const opening_value = item.opening_value    || 0;
-  const closing_qty   = opening_qty   + inward_qty   - outward_qty;
-  const closing_value = opening_value + inward_value - outward_value;
+  const closing_qty   = opening_qty + inward_qty - outward_qty;
+  // Closing value at weighted-average COST — outward_value is sale revenue.
+  const avgCostRate   = (opening_qty + inward_qty) > 0
+    ? (opening_value + inward_value) / (opening_qty + inward_qty) : 0;
+  const closing_value = closing_qty > 0 ? avgCostRate * closing_qty : 0;
 
   // ── 3. Last purchases ────────────────────────────────────────────────────
   const purchases = await db.all(sql`
@@ -128,9 +130,9 @@ async function stockQuery(company_id, fy_id, item_id) {
       vse.godown_id,
       g.name AS godown_name,
       NULL   AS batch_number,
-      SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
+      SUM(CASE WHEN ${inwardCondSql('v', 'vse')}
                THEN vse.quantity ELSE 0 END)
-      - SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})
+      - SUM(CASE WHEN ${outwardCondSql('v', 'vse')}
                THEN vse.quantity ELSE 0 END) AS net_qty
     FROM ${voucherStockEntries} vse
     INNER JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id
@@ -178,13 +180,13 @@ async function stockQuery(company_id, fy_id, item_id) {
       LEFT JOIN (
         SELECT
           vse.stock_item_id,
-          SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
+          SUM(CASE WHEN ${inwardCondSql('v', 'vse')}
                    THEN vse.quantity ELSE 0 END) AS inward_qty,
-          SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD_TYPES.map(t => sql`${t}`), sql`, `)})
+          SUM(CASE WHEN ${inwardCondSql('v', 'vse')}
                    THEN vse.amount   ELSE 0 END) AS inward_value,
-          SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})
+          SUM(CASE WHEN ${outwardCondSql('v', 'vse')}
                    THEN vse.quantity ELSE 0 END) AS outward_qty,
-          SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD_TYPES.map(t => sql`${t}`), sql`, `)})
+          SUM(CASE WHEN ${outwardCondSql('v', 'vse')}
                    THEN vse.amount   ELSE 0 END) AS outward_value,
           MAX(CASE WHEN v.voucher_type = 'Sales' THEN vse.rate ELSE NULL END) AS last_sale_rate
         FROM ${voucherStockEntries} vse
@@ -204,7 +206,9 @@ async function stockQuery(company_id, fy_id, item_id) {
 
     categoryItems = catRows.map(r => {
       const cq = (r.opening_qty || 0) + (r.inward_qty || 0) - (r.outward_qty || 0);
-      const cv = (r.opening_value || 0) + (r.inward_value || 0) - (r.outward_value || 0);
+      const availQty = (r.opening_qty || 0) + (r.inward_qty || 0);
+      const avgRate = availQty > 0 ? ((r.opening_value || 0) + (r.inward_value || 0)) / availQty : 0;
+      const cv = cq > 0 ? avgRate * cq : 0;
       return {
         item_id: r.item_id,
         item_name: r.item_name,

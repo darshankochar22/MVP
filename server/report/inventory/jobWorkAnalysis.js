@@ -1,8 +1,7 @@
 const { db } = require('../../db/index');
 const { sql } = require('drizzle-orm');
 
-const INWARD  = ['Purchase', 'Receipt Note', 'Rejection In', 'Material In'];
-const OUTWARD = ['Sales', 'Delivery Note', 'Rejection Out', 'Material Out'];
+const { inwardCondSql, outwardCondSql } = require('../services/stockMovement');
 
 /**
  * Job Work Analysis — stock movement of a single Job / Project (Cost Centre).
@@ -18,10 +17,10 @@ const jobWorkAnalysis = async (company_id, fy_id, cc_id) => {
         si.item_id,
         si.name AS item_name,
         u.name  AS unit_name,
-        SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD.map(t => sql`${t}`), sql`, `)})  THEN vse.quantity ELSE 0 END) AS in_qty,
-        SUM(CASE WHEN v.voucher_type IN (${sql.join(INWARD.map(t => sql`${t}`), sql`, `)})  THEN vse.amount   ELSE 0 END) AS in_value,
-        SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD.map(t => sql`${t}`), sql`, `)}) THEN vse.quantity ELSE 0 END) AS out_qty,
-        SUM(CASE WHEN v.voucher_type IN (${sql.join(OUTWARD.map(t => sql`${t}`), sql`, `)}) THEN vse.amount   ELSE 0 END) AS out_value
+        SUM(CASE WHEN ${inwardCondSql('v', 'vse')}  THEN vse.quantity ELSE 0 END) AS in_qty,
+        SUM(CASE WHEN ${inwardCondSql('v', 'vse')}  THEN vse.amount   ELSE 0 END) AS in_value,
+        SUM(CASE WHEN ${outwardCondSql('v', 'vse')} THEN vse.quantity ELSE 0 END) AS out_qty,
+        SUM(CASE WHEN ${outwardCondSql('v', 'vse')} THEN vse.amount   ELSE 0 END) AS out_value
       FROM voucher_cost_centres vcc
       INNER JOIN vouchers v ON v.voucher_id = vcc.voucher_id
       INNER JOIN voucher_stock_entries vse ON vse.voucher_id = vcc.voucher_id
