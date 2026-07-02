@@ -57,14 +57,25 @@ export interface StatutoryDetails {
   method_of_calculation?: string;
 }
 
+export interface InterestRateSlab {
+  from_date: string;
+  to_date: string | null;
+  rate: number | string;
+}
+
 export interface InterestDetails {
   activate_interest: number;
   calculate_interest_based_on?: string;
   interest_include_added: number;
   interest_include_deducted: number;
-  interest_rate: number;
+  interest_rate: number | string;
   interest_style: string;
   interest_balances: string;
+  interest_calculate_on: string;
+  interest_applicable_from: string;
+  interest_rounding_method: string;
+  interest_rounding_limit: number | string;
+  interest_rate_slabs: InterestRateSlab[];
 }
 
 export const EMPTY_INTEREST: InterestDetails = {
@@ -75,6 +86,28 @@ export const EMPTY_INTEREST: InterestDetails = {
   interest_rate: 0,
   interest_style: "30-Day Month",
   interest_balances: "All Balances",
+  interest_calculate_on: "Bill-by-Bill",
+  interest_applicable_from: "Due Date",
+  interest_rounding_method: "No Rounding",
+  interest_rounding_limit: 1,
+  interest_rate_slabs: [],
+};
+
+// interest_rate_slabs comes back as a JSON string (or already-parsed array)
+const parseRateSlabs = (v: unknown): InterestRateSlab[] => {
+  if (!v) return [];
+  try {
+    const parsed = typeof v === "string" ? JSON.parse(v) : v;
+    return Array.isArray(parsed)
+      ? parsed.map((s: any) => ({
+          from_date: s.from_date || "",
+          to_date: s.to_date ?? null,
+          rate: Number(s.rate) || 0,
+        }))
+      : [];
+  } catch {
+    return [];
+  }
 };
 
 /* ── Other Statutory Details (TDS / TCS / Service Tax / Excise / VAT) ────── */
@@ -531,6 +564,11 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         interest_rate: l.interest_rate ?? 0,
         interest_style: l.interest_style || "30-Day Month",
         interest_balances: l.interest_balances || "All Balances",
+        interest_calculate_on: (l as any).interest_calculate_on || "Bill-by-Bill",
+        interest_applicable_from: (l as any).interest_applicable_from || "Due Date",
+        interest_rounding_method: (l as any).interest_rounding_method || "No Rounding",
+        interest_rounding_limit: (l as any).interest_rounding_limit ?? 1,
+        interest_rate_slabs: parseRateSlabs((l as any).interest_rate_slabs),
       });
 
       setGstDetails({
@@ -864,6 +902,20 @@ export function useLedgerForm({ mode }: UseLedgerFormOptions) {
         interest_rate: Number(interestForm.interest_rate) || 0,
         interest_style: interestForm.interest_style || "30-Day Month",
         interest_balances: interestForm.interest_balances || "All Balances",
+        interest_calculate_on: interestForm.interest_calculate_on || "Bill-by-Bill",
+        interest_applicable_from: interestForm.interest_applicable_from || "Due Date",
+        interest_rounding_method: interestForm.interest_rounding_method || "No Rounding",
+        interest_rounding_limit: Number(interestForm.interest_rounding_limit) || 1,
+        interest_rate_slabs: (() => {
+          const slabs = (interestForm.interest_rate_slabs || [])
+            .filter((s) => s.from_date)
+            .map((s) => ({
+              from_date: s.from_date,
+              to_date: s.to_date || null,
+              rate: Number(s.rate) || 0,
+            }));
+          return slabs.length > 0 ? JSON.stringify(slabs) : undefined;
+        })(),
         // Other statutory
         set_alter_tds_details: otherStatutory.tds.is_tds_deductable ? 1 : 0,
         set_alter_tcs_details: otherStatutory.tcs.is_tcs_applicable ? 1 : 0,

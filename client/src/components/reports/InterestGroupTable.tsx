@@ -14,6 +14,15 @@ const fmtDate = (d: string) => {
 const fmt = (v: number) =>
   new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(v));
 
+export interface InterestSegment {
+  amount: number;
+  rate: number;
+  from: string;
+  to: string;
+  days: number;
+  interest: number;
+}
+
 export interface BillLine {
   bill_ref: string;
   bill_due_date: string;
@@ -22,6 +31,65 @@ export interface BillLine {
   interest_style: string;
   days: number;
   interest_amount: number;
+  segments?: InterestSegment[];
+  missing_due_date?: boolean;
+}
+
+/* Bold black/white marker for bills the server flagged as lacking a due date */
+export function MissingDueDateMark() {
+  return (
+    <span className="ml-1.5 font-bold text-black border border-black px-1 text-[9.5px] align-middle">
+      (no due date)
+    </span>
+  );
+}
+
+/* Inline segment breakdown row — one line per rate segment, plus a bold total.
+   Shared by all interest report layouts; colSpan matches the host table. */
+export function SegmentBreakdownRow({
+  segments,
+  colSpan,
+}: {
+  segments: InterestSegment[];
+  colSpan: number;
+}) {
+  const totInterest = segments.reduce((s, x) => s + (Number(x.interest) || 0), 0);
+  return (
+    <tr className="border-b border-black/10 bg-white select-none">
+      <td colSpan={colSpan} className="pl-12 pr-3 py-1.5">
+        <table className="min-w-[70%] border border-black/20 border-collapse text-[10px] font-mono">
+          <thead>
+            <tr className="border-b border-black/20">
+              <th className="px-2 py-0.5 text-left font-bold">From</th>
+              <th className="px-2 py-0.5 text-left font-bold">To</th>
+              <th className="px-2 py-0.5 text-right font-bold">Days</th>
+              <th className="px-2 py-0.5 text-right font-bold">Principal</th>
+              <th className="px-2 py-0.5 text-right font-bold">Rate %</th>
+              <th className="px-2 py-0.5 text-right font-bold">Interest</th>
+            </tr>
+          </thead>
+          <tbody>
+            {segments.map((s, i) => (
+              <tr key={i} className="border-b border-black/5 text-black/80">
+                <td className="px-2 py-0.5">{fmtDate(s.from)}</td>
+                <td className="px-2 py-0.5">{fmtDate(s.to)}</td>
+                <td className="px-2 py-0.5 text-right">{Number(s.days) || 0}</td>
+                <td className="px-2 py-0.5 text-right">{fmt(Number(s.amount) || 0)}</td>
+                <td className="px-2 py-0.5 text-right">{Number(s.rate) || 0}</td>
+                <td className="px-2 py-0.5 text-right">{fmt(Number(s.interest) || 0)}</td>
+              </tr>
+            ))}
+            <tr className="font-bold text-black border-t border-black">
+              <td className="px-2 py-0.5" colSpan={5}>
+                Total
+              </td>
+              <td className="px-2 py-0.5 text-right">{fmt(totInterest)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </td>
+    </tr>
+  );
 }
 export interface GroupedLedger {
   ledger_id: number;
@@ -50,6 +118,8 @@ export function groupByLedger(rows: any[]): GroupedLedger[] {
       interest_style: r.interest_style || "",
       days: Number(r.days) || 0,
       interest_amount: Number(r.interest_amount) || 0,
+      segments: Array.isArray(r.segments) ? r.segments : [],
+      missing_due_date: r.missing_due_date === true,
     });
   });
   return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
@@ -81,6 +151,15 @@ export default function InterestGroupTable({
 }: Props) {
   const [focusedIdx, setFocused] = React.useState(0);
   const [expandedIds, setExpanded] = React.useState<Set<number>>(new Set());
+  const [expandedBills, setExpandedBills] = React.useState<Set<string>>(new Set());
+
+  const toggleBill = React.useCallback((key: string) => {
+    setExpandedBills((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }, []);
 
   const toggleExpand = React.useCallback((id: number) => {
     setExpanded((prev) => {
@@ -143,17 +222,34 @@ export default function InterestGroupTable({
                     <td className="px-3 py-1.5 text-right font-bold">{withSide(g.total_interest === 0 ? 0 : (g.total_principal < 0 ? -g.total_interest : g.total_interest), drcr)}</td>
                   </tr>
 
-                  {/* Expanded bill lines */}
-                  {isExpanded && g.bills.map((b, bi) => (
-                    <tr key={bi} className="border-b border-black/5 bg-black/[0.02] text-black/70 select-none">
-                      <td className="pl-8 pr-3 py-1 text-[10.5px]">
-                        <span className="font-semibold text-black/80">{b.bill_ref}</span>
-                        <span className="text-black/40"> (Due {fmtDate(b.bill_due_date)} · {b.interest_rate}% {b.interest_style} · {b.days} days)</span>
-                      </td>
-                      <td className="px-3 py-1 text-right text-[10.5px]">{withSide(b.total_pending, drcr)}</td>
-                      <td className="px-3 py-1 text-right text-[10.5px] font-semibold">{withSide(b.total_pending < 0 ? -b.interest_amount : b.interest_amount, drcr)}</td>
-                    </tr>
-                  ))}
+                  {/* Expanded bill lines — click a bill to show its segment breakdown */}
+                  {isExpanded && g.bills.map((b, bi) => {
+                    const billKey = `${g.ledger_id}:${bi}`;
+                    const hasSegments = (b.segments?.length ?? 0) > 0;
+                    const billOpen = expandedBills.has(billKey);
+                    return (
+                      <React.Fragment key={bi}>
+                        <tr
+                          className={`border-b border-black/5 bg-black/[0.02] text-black/70 select-none ${hasSegments ? "cursor-pointer hover:bg-black/[0.05]" : ""}`}
+                          onClick={(e) => { e.stopPropagation(); if (hasSegments) toggleBill(billKey); }}
+                        >
+                          <td className="pl-8 pr-3 py-1 text-[10.5px]">
+                            {hasSegments && (
+                              <span className="text-[8px] text-black/40 mr-1">{billOpen ? "▾" : "▸"}</span>
+                            )}
+                            <span className="font-semibold text-black/80">{b.bill_ref}</span>
+                            {b.missing_due_date && <MissingDueDateMark />}
+                            <span className="text-black/40"> (Due {fmtDate(b.bill_due_date)} · {b.interest_rate}% {b.interest_style} · {b.days} days)</span>
+                          </td>
+                          <td className="px-3 py-1 text-right text-[10.5px]">{withSide(b.total_pending, drcr)}</td>
+                          <td className="px-3 py-1 text-right text-[10.5px] font-semibold">{withSide(b.total_pending < 0 ? -b.interest_amount : b.interest_amount, drcr)}</td>
+                        </tr>
+                        {billOpen && hasSegments && (
+                          <SegmentBreakdownRow segments={b.segments!} colSpan={3} />
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
                 </React.Fragment>
               );
             })}

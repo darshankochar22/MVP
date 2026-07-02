@@ -1,6 +1,8 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import { SegmentBreakdownRow, MissingDueDateMark } from "./InterestGroupTable";
+import type { InterestSegment } from "./InterestGroupTable";
 
 /* ── Formatters ────────────────────────────────────────────────────── */
 const fmtDate = (d: string) => {
@@ -27,6 +29,8 @@ interface BillRow {
   interest_style: string;
   days: number;
   interest_amount: number;
+  segments?: InterestSegment[];
+  missing_due_date?: boolean;
 }
 
 interface GroupedLedger {
@@ -55,6 +59,16 @@ export default function InterestBillsLayout({ mode }: InterestBillsLayoutProps) 
   // Table navigation
   const [focusedIdx, setFocused] = React.useState(0);
   const [expandedIds, setExpanded] = React.useState<Set<number>>(new Set());
+  const [expandedBills, setExpandedBills] = React.useState<Set<string>>(new Set());
+
+  const toggleBill = (key: string) => {
+    setExpandedBills((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const fromDate = activeFY?.start_date || "";
   const toDate = activeFY?.end_date || "";
@@ -244,32 +258,51 @@ export default function InterestBillsLayout({ mode }: InterestBillsLayoutProps) 
                       <td className="px-3 py-1.5 text-right font-bold text-zinc-800">{fmt(g.total_interest)}</td>
                     </tr>
 
-                    {/* Expandable Bill Rows */}
+                    {/* Expandable Bill Rows — click a bill to show its segment breakdown */}
                     {isExpanded &&
-                      g.bills.map((bill, bIdx) => (
-                        <tr
-                          key={bIdx}
-                          className="bg-zinc-50/50 border-b border-zinc-100 text-zinc-600 select-none hover:bg-zinc-100/50"
-                        >
-                          <td className="pl-8 pr-3 py-1 text-[10.5px]">
-                            <div className="flex flex-col sm:flex-row sm:gap-4">
-                              <span className="font-semibold text-zinc-700">{bill.bill_ref}</span>
-                              <span className="text-zinc-400">
-                                (Due: {fmtDate(bill.bill_due_date)} | {bill.interest_rate}% {bill.interest_style})
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-3 py-1 text-right text-[10.5px] font-medium text-zinc-700">
-                            {fmt(bill.total_pending)}
-                          </td>
-                          <td className="px-3 py-1 text-right text-[10.5px] font-bold text-zinc-700">
-                            <div className="flex justify-end items-center gap-3">
-                              <span className="text-[9.5px] font-normal text-zinc-400">{bill.days} days</span>
-                              <span>{fmt(bill.interest_amount)}</span>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                      g.bills.map((bill, bIdx) => {
+                        const billKey = `${g.ledger_id}:${bIdx}`;
+                        const hasSegments = (bill.segments?.length ?? 0) > 0;
+                        const billOpen = expandedBills.has(billKey);
+                        return (
+                          <React.Fragment key={bIdx}>
+                            <tr
+                              className={`bg-zinc-50/50 border-b border-zinc-100 text-zinc-600 select-none hover:bg-zinc-100/50 ${hasSegments ? "cursor-pointer" : ""}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (hasSegments) toggleBill(billKey);
+                              }}
+                            >
+                              <td className="pl-8 pr-3 py-1 text-[10.5px]">
+                                <div className="flex flex-col sm:flex-row sm:gap-4 sm:items-center">
+                                  <span className="font-semibold text-zinc-700">
+                                    {hasSegments && (
+                                      <span className="text-[8px] text-zinc-400 mr-1">{billOpen ? "▼" : "▶"}</span>
+                                    )}
+                                    {bill.bill_ref}
+                                    {bill.missing_due_date && <MissingDueDateMark />}
+                                  </span>
+                                  <span className="text-zinc-400">
+                                    (Due: {fmtDate(bill.bill_due_date)} | {bill.interest_rate}% {bill.interest_style})
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-3 py-1 text-right text-[10.5px] font-medium text-zinc-700">
+                                {fmt(bill.total_pending)}
+                              </td>
+                              <td className="px-3 py-1 text-right text-[10.5px] font-bold text-zinc-700">
+                                <div className="flex justify-end items-center gap-3">
+                                  <span className="text-[9.5px] font-normal text-zinc-400">{bill.days} days</span>
+                                  <span>{fmt(bill.interest_amount)}</span>
+                                </div>
+                              </td>
+                            </tr>
+                            {billOpen && hasSegments && (
+                              <SegmentBreakdownRow segments={bill.segments!} colSpan={3} />
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                   </React.Fragment>
                 );
               })

@@ -1,6 +1,8 @@
 import * as React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import { SegmentBreakdownRow, MissingDueDateMark } from "./InterestGroupTable";
+import type { InterestSegment } from "./InterestGroupTable";
 
 /* ── Formatters ────────────────────────────────────────────────────── */
 const fmtDate = (d: string) => {
@@ -35,6 +37,8 @@ interface InterestBillRow {
   "0_30": number;
   "31_60": number;
   "60": number;
+  segments?: InterestSegment[];
+  missing_due_date?: boolean;
 }
 
 export default function InterestBillWiseLayout() {
@@ -66,6 +70,16 @@ export default function InterestBillWiseLayout() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [focusedIdx, setFocused] = React.useState(0);
+  const [expandedRows, setExpandedRows] = React.useState<Set<number>>(new Set());
+
+  const toggleRow = (idx: number) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
 
   const fromDate = activeFY?.start_date || "";
   const toDate = activeFY?.end_date || "";
@@ -151,17 +165,21 @@ export default function InterestBillWiseLayout() {
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setFocused((p) => Math.max(0, p - 1));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        toggleRow(focusedIdx);
       } else if (e.key === "Escape" || e.key === "Backspace") {
         e.preventDefault();
         setLedgerId(null);
         setLedgerName("");
         setRows([]);
         setFocused(0);
+        setExpandedRows(new Set());
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [ledgerId, rows]);
+  }, [ledgerId, rows, focusedIdx]);
 
   /* ── Picker View ────────────────────────────────────────────────── */
   if (!ledgerId) {
@@ -291,27 +309,42 @@ export default function InterestBillWiseLayout() {
             ) : (
               rows.map((row, idx) => {
                 const isFocused = focusedIdx === idx;
+                const hasSegments = (row.segments?.length ?? 0) > 0;
+                const isOpen = expandedRows.has(idx);
                 return (
-                  <tr
-                    key={idx}
-                    className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${
-                      isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
-                    }`}
-                    onClick={() => setFocused(idx)}
-                  >
-                    <td className="px-3 py-1.5 font-medium">{row.bill_ref}</td>
-                    <td className="px-3 py-1.5">{fmtDate(row.bill_due_date)}</td>
-                    <td className="px-3 py-1.5">
-                      {row.interest_rate}% / {row.interest_style}
-                    </td>
-                    <td className="px-3 py-1.5 text-center">{row.days}</td>
-                    <td className="px-3 py-1.5 text-right text-zinc-700">
-                      {fmt(row.total_pending)}
-                    </td>
-                    <td className="px-3 py-1.5 text-right font-bold text-zinc-800">
-                      {fmt(row.interest_amount)}
-                    </td>
-                  </tr>
+                  <React.Fragment key={idx}>
+                    <tr
+                      className={`border-b border-zinc-100 cursor-pointer select-none transition-colors ${
+                        isFocused ? "bg-[#e4e4e7] text-zinc-950 font-bold" : "hover:bg-zinc-50 text-zinc-800"
+                      }`}
+                      onClick={() => {
+                        setFocused(idx);
+                        toggleRow(idx);
+                      }}
+                    >
+                      <td className="px-3 py-1.5 font-medium">
+                        {hasSegments && (
+                          <span className="text-[9px] text-zinc-400 mr-1.5">{isOpen ? "▼" : "▶"}</span>
+                        )}
+                        {row.bill_ref}
+                        {row.missing_due_date && <MissingDueDateMark />}
+                      </td>
+                      <td className="px-3 py-1.5">{fmtDate(row.bill_due_date)}</td>
+                      <td className="px-3 py-1.5">
+                        {row.interest_rate}% / {row.interest_style}
+                      </td>
+                      <td className="px-3 py-1.5 text-center">{row.days}</td>
+                      <td className="px-3 py-1.5 text-right text-zinc-700">
+                        {fmt(row.total_pending)}
+                      </td>
+                      <td className="px-3 py-1.5 text-right font-bold text-zinc-800">
+                        {fmt(row.interest_amount)}
+                      </td>
+                    </tr>
+                    {isOpen && hasSegments && (
+                      <SegmentBreakdownRow segments={row.segments!} colSpan={6} />
+                    )}
+                  </React.Fragment>
                 );
               })
             )}

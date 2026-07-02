@@ -85,6 +85,13 @@ const ledgers = sqliteTable('ledgers', {
   interestRate: real('interest_rate').default(0),
   interestStyle: text('interest_style').default('30-Day Month'),
   interestBalances: text('interest_balances').default('All Balances'),
+  // Interest engine config (Tally "Interest Parameters" sub-screen).
+  interestCalculateOn: text('interest_calculate_on').default('Bill-by-Bill'),
+  interestApplicableFrom: text('interest_applicable_from').default('Due Date'),
+  interestRoundingMethod: text('interest_rounding_method').default('No Rounding'),
+  interestRoundingLimit: real('interest_rounding_limit').default(1),
+  // JSON: [{ from_date, to_date, rate }] — date-ranged rate slabs.
+  interestRateSlabs: text('interest_rate_slabs'),
   // Columns added to source init() (server/ledger/ledger.js) via ALTER after this
   // schema was first authored — mirrored here so the Drizzle migration matches init().
   behaveAsPaymentGateway: integer('behave_as_payment_gateway').default(0),

@@ -85,11 +85,51 @@ const seedDefaultLedgers = async (company_id, groups_arg) => {
   }
 };
 
+// ── Interest config validation + slab serialization ─────────────────────────
+// Rate must be a REAL positive number when interest is active — a stray
+// non-numeric character ("12`") must be rejected at save, not coerced to 0.
+const validateInterestConfig = (data) => {
+  if (!data || !data.activate_interest) return null;
+  if (data.interest_rate !== undefined && data.interest_rate !== null && data.interest_rate !== "") {
+    const r = Number(data.interest_rate);
+    if (!Number.isFinite(r) || r < 0) {
+      return `Interest rate must be a valid non-negative number (got "${data.interest_rate}")`;
+    }
+  }
+  if (data.default_credit_period !== undefined && data.default_credit_period !== null && data.default_credit_period !== "") {
+    const c = Number(data.default_credit_period);
+    if (!Number.isFinite(c) || c < 0) {
+      return `Credit period must be a valid non-negative number of days (got "${data.default_credit_period}")`;
+    }
+  }
+  if (data.interest_rate_slabs !== undefined && data.interest_rate_slabs !== null && data.interest_rate_slabs !== "") {
+    const slabs = Array.isArray(data.interest_rate_slabs)
+      ? data.interest_rate_slabs
+      : (() => { try { return JSON.parse(data.interest_rate_slabs); } catch { return null; } })();
+    if (!Array.isArray(slabs)) return "Interest rate slabs must be a JSON array";
+    for (const slab of slabs) {
+      const r = Number(slab?.rate);
+      if (!Number.isFinite(r) || r < 0) return "Every interest rate slab needs a valid non-negative rate";
+      if (!slab.from_date) return "Every interest rate slab needs a from_date";
+    }
+  }
+  return null;
+};
+
+const serializeRateSlabs = (slabs) => {
+  if (slabs === undefined || slabs === null || slabs === "") return null;
+  if (typeof slabs === "string") return slabs;
+  return Array.isArray(slabs) && slabs.length ? JSON.stringify(slabs) : null;
+};
+
 module.exports = {
   seedDefaultLedgers,
 
   create: async (data) => {
     try {
+      const interestErr = validateInterestConfig(data);
+      if (interestErr) return { success: false, error: interestErr };
+
       const exists = await db.all(
         sql`SELECT * FROM ${ledgers}
             WHERE ${ledgers.companyId} = ${data.company_id}
@@ -214,6 +254,11 @@ module.exports = {
           interestRate: Number(data.interest_rate) || 0,
           interestStyle: data.interest_style || "30-Day Month",
           interestBalances: data.interest_balances || "All Balances",
+          interestCalculateOn: data.interest_calculate_on || "Bill-by-Bill",
+          interestApplicableFrom: data.interest_applicable_from || "Due Date",
+          interestRoundingMethod: data.interest_rounding_method || "No Rounding",
+          interestRoundingLimit: Number(data.interest_rounding_limit) || 1,
+          interestRateSlabs: serializeRateSlabs(data.interest_rate_slabs),
         })
         .returning({ id: ledgers.ledgerId });
 
@@ -370,6 +415,9 @@ module.exports = {
 
   update: async (data) => {
     try {
+      const interestErr = validateInterestConfig({ activate_interest: 1, ...data });
+      if (interestErr) return { success: false, error: interestErr };
+
       const ledger = await findLedgerRow(sql`${ledgers.ledgerId} = ${data.ledger_id}`);
 
       if (!ledger) {
@@ -572,6 +620,20 @@ module.exports = {
           interestStyle: data.interest_style ?? ledger.interest_style ?? "30-Day Month",
           interestBalances:
             data.interest_balances ?? ledger.interest_balances ?? "All Balances",
+          interestCalculateOn:
+            data.interest_calculate_on ?? ledger.interest_calculate_on ?? "Bill-by-Bill",
+          interestApplicableFrom:
+            data.interest_applicable_from ?? ledger.interest_applicable_from ?? "Due Date",
+          interestRoundingMethod:
+            data.interest_rounding_method ?? ledger.interest_rounding_method ?? "No Rounding",
+          interestRoundingLimit:
+            data.interest_rounding_limit !== undefined
+              ? Number(data.interest_rounding_limit) || 1
+              : (ledger.interest_rounding_limit ?? 1),
+          interestRateSlabs:
+            data.interest_rate_slabs !== undefined
+              ? serializeRateSlabs(data.interest_rate_slabs)
+              : (ledger.interest_rate_slabs ?? null),
           updatedAt: sql`datetime('now')`,
         })
         .where(eq(ledgers.ledgerId, data.ledger_id));

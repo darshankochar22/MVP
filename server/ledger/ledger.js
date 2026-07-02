@@ -275,6 +275,21 @@ const init = async (db) => {
   try {
     await db.execute(`ALTER TABLE ledgers ADD COLUMN opening_balance_type TEXT DEFAULT 'Dr'`);
   } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN interest_calculate_on TEXT DEFAULT 'Bill-by-Bill'`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN interest_applicable_from TEXT DEFAULT 'Due Date'`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN interest_rounding_method TEXT DEFAULT 'No Rounding'`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN interest_rounding_limit REAL DEFAULT 1`);
+  } catch (err) {}
+  try {
+    await db.execute(`ALTER TABLE ledgers ADD COLUMN interest_rate_slabs TEXT`);
+  } catch (err) {}
 };
 
 module.exports = { init };
