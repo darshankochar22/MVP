@@ -11,7 +11,9 @@ import type { GroupedLedger } from "./InterestGroupTable";
 
 interface GroupMeta { group_id: number; name: string; parent: string; drcr: "Dr" | "Cr" }
 
-export default function InterestGroupLayout() {
+interface InterestGroupLayoutProps { fromDate?: string; toDate?: string }
+
+export default function InterestGroupLayout({ fromDate: fromProp, toDate: toProp }: InterestGroupLayoutProps = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const { selectedCompany, activeFY } = useCompany();
@@ -40,8 +42,8 @@ export default function InterestGroupLayout() {
   const [loading, setLoading]               = React.useState(false);
   const [error, setError]                   = React.useState<string | null>(null);
 
-  const fromDate = activeFY?.start_date || "";
-  const fyEnd    = activeFY?.end_date || "";
+  const fromDate = fromProp || activeFY?.start_date || "";
+  const fyEnd    = toProp || activeFY?.end_date || "";
   const cid      = selectedCompany?.company_id;
   const fyid     = activeFY?.fy_id;
 
@@ -70,7 +72,7 @@ export default function InterestGroupLayout() {
     if (!groupId || !cid || !fyid) return;
     setLoading(true);
     setError(null);
-    (window as any).api.report.groupInterest(cid, fyid, { group_id: groupId })
+    (window as any).api.report.groupInterest(cid, fyid, { group_id: groupId, from_date: fromDate || undefined, to_date: fyEnd || undefined })
       .then((res: any) => {
         if (res?.success) {
           setRows(groupByLedger(res.rows || []));
@@ -84,7 +86,7 @@ export default function InterestGroupLayout() {
       })
       .catch((e: any) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [groupId, cid, fyid]);
+  }, [groupId, cid, fyid, fromDate, fyEnd]);
 
   /* ── Picker keyboard ──────────────────────────────────────────────── */
   const filtered = groups.filter((g) => g.name.toLowerCase().includes(search.toLowerCase()));

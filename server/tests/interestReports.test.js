@@ -128,16 +128,30 @@ describe("Interest Reports", () => {
     expect(row.interest_amount).toBeCloseTo(73.97, 1);
   });
 
-  it("calculates ledgerInterest correctly", async () => {
-    // Test with object parameters
+  it("calculates ledgerInterest bill-wise for a party ledger", async () => {
+    // A bill-wise party ledger returns one row per bill (TallyPrime's Ledger
+    // Interest Calculation view) — same figures as billWiseInterest, not the
+    // running-balance accrual.
     const res = await interestReportService.ledgerInterest(companyId, fyId, { ledger_id: debtorLedgerId, to_date: "2026-05-01" });
     expect(res.success).toBe(true);
+    expect(res.mode).toBe("bill-wise");
     expect(res.rows.length).toBeGreaterThan(0);
-    expect(res.total_interest).toBeCloseTo(101.92, 1);
+    expect(res.rows[0].bill_ref).toBe("INV-101");
+    expect(res.rows[0].opening_amount).toBe(10000);
+    expect(res.total_interest).toBeCloseTo(98.63, 1);
 
     // Test with raw number parameter (legacy / alternative invocation)
     const resLegacy = await interestReportService.ledgerInterest(companyId, fyId, debtorLedgerId);
     expect(resLegacy.success).toBe(true);
+  });
+
+  it("ledgerInterest re-computes for a shorter period", async () => {
+    // As-on 2026-04-15 the bill (from 2026-04-01) has accrued ~14 days interest;
+    // the earlier as-on date must yield less interest than the full month.
+    const short = await interestReportService.ledgerInterest(companyId, fyId, { ledger_id: debtorLedgerId, to_date: "2026-04-15" });
+    const full = await interestReportService.ledgerInterest(companyId, fyId, { ledger_id: debtorLedgerId, to_date: "2026-05-01" });
+    expect(short.success).toBe(true);
+    expect(short.total_interest).toBeLessThan(full.total_interest);
   });
 
   it("calculates billWiseInterest correctly", async () => {

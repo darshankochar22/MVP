@@ -100,6 +100,7 @@ const billRow = (bill, ledger, toDate, isCreditorSide) => {
     bill_ref: bill.bill_name,
     bill_date: bill.bill_date,
     bill_due_date: result.start_date || bill.due_date || bill.bill_date,
+    opening_amount: Number(bill.original_amount) || 0,
     total_pending: pending,
     interest_rate: cfg.rate,
     interest_style: cfg.style,
@@ -324,9 +325,10 @@ module.exports = {
     try {
       const fy = await fyDates(fy_id);
       const toDate = params.to_date || params.as_on_date || fy.end;
+      const fromDate = params.from_date || fy.start;
       const { rows, total_principal, total_interest } =
-        await buildInterestOutstanding(company_id, fy_id, 'Sundry Debtors', toDate, fy.start);
-      return { success: true, rows, total_principal, total_interest, to_date: toDate };
+        await buildInterestOutstanding(company_id, fy_id, 'Sundry Debtors', toDate, fromDate);
+      return { success: true, rows, total_principal, total_interest, to_date: toDate, from_date: fromDate };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -336,9 +338,10 @@ module.exports = {
     try {
       const fy = await fyDates(fy_id);
       const toDate = params.to_date || params.as_on_date || fy.end;
+      const fromDate = params.from_date || fy.start;
       const { rows, total_principal, total_interest } =
-        await buildInterestOutstanding(company_id, fy_id, 'Sundry Creditors', toDate, fy.start);
-      return { success: true, rows, total_principal, total_interest, to_date: toDate };
+        await buildInterestOutstanding(company_id, fy_id, 'Sundry Creditors', toDate, fromDate);
+      return { success: true, rows, total_principal, total_interest, to_date: toDate, from_date: fromDate };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -359,10 +362,11 @@ module.exports = {
 
       const fy = await fyDates(fy_id);
       const toDate = params.to_date || params.as_on_date || fy.end;
+      const fromDate = params.from_date || fy.start;
 
       const { rows, total_principal, total_interest } =
-        await buildInterestOutstanding(company_id, fy_id, group_name, toDate, fy.start);
-      return { success: true, rows, total_principal, total_interest, to_date: toDate, group_name, nature };
+        await buildInterestOutstanding(company_id, fy_id, group_name, toDate, fromDate);
+      return { success: true, rows, total_principal, total_interest, to_date: toDate, from_date: fromDate, group_name, nature };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -394,6 +398,39 @@ module.exports = {
       const fromDate = params.from_date || fy.start || '2026-04-01';
       const toDate = params.to_date || params.as_on_date || fy.end || '2027-03-31';
 
+      // Bill-wise ledgers (any party ledger not set to "On Outstanding Balance")
+      // show one line per bill with its interest-calc breakdown — TallyPrime's
+      // Ledger Interest Calculation view. Ledgers configured "On Outstanding
+      // Balance" fall through to the running-balance interval view below.
+      const isBillWise = (ledger.interest_calculate_on || 'Bill-by-Bill') !== 'Outstanding Balance';
+      if (isBillWise) {
+        const isCreditor = await isCreditorLedger(company_id, ledgerId);
+        const bills = await getBillsWithSettlements(company_id, fy_id, { ledger_ids: [ledgerId], toDate });
+
+        const resultRows = [];
+        let totalPrincipal = 0;
+        let totalInterest = 0;
+        for (const bill of bills) {
+          const row = billRow(bill, ledger, toDate, isCreditor);
+          if (row.total_pending <= 0.01 && Math.abs(row.interest_amount) <= 0.005 && !row.missing_due_date) continue;
+          totalPrincipal += row.total_pending;
+          totalInterest += row.interest_amount;
+          resultRows.push(row);
+        }
+
+        return {
+          success: true,
+          mode: 'bill-wise',
+          ledger,
+          fromDate,
+          toDate,
+          is_creditor: isCreditor,
+          rows: resultRows,
+          total_principal: totalPrincipal,
+          total_interest: totalInterest,
+        };
+      }
+
       const { openingBalance, intervals, totalInterest } =
         await computeRunningBalanceInterest(company_id, fy_id, ledger, fromDate, toDate);
 
@@ -413,6 +450,7 @@ module.exports = {
 
       return {
         success: true,
+        mode: 'balance',
         ledger,
         fromDate,
         toDate,

@@ -1,6 +1,8 @@
 import * as React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
+import { MissingDueDateMark } from "./InterestGroupTable";
+import type { InterestSegment } from "./InterestGroupTable";
 
 /* ── Formatters ────────────────────────────────────────────────────── */
 const fmtDate = (d: string) => {
@@ -16,6 +18,8 @@ const fmt = (v: number) =>
 const fmtTotal = (v: number) =>
   new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(v));
 
+const withSide = (v: number, side: "Dr" | "Cr") => (v === 0 ? "0.00" : `${fmt(v)} ${side}`);
+
 /* ── Types ─────────────────────────────────────────────────────────── */
 interface LedgerMeta {
   ledger_id: number;
@@ -23,21 +27,38 @@ interface LedgerMeta {
   group_name?: string;
 }
 
-interface InterestLedgerRow {
+/* Bill-wise row (party ledgers) — matches TallyPrime's Ledger Interest view */
+interface InterestBillRow {
+  bill_ref: string;
+  bill_date: string;
+  bill_due_date: string;
+  opening_amount: number;
+  total_pending: number;
+  interest_rate: number;
+  interest_style: string;
+  days: number;
+  interest_amount: number;
+  segments?: InterestSegment[];
+  missing_due_date?: boolean;
+}
+
+/* Interval row (ledgers set to "On Outstanding Balance") */
+interface IntervalRow {
   date_particulars: string;
   vch_type: string;
   vch_no: string;
-  debit: number;
-  credit: number;
   balance: number;
-  start_date: string;
-  end_date: string;
   rate: number;
   interest: number;
   days: number;
 }
 
-export default function InterestLedgerLayout() {
+interface InterestLedgerLayoutProps {
+  fromDate?: string;
+  toDate?: string;
+}
+
+export default function InterestLedgerLayout({ fromDate: fromProp, toDate: toProp }: InterestLedgerLayoutProps = {}) {
   const navigate = useNavigate();
   const location = useLocation();
   const { selectedCompany, activeFY } = useCompany();
@@ -58,18 +79,23 @@ export default function InterestLedgerLayout() {
   const [search, setSearch] = React.useState("");
   const [pickerFocus, setPickerFocus] = React.useState(0);
 
-  /* Drill-down state */
-  const [rows, setRows] = React.useState<InterestLedgerRow[]>([]);
+  /* Detail state */
+  const [mode, setMode] = React.useState<"bill-wise" | "balance">("bill-wise");
+  const [billRows, setBillRows] = React.useState<InterestBillRow[]>([]);
+  const [intervalRows, setIntervalRows] = React.useState<IntervalRow[]>([]);
+  const [isCreditor, setIsCreditor] = React.useState(false);
   const [openingBalance, setOpeningBalance] = React.useState(0);
+  const [totalPrincipal, setTotalPrincipal] = React.useState(0);
   const [totalInterest, setTotalInterest] = React.useState(0);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [focusedIdx, setFocused] = React.useState(0);
 
-  const fromDate = activeFY?.start_date || "";
-  const toDate = activeFY?.end_date || "";
+  const fromDate = fromProp || activeFY?.start_date || "";
+  const toDate = toProp || activeFY?.end_date || "";
   const cid = selectedCompany?.company_id;
   const fyid = activeFY?.fy_id;
+  const side: "Dr" | "Cr" = isCreditor ? "Cr" : "Dr";
 
   /* ── Load ledger list ───────────────────────────────────────────── */
   React.useEffect(() => {
@@ -83,29 +109,35 @@ export default function InterestLedgerLayout() {
     });
   }, [cid, ledgerId]);
 
-  /* ── Load ledger interest calculation data ──────────────────────── */
+  /* ── Load interest for the chosen ledger (re-fetches on F2 period change) ── */
   React.useEffect(() => {
     if (!ledgerId || !cid || !fyid) return;
     setLoading(true);
     setError(null);
 
-    (window as any).api.report.ledgerInterest(cid, fyid, { ledger_id: ledgerId })
+    (window as any).api.report
+      .ledgerInterest(cid, fyid, { ledger_id: ledgerId, from_date: fromDate || undefined, to_date: toDate || undefined })
       .then((res: any) => {
         if (res?.success) {
-          setRows(res.rows || []);
+          setMode(res.mode === "balance" ? "balance" : "bill-wise");
+          setIsCreditor(res.is_creditor === true);
           setOpeningBalance(res.opening_balance || 0);
+          setTotalPrincipal(res.total_principal || 0);
           setTotalInterest(res.total_interest || 0);
+          if (res.mode === "balance") {
+            setIntervalRows(res.rows || []);
+            setBillRows([]);
+          } else {
+            setBillRows(res.rows || []);
+            setIntervalRows([]);
+          }
         } else {
           setError(res?.error || "Failed to load interest calculation.");
         }
       })
-      .catch((err: any) => {
-        setError(err.message || "An error occurred.");
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [ledgerId, cid, fyid]);
+      .catch((err: any) => setError(err.message || "An error occurred."))
+      .finally(() => setLoading(false));
+  }, [ledgerId, cid, fyid, fromDate, toDate]);
 
   /* ── Keyboard for picker ────────────────────────────────────────── */
   const filtered = ledgers.filter((l) => l.name.toLowerCase().includes(search.toLowerCase()));
@@ -140,12 +172,13 @@ export default function InterestLedgerLayout() {
   }, [ledgerId, filtered, pickerFocus, navigate]);
 
   /* ── Keyboard for detail view ───────────────────────────────────── */
+  const detailLen = mode === "balance" ? intervalRows.length : billRows.length;
   React.useEffect(() => {
     if (!ledgerId) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setFocused((p) => Math.min(rows.length - 1, p + 1));
+        setFocused((p) => Math.min(detailLen - 1, p + 1));
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setFocused((p) => Math.max(0, p - 1));
@@ -153,13 +186,14 @@ export default function InterestLedgerLayout() {
         e.preventDefault();
         setLedgerId(null);
         setLedgerName("");
-        setRows([]);
+        setBillRows([]);
+        setIntervalRows([]);
         setFocused(0);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [ledgerId, rows]);
+  }, [ledgerId, detailLen]);
 
   /* ── Picker View ────────────────────────────────────────────────── */
   if (!ledgerId) {
@@ -240,23 +274,112 @@ export default function InterestLedgerLayout() {
     );
   }
 
-  // Calculate totals
-  const totalDebit = rows.reduce((s, r) => s + r.debit, 0);
-  const totalCredit = rows.reduce((s, r) => s + r.credit, 0);
-  const finalBalance = rows.length > 0 ? rows[rows.length - 1].balance : openingBalance;
+  /* ── Shared sub-header (Ledger + Period) ────────────────────────── */
+  const Header = (
+    <div className="bg-white border-b border-black px-3 py-1 text-[10px] font-mono text-black flex gap-6 select-none">
+      <span>
+        Ledger: <span className="font-bold">{ledgerName}</span>
+      </span>
+      <span className="ml-auto">
+        <span className="font-bold">{fmtDate(fromDate)} to {fmtDate(toDate)}</span>
+      </span>
+    </div>
+  );
+
+  /* ── Bill-wise view (party ledgers) — matches the screenshot ────── */
+  if (mode === "bill-wise") {
+    return (
+      <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
+        {Header}
+
+        {/* Main Table */}
+        <div className="flex-1 overflow-y-auto">
+          <table className="w-full border-collapse text-[11px] font-mono">
+            <thead className="sticky top-0 bg-white border-b border-black z-10 select-none">
+              <tr>
+                <th className="px-3 py-1.5 text-left font-bold w-[14%]">Date</th>
+                <th className="px-3 py-1.5 text-left font-bold">Ref. No.</th>
+                <th className="px-3 py-1.5 text-right font-bold w-[20%]">Opening Amount</th>
+                <th className="px-3 py-1.5 text-right font-bold w-[20%]">Pending Amount</th>
+                <th className="px-3 py-1.5 text-right font-bold w-[16%]">Interest</th>
+              </tr>
+            </thead>
+            <tbody>
+              {billRows.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-black/60 italic">
+                    No interest-bearing bills found for this ledger.
+                  </td>
+                </tr>
+              ) : (
+                billRows.map((row, idx) => {
+                  const isFocused = focusedIdx === idx;
+                  const segments = row.segments ?? [];
+                  return (
+                    <React.Fragment key={idx}>
+                      {/* Bill summary row */}
+                      <tr
+                        className={`border-b border-black/10 cursor-pointer select-none transition-colors ${
+                          isFocused ? "bg-black/10 text-black font-bold" : "hover:bg-black/[0.04] text-black"
+                        }`}
+                        onClick={() => setFocused(idx)}
+                      >
+                        <td className="px-3 py-1.5 font-bold">{fmtDate(row.bill_date)}</td>
+                        <td className="px-3 py-1.5">
+                          {row.bill_ref}
+                          {row.missing_due_date && <MissingDueDateMark />}
+                        </td>
+                        <td className="px-3 py-1.5 text-right">{withSide(row.opening_amount, side)}</td>
+                        <td className="px-3 py-1.5 text-right font-bold">{withSide(row.total_pending, side)}</td>
+                        <td className="px-3 py-1.5 text-right font-bold">{withSide(row.interest_amount, side)}</td>
+                      </tr>
+
+                      {/* Interest-calc breakdown line(s) — amount · from · to · days · rate · interest */}
+                      {segments.map((s, si) => (
+                        <tr key={`${idx}-${si}`} className="border-b border-black/5 text-black/70 select-none">
+                          <td className="px-3 py-1 text-[10px]" />
+                          <td className="px-3 py-1 text-[10px]" colSpan={2}>
+                            <span className="inline-flex gap-4 italic">
+                              <span>{withSide(Number(s.amount) || 0, side)}</span>
+                              <span>{fmtDate(s.from)}</span>
+                              <span>{fmtDate(s.to)}</span>
+                              <span>{Number(s.days) || 0} days</span>
+                              <span>{Number(s.rate) || 0} %</span>
+                            </span>
+                          </td>
+                          <td className="px-3 py-1" />
+                          <td className="px-3 py-1 text-right text-[10px] italic">
+                            {withSide(Number(s.interest) || 0, side)}
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer Total */}
+        <div className="border-t-2 border-double border-black bg-white px-3 py-1.5 flex font-mono text-[11px] font-bold text-black select-none">
+          <span className="flex-1">Grand Total</span>
+          <span className="w-[20%] text-right pr-3" />
+          <span className="w-[20%] text-right pr-3">{withSide(totalPrincipal, side)}</span>
+          <span className="w-[16%] text-right pr-3">{withSide(totalInterest, side)}</span>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Balance view (ledgers set to "On Outstanding Balance") ─────── */
+  const totalDebit = intervalRows.reduce((s, r) => s + (r.balance >= 0 ? r.balance : 0), 0);
+  const totalCredit = intervalRows.reduce((s, r) => s + (r.balance < 0 ? Math.abs(r.balance) : 0), 0);
+  const finalBalance = intervalRows.length > 0 ? intervalRows[intervalRows.length - 1].balance : openingBalance;
 
   return (
     <div className="flex flex-col h-full w-full bg-white font-mono overflow-hidden">
-      {/* Sub-header */}
-      <div className="bg-white border-b border-black px-3 py-1 text-[10px] font-mono text-black flex gap-6 select-none">
-        <span>
-          Ledger: <span className="font-bold">{ledgerName}</span>
-        </span>
-        <span>
-          Period: <span className="font-bold">{fmtDate(fromDate)} to {fmtDate(toDate)}</span>
-        </span>
-        <span className="ml-auto">Interest Calculation (Ledger-wise)</span>
-      </div>
+      {Header}
 
       {/* Opening Balance Bar */}
       <div className="bg-white border-b border-black/10 px-3 py-1.5 text-[10px] font-mono flex gap-8 select-none text-black">
@@ -284,14 +407,14 @@ export default function InterestLedgerLayout() {
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 ? (
+            {intervalRows.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-black/60 italic">
                   No interest intervals found.
                 </td>
               </tr>
             ) : (
-              rows.map((row, idx) => {
+              intervalRows.map((row, idx) => {
                 const isFocused = focusedIdx === idx;
                 return (
                   <tr
@@ -306,15 +429,9 @@ export default function InterestLedgerLayout() {
                       {row.rate}% / {row.vch_type}
                     </td>
                     <td className="px-3 py-1.5 text-center">{row.days}</td>
-                    <td className="px-3 py-1.5 text-right text-black">
-                      {row.balance >= 0 ? fmt(row.balance) : ""}
-                    </td>
-                    <td className="px-3 py-1.5 text-right text-black">
-                      {row.balance < 0 ? fmt(row.balance) : ""}
-                    </td>
-                    <td className="px-3 py-1.5 text-right font-bold text-black">
-                      {row.interest > 0 ? fmt(row.interest) : ""}
-                    </td>
+                    <td className="px-3 py-1.5 text-right text-black">{row.balance >= 0 ? fmt(row.balance) : ""}</td>
+                    <td className="px-3 py-1.5 text-right text-black">{row.balance < 0 ? fmt(row.balance) : ""}</td>
+                    <td className="px-3 py-1.5 text-right font-bold text-black">{row.interest > 0 ? fmt(row.interest) : ""}</td>
                   </tr>
                 );
               })

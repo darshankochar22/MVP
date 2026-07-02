@@ -43,9 +43,11 @@ interface GroupedLedger {
 
 interface InterestBillsLayoutProps {
   mode: "receivable" | "payable";
+  fromDate?: string;
+  toDate?: string;
 }
 
-export default function InterestBillsLayout({ mode }: InterestBillsLayoutProps) {
+export default function InterestBillsLayout({ mode, fromDate: fromProp, toDate: toProp }: InterestBillsLayoutProps) {
   const navigate = useNavigate();
   const { selectedCompany, activeFY } = useCompany();
 
@@ -70,23 +72,24 @@ export default function InterestBillsLayout({ mode }: InterestBillsLayoutProps) 
     });
   };
 
-  const fromDate = activeFY?.start_date || "";
-  const toDate = activeFY?.end_date || "";
+  const fromDate = fromProp || activeFY?.start_date || "";
+  const toDate = toProp || activeFY?.end_date || "";
   const cid = selectedCompany?.company_id;
   const fyid = activeFY?.fy_id;
 
   const reportTitle = mode === "receivable" ? "Interest Receivable" : "Interest Payable";
 
-  /* ── Load data ──────────────────────────────────────────────────── */
+  /* ── Load data (re-fetches when the F2 period changes) ──────────── */
   React.useEffect(() => {
     if (!cid || !fyid) return;
     setLoading(true);
     setError(null);
 
+    const dateParams = { from_date: fromDate || undefined, to_date: toDate || undefined };
     const apiCall =
       mode === "receivable"
-        ? (window as any).api.report.interestReceivable(cid, fyid, {})
-        : (window as any).api.report.interestPayable(cid, fyid, {});
+        ? (window as any).api.report.interestReceivable(cid, fyid, dateParams)
+        : (window as any).api.report.interestPayable(cid, fyid, dateParams);
 
     apiCall
       .then((res: any) => {
@@ -128,7 +131,7 @@ export default function InterestBillsLayout({ mode }: InterestBillsLayoutProps) 
       .finally(() => {
         setLoading(false);
       });
-  }, [mode, cid, fyid]);
+  }, [mode, cid, fyid, fromDate, toDate]);
 
   /* ── Keyboard navigation ────────────────────────────────────────── */
   React.useEffect(() => {

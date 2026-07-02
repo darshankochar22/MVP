@@ -672,13 +672,13 @@ export function ReportRunner() {
          ):reportType === "group-outstandings" || reportType === "outstandings-group" ? (
          <GroupOutstandingsLayout />
          ):reportType === "interest-receivable" ? (
-         <InterestBillsLayout mode="receivable" />
+         <InterestBillsLayout mode="receivable" fromDate={fromDate} toDate={toDate} />
          ):reportType === "interest-payable" ? (
-         <InterestBillsLayout mode="payable" />
+         <InterestBillsLayout mode="payable" fromDate={fromDate} toDate={toDate} />
          ):reportType === "interest-calculation-ledger-wise" ? (
-         <InterestLedgerLayout />
+         <InterestLedgerLayout fromDate={fromDate} toDate={toDate} />
          ):reportType === "interest-calculation-group-wise" ? (
-         <InterestGroupLayout />
+         <InterestGroupLayout fromDate={fromDate} toDate={toDate} />
          ):reportType === "contra-register" ? (
          <ContraRegisterLayout />
          ):reportType === "payment-register" ? (
