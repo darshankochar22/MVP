@@ -13,7 +13,7 @@ type Mode = "sales" | "purchase";
 interface Ref { id: number; name: string; }
 interface Row {
   voucher_id: number | null;
-  date: string; order_no: string; party_name: string; due_date: string | null;
+  date: string; order_no: string; party_name: string;
   item_name: string; ordered_qty: number; balance_qty: number; rate: number; value: number;
 }
 
@@ -144,8 +144,13 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
     return (
       <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-900 font-sans text-[11px]">
         <TitleBar title={heading} />
-        <div className="max-w-sm mx-auto mt-8 w-full flex flex-col gap-0.5 px-4">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 mb-1">{heading}</div>
+        <div className="max-w-sm mx-auto mt-10 w-full flex flex-col gap-0.5 px-4">
+          <div className="text-[11px] italic text-zinc-500 flex flex-wrap gap-1 mb-1">
+            <button onClick={() => navigate("/")} className="hover:underline hover:text-zinc-900">Gateway of Tally</button>
+            <span>&gt;</span>
+            <button onClick={() => navigate("/reports/statements-of-inventory")} className="hover:underline hover:text-zinc-900">Statements of Inventory</button>
+          </div>
+          <div className="text-base font-semibold mb-1">{heading}</div>
           {dims.map((d, i) => (
             <button key={d.key}
               onClick={() => openDim(d)}
@@ -199,36 +204,34 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
               <th className={`${TH} text-left`}>Date</th>
               <th className={`${TH} text-left`}>Order Number</th>
               <th className={`${TH} text-left`}>Name of Item</th>
-              <th className={`${TH} text-right`}>Ordered Quantity</th>
-              <th className={`${TH} text-right`}>Balance Quantity</th>
-              <th className={`${TH} text-right`}>Rate</th>
-              <th className={`${TH} text-right`}>Value</th>
-              <th className={`${TH} text-left`}>Due on</th>
+              <th className={`${TH} text-right w-28`}>Ordered Qty</th>
+              <th className={`${TH} text-right w-28`}>Balance Qty</th>
+              <th className={`${TH} text-right w-24`}>Rate</th>
+              <th className={`${TH} text-right w-28`}>Value</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-400 italic">Loading…</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">Loading…</td></tr>
             ) : err ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-600">{err}</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-600">{err}</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-zinc-400 italic">No outstanding orders.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400 italic">No outstanding orders.</td></tr>
             ) : rows.map((r, i) => (
               <React.Fragment key={i}>
                 <tr onClick={() => setRowIdx(i)}
                   onDoubleClick={() => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
                   className={`border-b border-zinc-100 cursor-pointer ${i === rowIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-50"}`}>
-                  <td className="px-2 py-1">{dmy(r.date)}</td>
+                  <td className="px-2 py-1 whitespace-nowrap">{dmy(r.date)}</td>
                   <td className="px-2 py-1">{r.order_no}</td>
                   <td className="px-2 py-1">{r.item_name}</td>
-                  <td className="px-2 py-1 text-right">{fmtQty(r.ordered_qty)}</td>
-                  <td className="px-2 py-1 text-right">{fmtQty(r.balance_qty)}</td>
-                  <td className="px-2 py-1 text-right">{fmtNum(r.rate)}</td>
-                  <td className="px-2 py-1 text-right">{fmtNum(r.value)}</td>
-                  <td className="px-2 py-1">{dmy(r.due_date)}</td>
+                  <td className="px-2 py-1 text-right w-28">{fmtQty(r.ordered_qty)}</td>
+                  <td className="px-2 py-1 text-right w-28">{fmtQty(r.balance_qty)}</td>
+                  <td className="px-2 py-1 text-right w-24">{fmtNum(r.rate)}</td>
+                  <td className="px-2 py-1 text-right w-28">{fmtNum(r.value)}</td>
                 </tr>
                 <tr className={i === rowIdx ? "bg-[#e4e4e7]" : ""}>
-                  <td /><td colSpan={7} className="px-2 pb-1 italic text-zinc-500">To: {r.party_name || "—"}</td>
+                  <td /><td colSpan={6} className="px-2 pb-1 italic text-zinc-500">To: {r.party_name || "—"}</td>
                 </tr>
               </React.Fragment>
             ))}
@@ -236,13 +239,13 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
         </table>
       </div>
 
-      <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold shrink-0">
-        <span className="flex-1">Grand Total</span>
-        <span className="w-32 text-right pr-1">{fmtQty(totals.ordered)}</span>
-        <span className="w-32 text-right pr-1">{fmtQty(totals.balance)}</span>
-        <span className="w-16" />
-        <span className="w-28 text-right pr-1">{fmtNum(totals.value)}</span>
-        <span className="w-16" />
+      {/* Grand-total row — fixed widths mirror the numeric columns so it aligns */}
+      <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-2 py-1.5 flex font-mono text-[11px] font-bold shrink-0">
+        <span className="flex-1 pl-2">Grand Total</span>
+        <span className="w-28 text-right">{fmtQty(totals.ordered)}</span>
+        <span className="w-28 text-right">{fmtQty(totals.balance)}</span>
+        <span className="w-24" />
+        <span className="w-28 text-right">{fmtNum(totals.value)}</span>
       </div>
 
       <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">

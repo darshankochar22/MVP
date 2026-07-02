@@ -178,7 +178,6 @@ module.exports = {
             date: r.date,
             order_no: r.order_no,
             party_name: r.party_name,
-            due_date: null, // vouchers table has no due_date column; Tally order due-date not stored
             item_name: r.item_name,
             ordered_qty: ordered,
             balance_qty: balance,

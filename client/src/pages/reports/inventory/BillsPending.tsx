@@ -103,10 +103,10 @@ export default function BillsPending({ mode }: { mode: Mode }) {
               <th className={`${TH} text-left`}>Date</th>
               <th className={`${TH} text-left`}>Tracking Number</th>
               <th className={`${TH} text-left`}>Name of Item</th>
-              <th className={`${TH} text-right`}>Initial Quantity</th>
-              <th className={`${TH} text-right`}>Pending Quantity</th>
-              <th className={`${TH} text-right`}>Rate</th>
-              <th className={`${TH} text-right`}>Value</th>
+              <th className={`${TH} text-right w-28`}>Initial Qty</th>
+              <th className={`${TH} text-right w-28`}>Pending Qty</th>
+              <th className={`${TH} text-right w-24`}>Rate</th>
+              <th className={`${TH} text-right w-28`}>Value</th>
             </tr>
           </thead>
           <tbody>
@@ -123,13 +123,13 @@ export default function BillsPending({ mode }: { mode: Mode }) {
                   onDoubleClick={() => r.voucher_id && navigate(`/transactions/voucher/${r.voucher_id}`)}
                   className={`border-b border-zinc-100 cursor-pointer ${i === idx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-50"}`}
                 >
-                  <td className="px-2 py-1">{dmy(r.date)}</td>
+                  <td className="px-2 py-1 whitespace-nowrap">{dmy(r.date)}</td>
                   <td className="px-2 py-1">{r.tracking_no}</td>
                   <td className="px-2 py-1">{r.item_name}</td>
-                  <td className="px-2 py-1 text-right">{fmtQty(r.initial_qty)}</td>
-                  <td className="px-2 py-1 text-right">{fmtQty(r.pending_qty)}</td>
-                  <td className="px-2 py-1 text-right">{fmtNum(r.rate)}</td>
-                  <td className="px-2 py-1 text-right">{fmtNum(r.value)}</td>
+                  <td className="px-2 py-1 text-right w-28">{fmtQty(r.initial_qty)}</td>
+                  <td className="px-2 py-1 text-right w-28">{fmtQty(r.pending_qty)}</td>
+                  <td className="px-2 py-1 text-right w-24">{fmtNum(r.rate)}</td>
+                  <td className="px-2 py-1 text-right w-28">{fmtNum(r.value)}</td>
                 </tr>
                 <tr className={i === idx ? "bg-[#e4e4e7]" : ""}>
                   <td />
@@ -141,12 +141,13 @@ export default function BillsPending({ mode }: { mode: Mode }) {
         </table>
       </div>
 
-      <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-3 py-1.5 flex font-mono text-[11px] font-bold shrink-0">
-        <span className="flex-1">Total</span>
-        <span className="w-28 text-right pr-1">{fmtQty(totals.initial)}</span>
-        <span className="w-28 text-right pr-1">{fmtQty(totals.pending)}</span>
-        <span className="w-20" />
-        <span className="w-28 text-right pr-1">{fmtNum(totals.value)}</span>
+      {/* Total row — fixed widths mirror the numeric columns so it aligns */}
+      <div className="border-t-2 border-zinc-300 bg-[#f4f4f5] px-2 py-1.5 flex font-mono text-[11px] font-bold shrink-0">
+        <span className="flex-1 pl-2">Total</span>
+        <span className="w-28 text-right">{fmtQty(totals.initial)}</span>
+        <span className="w-28 text-right">{fmtQty(totals.pending)}</span>
+        <span className="w-24" />
+        <span className="w-28 text-right">{fmtNum(totals.value)}</span>
       </div>
 
       <div className="flex items-center gap-6 px-3 py-1 border-t border-zinc-300 bg-white text-[10px] font-semibold text-zinc-600 shrink-0">

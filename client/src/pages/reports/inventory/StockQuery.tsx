@@ -85,9 +85,9 @@ function TxPanel({ title, verb, rows, unit, onOpen }: {
           ) : rows.map((r, i) => (
             <tr
               key={i}
-              onClick={() => r.voucher_id && onOpen(r.voucher_id)}
+              onDoubleClick={() => r.voucher_id && onOpen(r.voucher_id)}
               className={`hover:bg-zinc-100 ${r.voucher_id ? "cursor-pointer" : ""}`}
-              title={r.voucher_id ? "Enter / click: open voucher" : undefined}
+              title={r.voucher_id ? "Double-click: open voucher" : undefined}
             >
               <td className={TD}>{dmy(r.date)}</td>
               <td className={`${TD} truncate max-w-[120px]`}>{r.party_name || "—"}</td>
