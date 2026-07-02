@@ -1,13 +1,16 @@
 import * as React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import { filterPartyGroups, partySide } from "@/lib/outstandingParties";
+import { partySide } from "@/lib/outstandingParties";
 import InterestGroupTable, { groupByLedger } from "./InterestGroupTable";
 import type { GroupedLedger } from "./InterestGroupTable";
 
-/* "Groups" option under Interest Calculations: pick a party group (Sundry
-   Debtors / Sundry Creditors or a sub-group), then show that group's interest
-   using the same layout as Interest Receivable / Payable. */
+/* "Groups" option under Interest Calculations: pick ANY group (like TallyPrime's
+   Group Interest Calculation lists every group — Primary, Bank OCC A/c, Capital
+   Account, … Sundry Debtors/Creditors), then show that group's interest using
+   the same layout as Interest Receivable / Payable. The backend computes
+   interest for whatever interest-enabled ledgers sit under the chosen group and
+   returns empty when none do. */
 
 interface GroupMeta { group_id: number; name: string; parent: string; drcr: "Dr" | "Cr" }
 
@@ -47,15 +50,17 @@ export default function InterestGroupLayout({ fromDate: fromProp, toDate: toProp
   const cid      = selectedCompany?.company_id;
   const fyid     = activeFY?.fy_id;
 
-  /* ── Load group picker (Sundry Debtors / Creditors + sub-groups only) ── */
+  /* ── Load group picker (ALL groups, like Tally's Group Interest Calc) ── */
   React.useEffect(() => {
     if (!cid || groupId) return;
     (window as any).api.group.getAll(cid).then((res: any) => {
       const rawList = Array.isArray(res) ? res : (res?.groups ?? res?.data ?? []);
       const nameMap = new Map<number, string>();
       rawList.forEach((g: any) => nameMap.set(g.group_id, g.name));
+      // partySide only tags the Sundry Debtors/Creditors subtrees; other groups
+      // default to "Dr" here and the backend's `nature` corrects the display.
       const sides = partySide(rawList);
-      const list: GroupMeta[] = filterPartyGroups(rawList)
+      const list: GroupMeta[] = rawList
         .map((g: any) => ({
           group_id: g.group_id,
           name: g.name,
