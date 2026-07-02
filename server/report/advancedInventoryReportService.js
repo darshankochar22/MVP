@@ -117,23 +117,79 @@ module.exports = {
     }
   },
 
-  orderOutstanding: async (company_id, fy_id, type) => {
+  // Order Outstandings (Sales/Purchase). Returns outstanding order LINES with a
+  // balance (pending) quantity = ordered − fulfilled, matched by order number +
+  // item against the fulfilling voucher (Delivery Note / Receipt Note).
+  //   dimension: 'all' | 'stock-item' | 'stock-group' | 'stock-category'
+  //              | 'ledger' | 'group'   (with selection_id for the chosen entity)
+  orderOutstanding: async (company_id, fy_id, type, dimension = 'all', selection_id = null) => {
     try {
-      const targetType = type === 'sales' ? 'Sales Order' : 'Purchase Order';
-      const rows = await db.all(
-        sql`SELECT
-              v.date,
-              v.voucher_number AS ref_no,
-              v.party_name,
-              SUM(vse.amount) AS value
-            FROM ${vouchers} v
-            LEFT JOIN ${voucherStockEntries} vse ON vse.voucher_id = v.voucher_id
-            WHERE v.company_id = ${company_id} AND v.fy_id = ${fy_id}
-              AND v.voucher_type = ${targetType} AND v.is_cancelled = 0
-            GROUP BY v.voucher_id
-            ORDER BY v.date DESC`
-      );
-      return { success: true, rows };
+      const orderType  = type === 'sales' ? 'Sales Order'  : 'Purchase Order';
+      const fulfilType = type === 'sales' ? 'Delivery Note' : 'Receipt Note';
+
+      // Dimension filter — join stock_items only when filtering on stock attributes.
+      const needsItemJoin = dimension === 'stock-group' || dimension === 'stock-category';
+      const dimJoin = needsItemJoin
+        ? sql` INNER JOIN ${stockItems} si ON si.item_id = vse.stock_item_id`
+        : sql``;
+      let dimCond = sql``;
+      if (dimension === 'stock-item'     && selection_id) dimCond = sql` AND vse.stock_item_id = ${selection_id}`;
+      else if (dimension === 'stock-group'    && selection_id) dimCond = sql` AND si.group_id = ${selection_id}`;
+      else if (dimension === 'stock-category' && selection_id) dimCond = sql` AND si.category_id = ${selection_id}`;
+      else if (dimension === 'ledger'         && selection_id) dimCond = sql` AND v.party_ledger_id = ${selection_id}`;
+      else if (dimension === 'group'          && selection_id) dimCond = sql` AND v.party_ledger_id IN (SELECT ledger_id FROM ledgers WHERE group_id = ${selection_id})`;
+
+      const rows = await db.all(sql`
+        SELECT
+          v.voucher_id      AS voucher_id,
+          v.date            AS date,
+          v.voucher_number  AS order_no,
+          v.party_name      AS party_name,
+          v.due_date        AS due_date,
+          vse.item_name     AS item_name,
+          vse.quantity      AS ordered_qty,
+          vse.rate          AS rate,
+          (
+            SELECT COALESCE(SUM(vb2.quantity), 0)
+            FROM ${voucherBatches} vb2
+            INNER JOIN ${vouchers} v2             ON v2.voucher_id  = vb2.voucher_id
+            INNER JOIN ${voucherStockEntries} vse2 ON vse2.stock_entry_id = vb2.stock_entry_id
+            WHERE v2.company_id   = ${company_id}
+              AND v2.fy_id        = ${fy_id}
+              AND v2.voucher_type = ${fulfilType}
+              AND v2.is_cancelled = 0
+              AND vb2.order_no    = v.voucher_number
+              AND vse2.stock_item_id = vse.stock_item_id
+          ) AS fulfilled_qty
+        FROM ${vouchers} v
+        INNER JOIN ${voucherStockEntries} vse ON vse.voucher_id = v.voucher_id${dimJoin}
+        WHERE v.company_id   = ${company_id}
+          AND v.fy_id        = ${fy_id}
+          AND v.voucher_type = ${orderType}
+          AND v.is_cancelled = 0${dimCond}
+        ORDER BY v.date ASC, v.voucher_id ASC
+      `);
+
+      const processed = rows
+        .map(r => {
+          const ordered = r.ordered_qty || 0;
+          const balance = ordered - (r.fulfilled_qty || 0);
+          return {
+            voucher_id: r.voucher_id,
+            date: r.date,
+            order_no: r.order_no,
+            party_name: r.party_name,
+            due_date: r.due_date,
+            item_name: r.item_name,
+            ordered_qty: ordered,
+            balance_qty: balance,
+            rate: r.rate || 0,
+            value: balance * (r.rate || 0),
+          };
+        })
+        .filter(r => Math.abs(r.balance_qty) > 1e-9);
+
+      return { success: true, rows: processed };
     } catch (err) {
       return { success: false, error: err.message };
     }

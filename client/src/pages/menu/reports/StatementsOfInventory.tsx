@@ -21,6 +21,8 @@ export default function StatementsOfInventory() {
     {
       title: "STOCK OUTSTANDINGS",
       items: [
+        "Sales Order Outstandings",
+        "Purchase Order Outstandings",
         "Sale Bills Pending",
         "Purchase Bills Pending",
       ],
@@ -40,6 +42,8 @@ export default function StatementsOfInventory() {
       "Reorder Status": "/reports/statements-of-inventory/reorder-status",
       "Cost Estimation": "/reports/statements-of-inventory/cost-estimation",
       "Item Cost Analysis": "/reports/statements-of-inventory/item-cost-analysis",
+      "Sales Order Outstandings": "/reports/statements-of-inventory/sales-order-outstandings",
+      "Purchase Order Outstandings": "/reports/statements-of-inventory/purchase-order-outstandings",
       "Sale Bills Pending": "/reports/statements-of-inventory/sale-bills-pending",
       "Purchase Bills Pending": "/reports/statements-of-inventory/purchase-bills-pending",
     };

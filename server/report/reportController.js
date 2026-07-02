@@ -237,8 +237,8 @@ module.exports = {
   reorderStatus: async (event, { company_id, fy_id }) => {
     return await advancedInventoryReportService.reorderStatus(company_id, fy_id);
   },
-  orderOutstanding: async (event, { company_id, fy_id, type }) => {
-    return await advancedInventoryReportService.orderOutstanding(company_id, fy_id, type);
+  orderOutstanding: async (event, { company_id, fy_id, type, dimension, selection_id }) => {
+    return await advancedInventoryReportService.orderOutstanding(company_id, fy_id, type, dimension, selection_id);
   },
   billsPending: async (event, { company_id, fy_id, type }) => {
     return await advancedInventoryReportService.billsPending(company_id, fy_id, type);

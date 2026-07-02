@@ -77,6 +77,7 @@ import PurchaseOrderOutstanding from "../pages/reports/inventory/PurchaseOrderOu
 import WorkOrderOutstanding from "../pages/reports/inventory/WorkOrderOutstanding.tsx";
 import StockQuery from "../pages/reports/inventory/StockQuery.tsx";
 import BillsPending from "../pages/reports/inventory/BillsPending.tsx";
+import OrderOutstanding from "../pages/reports/inventory/OrderOutstanding.tsx";
 import ReorderStatus from "../pages/reports/inventory/ReorderStatus.tsx";
 
 // Payroll report layouts
@@ -162,6 +163,8 @@ export const reportRoutes: RouteConfig[] = [
   { path: "/reports/statements-of-inventory/item-cost-analysis/stock-item", element: <ItemCostAnalysis mode="item" /> },
   { path: "/reports/statements-of-inventory/item-cost-analysis/cost-track", element: <ItemCostAnalysis mode="track" /> },
   { path: "/reports/statements-of-inventory/reorder-status", element: <ReorderStatus /> },
+  { path: "/reports/statements-of-inventory/sales-order-outstandings", element: <OrderOutstanding mode="sales" /> },
+  { path: "/reports/statements-of-inventory/purchase-order-outstandings", element: <OrderOutstanding mode="purchase" /> },
   { path: "/reports/statements-of-inventory/sale-bills-pending", element: <BillsPending mode="sales" /> },
   { path: "/reports/statements-of-inventory/purchase-bills-pending", element: <BillsPending mode="purchase" /> },
 
