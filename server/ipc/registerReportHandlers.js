@@ -55,6 +55,7 @@ function register() {
   ipcMain.handle('report:movementAnalysis', reportController.movementAnalysis);
   ipcMain.handle('report:reorderStatus', reportController.reorderStatus);
   ipcMain.handle('report:orderOutstanding', reportController.orderOutstanding);
+  ipcMain.handle('report:billsPending', reportController.billsPending);
 
   // Advanced Accounting Reports (Phase 4)
   ipcMain.handle('report:costCentreReport', reportController.costCentreReport);

@@ -1,6 +1,6 @@
 const { db } = require('../db/index');
 const { sql } = require('drizzle-orm');
-const { godowns, voucherStockEntries, vouchers, stockItems } = require('../db/schema');
+const { godowns, voucherStockEntries, vouchers, stockItems, voucherBatches } = require('../db/schema');
 const { inwardCondSql, outwardCondSql } = require('./services/stockMovement');
 const { calculateGodownClosing } = require('./stockValuationEngine');
 
@@ -134,6 +134,76 @@ module.exports = {
             ORDER BY v.date DESC`
       );
       return { success: true, rows };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  },
+
+  // Bills Pending (Tally: tracking-number reconciliation).
+  //  type 'sales'    → "Bills Made but Goods not Delivered":  Sales lines carrying
+  //                    a tracking number, less any Delivery Note against that number.
+  //  type 'purchase' → "Bills Received but Goods not Received": Purchase lines less
+  //                    any Receipt Note against the same tracking number.
+  // Pending quantity = billed − fulfilled (matched by tracking_no). Rows with a
+  // remaining pending qty are returned. Empty when no tracking numbers are used.
+  billsPending: async (company_id, fy_id, type) => {
+    try {
+      const billType    = type === 'purchase' ? 'Purchase' : 'Sales';
+      const fulfilType  = type === 'purchase' ? 'Receipt Note' : 'Delivery Note';
+
+      const rows = await db.all(sql`
+        SELECT
+          MAX(v.voucher_id) AS voucher_id,
+          v.date            AS date,
+          vb.tracking_no    AS tracking_no,
+          vse.item_name     AS item_name,
+          v.party_name      AS party_name,
+          SUM(vb.quantity)  AS initial_qty,
+          MAX(vse.rate)     AS rate,
+          MAX(vse.discount_amount) AS disc_amount,
+          (
+            SELECT COALESCE(SUM(vb2.quantity), 0)
+            FROM ${voucherBatches} vb2
+            INNER JOIN ${vouchers} v2 ON v2.voucher_id = vb2.voucher_id
+            WHERE v2.company_id  = ${company_id}
+              AND v2.fy_id       = ${fy_id}
+              AND v2.voucher_type = ${fulfilType}
+              AND v2.is_cancelled = 0
+              AND vb2.tracking_no = vb.tracking_no
+          ) AS fulfilled_qty
+        FROM ${voucherBatches} vb
+        INNER JOIN ${vouchers} v            ON v.voucher_id       = vb.voucher_id
+        INNER JOIN ${voucherStockEntries} vse ON vse.stock_entry_id = vb.stock_entry_id
+        WHERE v.company_id   = ${company_id}
+          AND v.fy_id        = ${fy_id}
+          AND v.voucher_type = ${billType}
+          AND v.is_cancelled = 0
+          AND vb.tracking_no IS NOT NULL
+          AND TRIM(vb.tracking_no) <> ''
+        GROUP BY vb.tracking_no, vse.stock_entry_id
+        ORDER BY v.date ASC
+      `);
+
+      const processed = rows
+        .map(r => {
+          const initial = r.initial_qty || 0;
+          const pending = initial - (r.fulfilled_qty || 0);
+          return {
+            voucher_id: r.voucher_id,
+            date: r.date,
+            tracking_no: r.tracking_no,
+            item_name: r.item_name,
+            party_name: r.party_name,
+            initial_qty: initial,
+            pending_qty: pending,
+            rate: r.rate || 0,
+            disc_amount: r.disc_amount || 0,
+            value: pending * (r.rate || 0),
+          };
+        })
+        .filter(r => Math.abs(r.pending_qty) > 1e-9);
+
+      return { success: true, rows: processed };
     } catch (err) {
       return { success: false, error: err.message };
     }

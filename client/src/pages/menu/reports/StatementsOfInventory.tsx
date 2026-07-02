@@ -13,8 +13,16 @@ export default function StatementsOfInventory() {
         "Movement Analysis",
         "Ageing Analysis",
         "Job Work Analysis",
+        "Reorder Status",
         "Cost Estimation",
         "Item Cost Analysis",
+      ],
+    },
+    {
+      title: "STOCK OUTSTANDINGS",
+      items: [
+        "Sale Bills Pending",
+        "Purchase Bills Pending",
       ],
     },
     {
@@ -29,8 +37,11 @@ export default function StatementsOfInventory() {
       "Movement Analysis": "/reports/statements-of-inventory/movement-analysis",
       "Ageing Analysis": "/reports/statements-of-inventory/ageing-analysis",
       "Job Work Analysis": "/reports/statements-of-inventory/job-work-analysis",
+      "Reorder Status": "/reports/statements-of-inventory/reorder-status",
       "Cost Estimation": "/reports/statements-of-inventory/cost-estimation",
       "Item Cost Analysis": "/reports/statements-of-inventory/item-cost-analysis",
+      "Sale Bills Pending": "/reports/statements-of-inventory/sale-bills-pending",
+      "Purchase Bills Pending": "/reports/statements-of-inventory/purchase-bills-pending",
     };
     return routes[item] ?? null;
   };

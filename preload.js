@@ -215,6 +215,7 @@ contextBridge.exposeInMainWorld('api', {
         movementAnalysis: (company_id, fy_id, as_on_date)                        => invoke('report:movementAnalysis', { company_id, fy_id, as_on_date }),
         reorderStatus:    (company_id, fy_id)                                    => invoke('report:reorderStatus', { company_id, fy_id }),
         orderOutstanding: (company_id, fy_id, type)                              => invoke('report:orderOutstanding', { company_id, fy_id, type }),
+        billsPending:     (company_id, fy_id, type)                              => invoke('report:billsPending', { company_id, fy_id, type }),
         costCentreReport: (company_id, fy_id, as_on_date)                        => invoke('report:costCentreReport', { company_id, fy_id, as_on_date }),
         budgetVsActual:   (company_id, fy_id)                                    => invoke('report:budgetVsActual', { company_id, fy_id }),
         // Accounting summaries

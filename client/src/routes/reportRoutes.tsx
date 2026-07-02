@@ -76,6 +76,7 @@ import SalesOrderOutstanding from "../pages/reports/inventory/SalesOrderOutstand
 import PurchaseOrderOutstanding from "../pages/reports/inventory/PurchaseOrderOutstanding.tsx";
 import WorkOrderOutstanding from "../pages/reports/inventory/WorkOrderOutstanding.tsx";
 import StockQuery from "../pages/reports/inventory/StockQuery.tsx";
+import BillsPending from "../pages/reports/inventory/BillsPending.tsx";
 import ReorderStatus from "../pages/reports/inventory/ReorderStatus.tsx";
 
 // Payroll report layouts
@@ -160,6 +161,9 @@ export const reportRoutes: RouteConfig[] = [
   { path: "/reports/statements-of-inventory/item-cost-analysis/stock-group", element: <ItemCostAnalysis mode="group" /> },
   { path: "/reports/statements-of-inventory/item-cost-analysis/stock-item", element: <ItemCostAnalysis mode="item" /> },
   { path: "/reports/statements-of-inventory/item-cost-analysis/cost-track", element: <ItemCostAnalysis mode="track" /> },
+  { path: "/reports/statements-of-inventory/reorder-status", element: <ReorderStatus /> },
+  { path: "/reports/statements-of-inventory/sale-bills-pending", element: <BillsPending mode="sales" /> },
+  { path: "/reports/statements-of-inventory/purchase-bills-pending", element: <BillsPending mode="purchase" /> },
 
   // Cash/Bank
   { path: "/reports/accounts/cash-bank", element: <CashBankReport /> },
@@ -229,6 +233,12 @@ export const reportRoutes: RouteConfig[] = [
   { path: "/reports/inventory/reorder-status", element: <ReorderStatus /> },
 
   // Inventory books
+  { path: "/reports/inventory-books/sales-orders-book", element: <InventoryVoucherRegister voucherType="Sales Order" title="Sales Orders Book" variant="order" subtitle="Sales Order" /> },
+  { path: "/reports/inventory-books/purchase-orders-book", element: <InventoryVoucherRegister voucherType="Purchase Order" title="Purchase Orders Book" variant="order" subtitle="Purchase Order" /> },
+  { path: "/reports/inventory-books/delivery-note-register", element: <InventoryVoucherRegister voucherType="Delivery Note" title="Delivery Note Register" subtitle="Delivery Note" /> },
+  { path: "/reports/inventory-books/receipt-note-register", element: <InventoryVoucherRegister voucherType="Receipt Note" title="Receipt Note Register" subtitle="Receipt Note" /> },
+  { path: "/reports/inventory-books/rejections-in-register", element: <InventoryVoucherRegister voucherType="Rejection In" title="Rejections In Register" subtitle="Rejection In" /> },
+  { path: "/reports/inventory-books/rejections-out-register", element: <InventoryVoucherRegister voucherType="Rejection Out" title="Rejections Out Register" subtitle="Rejection Out" /> },
   { path: "/reports/inventory-books/stock-transfer-register", element: <StockJournalRegister /> },
   { path: "/reports/inventory-books/physical-stock-register", element: <PhysicalStockRegister /> },
 

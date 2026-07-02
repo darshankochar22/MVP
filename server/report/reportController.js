@@ -240,6 +240,9 @@ module.exports = {
   orderOutstanding: async (event, { company_id, fy_id, type }) => {
     return await advancedInventoryReportService.orderOutstanding(company_id, fy_id, type);
   },
+  billsPending: async (event, { company_id, fy_id, type }) => {
+    return await advancedInventoryReportService.billsPending(company_id, fy_id, type);
+  },
   stockItemSummary: async (event, { company_id, fy_id }) => {
     return await stockItemSummary(company_id, fy_id);
   },
