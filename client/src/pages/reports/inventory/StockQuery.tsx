@@ -52,10 +52,12 @@ const TH = "px-2 py-1 text-left font-bold text-[10px] bg-zinc-100 border-b borde
 const TD = "px-2 py-1 text-[11px] border-b border-zinc-100";
 const TDR = `${TD} text-right`;
 
-/** Purchases / Sales panel — summary line, table with Disc%, click-to-drill to voucher. */
-function TxPanel({ title, verb, rows, unit, onOpen }: {
+/** Purchases / Sales panel — summary line, table with Disc%, drill to voucher
+ *  (double-click or the parent's keyboard cursor + Enter). */
+function TxPanel({ title, verb, rows, unit, onOpen, focusIdx = -1, onFocusRow }: {
   title: string; verb: string; rows: TxRow[]; unit?: string;
   onOpen: (voucherId: number) => void;
+  focusIdx?: number; onFocusRow?: (i: number) => void;
 }) {
   const last = rows[0];
   return (
@@ -85,9 +87,10 @@ function TxPanel({ title, verb, rows, unit, onOpen }: {
           ) : rows.map((r, i) => (
             <tr
               key={i}
+              onClick={() => onFocusRow?.(i)}
               onDoubleClick={() => r.voucher_id && onOpen(r.voucher_id)}
-              className={`hover:bg-zinc-100 ${r.voucher_id ? "cursor-pointer" : ""}`}
-              title={r.voucher_id ? "Double-click: open voucher" : undefined}
+              className={`${i === focusIdx ? "bg-[#e4e4e7] font-bold" : "hover:bg-zinc-100"} ${r.voucher_id ? "cursor-pointer" : ""}`}
+              title={r.voucher_id ? "Enter / double-click: open voucher" : undefined}
             >
               <td className={TD}>{dmy(r.date)}</td>
               <td className={`${TD} truncate max-w-[120px]`}>{r.party_name || "—"}</td>
@@ -143,10 +146,14 @@ export default function StockQuery() {
   const [loading, setLoading] = React.useState(false);
   const [err,     setErr]     = React.useState<string | null>(null);
 
+  // Keyboard cursor over the transaction rows: purchases first, then sales.
+  const [txIdx, setTxIdx] = React.useState(0);
+
   const openDetail = React.useCallback((item: StockItem) => {
     if (!companyId || !fyId) return;
     setLevel({ step: "detail", item });
     setData(null);
+    setTxIdx(0);
     setLoading(true);
     setErr(null);
     (window as any).api.report
@@ -172,19 +179,30 @@ export default function StockQuery() {
     return () => window.removeEventListener("keydown", h);
   }, [level.step, filtered, selectIdx, openDetail, navigate]);
 
-  // ── Keyboard — detail ──────────────────────────────────────────────────
+  // ── Keyboard — detail (↑↓ over purchases+sales, Enter: Display Vch) ────
   React.useEffect(() => {
     if (level.step !== "detail") return;
+    const txCount = (data?.purchases.length ?? 0) + (data?.sales.length ?? 0);
     const h = (e: KeyboardEvent) => {
       if (e.key === "Escape" || e.key === "Backspace") {
         e.preventDefault();
         setLevel({ step: "select" });
         setData(null);
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault(); setTxIdx(p => Math.min(Math.max(0, txCount - 1), p + 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault(); setTxIdx(p => Math.max(0, p - 1));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (!data) return;
+        const flat = [...data.purchases, ...data.sales];
+        const r = flat[txIdx];
+        if (r?.voucher_id) navigate(`/transactions/voucher/${r.voucher_id}`);
       }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [level.step]);
+  }, [level.step, data, txIdx, navigate]);
 
   // ── Render — selection popup ───────────────────────────────────────────
   if (level.step === "select") {
@@ -265,11 +283,13 @@ export default function StockQuery() {
               </table>
             </section>
 
-            {/* ── Last 10 Purchases & Sales — side by side, click row → voucher ── */}
+            {/* ── Last 10 Purchases & Sales — ↑↓ + Enter or double-click → voucher ── */}
             <section className="flex gap-4">
               <TxPanel title="Last Purchases" verb="purchased" rows={data.purchases} unit={unit}
+                focusIdx={txIdx} onFocusRow={setTxIdx}
                 onOpen={(id) => navigate(`/transactions/voucher/${id}`)} />
               <TxPanel title="Last Sales" verb="sold" rows={data.sales} unit={unit}
+                focusIdx={txIdx - data.purchases.length} onFocusRow={(i) => setTxIdx(i + data.purchases.length)}
                 onOpen={(id) => navigate(`/transactions/voucher/${id}`)} />
             </section>
 
@@ -343,6 +363,8 @@ export default function StockQuery() {
         >
           Q: Quit
         </button>
+        <span className="text-zinc-400">↑↓: Move</span>
+        <span className="text-zinc-400">Enter: Display Vch</span>
         <span className="text-zinc-400">Esc: Back to Selection</span>
       </div>
     </div>

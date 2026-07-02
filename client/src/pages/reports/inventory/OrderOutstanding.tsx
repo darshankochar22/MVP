@@ -76,6 +76,7 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
   const [selIdx, setSelIdx] = React.useState(0);
 
   const openDim = React.useCallback((dim: Dim) => {
+    if (!companyId) return;
     if (!dim.fetch) { setLevel({ step: "report", dim, selection: null }); return; }
     setLevel({ step: "select", dim }); setSearch(""); setSelIdx(0);
     setEntLoading(true); setEntities([]);
@@ -119,7 +120,8 @@ export default function OrderOutstanding({ mode }: { mode: Mode }) {
         if (e.key === "ArrowDown") { e.preventDefault(); setSelIdx(p => Math.min(filtered.length - 1, p + 1)); }
         else if (e.key === "ArrowUp") { e.preventDefault(); setSelIdx(p => Math.max(0, p - 1)); }
         else if (e.key === "Enter") { e.preventDefault(); const s = filtered[selIdx]; if (s) setLevel({ step: "report", dim: level.dim, selection: s }); }
-        else if (e.key === "Escape" || e.key === "Backspace") { e.preventDefault(); setLevel({ step: "menu" }); }
+        // Escape only — Backspace must keep editing the SelectionPopup search input.
+        else if (e.key === "Escape") { e.preventDefault(); setLevel({ step: "menu" }); }
       } else {
         if (e.key === "ArrowDown") { e.preventDefault(); setRowIdx(p => Math.min(rows.length - 1, p + 1)); }
         else if (e.key === "ArrowUp") { e.preventDefault(); setRowIdx(p => Math.max(0, p - 1)); }

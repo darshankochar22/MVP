@@ -89,26 +89,44 @@ module.exports = {
     }
   },
 
+  // Reorder Status (Tally): per item — closing stock, purchase orders pending
+  // (ordered − received against the order no.), total available, reorder level,
+  // shortfall vs level, and the qty to order (max of shortfall and the master's
+  // minimum reorder quantity). Quantities carry the item's real unit.
   reorderStatus: async (company_id, fy_id) => {
     try {
       const rows = await db.all(
         sql`SELECT
+              si.item_id,
               si.name AS item_name,
+              u.name  AS unit_name,
               COALESCE(si.opening_quantity, 0) +
               COALESCE((SELECT SUM(vse.quantity) FROM ${voucherStockEntries} vse JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id WHERE vse.stock_item_id = si.item_id AND v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0 AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0 AND ${inwardCondSql('v', 'vse')}), 0) -
-              COALESCE((SELECT SUM(vse.quantity) FROM ${voucherStockEntries} vse JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id WHERE vse.stock_item_id = si.item_id AND v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0 AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0 AND ${outwardCondSql('v', 'vse')}), 0) AS closing,
-              COALESCE(si.reorder_level, 0) AS level,
-              0 AS shortage
+              COALESCE((SELECT SUM(vse.quantity) FROM ${voucherStockEntries} vse JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id WHERE vse.stock_item_id = si.item_id AND v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.is_cancelled = 0 AND COALESCE(v.is_optional, 0) = 0 AND COALESCE(v.is_post_dated, 0) = 0 AND ${outwardCondSql('v', 'vse')}), 0) AS closing_qty,
+              COALESCE((SELECT SUM(vse.quantity) FROM ${voucherStockEntries} vse JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id WHERE vse.stock_item_id = si.item_id AND v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.voucher_type = 'Purchase Order' AND v.is_cancelled = 0), 0) -
+              COALESCE((SELECT SUM(vse.quantity) FROM ${voucherStockEntries} vse JOIN ${vouchers} v ON v.voucher_id = vse.voucher_id WHERE vse.stock_item_id = si.item_id AND v.company_id = ${company_id} AND v.fy_id = ${fy_id} AND v.voucher_type = 'Receipt Note' AND v.is_cancelled = 0), 0) AS po_pending,
+              COALESCE(si.reorder_level, 0)    AS reorder_level,
+              COALESCE(si.reorder_quantity, 0) AS reorder_qty
             FROM ${stockItems} si
-            WHERE si.company_id = ${company_id} AND si.is_active = 1`
+            LEFT JOIN units u ON u.unit_id = si.unit_id
+            WHERE si.company_id = ${company_id} AND si.is_active = 1
+            ORDER BY si.name ASC`
       );
+      const withUnit = (n, unit) => unit ? `${n} ${unit}` : String(n);
       const processed = rows.map(r => {
-        const shortage = r.closing < r.level ? r.level - r.closing : 0;
+        const poPending = Math.max(0, r.po_pending || 0);
+        const total     = (r.closing_qty || 0) + poPending;
+        const shortfall = Math.max(0, (r.reorder_level || 0) - total);
+        const toOrder   = shortfall > 0 ? Math.max(shortfall, r.reorder_qty || 0) : 0;
         return {
-          ...r,
-          closing: r.closing + " Pcs",
-          level: r.level + " Pcs",
-          shortage: shortage + " Pcs"
+          item_id: r.item_id,
+          item_name: r.item_name,
+          closing: withUnit(r.closing_qty || 0, r.unit_name),
+          po_pending: poPending ? withUnit(poPending, r.unit_name) : "",
+          total_available: withUnit(total, r.unit_name),
+          level: withUnit(r.reorder_level || 0, r.unit_name),
+          shortage: shortfall ? withUnit(shortfall, r.unit_name) : "",
+          to_order: toOrder ? withUnit(toOrder, r.unit_name) : "",
         };
       });
       return { success: true, rows: processed };
