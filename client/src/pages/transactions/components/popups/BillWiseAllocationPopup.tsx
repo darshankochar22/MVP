@@ -77,7 +77,7 @@ export default function BillWiseAllocationPopup({
   const [checkCreditDays, setCheckCreditDays] = useState(0);
   const [loadingBills, setLoadingBills] = useState(false);
   const [activeAgstRow, setActiveAgstRow] = useState<number | null>(null);
-  const nameInputRefs = useRef<(HTMLInputElement | HTMLSelectElement | null)[]>([]);
+  const hydratedRef = useRef(false);
   const agstDropdownRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // Close pending-bills dropdown on outside click or Escape
@@ -90,7 +90,13 @@ export default function BillWiseAllocationPopup({
       }
     };
     const keyHandler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setActiveAgstRow(null);
+      if (e.key === "Escape") {
+        // Close only the dropdown — stop the shell's window-level Esc handler
+        // from also closing the whole popup.
+        e.stopPropagation();
+        e.preventDefault();
+        setActiveAgstRow(null);
+      }
     };
     document.addEventListener("mousedown", handler);
     document.addEventListener("keydown", keyHandler);
@@ -117,8 +123,11 @@ export default function BillWiseAllocationPopup({
       .finally(() => setLoadingBills(false));
   }, [ledgerId, companyId, fyId]);
 
-  // Initialize allocations
+  // Initialize allocations — once per mount. Guarding with a ref stops a parent
+  // re-render that passes a fresh [] (new identity) from wiping in-progress edits.
   useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
     if (initialAllocations.length > 0) {
       setAllocations(initialAllocations.map((a) => ({ ...a, ledger_id: ledgerId })));
     } else {
@@ -252,15 +261,45 @@ export default function BillWiseAllocationPopup({
   };
 
   const handleSave = () => {
-    if (allocations.some((a) => a.bill_type !== "On Account" && !a.bill_name.trim())) {
+    if (allocations.some((a) => a.bill_type !== "On Account" && a.bill_type !== "Advance" && !a.bill_name.trim())) {
       setError("Name is required for all references except On Account.");
       return;
     }
-    if (Math.abs(remaining) >= 0.01) {
+    // Agst Ref cannot settle more than the referenced bill's outstanding balance.
+    for (const a of allocations) {
+      if (a.bill_type !== "Agst Ref") continue;
+      const bill = pendingBills.find((b) => b.bill_name === a.bill_name);
+      if (bill && (Number(a.amount) || 0) > bill.balance + 0.005) {
+        setError(`Amount for "${a.bill_name}" exceeds its outstanding balance of ${formatCurrency(bill.balance)}.`);
+        return;
+      }
+    }
+    // Rows must not exceed the voucher total.
+    if (remaining <= -0.01) {
       setError(`Remaining ${formatCurrency(remaining)} must be zero.`);
       return;
     }
-    onSave(allocations);
+    // Auto-name empty Advance references (Adv-1, Adv-2, …).
+    let advSeq = 0;
+    const named = allocations.map((a) => {
+      if (a.bill_type === "Advance") {
+        advSeq += 1;
+        if (!a.bill_name.trim()) return { ...a, bill_name: `Adv-${advSeq}` };
+      }
+      return a;
+    });
+    // Tally behavior: any unallocated residue is booked On Account automatically.
+    const final = remaining >= 0.01
+      ? [...named, {
+          ledger_id: ledgerId,
+          bill_name: "On Account",
+          bill_type: "On Account" as const,
+          amount: Math.round(remaining * 100) / 100,
+          credit_period: "",
+          due_date: "",
+        }]
+      : named;
+    onSave(final);
   };
 
   const wefLabel = formatDateDisplay(voucherDate);
@@ -311,7 +350,7 @@ export default function BillWiseAllocationPopup({
             <div className="col-span-2">Type of Ref</div>
             <div className="col-span-3">Name</div>
             <div className="col-span-3 text-center leading-tight">
-              Due Date, or<br/>Credit Days<br/><span className="normal-case text-[9px] text-gray-600">(wef: {wefLabel})</span>
+              Due Date, or<br/>Credit Days<br/><span className="normal-case text-[9px] text-gray-600">(New Ref wef: {wefLabel}; Agst Ref wef bill date)</span>
             </div>
             <div className="col-span-2 text-right">Amount</div>
             <div className="col-span-1 text-center">Dr/Cr</div>
@@ -343,7 +382,6 @@ export default function BillWiseAllocationPopup({
                   ) : row.bill_type === "Agst Ref" ? (
                     <div className="relative" ref={(el) => { agstDropdownRefs.current[i] = el; }}>
                       <input
-                        ref={(el) => { nameInputRefs.current[i] = el; }}
                         type="text"
                         value={row.bill_name}
                         readOnly
@@ -390,7 +428,6 @@ export default function BillWiseAllocationPopup({
                   ) : (
                     // New Ref / Advance — type the reference name.
                     <input
-                      ref={(el) => { nameInputRefs.current[i] = el; }}
                       type="text"
                       value={row.bill_name}
                       onChange={(e) => handleChange(i, "bill_name", e.target.value)}

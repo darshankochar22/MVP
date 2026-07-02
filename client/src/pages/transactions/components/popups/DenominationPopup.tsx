@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
-const DENOMINATIONS = [500, 200, 100, 50, 20, 10, 5, 2, 1];
+const DENOMINATIONS = [2000, 500, 200, 100, 50, 20, 10, 5, 2, 1];
 
 interface DenominationEntry {
   denomination: number;
@@ -62,14 +62,26 @@ export default function DenominationPopup({
     return sum + d * qty;
   }, 0) + (others || 0);
 
-  const difference = amount - computedTotal;
+  // A negative voucher amount (cash paid out) can never be matched by qty-clamped
+  // positive denominations — balance against the absolute value instead and flag
+  // the header as "Cash Out".
+  const isCashOut = amount < 0;
+  const targetAmount = Math.abs(amount);
+
+  const difference = targetAmount - computedTotal;
 
   const hasAnyInput = DENOMINATIONS.some((d) => (quantities[String(d)] || 0) > 0) || others > 0;
 
-  const isValidForAccept = !hasAnyInput || Math.abs(difference) < 0.01;
+  const isValidForAccept = hasAnyInput && Math.abs(difference) < 0.01;
 
   const handleSave = useCallback(() => {
-    if (!isValidForAccept) {
+    // Block accepting empty denominations against a non-zero amount — previously
+    // this silently saved empty data as "valid".
+    if (!hasAnyInput && targetAmount !== 0) {
+      setError("Enter denominations before accepting — the amount is not zero.");
+      return;
+    }
+    if (hasAnyInput && Math.abs(difference) >= 0.01) {
       setError(`Denominations do not balance. Difference: ${difference.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
       return;
     }
@@ -86,9 +98,9 @@ export default function DenominationPopup({
       others: others || 0,
       total: computedTotal,
     });
-  }, [isValidForAccept, difference, quantities, others, computedTotal, ledgerId, onSave]);
+  }, [hasAnyInput, targetAmount, difference, quantities, others, computedTotal, ledgerId, onSave]);
 
-  const formattedAmount = amount.toLocaleString("en-IN", {
+  const formattedAmount = targetAmount.toLocaleString("en-IN", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -100,6 +112,7 @@ export default function DenominationPopup({
         <span>
           {ledgerName} &middot; Denominations For:{" "}
           <span className="font-bold text-black">{formattedAmount}</span>
+          {isCashOut && <span className="font-bold text-black"> (Cash Out)</span>}
         </span>
       }
       onClose={onClose}

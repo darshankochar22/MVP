@@ -16,14 +16,23 @@ function defaultNow() {
 
 interface Props {
   initialDetails?: DebitNoteExciseDetails | null;
+  /** Voucher date ("YYYY-MM-DD"). When provided, empty datetimes default to
+   *  the voucher date at 00:00 instead of the machine's current time. */
+  voucherDate?: string;
   onClose: () => void;
   onSave: (details: DebitNoteExciseDetails) => void;
 }
 
-export default function DebitNoteExciseDetailsPopup({ initialDetails, onClose, onSave }: Props) {
+export default function DebitNoteExciseDetailsPopup({
+  initialDetails,
+  voucherDate,
+  onClose,
+  onSave,
+}: Props) {
+  const defaultDateTime = voucherDate ? `${voucherDate.slice(0, 10)}T00:00` : defaultNow();
   const [form, setForm] = useState<DebitNoteExciseDetails>({
-    date_time_of_invoice: initialDetails?.date_time_of_invoice || defaultNow(),
-    date_time_of_removal: initialDetails?.date_time_of_removal || defaultNow(),
+    date_time_of_invoice: initialDetails?.date_time_of_invoice || defaultDateTime,
+    date_time_of_removal: initialDetails?.date_time_of_removal || defaultDateTime,
   });
 
   const handleSave = () => onSave(form);

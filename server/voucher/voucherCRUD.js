@@ -17,6 +17,7 @@ const {
   voucherCreditNoteDetails,
   voucherDebitNoteDetails,
   voucherVatDetails,
+  voucherExciseDetails,
   voucherOrderDetails,
   voucherPayrollEntries,
   ledgers,
@@ -314,6 +315,7 @@ module.exports = {
                   voucherId: voucher_id,
                   entryId: entry_id,
                   costCentreId: cc.cost_centre_id,
+                  costCategoryId: nullify(cc.cost_category_id) || null,
                   amount: cc.amount,
                 });
               }
@@ -371,6 +373,8 @@ module.exports = {
                 dueOn: nullify(b.due_on) || null,
                 componentOf: nullify(b.component_of) || null,
                 considerAsScrap: nullify(b.consider_as_scrap) || null,
+                dueOnDate: nullify(b.due_on_date) || null,
+                trackComponents: nullify(b.track_components) || null,
               });
             }
 
@@ -432,6 +436,11 @@ module.exports = {
             ifscCode: nullify(data.bank_details.ifsc_code) || null,
             paymentGateway: nullify(data.bank_details.payment_gateway) || null,
             amount: nullify(data.bank_details.amount) || 0,
+            favouringName: nullify(data.bank_details.favouring_name) || null,
+            transferMode: nullify(data.bank_details.transfer_mode) || null,
+            allocationsJson: Array.isArray(data.bank_details.allocations)
+              ? JSON.stringify(data.bank_details.allocations)
+              : null,
           });
         }
 
@@ -466,6 +475,7 @@ module.exports = {
             voucherId: voucher_id,
             receiptNoteNo: nullify(rd.receipt_note_no) || null,
             receiptDocNo: nullify(rd.receipt_doc_no) || null,
+            receiptDocDate: nullify(rd.receipt_doc_date) || null,
             dispatchedThrough: nullify(rd.dispatched_through) || null,
             destination: nullify(rd.destination) || null,
             carrierName: nullify(rd.carrier_name) || null,
@@ -552,6 +562,15 @@ module.exports = {
             voucherId: voucher_id,
             dateTime: nullify(vd.date_time) || null,
             pointOfSale: nullify(vd.point_of_sale) || null,
+          });
+        }
+
+        if (data.excise_details) {
+          const ed = data.excise_details;
+          await db.insert(voucherExciseDetails).values({
+            voucherId: voucher_id,
+            inspectionDocumentNo: nullify(ed.inspection_document_no) || null,
+            inspectionDocumentDate: nullify(ed.inspection_document_date) || null,
           });
         }
 
@@ -878,6 +897,10 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
       const bank = await db.all(
         sql`SELECT * FROM ${voucherBankDetails} WHERE ${voucherBankDetails.voucherId} = ${id}`
       );
+      // Multi-row bank allocations round-trip as JSON alongside the flat legacy columns.
+      if (bank[0]?.allocations_json) {
+        try { bank[0].allocations = JSON.parse(bank[0].allocations_json); } catch (_) {}
+      }
       const costCentres = await db.all(
         sql`SELECT * FROM ${voucherCostCentres} WHERE ${voucherCostCentres.voucherId} = ${id}`
       );
@@ -914,6 +937,9 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
       );
       const vatDetails = await db.all(
         sql`SELECT * FROM ${voucherVatDetails} WHERE ${voucherVatDetails.voucherId} = ${id}`
+      );
+      const exciseDetails = await db.all(
+        sql`SELECT * FROM ${voucherExciseDetails} WHERE ${voucherExciseDetails.voucherId} = ${id}`
       );
       const orderDetails = await db.all(
         sql`SELECT * FROM ${voucherOrderDetails} WHERE ${voucherOrderDetails.voucherId} = ${id}`
@@ -956,6 +982,7 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
           credit_note_details: creditNoteDetails[0] || null,
           debit_note_details: debitNoteDetails[0] || null,
           vat_details: vatDetails[0] || null,
+          excise_details: exciseDetails[0] || null,
           order_details: orderDetails[0] || null,
           payroll_entries: payrollEntries,
         },
@@ -1245,6 +1272,7 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
                 voucherId: data.voucher_id,
                 entryId: entry_id,
                 costCentreId: cc.cost_centre_id,
+                costCategoryId: nullify(cc.cost_category_id) || null,
                 amount: cc.amount,
               });
             }
@@ -1277,6 +1305,7 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
             voucherId: data.voucher_id,
             receiptNoteNo: nullify(rd.receipt_note_no) || null,
             receiptDocNo: nullify(rd.receipt_doc_no) || null,
+            receiptDocDate: nullify(rd.receipt_doc_date) || null,
             dispatchedThrough: nullify(rd.dispatched_through) || null,
             destination: nullify(rd.destination) || null,
             carrierName: nullify(rd.carrier_name) || null,
@@ -1387,6 +1416,8 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
                 dueOn: nullify(b.due_on) || null,
                 componentOf: nullify(b.component_of) || null,
                 considerAsScrap: nullify(b.consider_as_scrap) || null,
+                dueOnDate: nullify(b.due_on_date) || null,
+                trackComponents: nullify(b.track_components) || null,
               });
             }
 
@@ -1424,6 +1455,11 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
             ifscCode: nullify(data.bank_details.ifsc_code) || null,
             paymentGateway: nullify(data.bank_details.payment_gateway) || null,
             amount: nullify(data.bank_details.amount) || 0,
+            favouringName: nullify(data.bank_details.favouring_name) || null,
+            transferMode: nullify(data.bank_details.transfer_mode) || null,
+            allocationsJson: Array.isArray(data.bank_details.allocations)
+              ? JSON.stringify(data.bank_details.allocations)
+              : null,
           });
         }
       }
@@ -1511,6 +1547,17 @@ if (data.voucher_type === 'Sales' && data.is_invoice) {
             voucherId: data.voucher_id,
             dateTime: nullify(data.vat_details.date_time) || null,
             pointOfSale: nullify(data.vat_details.point_of_sale) || null,
+          });
+        }
+      }
+
+      if (data.excise_details !== undefined) {
+        await db.delete(voucherExciseDetails).where(eq(voucherExciseDetails.voucherId, data.voucher_id));
+        if (data.excise_details) {
+          await db.insert(voucherExciseDetails).values({
+            voucherId: data.voucher_id,
+            inspectionDocumentNo: nullify(data.excise_details.inspection_document_no) || null,
+            inspectionDocumentDate: nullify(data.excise_details.inspection_document_date) || null,
           });
         }
       }

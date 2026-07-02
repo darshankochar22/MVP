@@ -106,27 +106,38 @@ export default function InventoryAllocationPopup({
   const totalActual = items.reduce((s, i) => s + (Number(i.actual_quantity) || 0), 0);
   const totalBilled = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
   const totalAmount = items.reduce((s, i) => s + (Number(i.amount) || 0), 0);
+  // Quantity totals only make sense in one unit — blank them for mixed units.
+  const mixedUnits = new Set(items.map((i) => i.unit_symbol ?? "")).size > 1;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return allStockItems.filter((s) => !q || s.name.toLowerCase().includes(q));
   }, [allStockItems, search]);
 
-  // Build an item line from its godown/batch split.
+  // Build an item line from its godown/batch split. Amount is explicit
+  // rate × qty × (1 − disc%); the line keeps the *entered* (gross) rate and the
+  // discount separately instead of folding the discount into a net rate.
   const buildItem = useCallback(
-    (stockItem: StockItemType, allocations: BatchAllocation[], keepCostCentres?: InventoryAllocationItem["cost_centres"]): InventoryAllocationItem => {
+    (stockItem: StockItemType, allocations: BatchAllocation[], keepCostCentres?: InventoryAllocationItem["cost_centres"]): InventoryAllocationItem & { disc_percent?: number } => {
       const actual = allocations.reduce((s, a) => s + (Number(a.actual_quantity ?? a.quantity) || 0), 0);
       const billed = allocations.reduce((s, a) => s + (Number(a.quantity) || 0), 0);
+      const gross = allocations.reduce(
+        (s, a) => s + (Number(a.quantity) || 0) * (Number(a.rate) || 0),
+        0
+      );
       const amount = allocations.reduce(
         (s, a) => s + (Number(a.quantity) || 0) * (Number(a.rate) || 0) * (1 - (Number(a.disc_percent) || 0) / 100),
         0
       );
-      const rate = billed > 0 ? amount / billed : 0;
+      // Entered rate (qty-weighted across the split), not the discount-net rate.
+      const rate = billed > 0 ? gross / billed : 0;
+      // Effective discount across the split (additive key on the saved line).
+      const discPercent = gross > 0 ? Math.round((1 - amount / gross) * 10000) / 100 : 0;
       const firstGodown = allocations.find((a) => a.godown)?.godown;
       const godown = firstGodown ? allGodowns.find((g) => g.name === firstGodown) : null;
-      const unit = allUnits.find((u) => u.unit_id === (stockItem as any).unit_id) ?? null;
+      const unit = allUnits.find((u) => u.unit_id === stockItem.unit_id) ?? null;
       return {
-        stock_item_id: (stockItem as any).item_id,
+        stock_item_id: stockItem.item_id ?? 0,
         item_name: stockItem.name,
         godown_id: godown?.godown_id ?? null,
         unit_id: unit?.unit_id ?? null,
@@ -135,6 +146,7 @@ export default function InventoryAllocationPopup({
         quantity: billed,
         rate,
         amount,
+        disc_percent: discPercent || undefined,
         batches: allocations,
         cost_centres: keepCostCentres,
       };
@@ -151,7 +163,7 @@ export default function InventoryAllocationPopup({
 
   const editItem = (index: number) => {
     const it = items[index];
-    const stockItem = allStockItems.find((s) => (s as any).item_id === it.stock_item_id);
+    const stockItem = allStockItems.find((s) => s.item_id === it.stock_item_id);
     if (stockItem) setBatchFor({ item: stockItem, editIndex: index });
   };
 
@@ -173,10 +185,9 @@ export default function InventoryAllocationPopup({
       setItems((prev) => [...prev, built]);
     }
     setBatchFor(null);
-    // Chain into Cost Centre allocation when the ledger has cost centres applicable
-    // OR the company has any cost centres defined (so it still appears even when the
-    // ledger flag isn't set). Skipped only when there are no cost centres at all.
-    if (allowCostCentres || Object.keys(ccNames).length > 0) setCostFor({ index: targetIndex });
+    // Chain into Cost Centre allocation only when the ledger has cost centres
+    // applicable (Tally prompts them per-ledger) and the company actually has some.
+    if (allowCostCentres && Object.keys(ccNames).length > 0) setCostFor({ index: targetIndex });
   };
 
   const handleCostSave = (ccs: { cost_centre_id: number; amount: number }[]) => {
@@ -248,8 +259,8 @@ export default function InventoryAllocationPopup({
                       {it.item_name}
                     </button>
                     <div className={`${cell} ${W.qty} flex gap-1 font-mono`}>
-                      <div className="flex-1 text-right">{it.actual_quantity || ""} {it.unit_symbol ?? ""}</div>
-                      <div className="flex-1 text-right">{it.quantity || ""} {it.unit_symbol ?? ""}</div>
+                      <div className="flex-1 text-right">{it.actual_quantity ? `${it.actual_quantity} ${it.unit_symbol ?? ""}`.trim() : ""}</div>
+                      <div className="flex-1 text-right">{it.quantity ? `${it.quantity} ${it.unit_symbol ?? ""}`.trim() : ""}</div>
                     </div>
                     <div className={`${cell} ${W.rate} text-right font-mono`}>{num(it.rate)}</div>
                     <div className={`${cell} ${W.per} text-center font-mono text-gray-600`}>{it.unit_symbol ?? ""}</div>
@@ -295,7 +306,7 @@ export default function InventoryAllocationPopup({
                       {filtered.length === 0 ? (
                         <div className="px-2 py-2 text-[11px] text-gray-500 italic">No items</div>
                       ) : filtered.map((s) => (
-                        <button key={(s as any).item_id} type="button" onClick={() => pickItem(s)}
+                        <button key={s.item_id ?? s.name} type="button" onClick={() => pickItem(s)}
                           className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100 font-semibold">
                           {s.name}
                         </button>
@@ -316,8 +327,8 @@ export default function InventoryAllocationPopup({
             <div className="flex items-center px-3 py-2 border-t border-black gap-2 font-bold text-xs font-mono">
               <div className={`${cell} ${W.name}`} />
               <div className={`${cell} ${W.qty} flex gap-1`}>
-                <div className="flex-1 text-right">{totalActual || ""}</div>
-                <div className="flex-1 text-right">{totalBilled || ""}</div>
+                <div className="flex-1 text-right">{mixedUnits ? "" : totalActual || ""}</div>
+                <div className="flex-1 text-right">{mixedUnits ? "" : totalBilled || ""}</div>
               </div>
               <div className={`${cell} ${W.rate}`} />
               <div className={`${cell} ${W.per}`} />
@@ -333,19 +344,25 @@ export default function InventoryAllocationPopup({
       {batchFor && (
         <BatchAllocationPopup
           companyId={companyId}
-          itemId={(batchFor.item as any).item_id}
+          itemId={batchFor.item.item_id ?? 0}
           itemName={batchFor.item.name}
-          totalQuantity={0}
-          rate={0}
-          unitSymbol={allUnits.find((u) => u.unit_id === (batchFor.item as any).unit_id)?.symbol}
+          // Seed from the line being edited (its saved qty/rate), or for a fresh
+          // item from the master's opening_rate — never a hardcoded 0.
+          totalQuantity={batchFor.editIndex !== null ? items[batchFor.editIndex]?.quantity ?? 0 : 0}
+          rate={
+            batchFor.editIndex !== null
+              ? items[batchFor.editIndex]?.rate ?? (Number(batchFor.item.opening_rate) || 0)
+              : Number(batchFor.item.opening_rate) || 0
+          }
+          unitSymbol={allUnits.find((u) => u.unit_id === batchFor.item.unit_id)?.symbol}
           voucherDate={voucherDate}
-          trackMfg={Number((batchFor.item as any).track_date_of_manufacturing) === 1}
-          trackExpiry={Number((batchFor.item as any).track_expiry) === 1}
+          trackMfg={Number(batchFor.item.track_date_of_manufacturing) === 1}
+          trackExpiry={Number(batchFor.item.track_expiry) === 1}
           isInward={isInward}
           godowns={allGodowns.map((g) => ({ godown_id: g.godown_id, name: g.name }))}
           initialAllocations={batchFor.editIndex !== null ? items[batchFor.editIndex]?.batches : undefined}
           quantityDriven
-          showBatch={Number((batchFor.item as any).track_batches) === 1}
+          showBatch={Number(batchFor.item.track_batches) === 1}
           onClose={() => setBatchFor(null)}
           onSave={handleBatchSave}
         />

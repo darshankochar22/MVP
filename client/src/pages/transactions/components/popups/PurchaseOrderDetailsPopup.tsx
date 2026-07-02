@@ -8,14 +8,17 @@ interface Props {
   onSave: (details: OrderDetails) => void;
 }
 
-// Purchase Order "Order Details" sub-screen (Tally-faithful). A compact Order
-// Details block (Mode/Terms of Payment, Other References, Terms of Delivery) over
-// a Receipt Details block (Dispatch through, Destination, Carrier Name/Agent,
-// Bill of Lading/LR-RR No. + Date, Motor Vehicle No.). Deliberately omits the
-// Order No(s)/Date and Doc No. fields the shared OrderDetailsPopup carries — hence
-// a dedicated popup rather than a prop on the shared one.
+// Purchase Order "Order Details" sub-screen (Tally-faithful). An Order Details
+// block (Order No(s) + Date, Mode/Terms of Payment, Other References, Terms of
+// Delivery) over a Receipt Details block (Dispatch through, Destination, Carrier
+// Name/Agent, Bill of Lading/LR-RR No. + Date, Motor Vehicle No.). Order No(s)
+// feeds useVoucherForm's meta.orderDetails?.order_nos → voucher order_no.
+// Deliberately omits the Doc No. field the shared OrderDetailsPopup carries —
+// hence a dedicated popup rather than a prop on the shared one.
 export default function PurchaseOrderDetailsPopup({ initialDetails, onClose, onSave }: Props) {
   const [form, setForm] = useState<OrderDetails>({
+    order_nos: initialDetails?.order_nos ?? "",
+    order_date: initialDetails?.order_date ?? "",
     mode_terms_of_payment: initialDetails?.mode_terms_of_payment ?? "",
     other_references: initialDetails?.other_references ?? "",
     terms_of_delivery: initialDetails?.terms_of_delivery ?? "",
@@ -54,7 +57,26 @@ export default function PurchaseOrderDetailsPopup({ initialDetails, onClose, onS
   return (
     <VoucherPopupShell title="Order Details" onClose={onClose} onAccept={handleSave}>
       <div className="max-w-2xl space-y-3">
-        {row("Mode/Terms of Payment", "mode_terms_of_payment", true)}
+        <div className="flex items-center gap-2">
+          <span className={labelCls}>Order No(s)</span>
+          <span className={colonCls}>:</span>
+          <input
+            autoFocus
+            type="text"
+            className={inputCls}
+            value={form.order_nos ?? ""}
+            onChange={(e) => set("order_nos", e.target.value)}
+          />
+          <span className={colonCls}>Date</span>
+          <span className={colonCls}>:</span>
+          <input
+            type="date"
+            className="w-40 shrink-0 text-sm bg-white border border-gray-400 px-2 py-1 outline-none focus:border-black"
+            value={form.order_date ?? ""}
+            onChange={(e) => set("order_date", e.target.value)}
+          />
+        </div>
+        {row("Mode/Terms of Payment", "mode_terms_of_payment")}
         {row("Other References", "other_references")}
         {row("Terms of Delivery", "terms_of_delivery")}
 

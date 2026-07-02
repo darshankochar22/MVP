@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { BatchAllocation } from "../../types";
 import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
+import { parseDueOn, toLocalIsoDate } from "@/lib/dueDate";
 
 // Material In / Out (job work) Stock Item Allocations — order-tracked godown rows.
 // Items that "maintain in batches" additionally get Batch/Lot No. + Mfg Dt. /
@@ -21,10 +22,21 @@ interface Props {
   showBatch?: boolean;
   trackMfg?: boolean;
   trackExpiry?: boolean;
+  /** Company + item ids enable the real List of Orders / Active Batches lookups
+   *  (window.api.report.orderNumbers / batchBalances). Session-only lists are
+   *  used when absent. */
+  companyId?: number;
+  itemId?: number;
+  /** Voucher date (ISO yyyy-mm-dd): default for Mfg Dt. and base for "Due on"
+   *  duration parsing. Falls back to today when absent. */
+  voucherDate?: string;
   initialAllocations?: BatchAllocation[];
   onClose: () => void;
   onSave: (allocations: BatchAllocation[]) => void;
 }
+
+interface FetchedOrder { name: string; batch?: string | null; godown?: string | null; due_on?: string | null; balance?: number | null; }
+interface FetchedBatch { name: string; mfg_date?: string | null; expiry_date?: string | null; balance?: number | null; }
 
 const NOT_APPLICABLE = "♦ Not Applicable";
 // Right block = Quantity + Rate + per + Amount; "Component of" spans the same.
@@ -36,11 +48,17 @@ const BATCH_COLS = "grid grid-cols-[1fr_auto_auto] gap-x-3";
 export default function MaterialInAllocationPopup({
   itemName, rate, unitSymbol, godowns = [], stockItems = [],
   showBatch = false, trackMfg = false, trackExpiry = false,
+  companyId, itemId, voucherDate,
   initialAllocations = [], onClose, onSave,
 }: Props) {
   const defaultGodown = godowns[0]?.name ?? "";
   const unit = unitSymbol ?? "";
-  const today = new Date().toISOString().slice(0, 10);
+  // Mfg Dt. defaults to the voucher's date, not the machine's — local-timezone
+  // today only as a fallback when the caller doesn't pass one.
+  const today =
+    voucherDate && /^\d{4}-\d{2}-\d{2}/.test(voucherDate)
+      ? voucherDate.slice(0, 10)
+      : toLocalIsoDate(new Date());
 
   const emptyRow = (): BatchAllocation => ({
     batch_number: "",
@@ -54,9 +72,19 @@ export default function MaterialInAllocationPopup({
     rate,
   });
 
-  const [considerAsScrap, setConsiderAsScrap] = useState<"Yes" | "No">("No");
+  // Hydrate Consider-as-Scrap from the saved rows (it's saved per-row but is a
+  // screen-level answer in Tally, so any "Yes" means the whole allocation is scrap).
+  const [considerAsScrap, setConsiderAsScrap] = useState<"Yes" | "No">(() =>
+    initialAllocations.some((a) => a.consider_as_scrap === "Yes") ? "Yes" : "No"
+  );
   const [rows, setRows] = useState<BatchAllocation[]>(
-    initialAllocations.length ? initialAllocations.map((a) => ({ ...a })) : [emptyRow()]
+    initialAllocations.length
+      ? initialAllocations.map((a) => ({
+          ...a,
+          // Empty saved value renders as the display default sentinel.
+          component_of: a.component_of || NOT_APPLICABLE,
+        }))
+      : [emptyRow()]
   );
   const [error, setError] = useState<string | null>(null);
   const [openOrderList, setOpenOrderList] = useState<number | null>(null);
@@ -72,6 +100,22 @@ export default function MaterialInAllocationPopup({
   const batchAnchorRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [orderPos, setOrderPos] = useState<{ top: number; left: number } | null>(null);
   const [batchPos, setBatchPos] = useState<{ top: number; left: number } | null>(null);
+
+  // Real order / batch lists from the DB (session entries merged in below).
+  const [fetchedOrders, setFetchedOrders] = useState<FetchedOrder[]>([]);
+  const [fetchedBatches, setFetchedBatches] = useState<FetchedBatch[]>([]);
+
+  useEffect(() => {
+    if (!companyId || !itemId) return;
+    (window as any).api.report.orderNumbers?.(companyId, itemId).then((res: any) => {
+      if (res?.success) setFetchedOrders(res.orders ?? []);
+    }).catch(() => {});
+    // batchBalances (not batchesForItem): same distinct-batch list but carries the
+    // running Balance the List of Active Batches displays.
+    (window as any).api.report.batchBalances?.(companyId, itemId).then((res: any) => {
+      if (res?.success) setFetchedBatches(res.batches ?? []);
+    }).catch(() => {});
+  }, [companyId, itemId]);
 
   useEffect(() => {
     if (openOrderList === null && openBatchList === null) return;
@@ -101,23 +145,39 @@ export default function MaterialInAllocationPopup({
   const addRow = () => { setError(null); setRows((prev) => [...prev, emptyRow()]); };
   const removeRow = (i: number) => { if (rows.length === 1) return; setRows((prev) => prev.filter((_, idx) => idx !== i)); };
 
+  // Enter on Rate: move to the next row; only the last row appends a new one.
   const onRateEnter = (i: number) => {
     if (i === rows.length - 1) {
       addRow();
       setTimeout(() => orderRefs.current[i + 1]?.focus(), 30);
+    } else {
+      orderRefs.current[i + 1]?.focus();
     }
   };
 
   const total = rows.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
   const totalAmount = rows.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.rate) || 0), 0);
   const num = (v: number) => v ? v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
-  const existingOrders = Array.from(new Set(rows.map((r) => (r.order_no || "").trim()).filter(Boolean)));
 
-  // In-session active batches (distinct), shown in the List of Active Batches.
-  const batchMap = new Map<string, { name: string; expiry: string; balance: number }>();
+  // List of Orders = real DB orders first, then session-only numbers (no fake
+  // metadata for those — their columns stay blank).
+  const orderMap = new Map<string, FetchedOrder & { session?: boolean }>();
+  fetchedOrders.forEach((o) => { if (o.name) orderMap.set(o.name, { ...o }); });
+  rows.forEach((r) => {
+    const name = (r.order_no || "").trim();
+    if (name && !orderMap.has(name)) orderMap.set(name, { name, session: true });
+  });
+  const existingOrders = Array.from(orderMap.values());
+
+  // List of Active Batches = real DB batches (with balances) first, then
+  // session-only batch numbers.
+  const batchMap = new Map<string, { name: string; mfg_date: string; expiry: string; balance: number }>();
+  fetchedBatches.forEach((b) => {
+    if (b.name) batchMap.set(b.name, { name: b.name, mfg_date: b.mfg_date || "", expiry: b.expiry_date || "", balance: Number(b.balance) || 0 });
+  });
   rows.forEach((r) => {
     const name = (r.batch_number || "").trim();
-    if (name && !batchMap.has(name)) batchMap.set(name, { name, expiry: r.expiry_date || "", balance: Number(r.quantity) || 0 });
+    if (name && !batchMap.has(name)) batchMap.set(name, { name, mfg_date: r.mfg_date || "", expiry: r.expiry_date || "", balance: Number(r.quantity) || 0 });
   });
   const existingBatches = Array.from(batchMap.values());
 
@@ -134,23 +194,31 @@ export default function MaterialInAllocationPopup({
       setError("Every allocation needs a Batch / Lot No.");
       return;
     }
-    onSave(
-      rows
-        .filter((r) => (Number(r.quantity) || 0) > 0 || (r.order_no || "").trim())
-        .map((r) => ({
+    const payload: (BatchAllocation & { due_on_date?: string })[] = rows
+      .filter((r) => (Number(r.quantity) || 0) > 0 || (r.order_no || "").trim())
+      .map((r) => {
+        const dueOnText = (r.due_on || "").trim() || undefined;
+        // Strip the "♦ Not Applicable" display sentinel — it must never persist.
+        const componentOf = (r.component_of || "").trim();
+        return {
           batch_number: showBatch ? (r.batch_number || "").trim() : "",
           order_no: (r.order_no || "").trim() || undefined,
-          due_on: (r.due_on || "").trim() || undefined,
-          component_of: r.component_of || undefined,
+          due_on: dueOnText,
+          // Dual-save: keep the raw text for display, resolve a real ISO date
+          // (relative to the voucher date) for order-outstanding logic.
+          due_on_date: parseDueOn(dueOnText, voucherDate) ?? undefined,
+          component_of:
+            componentOf && componentOf !== NOT_APPLICABLE ? componentOf : undefined,
           consider_as_scrap: considerAsScrap,
           godown: r.godown || undefined,
           mfg_date: showBatch && trackMfg ? (r.mfg_date || undefined) : undefined,
           expiry_date: showBatch && trackExpiry ? (r.expiry_date || undefined) : undefined,
           quantity: Number(r.quantity) || 0,
           rate: Number(r.rate) || rate,
-        }))
-    );
-  }, [rows, total, rate, considerAsScrap, showBatch, trackMfg, trackExpiry, onSave]);
+        };
+      });
+    onSave(payload);
+  }, [rows, total, rate, considerAsScrap, showBatch, trackMfg, trackExpiry, voucherDate, onSave]);
 
   const cell = "text-sm border border-gray-400 px-1 py-0 outline-none focus:border-black bg-white";
 
@@ -162,7 +230,7 @@ export default function MaterialInAllocationPopup({
         onClose={onClose}
         onAccept={handleSave}
         bodyClassName="p-0"
-        hint={<>Enter on Rate adds a new row &nbsp;&middot;&nbsp; Alt+A: Accept &nbsp;&middot;&nbsp; Esc: Close</>}
+        hint={<>Enter on Rate: next row (last row adds a new one) &nbsp;&middot;&nbsp; Alt+A: Accept &nbsp;&middot;&nbsp; Esc: Close</>}
       >
         {/* Context block */}
         <div className="px-6 pt-3 pb-2 border-b border-gray-300 space-y-1 select-none">
@@ -239,8 +307,14 @@ export default function MaterialInAllocationPopup({
                                 <span>{NOT_APPLICABLE}</span><span /><span /><span /><span /><span /><span />
                               </button>
                               {existingOrders.map((o) => (
-                                <button key={o} type="button" onClick={() => { update(i, { order_no: o }); setOpenOrderList(null); }} className={`${ORDER_COLS} w-full text-left px-2 py-1 text-xs hover:bg-gray-100`}>
-                                  <span className="font-mono">{o}</span><span /><span className="truncate">{row.godown}</span><span>{row.due_on}</span><span /><span className="truncate">{itemName}</span><span>Job Work</span>
+                                <button key={o.name} type="button" onClick={() => { update(i, { order_no: o.name }); setOpenOrderList(null); }} className={`${ORDER_COLS} w-full text-left px-2 py-1 text-xs hover:bg-gray-100`}>
+                                  <span className="font-mono">{o.name}</span>
+                                  <span className="truncate">{o.batch || ""}</span>
+                                  <span className="truncate">{o.godown || ""}</span>
+                                  <span>{o.due_on || ""}</span>
+                                  <span className="text-right font-mono">{o.balance ? `${o.balance} ${unit}` : ""}</span>
+                                  <span className="truncate">{o.session ? "" : itemName}</span>
+                                  <span>{o.session ? "(this voucher)" : ""}</span>
                                 </button>
                               ))}
                             </div>

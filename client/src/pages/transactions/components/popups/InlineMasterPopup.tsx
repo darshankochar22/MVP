@@ -25,6 +25,9 @@ export default function InlineMasterPopup({
   const [units, setUnits] = useState<any[]>([]);
 
   const nameInputRef = useRef<HTMLInputElement>(null);
+  // Re-entry guard: Alt+A / double-Enter can fire handleSubmit twice before the
+  // `loading` state re-renders — a ref blocks the second call synchronously.
+  const inFlightRef = useRef(false);
 
   // ── Form states ────────────────────────────────────────────────────────────
 
@@ -46,6 +49,8 @@ export default function InlineMasterPopup({
     opening_qty: 0,
     opening_rate: 0,
     opening_value: 0,
+    hsn_code: "",
+    gst_rate: 0,
   });
 
   const [godownForm, setGodownForm] = useState({
@@ -68,14 +73,21 @@ export default function InlineMasterPopup({
         if (!active) return;
 
         if (gRes.success) {
-          const grps: GroupType[] = gRes.groups ?? [];
+          // Sundry Debtors / Sundry Creditors first — inline ledger creation from
+          // a voucher is almost always a party ledger. Stable sort keeps the rest
+          // in the server's order.
+          const priority = (g: GroupType) => {
+            const n = (g.name || "").toLowerCase().trim();
+            return n === "sundry debtors" ? 0 : n === "sundry creditors" ? 1 : 2;
+          };
+          const grps: GroupType[] = [...(gRes.groups ?? [])].sort(
+            (a, b) => priority(a) - priority(b)
+          );
           setGroups(grps);
-          const defaultGroup =
-            grps.find((g: any) => g.name === "Capital Account") ?? grps[0];
-          if (defaultGroup) {
+          if (grps[0]) {
             setLedgerForm((prev) => ({
               ...prev,
-              group_id: String(defaultGroup.group_id),
+              group_id: String(grps[0].group_id),
             }));
           }
         }
@@ -113,7 +125,35 @@ export default function InlineMasterPopup({
 
   // ── Submit ─────────────────────────────────────────────────────────────────
 
+  // Same group-lineage rules as the full Ledger create screen (useLedgerForm's
+  // groupLineage): walk the parent chain and classify by the primary-ish group
+  // names the reports actually consume (Bank Book: 'Bank'; exception registers:
+  // 'Cash' / 'Bank' / 'Bank OD'). Everything else stays 'General'.
+  const deriveLedgerType = (groupId: string): string => {
+    const byId = new Map(groups.map((g) => [g.group_id, g]));
+    let cur = groupId ? byId.get(Number(groupId)) : undefined;
+    let hops = 0;
+    while (cur && hops < 25) {
+      const name = (cur.name || "").toLowerCase().trim();
+      if (
+        name === "bank od a/c" ||
+        name === "bank od accounts" ||
+        name === "bank od account" ||
+        name === "bank occ a/c"
+      )
+        return "Bank OD";
+      if (name === "bank accounts") return "Bank";
+      if (name === "cash-in-hand" || name === "cash in hand") return "Cash";
+      if (!cur.parent_group_id) break;
+      cur = byId.get(cur.parent_group_id);
+      hops++;
+    }
+    return "General";
+  };
+
   const handleSubmit = async () => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setError(null);
     setLoading(true);
     try {
@@ -127,7 +167,7 @@ export default function InlineMasterPopup({
           opening_balance: Number(ledgerForm.opening_balance) || 0,
           is_bill_wise: ledgerForm.is_bill_wise,
           allow_cost_centres: ledgerForm.allow_cost_centres,
-          ledger_type: "General",
+          ledger_type: deriveLedgerType(ledgerForm.group_id),
           registration_type: "Unregistered",
         });
         if (res.success && res.ledger) onSuccess("ledger", res.ledger);
@@ -135,6 +175,11 @@ export default function InlineMasterPopup({
 
       } else if (type === "stockItem") {
         if (!stockItemForm.name.trim()) { setError("Name is required."); setLoading(false); return; }
+        // HSN / GST — mirror the full StockItem create screen's "Specified Here"
+        // payload (calculateGstDetails in pages/master/inventory/stock-item/utils.ts):
+        // hsn_sac + legacy hsn_code, gst_rate with the CGST/SGST split.
+        const hsn = stockItemForm.hsn_code.trim();
+        const gstRate = Number(stockItemForm.gst_rate) || 0;
         const res = await window.api.stockItem.create({
           company_id: companyId,
           name: stockItemForm.name.trim(),
@@ -145,6 +190,21 @@ export default function InlineMasterPopup({
           opening_quantity: Number(stockItemForm.opening_qty) || 0,
           opening_rate: Number(stockItemForm.opening_rate) || 0,
           opening_value: Number(stockItemForm.opening_value) || 0,
+          ...(hsn || gstRate > 0 ? { gst_applicable: "Applicable" } : {}),
+          ...(hsn
+            ? { hsn_sac: hsn, hsn_code: hsn, source_of_details: "Specified Here" }
+            : {}),
+          ...(gstRate > 0
+            ? {
+                gst_rate_details: "specify_here",
+                source_of_gst_rate: "Specified Here",
+                taxability_type: "Taxable",
+                gst_rate: gstRate,
+                igst_rate: gstRate,
+                cgst_rate: gstRate / 2,
+                sgst_rate: gstRate / 2,
+              }
+            : {}),
         });
         if (res.success && res.item) onSuccess("stockItem", res.item);
         else setError(res.error || "Failed to create stock item.");
@@ -163,6 +223,7 @@ export default function InlineMasterPopup({
     } catch (err: any) {
       setError(err?.message || "An unexpected error occurred.");
     } finally {
+      inFlightRef.current = false;
       setLoading(false);
     }
   };
@@ -307,9 +368,31 @@ export default function InlineMasterPopup({
               </Field>
               <Field label="Value">
                 <input type="number" value={stockItemForm.opening_value}
-                  onChange={(e) =>
-                    setStockItemForm((p) => ({ ...p, opening_value: Number(e.target.value) || 0 }))
-                  }
+                  onChange={(e) => {
+                    const value = Number(e.target.value) || 0;
+                    setStockItemForm((p) => ({
+                      ...p,
+                      opening_value: value,
+                      // Back-compute rate from an edited value (Tally behaviour).
+                      opening_rate:
+                        p.opening_qty > 0
+                          ? Math.round((value / p.opening_qty) * 100) / 100
+                          : p.opening_rate,
+                    }));
+                  }}
+                  className={inputCls + " text-right"} />
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="HSN Code">
+                <input type="text" value={stockItemForm.hsn_code}
+                  onChange={(e) => setStockItemForm((p) => ({ ...p, hsn_code: e.target.value }))}
+                  placeholder="Optional" className={inputCls} />
+              </Field>
+              <Field label="GST Rate (%)">
+                <input type="number" step="0.01" value={stockItemForm.gst_rate}
+                  onChange={(e) => setStockItemForm((p) => ({ ...p, gst_rate: Number(e.target.value) || 0 }))}
                   className={inputCls + " text-right"} />
               </Field>
             </div>

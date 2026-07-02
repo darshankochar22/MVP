@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 export interface CreditNoteDetails {
   tracking_no?: string;
+  // NOTE: legacy key names. For a Credit Note these fields describe the RECEIPT
+  // side (goods coming back in) and are labelled "Receipt Doc No." /
+  // "Received through" in the UI — but the stored keys stay dispatch_* because
+  // they map 1:1 to existing server columns. Do not rename.
   dispatch_doc_no?: string;
   dispatched_through?: string;
   destination?: string;
@@ -25,18 +29,27 @@ export default function CreditNoteDetailsPopup({
   onClose,
   onSave,
 }: Props) {
-  const [form, setForm] = useState<CreditNoteDetails>({
-    tracking_no: initialDetails?.tracking_no ?? "",
-    dispatch_doc_no: initialDetails?.dispatch_doc_no ?? "",
-    dispatched_through: initialDetails?.dispatched_through ?? "",
-    destination: initialDetails?.destination ?? "",
-    carrier_name: initialDetails?.carrier_name ?? "",
-    bill_of_lading_no: initialDetails?.bill_of_lading_no ?? "",
-    bill_of_lading_date: initialDetails?.bill_of_lading_date ?? "",
-    motor_vehicle_no: initialDetails?.motor_vehicle_no ?? "",
-    original_invoice_no: initialDetails?.original_invoice_no ?? "",
-    original_invoice_date: initialDetails?.original_invoice_date ?? "",
+  const buildForm = (d?: CreditNoteDetails | null): CreditNoteDetails => ({
+    tracking_no: d?.tracking_no ?? "",
+    dispatch_doc_no: d?.dispatch_doc_no ?? "",
+    dispatched_through: d?.dispatched_through ?? "",
+    destination: d?.destination ?? "",
+    carrier_name: d?.carrier_name ?? "",
+    bill_of_lading_no: d?.bill_of_lading_no ?? "",
+    bill_of_lading_date: d?.bill_of_lading_date ?? "",
+    motor_vehicle_no: d?.motor_vehicle_no ?? "",
+    original_invoice_no: d?.original_invoice_no ?? "",
+    original_invoice_date: d?.original_invoice_date ?? "",
   });
+
+  const [form, setForm] = useState<CreditNoteDetails>(() => buildForm(initialDetails));
+
+  // Re-sync when the caller supplies a new initialDetails reference while the
+  // popup stays mounted (e.g. voucher hydration arriving after open).
+  useEffect(() => {
+    setForm(buildForm(initialDetails));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDetails]);
 
   const set = (field: keyof CreditNoteDetails, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -73,7 +86,7 @@ export default function CreditNoteDetailsPopup({
           {/* Right column */}
           <div className="flex-1 min-w-0 space-y-2">
             <div className="flex items-center gap-2">
-              <span className="w-48 text-right text-sm text-black shrink-0">Dispatch Doc No.</span>
+              <span className="w-48 text-right text-sm text-black shrink-0">Receipt Doc No.</span>
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"
@@ -84,7 +97,7 @@ export default function CreditNoteDetailsPopup({
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="w-48 text-right text-sm text-black shrink-0">Dispatched through</span>
+              <span className="w-48 text-right text-sm text-black shrink-0">Received through</span>
               <span className="text-sm text-black shrink-0">:</span>
               <input
                 type="text"

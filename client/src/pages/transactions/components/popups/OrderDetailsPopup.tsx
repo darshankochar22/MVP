@@ -26,9 +26,16 @@ interface Props {
   receiptVariant?: boolean;
 }
 
+// Legacy saved values may contain the "♦ Not Applicable" sentinel (or a stray
+// "♦ " prefix). Strip it on load; "Not Applicable" is stored as "".
+function cleanOrderNos(value: string | null | undefined): string {
+  const v = (value ?? "").replace(/♦\s*/g, "").trim();
+  return v === "Not Applicable" ? "" : v;
+}
+
 export default function OrderDetailsPopup({ initialDetails, onClose, onSave, receiptVariant }: Props) {
   const [form, setForm] = useState<OrderDetails>({
-    order_nos: initialDetails?.order_nos ?? "",
+    order_nos: cleanOrderNos(initialDetails?.order_nos),
     order_date: initialDetails?.order_date ?? "",
     mode_terms_of_payment: initialDetails?.mode_terms_of_payment ?? "",
     other_references: initialDetails?.other_references ?? "",
@@ -48,6 +55,17 @@ export default function OrderDetailsPopup({ initialDetails, onClose, onSave, rec
 
   const set = (field: keyof OrderDetails, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
+
+  // Append an order number to the comma-separated list (multiple orders can
+  // be referenced on one voucher). No-op if it is already in the list.
+  const appendOrderNo = (value: string) =>
+    setForm((prev) => {
+      const parts = (prev.order_nos ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+      if (parts.includes(value)) return prev;
+      return { ...prev, order_nos: [...parts, value].join(", ") };
+    });
+
+  const selectedOrderNos = (form.order_nos ?? "").split(",").map((p) => p.trim()).filter(Boolean);
 
   const handleSave = () => onSave(form);
 
@@ -88,6 +106,7 @@ export default function OrderDetailsPopup({ initialDetails, onClose, onSave, rec
                   onFocus={() => setShowOrderList(true)}
                   onChange={(e) => set("order_nos", e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") setShowOrderList(false); }}
+                  placeholder="Not Applicable"
                   autoFocus
                 />
                 {showOrderList && (
@@ -102,16 +121,16 @@ export default function OrderDetailsPopup({ initialDetails, onClose, onSave, rec
                     </button>
                     <button
                       type="button"
-                      onMouseDown={(e) => { e.preventDefault(); set("order_nos", "♦ Not Applicable"); setShowOrderList(false); }}
+                      onMouseDown={(e) => { e.preventDefault(); set("order_nos", ""); setShowOrderList(false); }}
                       className="block w-full text-left text-sm px-2 py-1 hover:bg-gray-100"
                     >
-                      &#9670; Not Applicable
+                      Not Applicable
                     </button>
-                    {createdOrders.filter((o) => o !== form.order_nos).map((o) => (
+                    {createdOrders.filter((o) => !selectedOrderNos.includes(o)).map((o) => (
                       <button
                         key={o}
                         type="button"
-                        onMouseDown={(e) => { e.preventDefault(); set("order_nos", o); setShowOrderList(false); }}
+                        onMouseDown={(e) => { e.preventDefault(); appendOrderNo(o); setShowOrderList(false); }}
                         className="block w-full text-left text-sm px-2 py-1 hover:bg-gray-100 border-t border-gray-100 font-semibold"
                       >
                         {o}
@@ -160,12 +179,12 @@ export default function OrderDetailsPopup({ initialDetails, onClose, onSave, rec
           <div className="pt-4">
             <div className="w-[620px] max-w-full space-y-3">
               <div className="flex items-center gap-2">
-                <span className={dispLabel}>{receiptVariant ? "Receipt Doc No." : "Dispatch Doc No."}</span>
+                <span className={dispLabel}>Challan No(s)</span>
                 <span className="text-sm text-black shrink-0">:</span>
                 <input type="text" className={inputCls} value={form.challan_nos ?? ""} onChange={(e) => set("challan_nos", e.target.value)} />
               </div>
               <div className="flex items-center gap-2">
-                <span className={dispLabel}>Dispatched through</span>
+                <span className={dispLabel}>{receiptVariant ? "Received through" : "Dispatched through"}</span>
                 <span className="text-sm text-black shrink-0">:</span>
                 <input type="text" className={inputCls} value={form.dispatched_through ?? ""} onChange={(e) => set("dispatched_through", e.target.value)} />
               </div>
@@ -209,7 +228,7 @@ export default function OrderDetailsPopup({ initialDetails, onClose, onSave, rec
           onClose={() => setShowNewNumber(false)}
           onConfirm={(value) => {
             setCreatedOrders((c) => (c.includes(value) ? c : [...c, value]));
-            set("order_nos", value);
+            appendOrderNo(value);
             setShowNewNumber(false);
           }}
         />

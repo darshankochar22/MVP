@@ -35,9 +35,14 @@ interface AllocRow {
   quantity: string;
   rate: string;
   amount: number;
+  /** Raw text while the user is typing directly into Amount (rate back-calcs). */
+  amountRaw?: string;
   components?: ComponentAllocationRow[];
   showGodownDD?: boolean;
 }
+
+const compTotal = (r: Pick<AllocRow, "components">) =>
+  (r.components ?? []).reduce((s, c) => s + (Number(c.amount) || 0), 0);
 
 let _rowId = 0;
 const newAllocRow = (voucherDate: string): AllocRow => ({
@@ -59,7 +64,10 @@ export default function JobWorkItemAllocationPopup({
   allGodowns, allStockItems, allUnits,
   initialAllocations, onClose, onSave,
 }: Props) {
-  const [trackComponents, setTrackComponents] = useState<"Yes" | "No">("No");
+  // Hydrate: any saved row carrying components means tracking was on.
+  const [trackComponents, setTrackComponents] = useState<"Yes" | "No">(() =>
+    initialAllocations?.some((r) => (r.components?.length ?? 0) > 0) ? "Yes" : "No"
+  );
   const [showTrackDD, setShowTrackDD] = useState(false);
 
   const [rows, setRows] = useState<AllocRow[]>(() => {
@@ -119,16 +127,41 @@ export default function JobWorkItemAllocationPopup({
   const totalAmount = rows.reduce((s, r) => s + r.amount, 0);
 
   const handleAccept = () => {
-    const filled = rows.filter((r) => Number(r.quantity) > 0);
-    onSave(filled.map((r): JobWorkItemAllocationRow => ({
-      due_on: r.due_on,
-      godown: r.godown,
-      quantity: Number(r.quantity) || 0,
-      rate: Number(r.rate) || 0,
-      unit_symbol: unitSymbol,
-      amount: r.amount,
-      components: r.components,
-    })));
+    // Keep any row carrying meaningful data — not only qty > 0. A row with a
+    // godown/rate/components but no quantity yet must not be silently dropped.
+    const filled = rows.filter(
+      (r) =>
+        Number(r.quantity) > 0 ||
+        Number(r.rate) > 0 ||
+        (Number(r.amount) || 0) > 0 ||
+        r.godown.trim() !== "" ||
+        (r.components?.length ?? 0) > 0
+    );
+    // Additive per-row flag (track_components) — callers that don't know the key
+    // simply ignore it; hydration reads it back via components presence too.
+    const payload: (JobWorkItemAllocationRow & { track_components?: "Yes" | "No" })[] =
+      filled.map((r) => {
+        const qty = Number(r.quantity) || 0;
+        const rate = Number(r.rate) || 0;
+        // Recompute the amount at save so stale display values never persist:
+        // component-based rows are worth their component total, plain rows qty*rate.
+        const amount = (r.components?.length ?? 0) > 0
+          ? compTotal(r)
+          : qty > 0 && rate > 0
+            ? qty * rate
+            : Number(r.amount) || 0;
+        return {
+          due_on: r.due_on,
+          godown: r.godown,
+          quantity: qty,
+          rate,
+          unit_symbol: unitSymbol,
+          amount,
+          components: r.components,
+          track_components: trackComponents,
+        };
+      });
+    onSave(payload);
   };
 
   // Shell handles Esc / Alt+A; suppress both while the nested Components popup
@@ -209,6 +242,11 @@ export default function JobWorkItemAllocationPopup({
                   className="text-[10px] border-b border-gray-400 outline-none bg-white ml-0.5 focus:border-black"
                   title={fmtDate(row.due_on)}
                 />
+                {row.due_on && (
+                  <span className="text-[10px] text-gray-500 not-italic ml-1">
+                    ({fmtDate(row.due_on)})
+                  </span>
+                )}
               </div>
 
               {/* Data row */}
@@ -260,8 +298,24 @@ export default function JobWorkItemAllocationPopup({
                     value={row.quantity}
                     onChange={(e) => {
                       const v = e.target.value;
-                      const amt = (Number(v) || 0) * (Number(row.rate) || 0);
-                      update(row.id, { quantity: v, amount: amt });
+                      const qty = Number(v) || 0;
+                      if ((row.components?.length ?? 0) > 0) {
+                        // Component-based row: the amount stays the component
+                        // total; the rate re-derives from the new quantity.
+                        const total = compTotal(row);
+                        update(row.id, {
+                          quantity: v,
+                          amount: total,
+                          rate: qty > 0 ? String(Math.round((total / qty) * 100) / 100) : row.rate,
+                          amountRaw: undefined,
+                        });
+                      } else {
+                        update(row.id, {
+                          quantity: v,
+                          amount: qty * (Number(row.rate) || 0),
+                          amountRaw: undefined,
+                        });
+                      }
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
@@ -289,7 +343,7 @@ export default function JobWorkItemAllocationPopup({
                     onChange={(e) => {
                       const v = e.target.value;
                       const amt = (Number(row.quantity) || 0) * (Number(v) || 0);
-                      update(row.id, { rate: v, amount: amt });
+                      update(row.id, { rate: v, amount: amt, amountRaw: undefined });
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
@@ -309,9 +363,26 @@ export default function JobWorkItemAllocationPopup({
                 {/* per */}
                 <div className="w-10 shrink-0 text-center text-[11px] text-gray-600 font-mono">{unitSymbol}</div>
 
-                {/* Amount */}
-                <div className="flex-1 text-right text-xs font-mono font-semibold">
-                  {row.amount > 0 ? num(row.amount) : ""}
+                {/* Amount — editable; typing an amount back-calculates the rate */}
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    data-jw-amount={idx}
+                    value={row.amountRaw ?? (row.amount > 0 ? String(row.amount) : "")}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const amt = Number(v) || 0;
+                      const qty = Number(row.quantity) || 0;
+                      update(row.id, {
+                        amountRaw: v,
+                        amount: amt,
+                        rate: qty > 0 ? String(Math.round((amt / qty) * 100) / 100) : row.rate,
+                      });
+                    }}
+                    onBlur={() => update(row.id, { amountRaw: undefined })}
+                    className={`${inputCls} text-right font-mono font-semibold`}
+                  />
                 </div>
               </div>
 

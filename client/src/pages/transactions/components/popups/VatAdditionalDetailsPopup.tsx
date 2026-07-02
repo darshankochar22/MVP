@@ -7,11 +7,19 @@ export interface VatAdditionalDetails {
 
 interface Props {
   initialDetails?: { point_of_sale?: string } | null;
+  /** VAT nature of transaction shown in the header (e.g. "Purchase Taxable").
+   *  Falls back to "Sales Taxable" when the call site doesn't provide it. */
+  natureOfTransaction?: string;
   onClose: () => void;
   onSave: (details: VatAdditionalDetails) => void;
 }
 
-export default function VatAdditionalDetailsPopup({ initialDetails, onClose, onSave }: Props) {
+export default function VatAdditionalDetailsPopup({
+  initialDetails,
+  natureOfTransaction,
+  onClose,
+  onSave,
+}: Props) {
   const [form, setForm] = useState<VatAdditionalDetails>({
     point_of_sale: initialDetails?.point_of_sale ?? "",
   });
@@ -21,7 +29,7 @@ export default function VatAdditionalDetailsPopup({ initialDetails, onClose, onS
   return (
     <VoucherPopupShell
       title="Additional Details"
-      headerRight="Sales Taxable"
+      headerRight={natureOfTransaction || "Sales Taxable"}
       onClose={onClose}
       onAccept={handleSave}
     >

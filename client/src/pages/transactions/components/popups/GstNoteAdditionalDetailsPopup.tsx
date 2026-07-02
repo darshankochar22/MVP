@@ -7,13 +7,25 @@ export interface GstNoteAdditionalDetails {
   supplier_note_date?: string;
 }
 
+const NOT_APPLICABLE = "♦ Not Applicable";
+
 const REASON_OPTIONS = [
-  "♦ Not Applicable",
+  NOT_APPLICABLE,
+  "01-Sales Return",
+  "02-Post Sale Discount",
+  "03-Deficiency in services",
   "04-Correction in Invoice",
   "05-Change in POS",
   "06-Finalization of Provisional assessment",
   "07-Others",
 ];
+
+// "Not Applicable" is a display-only sentinel: it is never persisted (saved
+// as "") and loaded ""/legacy-sentinel values map back to the display default.
+const toDisplayReason = (v?: string | null) =>
+  !v || v.includes("Not Applicable") ? NOT_APPLICABLE : v;
+const toSavedReason = (v?: string | null) =>
+  !v || v.includes("Not Applicable") ? "" : v;
 
 interface Props {
   initialDetails?: GstNoteAdditionalDetails | null;
@@ -23,12 +35,13 @@ interface Props {
 
 export default function GstNoteAdditionalDetailsPopup({ initialDetails, onClose, onSave }: Props) {
   const [form, setForm] = useState<GstNoteAdditionalDetails>({
-    reason_for_issuing_note: initialDetails?.reason_for_issuing_note || REASON_OPTIONS[0],
+    reason_for_issuing_note: toDisplayReason(initialDetails?.reason_for_issuing_note),
     supplier_note_no: initialDetails?.supplier_note_no ?? "",
     supplier_note_date: initialDetails?.supplier_note_date ?? "",
   });
 
-  const handleSave = () => onSave(form);
+  const handleSave = () =>
+    onSave({ ...form, reason_for_issuing_note: toSavedReason(form.reason_for_issuing_note) });
 
   const labelCls = "w-64 text-sm text-black shrink-0";
   const colonCls = "text-sm text-black shrink-0";

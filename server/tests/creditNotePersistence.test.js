@@ -77,9 +77,34 @@ describe("Credit Note sub-screen persistence", () => {
         supplier_note_date: "2026-03-20",
         nature_of_return: "Other Adjustments",
       },
+      excise_details: {
+        inspection_document_no: "INSP-42",
+        inspection_document_date: "2026-03-18",
+      },
     });
     expect(res.success).toBe(true);
     voucherId = res.voucher.voucher_id;
+  });
+
+  it("persists voucher-level excise details (inspection doc) through create + update", async () => {
+    const res = await voucherService.getById(voucherId);
+    expect(res.success).toBe(true);
+    expect(res.voucher.excise_details).toBeTruthy();
+    expect(res.voucher.excise_details.inspection_document_no).toBe("INSP-42");
+    expect(res.voucher.excise_details.inspection_document_date).toBe("2026-03-18");
+
+    // Alter path: update must replace, not drop, the excise details.
+    const upd = await voucherService.update({
+      voucher_id: voucherId,
+      company_id: companyId,
+      excise_details: {
+        inspection_document_no: "INSP-43",
+        inspection_document_date: "2026-03-19",
+      },
+    });
+    expect(upd.success).toBe(true);
+    const back = await voucherService.getById(voucherId);
+    expect(back.voucher.excise_details.inspection_document_no).toBe("INSP-43");
   });
 
   it("persists batch allocation incl. godown, actual qty and disc %", async () => {

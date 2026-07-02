@@ -107,8 +107,10 @@ const voucherBatches = pgTable('voucher_batches', {
   discPercent: numeric('disc_percent', { precision: 18, scale: 4 }).default('0'),
   orderNo: text('order_no'),
   dueOn: text('due_on'),
+  dueOnDate: text('due_on_date'),
   componentOf: text('component_of'),
   considerAsScrap: text('consider_as_scrap'),
+  trackComponents: text('track_components'),
 });
 
 // ---------------------------------------------------------------------------
@@ -165,6 +167,9 @@ const voucherBankDetails = pgTable('voucher_bank_details', {
   accountNumber: text('account_number'),
   ifscCode: text('ifsc_code'),
   paymentGateway: text('payment_gateway'),
+  favouringName: text('favouring_name'),
+  transferMode: text('transfer_mode'),
+  allocationsJson: text('allocations_json'),
   amount: numeric('amount', { precision: 18, scale: 2 }).default('0'),
 });
 
@@ -179,6 +184,7 @@ const voucherCostCentres = pgTable('voucher_cost_centres', {
   entryId: bigint('entry_id', { mode: 'number' }).references(() => voucherEntries.entryId),
   // FK -> cost_centres.cost_centre_id (INFERRED, cross-module).
   costCentreId: bigint('cost_centre_id', { mode: 'number' }),
+  costCategoryId: bigint('cost_category_id', { mode: 'number' }),
   amount: numeric('amount', { precision: 18, scale: 2 }).default('0'),
 });
 
@@ -205,6 +211,7 @@ const voucherReceiptDetails = pgTable('voucher_receipt_details', {
   voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
   receiptNoteNo: text('receipt_note_no'),
   receiptDocNo: text('receipt_doc_no'),
+  receiptDocDate: text('receipt_doc_date'),
   dispatchedThrough: text('dispatched_through'),
   destination: text('destination'),
   carrierName: text('carrier_name'),
@@ -266,6 +273,17 @@ const voucherCreditNoteDetails = pgTable('voucher_credit_note_details', {
   supplierNoteNo: text('supplier_note_no'),
   supplierNoteDate: date('supplier_note_date'),
   natureOfReturn: text('nature_of_return'),
+});
+
+// ---------------------------------------------------------------------------
+// voucher_excise_details  (Credit Note — Tax Details → Excise Details)
+// ---------------------------------------------------------------------------
+const voucherExciseDetails = pgTable('voucher_excise_details', {
+  id: bigint('id', { mode: 'number' }).primaryKey().generatedByDefaultAsIdentity(),
+  // FK -> vouchers.voucher_id ON DELETE CASCADE.
+  voucherId: bigint('voucher_id', { mode: 'number' }).notNull().references(() => vouchers.voucherId, { onDelete: 'cascade' }),
+  inspectionDocumentNo: text('inspection_document_no'),
+  inspectionDocumentDate: text('inspection_document_date'),
 });
 
 // ---------------------------------------------------------------------------
@@ -356,6 +374,7 @@ module.exports = {
   voucherDispatchDetails,
   voucherCreditNoteDetails,
   voucherDebitNoteDetails,
+  voucherExciseDetails,
   voucherVatDetails,
   voucherOrderDetails,
   voucherPayrollEntries,

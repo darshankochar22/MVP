@@ -58,6 +58,7 @@ export function hydrateVoucherForm(form: any, v: any) {
   if (v.debit_note_details) form.setDebitNoteDetails?.(v.debit_note_details);
   if (v.vat_details) form.setVatDetails?.(v.vat_details);
   if (v.order_details) form.setOrderDetails?.(v.order_details);
+  if (v.excise_details) form.setExciseDetails?.(v.excise_details);
   if (Array.isArray(v.cash_denominations) && v.cash_denominations.length > 0) {
     const others = v.cash_denominations.find((d: any) => d.denomination === "Others");
     form.setCashDenominations?.({
@@ -105,6 +106,11 @@ export function hydrateVoucherForm(form: any, v: any) {
       mfg_date: b.mfg_date ?? undefined, expiry_date: b.expiry_date ?? undefined,
       quantity: b.quantity, actual_quantity: b.actual_quantity ?? b.quantity,
       rate: b.rate, disc_percent: b.disc_percent ?? undefined,
+      tracking_no: b.tracking_no ?? undefined, order_no: b.order_no ?? undefined,
+      due_on: b.due_on ?? undefined, due_on_date: b.due_on_date ?? undefined,
+      component_of: b.component_of ?? undefined,
+      consider_as_scrap: b.consider_as_scrap ?? undefined,
+      track_components: b.track_components ?? undefined,
     })),
     exciseItemDetails: s.excise_item_details || undefined,
   });

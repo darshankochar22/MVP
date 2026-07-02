@@ -3,6 +3,10 @@ import { createPortal } from "react-dom";
 import type { BatchAllocation } from "../../types";
 import NewNumberPopup from "./NewNumberPopup";
 import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
+import { parseDueOn, toLocalIsoDate } from "@/lib/dueDate";
+
+// Saved allocation — BatchAllocation plus the resolved ISO due date (additive).
+type SavedAllocation = BatchAllocation & { due_on_date?: string };
 
 // Stock Item Allocations sub-screen for order-tracking vouchers (Purchase/Sales
 // Order, Receipt Note, Delivery Note). Tally layout: each allocation is a
@@ -16,6 +20,23 @@ interface ActiveBatch {
   mfg_date: string | null;
   expiry_date: string | null;
   balance: number;
+}
+
+interface TrackingOption {
+  name: string;
+  batch?: string | null;
+  godown?: string | null;
+  date?: string | null;
+  balance?: number;
+  rate?: number;
+}
+
+interface OrderOption {
+  name: string;
+  batch?: string | null;
+  godown?: string | null;
+  due_on?: string | null;
+  balance?: number;
 }
 
 interface GodownOption {
@@ -54,7 +75,33 @@ function fmtDate(iso?: string | null): string {
 }
 
 const num = (v: number | undefined) =>
-  v ? v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+  Number.isFinite(v)
+    ? (v as number).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : "";
+
+// Free-text expiry parsing — same behaviour as BatchAllocationPopup: an actual
+// date, or a duration ("2 years", "6 months", "30 days") relative to baseIso.
+function parseExpiry(input: string, baseIso: string): string {
+  const raw = (input || "").trim();
+  if (!raw) return "";
+  const direct = new Date(raw);
+  if (!isNaN(direct.getTime()) && /\d{4}|[A-Za-z]{3}/.test(raw) && !/year|month|day|yr|mo|wk|week/i.test(raw)) {
+    return toLocalIsoDate(direct);
+  }
+  const m = raw.match(/^(\d+)\s*(year|years|yr|month|months|mo|week|weeks|wk|day|days)$/i);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    const unit = m[2].toLowerCase();
+    const base = new Date(baseIso);
+    if (isNaN(base.getTime())) return "";
+    if (unit.startsWith("year") || unit === "yr") base.setFullYear(base.getFullYear() + n);
+    else if (unit.startsWith("mo")) base.setMonth(base.getMonth() + n);
+    else if (unit.startsWith("week") || unit === "wk") base.setDate(base.getDate() + n * 7);
+    else base.setDate(base.getDate() + n);
+    return toLocalIsoDate(base);
+  }
+  return "";
+}
 
 // Per-godown balance label — Tally shows negatives as "(-)9 Box"; blank when zero.
 const fmtQty = (q: number | undefined, unit?: string) => {
@@ -72,17 +119,17 @@ const hasTracking = (r: BatchAllocation) =>
   !!r.tracking_no && r.tracking_no !== NA && r.tracking_no !== EOL;
 
 export default function OrderItemAllocationPopup({
-  companyId, itemId, itemName, rate, unitSymbol,
+  companyId, itemId, itemName, rate, unitSymbol, voucherDate,
   trackMfg, trackExpiry, isInward, godowns = [], initialAllocations = [],
   showBatch = true, onClose, onSave,
 }: Props) {
   const emptyRow = (): BatchAllocation => ({
     batch_number: "",
     godown: "",
-    quantity: 0,
-    actual_quantity: 0,
+    quantity: undefined,
+    actual_quantity: undefined,
     rate,
-    disc_percent: 0,
+    disc_percent: undefined,
     tracking_no: "",
     order_no: "",
     due_on: "",
@@ -92,6 +139,8 @@ export default function OrderItemAllocationPopup({
     initialAllocations.length ? initialAllocations.map((a) => ({ ...a })) : [emptyRow()]
   );
   const [activeBatches, setActiveBatches] = useState<ActiveBatch[]>([]);
+  const [fetchedTracking, setFetchedTracking] = useState<TrackingOption[]>([]);
+  const [fetchedOrders, setFetchedOrders] = useState<OrderOption[]>([]);
   const [godownBal, setGodownBal] = useState<Record<number, number>>({});
   const [openListRow, setOpenListRow] = useState<number | null>(null);
   const [openTrackRow, setOpenTrackRow] = useState<number | null>(null);
@@ -124,6 +173,23 @@ export default function OrderItemAllocationPopup({
     if (!companyId || !itemId) return;
     (window as any).api.report.batchBalances(companyId, itemId).then((res: any) => {
       if (res?.success) setActiveBatches(res.batches ?? []);
+    }).catch(() => {});
+  }, [companyId, itemId]);
+
+  // Outstanding tracking numbers (Delivery/Receipt Notes awaiting invoice) for
+  // this item — real balances for the "List of Tracking Numbers" dropdown.
+  useEffect(() => {
+    if (!companyId || !itemId) return;
+    (window as any).api.report.trackingNumbers?.(companyId, itemId).then((res: any) => {
+      if (res?.success) setFetchedTracking(res.trackingNumbers ?? []);
+    }).catch(() => {});
+  }, [companyId, itemId]);
+
+  // Outstanding order numbers for this item — "List of Orders" dropdown.
+  useEffect(() => {
+    if (!companyId || !itemId) return;
+    (window as any).api.report.orderNumbers?.(companyId, itemId).then((res: any) => {
+      if (res?.success) setFetchedOrders(res.orders ?? []);
     }).catch(() => {});
   }, [companyId, itemId]);
 
@@ -211,24 +277,33 @@ export default function OrderItemAllocationPopup({
   const totalBilled = rows.reduce((s, r) => s + billed(r), 0);
   const totalAmount = rows.reduce((s, r) => s + lineAmount(r), 0);
 
-  // Numbers available in each list = created-this-session + already on a row.
-  // A freshly-created number stays in the list for reuse on later rows (Tally).
+  // Numbers available in each list = fetched from the backend (with their real
+  // outstanding balances) + created-this-session / already on a row (no
+  // balance — they aren't booked yet). A freshly-created number stays in the
+  // list for reuse on later rows (Tally).
   const mergeNos = (fromRows: string[], fromCreated: string[]) =>
     Array.from(new Set([...fromCreated, ...fromRows]));
-  const sessionTracking = mergeNos(
-    rows.filter((r) => hasTracking(r)).map((r) => r.tracking_no as string),
-    created.tracking
-  ).map((no) => {
-    const src = rows.find((r) => r.tracking_no === no);
-    return { no, godown: src?.godown, balance: src ? billed(src) : 0 };
-  });
-  const sessionOrders = mergeNos(
-    rows.filter((r) => r.order_no && r.order_no !== NA).map((r) => r.order_no as string),
-    created.order
-  ).map((no) => {
-    const src = rows.find((r) => r.order_no === no);
-    return { no, godown: src?.godown, due: src?.due_on, balance: src ? billed(src) : 0 };
-  });
+  const sessionTracking: { no: string; godown?: string; balance?: number }[] = [
+    ...fetchedTracking.map((t) => ({ no: t.name, godown: t.godown ?? undefined, balance: t.balance })),
+    ...mergeNos(
+      rows.filter((r) => hasTracking(r)).map((r) => r.tracking_no as string),
+      created.tracking
+    )
+      .filter((no) => !fetchedTracking.some((t) => t.name === no))
+      .map((no) => ({ no, godown: rows.find((r) => r.tracking_no === no)?.godown, balance: undefined })),
+  ];
+  const sessionOrders: { no: string; godown?: string; due?: string; balance?: number }[] = [
+    ...fetchedOrders.map((o) => ({ no: o.name, godown: o.godown ?? undefined, due: o.due_on ?? undefined, balance: o.balance })),
+    ...mergeNos(
+      rows.filter((r) => r.order_no && r.order_no !== NA).map((r) => r.order_no as string),
+      created.order
+    )
+      .filter((no) => !fetchedOrders.some((o) => o.name === no))
+      .map((no) => {
+        const src = rows.find((r) => r.order_no === no);
+        return { no, godown: src?.godown, due: src?.due_on, balance: undefined };
+      }),
+  ];
   const typedBatches = mergeNos(
     rows.map((r) => (r.batch_number || "").trim()).filter((n) => n && n.toLowerCase() !== "any"),
     created.batch
@@ -239,8 +314,11 @@ export default function OrderItemAllocationPopup({
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   };
 
+  // Number inputs: "" clears the field (undefined) so a typed 0 stays a visible 0.
+  const numVal = (s: string): number | undefined => (s === "" ? undefined : Number(s));
+
   // Actual drives Billed until Billed is overridden independently.
-  const setActual = (i: number, v: number) => {
+  const setActual = (i: number, v: number | undefined) => {
     setError(null);
     setRows((prev) =>
       prev.map((r, idx) => {
@@ -275,36 +353,63 @@ export default function OrderItemAllocationPopup({
   };
 
   const saveAllocations = useCallback((list: BatchAllocation[]) => {
-    const filled = list.filter((r) => r.godown || Number(r.quantity) > 0 || (r.batch_number || "").trim());
+    const isFilled = (r: BatchAllocation) =>
+      !!(r.godown || Number(r.quantity) > 0 || (r.batch_number || "").trim());
+    // A row with only Rate / Disc typed would be dropped silently — surface it
+    // instead so the user can complete or clear it.
+    const orphaned = list
+      .map((r, idx) => ({ r, idx }))
+      .filter(({ r }) =>
+        !isFilled(r) &&
+        ((Number(r.disc_percent) || 0) !== 0 ||
+          (Number.isFinite(Number(r.rate)) && Number(r.rate) !== rate)));
+    if (orphaned.length) {
+      const nums = orphaned.map(({ idx }) => idx + 1).join(", ");
+      setError(`Row${orphaned.length > 1 ? "s" : ""} ${nums} ha${orphaned.length > 1 ? "ve" : "s"} only Rate / Disc filled — add a quantity or godown, or clear the row.`);
+      return;
+    }
+    const filled = list.filter(isFilled);
     if (showBatch && filled.some((r) => !(r.batch_number || "").trim())) {
       setError("Every row needs a Batch / Lot No. (pick Any or a New Number).");
       return;
     }
     const sumBilled = filled.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
     if (sumBilled <= 0) { setError("Enter a quantity for at least one allocation."); return; }
-    onSave(filled.map((r) => ({
-      batch_number: (r.batch_number || "").trim(),
-      godown: r.godown || undefined,
-      tracking_no: hasTracking(r) ? (r.tracking_no as string).trim() : undefined,
-      order_no: r.order_no && r.order_no !== NA ? (r.order_no as string).trim() : undefined,
-      due_on: hasTracking(r) ? (r.due_on || undefined) : undefined,
-      mfg_date: trackMfg ? (r.mfg_date || undefined) : undefined,
-      expiry_date: trackExpiry ? (r.expiry_date || undefined) : undefined,
-      quantity: Number(r.quantity) || 0,
-      actual_quantity: Number(r.actual_quantity ?? r.quantity) || 0,
-      rate: Number(r.rate) || rate,
-      disc_percent: Number(r.disc_percent) || 0,
-    })));
-  }, [showBatch, trackMfg, trackExpiry, rate, onSave]);
+    const baseDate = voucherDate || toLocalIsoDate(new Date());
+    onSave(filled.map((r): SavedAllocation => {
+      const hasOrder = !!(r.order_no && r.order_no !== NA);
+      // Due-on applies whenever the row is order-tracked in either direction.
+      const due = (hasTracking(r) || hasOrder) ? ((r.due_on || "").trim() || undefined) : undefined;
+      return {
+        batch_number: (r.batch_number || "").trim(),
+        godown: r.godown || undefined,
+        tracking_no: hasTracking(r) ? (r.tracking_no as string).trim() : undefined,
+        order_no: hasOrder ? (r.order_no as string).trim() : undefined,
+        due_on: due,
+        due_on_date: due ? (parseDueOn(due, baseDate) ?? undefined) : undefined,
+        mfg_date: trackMfg ? (r.mfg_date || undefined) : undefined,
+        expiry_date: trackExpiry ? (r.expiry_date || undefined) : undefined,
+        quantity: Number(r.quantity) || 0,
+        actual_quantity: Number(r.actual_quantity ?? r.quantity) || 0,
+        rate: Number.isFinite(Number(r.rate)) ? Number(r.rate) : rate,
+        disc_percent: Number.isFinite(Number(r.disc_percent)) ? Number(r.disc_percent) : 0,
+      };
+    }));
+  }, [showBatch, trackMfg, trackExpiry, rate, onSave, voucherDate]);
 
   const handleSave = useCallback(() => saveAllocations(rows), [saveAllocations, rows]);
 
-  // "End of List" on a Tracking No. — drop that (trailing/empty) row and accept
-  // the allocations entered so far; if none, just close.
+  // "End of List" on a Tracking No. — accept the allocations entered so far.
+  // Only a genuinely EMPTY row is dropped; a row with data keeps it (the
+  // dropdown just closes and the row is saved with the rest).
   const endOfList = (i: number) => {
     setOpenTrackRow(null);
-    const kept = rows.filter((_, idx) => idx !== i);
-    if (!kept.some((r) => r.godown || Number(r.quantity) > 0)) { onClose(); return; }
+    const r = rows[i];
+    const rowFilled = !!(r && (
+      r.godown || Number(r.quantity) > 0 || (r.batch_number || "").trim() ||
+      hasTracking(r) || (r.order_no && r.order_no !== NA)));
+    const kept = rowFilled ? rows : rows.filter((_, idx) => idx !== i);
+    if (!kept.some((x) => x.godown || Number(x.quantity) > 0)) { onClose(); return; }
     saveAllocations(kept);
   };
 
@@ -380,6 +485,7 @@ export default function OrderItemAllocationPopup({
             <div>
               {rows.map((row, i) => {
                 const showOrder = hasTracking(row);
+                const baseIso = (trackMfg && row.mfg_date) ? row.mfg_date : voucherDate;
                 return (
                   <div key={i} className="border-b border-gray-200">
                     {/* Tracking No. / Order No. / Due on */}
@@ -448,7 +554,7 @@ export default function OrderItemAllocationPopup({
                                 <button type="button" onMouseDown={(e) => { e.preventDefault(); setOpenOrderRow(null); setNewNumber({ row: i, field: "order" }); }} className={optNew}>New Number</button>
                                 {sessionOrders.filter((o) => o.no !== row.order_no).map((o) => (
                                   <button key={o.no} type="button" onMouseDown={(e) => { e.preventDefault(); update(i, { order_no: o.no }); setOpenOrderRow(null); focusSel(`[data-oa-due="${i}"]`); }} className="flex w-full text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100">
-                                    <div className="flex-1 font-semibold">{o.no}</div><div className="w-14 truncate">{o.godown}</div><div className="w-14">{o.due}</div><div className="w-12 text-right font-mono">{o.balance || ""}</div>
+                                    <div className="flex-1 font-semibold">{o.no}</div><div className="w-14 truncate">{o.godown}</div><div className="w-14 truncate">{fmtDate(o.due)}</div><div className="w-12 text-right font-mono">{o.balance || ""}</div>
                                   </button>
                                 ))}
                               </div>,
@@ -488,16 +594,14 @@ export default function OrderItemAllocationPopup({
                             style={{ position: "fixed", top: godownPos.top, left: godownPos.left, width: godownPos.width }}
                             className="bg-white border border-gray-400 shadow-xl z-[60] max-h-56 overflow-y-auto"
                           >
-                            <div className={`${listHeadCls} text-[10px] px-2 py-0.5 flex justify-between`}>
-                              <span>List of Godowns</span>
-                              <span className="text-gray-500">Create</span>
+                            <div className={`${listHeadCls} text-[10px] px-2 py-0.5`}>
+                              List of Godowns
                             </div>
                             {godowns.map((g) => (
                               <button key={g.godown_id ?? g.name} type="button"
                                 onMouseDown={(e) => { e.preventDefault(); update(i, { godown: g.name }); setOpenGodownRow(null); focusSel(showBatch ? `[data-oa-batch="${i}"]` : `[data-oa-actual="${i}"]`); }}
                                 className="flex w-full items-center text-left text-[11px] px-2 py-1 hover:bg-gray-100 border-b border-gray-100">
                                 <div className="flex-1 font-semibold">{g.name}</div>
-                                <div className="w-16 italic text-gray-500">&#9670; Primary</div>
                                 <div className="w-14 text-right font-mono text-gray-600">{fmtQty(g.godown_id != null ? godownBal[g.godown_id] : undefined, unitSymbol)}</div>
                               </button>
                             ))}
@@ -529,9 +633,17 @@ export default function OrderItemAllocationPopup({
                               </div>
                               <div className="flex-1">
                                 {trackExpiry && (
-                                  <input type="date" value={row.expiry_date ?? ""}
-                                    onChange={(e) => update(i, { expiry_date: e.target.value })}
-                                    className={`${inputCls} font-mono`} />
+                                  <input
+                                    type="text"
+                                    defaultValue={row.expiry_date ? fmtDate(row.expiry_date) : ""}
+                                    onBlur={(e) => {
+                                      const iso = parseExpiry(e.target.value, baseIso);
+                                      update(i, { expiry_date: iso || undefined });
+                                      e.target.value = iso ? fmtDate(iso) : e.target.value;
+                                    }}
+                                    placeholder="date / 2 years"
+                                    className={`${inputCls} font-mono`}
+                                  />
                                 )}
                               </div>
                             </div>
@@ -588,24 +700,24 @@ export default function OrderItemAllocationPopup({
                       {/* Actual */}
                       <div className={`${cell} ${W.qty}`}>
                         <input type="number" step="any" data-oa-actual={i}
-                          value={row.actual_quantity || ""}
-                          onChange={(e) => setActual(i, Number(e.target.value) || 0)}
+                          value={row.actual_quantity ?? ""}
+                          onChange={(e) => setActual(i, numVal(e.target.value))}
                           onKeyDown={enter(() => focusSel(`[data-oa-billed="${i}"]`))}
                           className={`${inputCls} text-right font-mono`} />
                       </div>
                       {/* Billed */}
                       <div className={`${cell} ${W.qty}`}>
                         <input type="number" step="any" data-oa-billed={i}
-                          value={row.quantity || ""}
-                          onChange={(e) => update(i, { quantity: Number(e.target.value) || 0 })}
+                          value={row.quantity ?? ""}
+                          onChange={(e) => update(i, { quantity: numVal(e.target.value) })}
                           onKeyDown={enter(() => focusSel(`[data-oa-rate="${i}"]`))}
                           className={`${inputCls} text-right font-mono`} />
                       </div>
                       {/* Rate */}
                       <div className={`${cell} ${W.rate}`}>
                         <input type="number" step="any" data-oa-rate={i}
-                          value={row.rate || ""}
-                          onChange={(e) => update(i, { rate: Number(e.target.value) || 0 })}
+                          value={row.rate ?? ""}
+                          onChange={(e) => update(i, { rate: numVal(e.target.value) })}
                           onKeyDown={enter(() => focusSel(`[data-oa-disc="${i}"]`))}
                           className={`${inputCls} text-right font-mono`} />
                       </div>
@@ -614,8 +726,8 @@ export default function OrderItemAllocationPopup({
                       {/* Disc % — Enter completes the row and starts the next allocation. */}
                       <div className={`${cell} ${W.disc}`}>
                         <input type="number" step="any" data-oa-disc={i}
-                          value={row.disc_percent || ""}
-                          onChange={(e) => update(i, { disc_percent: Number(e.target.value) || 0 })}
+                          value={row.disc_percent ?? ""}
+                          onChange={(e) => update(i, { disc_percent: numVal(e.target.value) })}
                           onKeyDown={enter(() => completeRow(i))}
                           className={`${inputCls} text-right font-mono`} />
                       </div>

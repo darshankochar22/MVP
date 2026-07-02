@@ -5,7 +5,23 @@ export interface VatNatureOfReturn {
   nature_of_return?: string;
 }
 
-const NATURE_OPTIONS = ["♦ Not Applicable", "Other Adjustments"];
+const NOT_APPLICABLE = "♦ Not Applicable";
+
+const NATURE_OPTIONS = [
+  NOT_APPLICABLE,
+  "Goods Return",
+  "Rate Difference",
+  "Discount",
+  "Other Adjustments",
+  "Others",
+];
+
+// "Not Applicable" is a display-only sentinel: it is never persisted (saved
+// as "") and loaded ""/legacy-sentinel values map back to the display default.
+const toDisplayNature = (v?: string | null) =>
+  !v || v.includes("Not Applicable") ? NOT_APPLICABLE : v;
+const toSavedNature = (v?: string | null) =>
+  !v || v.includes("Not Applicable") ? "" : v;
 
 interface Props {
   initialDetails?: { nature_of_return?: string } | null;
@@ -15,10 +31,10 @@ interface Props {
 
 export default function VatNatureOfReturnPopup({ initialDetails, onClose, onSave }: Props) {
   const [form, setForm] = useState<VatNatureOfReturn>({
-    nature_of_return: initialDetails?.nature_of_return || NATURE_OPTIONS[0],
+    nature_of_return: toDisplayNature(initialDetails?.nature_of_return),
   });
 
-  const handleSave = () => onSave(form);
+  const handleSave = () => onSave({ nature_of_return: toSavedNature(form.nature_of_return) });
 
   return (
     <VoucherPopupShell title="Additional Details" onClose={onClose} onAccept={handleSave}>

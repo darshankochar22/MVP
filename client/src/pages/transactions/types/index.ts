@@ -50,8 +50,12 @@ export interface BatchAllocation {
   // Material In job-work allocation (order tracking).
   order_no?: string;
   due_on?: string;
+  /** Resolved ISO date for a "9 Days"-style due_on entry. */
+  due_on_date?: string;
   component_of?: string;
   consider_as_scrap?: string;
+  /** Job Work rows: whether the row tracks components ("Yes"/"No"). */
+  track_components?: string;
 }
 
 /** One component line in the Job Work Components Allocation popup. */

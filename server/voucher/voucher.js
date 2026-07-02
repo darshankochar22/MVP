@@ -94,6 +94,13 @@ const init = async (db) => {
   try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN component_of TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN consider_as_scrap TEXT`); } catch (err) {}
   try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN tracking_no TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN due_on_date TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_batches ADD COLUMN track_components TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN favouring_name TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN transfer_mode TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_bank_details ADD COLUMN allocations_json TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_receipt_details ADD COLUMN receipt_doc_date TEXT`); } catch (err) {}
+  try { await db.execute(`ALTER TABLE voucher_cost_centres ADD COLUMN cost_category_id INTEGER`); } catch (err) {}
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS voucher_item_excise (
@@ -226,6 +233,16 @@ const init = async (db) => {
       supplier_note_no        TEXT,
       supplier_note_date      TEXT,
       nature_of_return        TEXT
+    )
+  `);
+
+  // Excise "Tax Details" sub-screen (Credit Note): inspection document no./date.
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS voucher_excise_details (
+      id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+      voucher_id               INTEGER NOT NULL REFERENCES vouchers(voucher_id) ON DELETE CASCADE,
+      inspection_document_no   TEXT,
+      inspection_document_date TEXT
     )
   `);
 

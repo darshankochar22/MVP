@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
+import { toLocalIsoDate } from "@/lib/dueDate";
 
 interface Props {
   initialDate: string;
@@ -45,22 +46,25 @@ export default function DatePickerPopup({
     viewMonth === selectedDate.getMonth() &&
     viewYear === selectedDate.getFullYear();
 
-  // FIX #10 — when navigating months, reset highlightedDay to 0 (first day)
-  const handlePrevMonth = useCallback(() => {
-    setViewMonth((m) => {
-      if (m === 0) { setViewYear((y) => y - 1); return 11; }
-      return m - 1;
-    });
-    setHighlightedDay(0);
-  }, []);
+  // Month navigation moves selectedDate to the same day-of-month in the newly
+  // viewed month (clamped to its length), so Enter always confirms what's shown.
+  const navigateMonth = useCallback(
+    (delta: number) => {
+      const first = new Date(viewYear, viewMonth + delta, 1);
+      const y = first.getFullYear();
+      const m = first.getMonth();
+      const dim = new Date(y, m + 1, 0).getDate();
+      const day = Math.min(selectedDate.getDate(), dim);
+      setViewYear(y);
+      setViewMonth(m);
+      setSelectedDate(new Date(y, m, day));
+      setHighlightedDay(day - 1);
+    },
+    [viewYear, viewMonth, selectedDate]
+  );
 
-  const handleNextMonth = useCallback(() => {
-    setViewMonth((m) => {
-      if (m === 11) { setViewYear((y) => y + 1); return 0; }
-      return m + 1;
-    });
-    setHighlightedDay(0);
-  }, []);
+  const handlePrevMonth = useCallback(() => navigateMonth(-1), [navigateMonth]);
+  const handleNextMonth = useCallback(() => navigateMonth(1), [navigateMonth]);
 
   // Select a day in the currently-viewed month and keep highlight in sync
   const selectDay = useCallback(
@@ -72,66 +76,37 @@ export default function DatePickerPopup({
   );
 
   const handleConfirm = useCallback(() => {
-    const iso = selectedDate.toISOString().split("T")[0];
-    onConfirm(iso);
+    onConfirm(toLocalIsoDate(selectedDate));
     onClose();
   }, [selectedDate, onConfirm, onClose]);
 
-  // FIX #10 — arrow keys update BOTH highlightedDay AND selectedDate so
-  // pressing Enter immediately after navigating always confirms the right day.
+  // Arrow keys update BOTH highlightedDay AND selectedDate (both setters called
+  // at handler level — never one inside the other's updater) so pressing Enter
+  // immediately after navigating always confirms the right day.
   // Escape + Alt+A are handled by VoucherPopupShell.
   useEffect(() => {
+    // day is 1-based within the viewed month
+    const moveTo = (day: number) => {
+      const clamped = Math.min(Math.max(day, 1), daysInMonth);
+      setHighlightedDay(clamped - 1);
+      setSelectedDate(new Date(viewYear, viewMonth, clamped));
+    };
+
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Enter") { e.preventDefault(); handleConfirm(); return; }
       if (e.key === "PageUp") { e.preventDefault(); handlePrevMonth(); return; }
       if (e.key === "PageDown") { e.preventDefault(); handleNextMonth(); return; }
 
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        setHighlightedDay((prev) => {
-          const next = Math.min(prev + 1, daysInMonth - 1);
-          setSelectedDate(new Date(viewYear, viewMonth, next + 1));
-          return next;
-        });
-      }
-      if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        setHighlightedDay((prev) => {
-          const next = Math.max(prev - 1, 0);
-          setSelectedDate(new Date(viewYear, viewMonth, next + 1));
-          return next;
-        });
-      }
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setHighlightedDay((prev) => {
-          const next = Math.min(prev + 7, daysInMonth - 1);
-          setSelectedDate(new Date(viewYear, viewMonth, next + 1));
-          return next;
-        });
-      }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setHighlightedDay((prev) => {
-          const next = Math.max(prev - 7, 0);
-          setSelectedDate(new Date(viewYear, viewMonth, next + 1));
-          return next;
-        });
-      }
-      if (e.key === "Home") {
-        e.preventDefault();
-        setHighlightedDay(0);
-        setSelectedDate(new Date(viewYear, viewMonth, 1));
-      }
-      if (e.key === "End") {
-        e.preventDefault();
-        setHighlightedDay(daysInMonth - 1);
-        setSelectedDate(new Date(viewYear, viewMonth, daysInMonth));
-      }
+      if (e.key === "ArrowRight") { e.preventDefault(); moveTo(highlightedDay + 2); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); moveTo(highlightedDay); }
+      if (e.key === "ArrowDown") { e.preventDefault(); moveTo(highlightedDay + 8); }
+      if (e.key === "ArrowUp") { e.preventDefault(); moveTo(highlightedDay - 6); }
+      if (e.key === "Home") { e.preventDefault(); moveTo(1); }
+      if (e.key === "End") { e.preventDefault(); moveTo(daysInMonth); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleConfirm, handlePrevMonth, handleNextMonth, daysInMonth, viewYear, viewMonth]);
+  }, [handleConfirm, handlePrevMonth, handleNextMonth, daysInMonth, viewYear, viewMonth, highlightedDay]);
 
   // Build the calendar grid weeks
   const renderCalendar = () => {

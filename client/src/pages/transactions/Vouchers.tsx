@@ -2738,6 +2738,7 @@ const handleSaveVatDetails = useCallback(
 {showDebitNoteExcise && form.partyLedger && (
   <DebitNoteExciseDetailsPopup
     initialDetails={form.debitNoteDetails}
+    voucherDate={form.date}
     onClose={() => setShowDebitNoteExcise(false)}
     onSave={handleSaveDebitNoteExcise}
   />
@@ -2745,6 +2746,7 @@ const handleSaveVatDetails = useCallback(
 {showVatDetails && form.partyLedger && (
   <VatDetailsPopup
     initialDetails={form.vatDetails}
+    voucherDate={form.date}
     onClose={() => setShowVatDetails(false)}
     onSave={handleSaveVatDetails}
   />
@@ -2769,6 +2771,7 @@ const handleSaveVatDetails = useCallback(
       {showOtherVouchers && (
         <OtherVouchersPopup
           voucherType={effectiveVoucherType}
+          companyId={selectedCompany?.company_id}
           onClose={() => setShowOtherVouchers(false)}
           onSelect={(type) => {
             form.setVoucherType(type);
@@ -2898,6 +2901,9 @@ const handleSaveVatDetails = useCallback(
           trackMfg={form.activeAllocation.trackMfg}
           trackExpiry={form.activeAllocation.trackExpiry}
           initialAllocations={form.activeAllocation.initialAllocations}
+          companyId={selectedCompany?.company_id}
+          itemId={form.activeAllocation.itemId}
+          voucherDate={form.date}
           onClose={() => form.setActiveAllocation(null)}
           onSave={handleSaveMaterialInAllocations}
         />

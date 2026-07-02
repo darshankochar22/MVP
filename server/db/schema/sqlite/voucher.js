@@ -94,8 +94,10 @@ const voucherBatches = sqliteTable('voucher_batches', {
   discPercent: real('disc_percent').default(0),
   orderNo: text('order_no'),
   dueOn: text('due_on'),
+  dueOnDate: text('due_on_date'),
   componentOf: text('component_of'),
   considerAsScrap: text('consider_as_scrap'),
+  trackComponents: text('track_components'),
 });
 
 // ---------------------------------------------------------------------------
@@ -153,6 +155,9 @@ const voucherBankDetails = sqliteTable('voucher_bank_details', {
   ifscCode: text('ifsc_code'),
   paymentGateway: text('payment_gateway'),
   amount: real('amount').default(0),
+  favouringName: text('favouring_name'),
+  transferMode: text('transfer_mode'),
+  allocationsJson: text('allocations_json'),
 });
 
 // ---------------------------------------------------------------------------
@@ -165,6 +170,7 @@ const voucherCostCentres = sqliteTable('voucher_cost_centres', {
   // FK -> voucher_entries(entry_id).
   entryId: integer('entry_id').references(() => voucherEntries.entryId),
   costCentreId: integer('cost_centre_id'),
+  costCategoryId: integer('cost_category_id'),
   amount: real('amount').default(0),
 });
 
@@ -191,6 +197,7 @@ const voucherReceiptDetails = sqliteTable('voucher_receipt_details', {
   voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
   receiptNoteNo: text('receipt_note_no'),
   receiptDocNo: text('receipt_doc_no'),
+  receiptDocDate: text('receipt_doc_date'),
   dispatchedThrough: text('dispatched_through'),
   destination: text('destination'),
   carrierName: text('carrier_name'),
@@ -252,6 +259,17 @@ const voucherCreditNoteDetails = sqliteTable('voucher_credit_note_details', {
   supplierNoteNo: text('supplier_note_no'),
   supplierNoteDate: text('supplier_note_date'),
   natureOfReturn: text('nature_of_return'),
+});
+
+// ---------------------------------------------------------------------------
+// voucher_excise_details  (Credit Note — Tax Details → Excise Details)
+// ---------------------------------------------------------------------------
+const voucherExciseDetails = sqliteTable('voucher_excise_details', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  // FK -> vouchers(voucher_id) ON DELETE CASCADE.
+  voucherId: integer('voucher_id').notNull().references(() => vouchers.voucherId),
+  inspectionDocumentNo: text('inspection_document_no'),
+  inspectionDocumentDate: text('inspection_document_date'),
 });
 
 // ---------------------------------------------------------------------------
@@ -342,6 +360,7 @@ module.exports = {
   voucherDispatchDetails,
   voucherCreditNoteDetails,
   voucherDebitNoteDetails,
+  voucherExciseDetails,
   voucherVatDetails,
   voucherOrderDetails,
   voucherPayrollEntries,

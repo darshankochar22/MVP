@@ -18,12 +18,22 @@ interface Props {
   onSave: (details: ExciseItemDetails) => void;
 }
 
+// KNOWN LIMITATION: the duty amounts entered here are stored on the stock
+// entry's excise details only — they are NOT folded into the voucher's item
+// amount or grand total. Voucher totals stay driven by qty x rate.
 const DUTY_FIELDS: [string, keyof ExciseItemDetails][] = [
   ["Rate of Duty", "rate_of_duty"],
   ["Rate per Unit", "rate_per_unit"],
   ["Supplier Duty Amount", "supplier_duty_amount"],
   ["Mfgr/Importer Duty Amount", "mfgr_importer_duty_amount"],
 ];
+
+// Normalize a duty field for saving: keep "" when blank/unparseable,
+// otherwise the parsed numeric value as a string (shape stays string-keyed).
+const parseDuty = (v?: string) => {
+  const n = parseFloat(String(v ?? "").trim());
+  return Number.isFinite(n) ? String(n) : "";
+};
 
 export default function ItemExciseDetailsPopup({ itemName, initialDetails, onClose, onSave }: Props) {
   const [form, setForm] = useState<ExciseItemDetails>({
@@ -39,7 +49,14 @@ export default function ItemExciseDetailsPopup({ itemName, initialDetails, onClo
   const set = (field: keyof ExciseItemDetails, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
 
-  const handleSave = () => onSave(form);
+  const handleSave = () =>
+    onSave({
+      ...form,
+      rate_of_duty: parseDuty(form.rate_of_duty),
+      rate_per_unit: parseDuty(form.rate_per_unit),
+      supplier_duty_amount: parseDuty(form.supplier_duty_amount),
+      mfgr_importer_duty_amount: parseDuty(form.mfgr_importer_duty_amount),
+    });
 
   const labelCls = "w-56 text-sm text-black shrink-0";
   const colonCls = "text-sm text-black shrink-0";
@@ -95,9 +112,10 @@ export default function ItemExciseDetailsPopup({ itemName, initialDetails, onClo
             <span className={labelCls}>{label}</span>
             <span className={colonCls}>:</span>
             <input
-              type="text"
+              type="number"
+              step="any"
               inputMode="decimal"
-              className={inputCls}
+              className={`${inputCls} text-right`}
               value={form[key] ?? ""}
               onChange={(e) => set(key, e.target.value)}
             />

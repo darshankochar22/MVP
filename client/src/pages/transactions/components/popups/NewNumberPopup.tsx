@@ -21,10 +21,15 @@ export default function NewNumberPopup({
   onClose,
 }: Props) {
   const [value, setValue] = useState(initial);
+  const [error, setError] = useState("");
 
   const confirm = () => {
     const v = value.trim();
-    if (v) onConfirm(v);
+    if (!v) {
+      setError("Enter a number");
+      return;
+    }
+    onConfirm(v);
   };
 
   // Capture-phase Escape handler: closes only this popup and stops the event
@@ -40,17 +45,24 @@ export default function NewNumberPopup({
 
   return (
     <VoucherPopupShell size="compact" title={title} onClose={onClose} onAccept={confirm}>
-      <div className="flex items-center gap-2">
-        <span className="text-sm text-black shrink-0">{label}</span>
-        <span className="text-sm text-black shrink-0">:</span>
-        <input
-          autoFocus
-          type="text"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); confirm(); } }}
-          className="flex-1 min-w-0 text-sm font-mono bg-white border border-gray-400 px-2 py-1 outline-none focus:border-black"
-        />
+      <div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-black shrink-0">{label}</span>
+          <span className="text-sm text-black shrink-0">:</span>
+          <input
+            autoFocus
+            type="text"
+            value={value}
+            onChange={(e) => { setValue(e.target.value); if (error) setError(""); }}
+            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); confirm(); } }}
+            className="flex-1 min-w-0 text-sm font-mono bg-white border border-gray-400 px-2 py-1 outline-none focus:border-black"
+          />
+        </div>
+        {error && (
+          <div className="mt-1 text-xs font-bold text-black border-l-2 border-black pl-2">
+            {error}
+          </div>
+        )}
       </div>
     </VoucherPopupShell>
   );

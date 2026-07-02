@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 export interface DebitNoteDetails {
@@ -25,15 +25,30 @@ export default function DebitNoteDetailsPopup({
   onClose,
   onSave,
 }: Props) {
-  const [form, setForm] = useState<DebitNoteDetails>({
-    tracking_no: initialDetails?.tracking_no ?? "",
-    carrier_name: initialDetails?.carrier_name ?? "",
-    bill_of_lading_no: initialDetails?.bill_of_lading_no ?? "",
-    bill_of_lading_date: initialDetails?.bill_of_lading_date ?? "",
-    motor_vehicle_no: initialDetails?.motor_vehicle_no ?? "",
-    original_invoice_no: initialDetails?.original_invoice_no ?? "",
-    original_invoice_date: initialDetails?.original_invoice_date ?? "",
+  // Initialize EVERY interface key — dispatch_doc_no / dispatched_through /
+  // destination were previously never initialized (and had no inputs), so a
+  // re-save silently dropped them from the payload.
+  const buildForm = (d?: DebitNoteDetails | null): DebitNoteDetails => ({
+    tracking_no: d?.tracking_no ?? "",
+    dispatch_doc_no: d?.dispatch_doc_no ?? "",
+    dispatched_through: d?.dispatched_through ?? "",
+    destination: d?.destination ?? "",
+    carrier_name: d?.carrier_name ?? "",
+    bill_of_lading_no: d?.bill_of_lading_no ?? "",
+    bill_of_lading_date: d?.bill_of_lading_date ?? "",
+    motor_vehicle_no: d?.motor_vehicle_no ?? "",
+    original_invoice_no: d?.original_invoice_no ?? "",
+    original_invoice_date: d?.original_invoice_date ?? "",
   });
+
+  const [form, setForm] = useState<DebitNoteDetails>(() => buildForm(initialDetails));
+
+  // Re-sync when the caller supplies a new initialDetails reference while the
+  // popup stays mounted (e.g. voucher hydration arriving after open).
+  useEffect(() => {
+    setForm(buildForm(initialDetails));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDetails]);
 
   const set = (field: keyof DebitNoteDetails, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -69,6 +84,39 @@ export default function DebitNoteDetailsPopup({
 
           {/* Right column */}
           <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-48 text-right text-sm text-black shrink-0">Dispatch Doc No.</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <input
+                type="text"
+                className="flex-1 min-w-0 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
+                value={form.dispatch_doc_no ?? ""}
+                onChange={(e) => set("dispatch_doc_no", e.target.value)}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="w-48 text-right text-sm text-black shrink-0">Dispatched through</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <input
+                type="text"
+                className="flex-1 min-w-0 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
+                value={form.dispatched_through ?? ""}
+                onChange={(e) => set("dispatched_through", e.target.value)}
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="w-48 text-right text-sm text-black shrink-0">Destination</span>
+              <span className="text-sm text-black shrink-0">:</span>
+              <input
+                type="text"
+                className="flex-1 min-w-0 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
+                value={form.destination ?? ""}
+                onChange={(e) => set("destination", e.target.value)}
+              />
+            </div>
+
             <div className="flex items-center gap-2">
               <span className="w-48 text-right text-sm text-black shrink-0">Carrier Name/Agent</span>
               <span className="text-sm text-black shrink-0">:</span>

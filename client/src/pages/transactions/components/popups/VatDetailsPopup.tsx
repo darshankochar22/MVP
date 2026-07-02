@@ -7,6 +7,9 @@ export interface VatDetails {
 
 interface Props {
   initialDetails?: VatDetails | null;
+  /** Voucher date ("YYYY-MM-DD"). When provided, an empty datetime defaults
+   *  to the voucher date at 00:00 instead of the machine's current time. */
+  voucherDate?: string;
   onClose: () => void;
   onSave: (details: VatDetails) => void;
 }
@@ -19,9 +22,10 @@ function defaultNow() {
   )}:${pad(d.getMinutes())}`;
 }
 
-export default function VatDetailsPopup({ initialDetails, onClose, onSave }: Props) {
+export default function VatDetailsPopup({ initialDetails, voucherDate, onClose, onSave }: Props) {
+  const defaultDateTime = voucherDate ? `${voucherDate.slice(0, 10)}T00:00` : defaultNow();
   const [form, setForm] = useState<VatDetails>({
-    date_time: initialDetails?.date_time || defaultNow(),
+    date_time: initialDetails?.date_time || defaultDateTime,
   });
 
   const handleSave = () => onSave(form);

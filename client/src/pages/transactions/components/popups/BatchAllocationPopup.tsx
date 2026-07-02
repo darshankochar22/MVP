@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import type { BatchAllocation } from "../../types";
 import NewNumberPopup from "./NewNumberPopup";
 import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
+import { parseDueOn, toLocalIsoDate } from "@/lib/dueDate";
+
+// Saved allocation — BatchAllocation plus the resolved ISO due date (additive).
+type SavedAllocation = BatchAllocation & { due_on_date?: string };
 
 // Stock Item Allocations sub-screen (TallyPrime "Batch / Lot" allocation).
 // Splits a line quantity across one or more godown + batch rows, each with
@@ -95,7 +100,11 @@ function parseExpiry(input: string, baseIso: string): string {
 }
 
 const num = (v: number | undefined) =>
-  v ? v.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+  Number.isFinite(v)
+    ? (v as number).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : "";
+
+const round2 = (v: number) => Math.round(v * 100) / 100;
 
 export default function BatchAllocationPopup({
   companyId, itemId, itemName, totalQuantity, rate, unitSymbol,
@@ -108,15 +117,23 @@ export default function BatchAllocationPopup({
   const emptyRow = (): BatchAllocation => ({
     batch_number: "",
     godown: defaultGodown,
-    quantity: quantityDriven ? 0 : totalQuantity,
-    actual_quantity: quantityDriven ? 0 : totalQuantity,
+    quantity: quantityDriven ? undefined : totalQuantity,
+    actual_quantity: quantityDriven ? undefined : totalQuantity,
     rate,
-    disc_percent: 0,
+    disc_percent: undefined,
   });
 
   const [rows, setRows] = useState<BatchAllocation[]>(
     initialAllocations.length ? initialAllocations.map((a) => ({ ...a })) : [emptyRow()]
   );
+
+  // When every hydrated row shares one value, surface it in the top-level
+  // (default) input; otherwise leave the default empty — per-row values win.
+  const uniformInit = (get: (a: BatchAllocation) => string | undefined): string => {
+    if (!initialAllocations.length) return "";
+    const vals = new Set(initialAllocations.map((a) => get(a) || ""));
+    return vals.size === 1 ? (get(initialAllocations[0]) || "") : "";
+  };
   const [activeBatches, setActiveBatches] = useState<ActiveBatch[]>([]);
   const [createdBatches, setCreatedBatches] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -132,20 +149,29 @@ export default function BatchAllocationPopup({
   // NewNumber popup for batch
   const [batchNumberRow, setBatchNumberRow] = useState<number | null>(null);
 
-  // Tracking No.
+  // Tracking No. — top-level input is the DEFAULT applied to rows that don't
+  // set their own; each row can override via its per-row field.
   const [trackingList, setTrackingList] = useState<TrackingOption[]>([]);
-  const [trackingNo, setTrackingNo] = useState<string>(initialAllocations[0]?.tracking_no || NOT_APPLICABLE);
+  const [trackingNo, setTrackingNo] = useState<string>(uniformInit((a) => a.tracking_no) || NOT_APPLICABLE);
   const [showTrackingList, setShowTrackingList] = useState(false);
   const [trackingNewNumber, setTrackingNewNumber] = useState(false);
   const trackingRef = useRef<HTMLDivElement | null>(null);
 
   // Order No. + Due on (batch items) — mirrors Tracking No.
   const [orderList, setOrderList] = useState<OrderOption[]>([]);
-  const [orderNo, setOrderNo] = useState<string>(initialAllocations[0]?.order_no || NOT_APPLICABLE);
-  const [dueOn, setDueOn] = useState<string>(initialAllocations[0]?.due_on || "");
+  const [orderNo, setOrderNo] = useState<string>(uniformInit((a) => a.order_no) || NOT_APPLICABLE);
+  const [dueOn, setDueOn] = useState<string>(uniformInit((a) => a.due_on));
   const [showOrderList, setShowOrderList] = useState(false);
   const [orderNewNumber, setOrderNewNumber] = useState(false);
   const orderRef = useRef<HTMLDivElement | null>(null);
+
+  // The Tracking / Order dropdowns are portaled to <body> with fixed positions —
+  // they live inside the popup's overflow-y-auto body, so plain absolute
+  // positioning gets clipped by that scrollable ancestor.
+  const trackingDropRef = useRef<HTMLDivElement | null>(null);
+  const orderDropRef = useRef<HTMLDivElement | null>(null);
+  const [trackingPos, setTrackingPos] = useState<{ top: number; left: number } | null>(null);
+  const [orderPos, setOrderPos] = useState<{ top: number; left: number } | null>(null);
 
   // Load existing batches
   useEffect(() => {
@@ -171,25 +197,51 @@ export default function BatchAllocationPopup({
     }).catch(() => {});
   }, [companyId, itemId]);
 
-  // Close tracking dropdown on outside click
+  // Close tracking dropdown on outside click. The dropdown is portaled to
+  // <body>, so check its own ref too — it is no longer inside the anchor.
   useEffect(() => {
     if (!showTrackingList) return;
     const onDown = (e: MouseEvent) => {
-      if (trackingRef.current && !trackingRef.current.contains(e.target as Node)) setShowTrackingList(false);
+      const t = e.target as Node;
+      if (trackingRef.current && !trackingRef.current.contains(t) && !trackingDropRef.current?.contains(t)) setShowTrackingList(false);
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [showTrackingList]);
 
-  // Close order dropdown on outside click
+  // Close order dropdown on outside click (same portal-aware check).
   useEffect(() => {
     if (!showOrderList) return;
     const onDown = (e: MouseEvent) => {
-      if (orderRef.current && !orderRef.current.contains(e.target as Node)) setShowOrderList(false);
+      const t = e.target as Node;
+      if (orderRef.current && !orderRef.current.contains(t) && !orderDropRef.current?.contains(t)) setShowOrderList(false);
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
   }, [showOrderList]);
+
+  // Keep the portaled dropdowns glued under their anchors while the popup's
+  // scrollable body (or the window) moves.
+  useEffect(() => {
+    if (!showTrackingList && !showOrderList) return;
+    const reposition = () => {
+      if (showTrackingList && trackingRef.current) {
+        const r = trackingRef.current.getBoundingClientRect();
+        setTrackingPos({ top: r.bottom + 2, left: r.left });
+      } else setTrackingPos(null);
+      if (showOrderList && orderRef.current) {
+        const r = orderRef.current.getBoundingClientRect();
+        setOrderPos({ top: r.bottom + 2, left: r.left });
+      } else setOrderPos(null);
+    };
+    reposition();
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [showTrackingList, showOrderList]);
 
   // Auto-focus godown search when godown panel opens
   useEffect(() => {
@@ -246,7 +298,20 @@ export default function BatchAllocationPopup({
     el?.scrollIntoView({ block: "nearest" });
   }, [panelHi, activePanel]);
 
-  const selectTracking = (name: string) => { setTrackingNo(name); setShowTrackingList(false); };
+  const selectTracking = (name: string) => {
+    setTrackingNo(name);
+    setShowTrackingList(false);
+    // The tracked document carries its own rate — apply it to rows whose rate
+    // the user hasn't touched (still the line default / cleared).
+    const opt = trackingList.find((t) => t.name === name);
+    const optRate = Number(opt?.rate);
+    if (name !== NOT_APPLICABLE && opt && Number.isFinite(optRate) && optRate > 0) {
+      setRows((prev) => prev.map((r) => {
+        const untouched = r.rate == null || Number(r.rate) === rate;
+        return untouched ? { ...r, rate: optRate } : r;
+      }));
+    }
+  };
   const addTrackingNumber = (value: string) => {
     setTrackingList((prev) => (prev.some((t) => t.name === value) ? prev : [...prev, { name: value }]));
     setTrackingNo(value);
@@ -275,13 +340,14 @@ export default function BatchAllocationPopup({
   const totalBilled = rows.reduce((s, r) => s + billed(r), 0);
   const totalAmount = rows.reduce((s, r) => s + lineAmount(r), 0);
   const remaining = totalQuantity - totalBilled;
+  const remainingDisp = round2(remaining); // display only — the save check keeps full precision
 
   const update = (i: number, patch: Partial<BatchAllocation>) => {
     setError(null);
     setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
   };
 
-  const setActual = (i: number, v: number) => {
+  const setActual = (i: number, v: number | undefined) => {
     setError(null);
     setRows((prev) =>
       prev.map((r, idx) => {
@@ -291,6 +357,9 @@ export default function BatchAllocationPopup({
       })
     );
   };
+
+  // Number inputs: "" clears the field (undefined) so a typed 0 stays a visible 0.
+  const numVal = (s: string): number | undefined => (s === "" ? undefined : Number(s));
 
   const pickBatch = (i: number, b: ActiveBatch) => {
     update(i, { batch_number: b.name, mfg_date: b.mfg_date ?? undefined, expiry_date: b.expiry_date ?? undefined });
@@ -320,25 +389,35 @@ export default function BatchAllocationPopup({
     if (quantityDriven) {
       if (totalBilled <= 0) { setError("Enter a quantity for at least one batch."); return; }
     } else if (Math.abs(remaining) >= 0.0001) {
-      setError(`Allocated ${totalBilled} of ${totalQuantity} ${unitSymbol ?? ""} — remaining ${remaining} must be zero.`);
+      setError(`Allocated ${round2(totalBilled)} of ${totalQuantity} ${unitSymbol ?? ""} — remaining ${remainingDisp} must be zero.`);
       return;
     }
-    const trk = trackingNo && trackingNo !== NOT_APPLICABLE ? trackingNo : undefined;
-    const ord = showBatch && orderNo && orderNo !== NOT_APPLICABLE ? orderNo : undefined;
-    onSave(rows.map((r) => ({
-      batch_number: r.batch_number.trim(),
-      tracking_no: trk,
-      order_no: ord,
-      due_on: ord ? (dueOn || undefined) : undefined,
-      godown: r.godown || undefined,
-      mfg_date: trackMfg ? (r.mfg_date || undefined) : undefined,
-      expiry_date: trackExpiry ? (r.expiry_date || undefined) : undefined,
-      quantity: Number(r.quantity) || 0,
-      actual_quantity: Number(r.actual_quantity ?? r.quantity) || 0,
-      rate: Number(r.rate) || rate,
-      disc_percent: Number(r.disc_percent) || 0,
-    })));
-  }, [rows, remaining, totalBilled, totalQuantity, unitSymbol, trackMfg, trackExpiry, rate, quantityDriven, showBatch, onSave, trackingNo, orderNo, dueOn]);
+    // Top-level values are defaults; a per-row value always wins.
+    const defTrk = trackingNo && trackingNo !== NOT_APPLICABLE ? trackingNo : undefined;
+    const defOrd = showBatch && orderNo && orderNo !== NOT_APPLICABLE ? orderNo : undefined;
+    const baseDate = voucherDate || toLocalIsoDate(new Date());
+    onSave(rows.map((r): SavedAllocation => {
+      const rowTrk = (r.tracking_no || "").trim();
+      const trk = rowTrk && rowTrk !== NOT_APPLICABLE ? rowTrk : defTrk;
+      const rowOrd = (r.order_no || "").trim();
+      const ord = showBatch ? (rowOrd && rowOrd !== NOT_APPLICABLE ? rowOrd : defOrd) : undefined;
+      const due = ord ? ((r.due_on || "").trim() || dueOn.trim() || undefined) : undefined;
+      return {
+        batch_number: r.batch_number.trim(),
+        tracking_no: trk,
+        order_no: ord,
+        due_on: due,
+        due_on_date: due ? (parseDueOn(due, baseDate) ?? undefined) : undefined,
+        godown: r.godown || undefined,
+        mfg_date: trackMfg ? (r.mfg_date || undefined) : undefined,
+        expiry_date: trackExpiry ? (r.expiry_date || undefined) : undefined,
+        quantity: Number(r.quantity) || 0,
+        actual_quantity: Number(r.actual_quantity ?? r.quantity) || 0,
+        rate: Number.isFinite(Number(r.rate)) ? Number(r.rate) : rate,
+        disc_percent: Number.isFinite(Number(r.disc_percent)) ? Number(r.disc_percent) : 0,
+      };
+    }));
+  }, [rows, remaining, remainingDisp, totalBilled, totalQuantity, unitSymbol, trackMfg, trackExpiry, rate, quantityDriven, showBatch, onSave, trackingNo, orderNo, dueOn, voucherDate]);
 
   // Esc / Alt+A themselves are handled by VoucherPopupShell — these wrappers
   // preserve the old guards: nested popups own the keyboard; Esc with a side
@@ -446,8 +525,9 @@ export default function BatchAllocationPopup({
               </div>
 
               {/* Order-tracking header — Tracking No. / Order No. / Due on (Tally).
-                  Order No. + Due on show for batch items. Each list has only the
-                  default (◆ Not Applicable) + New Number + existing entries. */}
+                  These are DEFAULTS applied to any row that has no per-row value
+                  of its own. Order No. + Due on show for batch items. Each list
+                  has the default (◆ Not Applicable) + New Number + entries. */}
               <div className="flex items-center bg-white px-3 py-1.5 text-[11px] border-b border-gray-200 gap-4">
                 {/* Tracking No. */}
                 <div className="flex items-center gap-1 relative" ref={trackingRef}>
@@ -460,8 +540,12 @@ export default function BatchAllocationPopup({
                   >
                     {trackingNo}
                   </button>
-                  {showTrackingList && (
-                    <div className="absolute left-0 top-full mt-1 w-[400px] bg-white border border-gray-400 shadow-xl z-40 max-h-56 overflow-y-auto">
+                  {showTrackingList && trackingPos && createPortal(
+                    <div
+                      ref={trackingDropRef}
+                      style={{ position: "fixed", top: trackingPos.top, left: trackingPos.left, width: 400 }}
+                      className="bg-white border border-gray-400 shadow-xl z-[60] max-h-56 overflow-y-auto"
+                    >
                       <div className={`${listHeadCls} text-[10px] font-bold px-2 py-1 sticky top-0 flex justify-between items-center`}>
                         <span>List of Tracking Numbers</span>
                         <button type="button" onClick={() => { setShowTrackingList(false); setTrackingNewNumber(true); }} className="underline font-semibold text-black hover:text-gray-700">New Number</button>
@@ -487,7 +571,8 @@ export default function BatchAllocationPopup({
                           <div className="w-14 text-right font-mono">{t.balance ?? ""}</div>
                         </button>
                       ))}
-                    </div>
+                    </div>,
+                    document.body
                   )}
                 </div>
 
@@ -503,8 +588,12 @@ export default function BatchAllocationPopup({
                     >
                       {orderNo}
                     </button>
-                    {showOrderList && (
-                      <div className="absolute left-0 top-full mt-1 w-[400px] bg-white border border-gray-400 shadow-xl z-40 max-h-56 overflow-y-auto">
+                    {showOrderList && orderPos && createPortal(
+                      <div
+                        ref={orderDropRef}
+                        style={{ position: "fixed", top: orderPos.top, left: orderPos.left, width: 400 }}
+                        className="bg-white border border-gray-400 shadow-xl z-[60] max-h-56 overflow-y-auto"
+                      >
                         <div className={`${listHeadCls} text-[10px] font-bold px-2 py-1 sticky top-0 flex justify-between items-center`}>
                           <span>List of Orders</span>
                           <button type="button" onClick={() => { setShowOrderList(false); setOrderNewNumber(true); }} className="underline font-semibold text-black hover:text-gray-700">New Number</button>
@@ -526,11 +615,12 @@ export default function BatchAllocationPopup({
                             <div className="flex-1 font-semibold">{o.name}</div>
                             <div className="w-16 font-mono truncate">{o.batch ?? ""}</div>
                             <div className="w-16 font-mono truncate">{o.godown ?? ""}</div>
-                            <div className="w-16 font-mono truncate">{o.due_on ?? ""}</div>
+                            <div className="w-16 font-mono truncate">{fmtDate(o.due_on)}</div>
                             <div className="w-14 text-right font-mono">{o.balance ?? ""}</div>
                           </button>
                         ))}
-                      </div>
+                      </div>,
+                      document.body
                     )}
                   </div>
                 )}
@@ -557,8 +647,17 @@ export default function BatchAllocationPopup({
                   const baseIso = (trackMfg && row.mfg_date) ? row.mfg_date : voucherDate;
                   const godownActive = activePanel === "godown" && activePanelRow === i;
                   const batchActive = activePanel === "batch" && activePanelRow === i;
+                  // Effective Order No. for the row (per-row override, else default) —
+                  // gates the per-row "Due on" input.
+                  const rowOrdRaw = (row.order_no || "").trim();
+                  const effOrder = showBatch
+                    ? (rowOrdRaw && rowOrdRaw !== NOT_APPLICABLE
+                        ? rowOrdRaw
+                        : (orderNo !== NOT_APPLICABLE ? orderNo : ""))
+                    : "";
                   return (
-                    <div key={i} className="flex items-start px-3 py-2 gap-2">
+                    <div key={i} className="px-3 py-2">
+                    <div className="flex items-start gap-2">
 
                       {/* Godown — button that opens side panel */}
                       <div className={`${cell} ${W.godown}`}>
@@ -622,16 +721,16 @@ export default function BatchAllocationPopup({
                         <input
                           type="number"
                           step="any"
-                          value={row.actual_quantity || ""}
-                          onChange={(e) => setActual(i, Number(e.target.value) || 0)}
+                          value={row.actual_quantity ?? ""}
+                          onChange={(e) => setActual(i, numVal(e.target.value))}
                           onFocus={closePanel}
                           className={`${inputCls} text-right font-mono`}
                         />
                         <input
                           type="number"
                           step="any"
-                          value={row.quantity || ""}
-                          onChange={(e) => update(i, { quantity: Number(e.target.value) || 0 })}
+                          value={row.quantity ?? ""}
+                          onChange={(e) => update(i, { quantity: numVal(e.target.value) })}
                           onFocus={closePanel}
                           className={`${inputCls} text-right font-mono`}
                         />
@@ -642,8 +741,8 @@ export default function BatchAllocationPopup({
                         <input
                           type="number"
                           step="any"
-                          value={row.rate || ""}
-                          onChange={(e) => update(i, { rate: Number(e.target.value) || 0 })}
+                          value={row.rate ?? ""}
+                          onChange={(e) => update(i, { rate: numVal(e.target.value) })}
                           onFocus={closePanel}
                           className={`${inputCls} text-right font-mono`}
                         />
@@ -659,8 +758,8 @@ export default function BatchAllocationPopup({
                         <input
                           type="number"
                           step="any"
-                          value={row.disc_percent || ""}
-                          onChange={(e) => update(i, { disc_percent: Number(e.target.value) || 0 })}
+                          value={row.disc_percent ?? ""}
+                          onChange={(e) => update(i, { disc_percent: numVal(e.target.value) })}
                           onFocus={closePanel}
                           className={`${inputCls} text-right font-mono`}
                         />
@@ -675,6 +774,47 @@ export default function BatchAllocationPopup({
                       <div className={`${cell} ${W.del} text-center pt-1`}>
                         <button type="button" onClick={() => removeRow(i)} className="text-gray-400 hover:text-black text-sm font-bold">&times;</button>
                       </div>
+                    </div>
+
+                    {/* Per-row Tracking / Order / Due-on overrides — blank rows
+                        inherit the top-level defaults above on save. */}
+                    <div className="flex items-center gap-1.5 mt-1 text-[10px] text-gray-600">
+                      <span className="italic shrink-0">Tracking No.:</span>
+                      <input
+                        type="text"
+                        value={row.tracking_no ?? ""}
+                        onChange={(e) => update(i, { tracking_no: e.target.value })}
+                        onFocus={closePanel}
+                        placeholder={trackingNo !== NOT_APPLICABLE ? trackingNo : "—"}
+                        className="w-24 text-[10px] px-1 py-0.5 border border-gray-300 bg-white outline-none focus:border-black font-mono"
+                      />
+                      {showBatch && (
+                        <>
+                          <span className="italic shrink-0 ml-2">Order No.:</span>
+                          <input
+                            type="text"
+                            value={row.order_no ?? ""}
+                            onChange={(e) => update(i, { order_no: e.target.value })}
+                            onFocus={closePanel}
+                            placeholder={orderNo !== NOT_APPLICABLE ? orderNo : "—"}
+                            className="w-24 text-[10px] px-1 py-0.5 border border-gray-300 bg-white outline-none focus:border-black font-mono"
+                          />
+                          {effOrder && (
+                            <>
+                              <span className="italic shrink-0 ml-2">Due on:</span>
+                              <input
+                                type="text"
+                                value={row.due_on ?? ""}
+                                onChange={(e) => update(i, { due_on: e.target.value })}
+                                onFocus={closePanel}
+                                placeholder={dueOn || "e.g. 5 Days"}
+                                className="w-24 text-[10px] px-1 py-0.5 border border-gray-300 bg-white outline-none focus:border-black font-mono"
+                              />
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
                     </div>
                   );
                 })}
@@ -707,7 +847,7 @@ export default function BatchAllocationPopup({
                 </span>
               ) : (
                 <span className={`text-xs font-mono font-semibold ${Math.abs(remaining) < 0.0001 ? "text-gray-500" : "text-black"}`}>
-                  Remaining: {remaining} {unitSymbol ?? ""}
+                  Remaining: {remainingDisp} {unitSymbol ?? ""}
                 </span>
               )}
             </div>
@@ -735,14 +875,6 @@ export default function BatchAllocationPopup({
                       onChange={(e) => setGodownSearch(e.target.value)}
                       placeholder="Search..."
                     />
-                  </div>
-
-                  {/* Create */}
-                  <div
-                    className="px-2 py-1 text-xs cursor-pointer hover:bg-gray-100 border-b border-gray-200 text-black select-none font-semibold"
-                    onClick={closePanel}
-                  >
-                    Create
                   </div>
 
                   {/* Godown items */}

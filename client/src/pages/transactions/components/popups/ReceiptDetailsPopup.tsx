@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { VoucherPopupShell } from "@/components/tally-ui/VoucherPopupShell";
 
 export interface ReceiptDetails {
   receipt_note_no?: string;
   receipt_doc_no?: string;
+  /** Additive: date paired with receipt_doc_no (server column may need adding). */
+  receipt_doc_date?: string;
   dispatched_through?: string;
   destination?: string;
   carrier_name?: string;
@@ -23,16 +25,26 @@ export default function ReceiptDetailsPopup({
   onClose,
   onSave,
 }: Props) {
-  const [form, setForm] = useState<ReceiptDetails>({
-    receipt_note_no: initialDetails?.receipt_note_no ?? "",
-    receipt_doc_no: initialDetails?.receipt_doc_no ?? "",
-    dispatched_through: initialDetails?.dispatched_through ?? "",
-    destination: initialDetails?.destination ?? "",
-    carrier_name: initialDetails?.carrier_name ?? "",
-    bill_of_lading_no: initialDetails?.bill_of_lading_no ?? "",
-    bill_of_lading_date: initialDetails?.bill_of_lading_date ?? "",
-    motor_vehicle_no: initialDetails?.motor_vehicle_no ?? "",
+  const buildForm = (d?: ReceiptDetails | null): ReceiptDetails => ({
+    receipt_note_no: d?.receipt_note_no ?? "",
+    receipt_doc_no: d?.receipt_doc_no ?? "",
+    receipt_doc_date: d?.receipt_doc_date ?? "",
+    dispatched_through: d?.dispatched_through ?? "",
+    destination: d?.destination ?? "",
+    carrier_name: d?.carrier_name ?? "",
+    bill_of_lading_no: d?.bill_of_lading_no ?? "",
+    bill_of_lading_date: d?.bill_of_lading_date ?? "",
+    motor_vehicle_no: d?.motor_vehicle_no ?? "",
   });
+
+  const [form, setForm] = useState<ReceiptDetails>(() => buildForm(initialDetails));
+
+  // Re-sync when the caller supplies a new initialDetails reference while the
+  // popup stays mounted (e.g. voucher hydration arriving after open).
+  useEffect(() => {
+    setForm(buildForm(initialDetails));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDetails]);
 
   const set = (field: keyof ReceiptDetails, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -69,6 +81,14 @@ export default function ReceiptDetailsPopup({
             className="flex-1 min-w-0 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
             value={form.receipt_doc_no ?? ""}
             onChange={(e) => set("receipt_doc_no", e.target.value)}
+          />
+          <span className="text-sm text-black shrink-0">Date</span>
+          <span className="text-sm text-black shrink-0">:</span>
+          <input
+            type="date"
+            className="w-36 shrink-0 text-sm border border-gray-400 px-2 py-1 outline-none focus:border-black bg-white"
+            value={form.receipt_doc_date ?? ""}
+            onChange={(e) => set("receipt_doc_date", e.target.value)}
           />
         </div>
 
