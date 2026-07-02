@@ -12,7 +12,16 @@ export default function InventoryBooks() {
     },
     {
       title: "REGISTERS",
-      items: ["Stock Transfer Journal Register", "Physical Stock Register"],
+      items: [
+        "Sales Orders Book",
+        "Purchase Orders Book",
+        "Delivery Note Register",
+        "Receipt Note Register",
+        "Rejections In Register",
+        "Rejections Out Register",
+        "Stock Transfer Journal Register",
+        "Physical Stock Register",
+      ],
     },
     {
       title: "",
@@ -27,6 +36,12 @@ export default function InventoryBooks() {
       "Godowns / Excise Units": "/reports/inventory/godown-summary",
       "Stock Group Summary": "/reports/inventory/stock-group-summary",
       "Stock Category Summary": "/reports/inventory/stock-category-summary",
+      "Sales Orders Book": "/reports/inventory-books/sales-orders-book",
+      "Purchase Orders Book": "/reports/inventory-books/purchase-orders-book",
+      "Delivery Note Register": "/reports/inventory-books/delivery-note-register",
+      "Receipt Note Register": "/reports/inventory-books/receipt-note-register",
+      "Rejections In Register": "/reports/inventory-books/rejections-in-register",
+      "Rejections Out Register": "/reports/inventory-books/rejections-out-register",
       "Stock Transfer Journal Register": "/reports/inventory-books/stock-transfer-register",
       "Physical Stock Register": "/reports/inventory-books/physical-stock-register",
     };

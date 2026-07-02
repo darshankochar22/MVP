@@ -242,3 +242,64 @@ describe("Stock movement classification + valuation", () => {
     expect(widget.days60).toBeCloseTo(1400, 2);        // purchase 1000 + CN 400
   });
 });
+
+// Inventory Books REGISTERS: Delivery Note / Receipt Note / Rejection In/Out
+// must classify by voucher TYPE, not by is_source. is_source defaults to 0, so
+// the old register wrongly showed Delivery Note (outward) as Inwards.
+describe("Voucher-type registers direction (Inventory Books)", () => {
+  let companyId, fyId, boltId;
+
+  beforeAll(async () => {
+    await setupTestDB();
+    const company = await createTestCompany("Register Direction Co");
+    companyId = company.company_id;
+    const fy = await db.execute(
+      `SELECT fy_id FROM financial_years WHERE company_id = ? AND is_active = 1`,
+      [companyId]
+    );
+    fyId = fy.rows[0].fy_id;
+
+    const bolt = await stockItemService.create({
+      company_id: companyId, name: "Bolt", opening_quantity: 100, opening_rate: 10,
+    });
+    boltId = bolt.item?.item_id ?? bolt.itemId ?? bolt.id;
+
+    const mk = (voucher_type, date, qty) => voucherService.create({
+      company_id: companyId, fy_id: fyId, voucher_type, date,
+      is_accounting_voucher: 0, is_inventory_voucher: 1, entries: [],
+      stock_entries: [{ stock_item_id: boltId, item_name: "Bolt", quantity: qty, rate: 10, amount: qty * 10 }],
+    });
+    await mk("Receipt Note", "2026-04-03", 20);   // inward
+    await mk("Delivery Note", "2026-04-06", 8);    // outward
+    await mk("Rejection In", "2026-04-09", 4);     // inward
+    await mk("Rejection Out", "2026-04-12", 3);    // outward
+  });
+
+  const regRow = async (voucher_type) => {
+    const res = await stockSummaryReportService.inventoryRegisterVouchers(companyId, fyId, voucher_type);
+    expect(res.success).toBe(true);
+    expect(res.rows.length).toBe(1);
+    return res.rows[0];
+  };
+
+  it("Receipt Note is inward", async () => {
+    const r = await regRow("Receipt Note");
+    expect(r.inwards_qty).toBe(20);
+    expect(r.outwards_qty).toBe(0);
+  });
+
+  it("Delivery Note is outward (not inward as the is_source split gave)", async () => {
+    const r = await regRow("Delivery Note");
+    expect(r.outwards_qty).toBe(8);
+    expect(r.inwards_qty).toBe(0);
+  });
+
+  it("Rejection In is inward, Rejection Out is outward", async () => {
+    const rin = await regRow("Rejection In");
+    expect(rin.inwards_qty).toBe(4);
+    expect(rin.outwards_qty).toBe(0);
+    const rout = await regRow("Rejection Out");
+    expect(rout.outwards_qty).toBe(3);
+    expect(rout.inwards_qty).toBe(0);
+  });
+});

@@ -820,8 +820,8 @@ module.exports = {
               COALESCE(v.party_name, v.narration, '') AS particulars,
               v.voucher_type   AS voucher_type,
               v.voucher_number AS voucher_number,
-              SUM(CASE WHEN COALESCE(vse.is_source, 0) = 0 THEN COALESCE(vse.quantity, 0) ELSE 0 END) AS inwards_qty,
-              SUM(CASE WHEN COALESCE(vse.is_source, 0) = 1 THEN COALESCE(vse.quantity, 0) ELSE 0 END) AS outwards_qty
+              SUM(CASE WHEN ${inwardCondSql('v', 'vse')} THEN COALESCE(vse.quantity, 0) ELSE 0 END) AS inwards_qty,
+              SUM(CASE WHEN ${outwardCondSql('v', 'vse')} THEN COALESCE(vse.quantity, 0) ELSE 0 END) AS outwards_qty
             FROM ${vouchers} v
             LEFT JOIN ${voucherStockEntries} vse ON vse.voucher_id = v.voucher_id
             WHERE v.company_id = ${company_id}
