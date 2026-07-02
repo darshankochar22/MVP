@@ -66,6 +66,7 @@ async function stockQuery(company_id, fy_id, item_id) {
   // ── 3. Last purchases ────────────────────────────────────────────────────
   const purchases = await db.all(sql`
     SELECT
+      v.voucher_id   AS voucher_id,
       v.date         AS date,
       v.party_name   AS party_name,
       vse.quantity   AS quantity,
@@ -88,6 +89,7 @@ async function stockQuery(company_id, fy_id, item_id) {
   // ── 4. Last sales ────────────────────────────────────────────────────────
   const sales = await db.all(sql`
     SELECT
+      v.voucher_id   AS voucher_id,
       v.date         AS date,
       v.party_name   AS party_name,
       vse.quantity   AS quantity,

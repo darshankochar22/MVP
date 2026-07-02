@@ -21,6 +21,7 @@ interface QueryResult {
 }
 
 interface TxRow {
+  voucher_id: number | null;
   date: string; party_name: string;
   quantity: number; rate: number; disc_amount: number | null; amount: number;
 }
@@ -41,9 +42,66 @@ const fmtQty = (v: number | null | undefined, unit?: string) => {
   return unit ? `${s} ${unit}` : s;
 };
 
+const fmtDisc = (disc: number | null | undefined, rate: number, qty: number) => {
+  const gross = (rate || 0) * (qty || 0);
+  if (!disc || gross <= 0) return "";
+  return `${((disc / gross) * 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}%`;
+};
+
 const TH = "px-2 py-1 text-left font-bold text-[10px] bg-zinc-100 border-b border-zinc-300";
 const TD = "px-2 py-1 text-[11px] border-b border-zinc-100";
 const TDR = `${TD} text-right`;
+
+/** Purchases / Sales panel — summary line, table with Disc%, click-to-drill to voucher. */
+function TxPanel({ title, verb, rows, unit, onOpen }: {
+  title: string; verb: string; rows: TxRow[]; unit?: string;
+  onOpen: (voucherId: number) => void;
+}) {
+  const last = rows[0];
+  return (
+    <div className="flex-1 min-w-0">
+      <div className="font-bold text-[11px] border-b-2 border-zinc-900 pb-0.5 mb-1 uppercase tracking-wide">
+        {title}
+      </div>
+      <div className="text-[10px] text-zinc-500 font-mono mb-1">
+        {last
+          ? `Last ${verb} on: ${dmy(last.date)} · ${last.party_name || "—"} · ${fmtQty(last.quantity, unit)} @ ${fmtNum(last.rate)}`
+          : `Last ${verb} on: —`}
+      </div>
+      <table className="w-full border-collapse text-[11px] font-mono">
+        <thead>
+          <tr>
+            <th className={TH}>Date</th>
+            <th className={TH}>Party</th>
+            <th className={`${TH} text-right`}>Qty</th>
+            <th className={`${TH} text-right`}>Rate</th>
+            <th className={`${TH} text-right`}>Disc %</th>
+            <th className={`${TH} text-right`}>Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr><td colSpan={6} className="px-2 py-2 text-zinc-400 italic">No {title.toLowerCase()}</td></tr>
+          ) : rows.map((r, i) => (
+            <tr
+              key={i}
+              onClick={() => r.voucher_id && onOpen(r.voucher_id)}
+              className={`hover:bg-zinc-100 ${r.voucher_id ? "cursor-pointer" : ""}`}
+              title={r.voucher_id ? "Enter / click: open voucher" : undefined}
+            >
+              <td className={TD}>{dmy(r.date)}</td>
+              <td className={`${TD} truncate max-w-[120px]`}>{r.party_name || "—"}</td>
+              <td className={TDR}>{fmtQty(r.quantity, unit)}</td>
+              <td className={TDR}>{fmtNum(r.rate)}</td>
+              <td className={TDR}>{fmtDisc(r.disc_amount, r.rate, r.quantity)}</td>
+              <td className={TDR}>{fmtNum(r.amount)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 type Level = { step: "select" } | { step: "detail"; item: StockItem };
 
@@ -207,69 +265,12 @@ export default function StockQuery() {
               </table>
             </section>
 
-            {/* ── Last 10 Purchases & Sales — side by side ── */}
+            {/* ── Last 10 Purchases & Sales — side by side, click row → voucher ── */}
             <section className="flex gap-4">
-              {/* Purchases */}
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-[11px] border-b-2 border-zinc-900 pb-0.5 mb-1 uppercase tracking-wide">
-                  Last Purchases
-                </div>
-                <table className="w-full border-collapse text-[11px] font-mono">
-                  <thead>
-                    <tr>
-                      <th className={TH}>Date</th>
-                      <th className={TH}>Party</th>
-                      <th className={`${TH} text-right`}>Qty</th>
-                      <th className={`${TH} text-right`}>Rate</th>
-                      <th className={`${TH} text-right`}>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.purchases.length === 0 ? (
-                      <tr><td colSpan={5} className="px-2 py-2 text-zinc-400 italic">No purchases</td></tr>
-                    ) : data.purchases.map((r, i) => (
-                      <tr key={i} className="hover:bg-zinc-50">
-                        <td className={TD}>{dmy(r.date)}</td>
-                        <td className={`${TD} truncate max-w-[120px]`}>{r.party_name || "—"}</td>
-                        <td className={TDR}>{fmtQty(r.quantity, unit)}</td>
-                        <td className={TDR}>{fmtNum(r.rate)}</td>
-                        <td className={TDR}>{fmtNum(r.amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Sales */}
-              <div className="flex-1 min-w-0">
-                <div className="font-bold text-[11px] border-b-2 border-zinc-900 pb-0.5 mb-1 uppercase tracking-wide">
-                  Last Sales
-                </div>
-                <table className="w-full border-collapse text-[11px] font-mono">
-                  <thead>
-                    <tr>
-                      <th className={TH}>Date</th>
-                      <th className={TH}>Party</th>
-                      <th className={`${TH} text-right`}>Qty</th>
-                      <th className={`${TH} text-right`}>Rate</th>
-                      <th className={`${TH} text-right`}>Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.sales.length === 0 ? (
-                      <tr><td colSpan={5} className="px-2 py-2 text-zinc-400 italic">No sales</td></tr>
-                    ) : data.sales.map((r, i) => (
-                      <tr key={i} className="hover:bg-zinc-50">
-                        <td className={TD}>{dmy(r.date)}</td>
-                        <td className={`${TD} truncate max-w-[120px]`}>{r.party_name || "—"}</td>
-                        <td className={TDR}>{fmtQty(r.quantity, unit)}</td>
-                        <td className={TDR}>{fmtNum(r.rate)}</td>
-                        <td className={TDR}>{fmtNum(r.amount)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <TxPanel title="Last Purchases" verb="purchased" rows={data.purchases} unit={unit}
+                onOpen={(id) => navigate(`/transactions/voucher/${id}`)} />
+              <TxPanel title="Last Sales" verb="sold" rows={data.sales} unit={unit}
+                onOpen={(id) => navigate(`/transactions/voucher/${id}`)} />
             </section>
 
             {/* ── Godown / Batch details ── */}
