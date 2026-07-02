@@ -27,7 +27,6 @@ export default function VoucherTypeCOA() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showChangeView, setShowChangeView] = useState(false);
-  const [activeDetails, setActiveDetails] = useState<number | null>(null);
 
   useEffect(() => {
     if (!companyId) { setLoading(false); return; }
@@ -72,9 +71,6 @@ export default function VoucherTypeCOA() {
     );
   }, [vts, searchQuery]);
 
-  const toggleDetails = (id: number) =>
-    setActiveDetails((prev) => (prev === id ? null : id));
-
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") { e.preventDefault(); navigate("/master/coa"); }
@@ -98,8 +94,6 @@ export default function VoucherTypeCOA() {
     { label: "Units of Measure",      path: "/master/coa/unit"              },
     { label: "Employees",             path: "/master/coa/employee"          },
   ];
-
-  const yn = (v?: any) => (!!v ? "Yes" : "No");
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-800 font-sans">
@@ -153,18 +147,17 @@ export default function VoucherTypeCOA() {
             ) : (
               filteredVTs.map((node) => {
                 const nodeId = node.vt_id!;
-                const isSelected = activeDetails === nodeId;
 
                 return (
                   <div key={nodeId}>
                     <div
-                      className={`group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer ${isSelected ? "bg-zinc-50" : ""}`}
-                      onClick={() => toggleDetails(nodeId)}
+                      className="group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer"
+                      onClick={() => navigate("/master/alter/voucher-type")}
                     >
                       <span className="w-16 text-sm font-bold text-zinc-600">
                         {node.short_name || "—"}
                       </span>
-                      <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide">
+                      <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide group-hover:text-sky-800 transition-colors">
                         {node.name}
                         {!!node.is_predefined && (
                           <span className="text-[9px] font-bold px-1.5 ml-2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200">
@@ -174,71 +167,8 @@ export default function VoucherTypeCOA() {
                       </span>
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-zinc-400 font-bold uppercase">{node.category}</span>
-                        <button
-                          className="text-[10px] text-zinc-500 hover:text-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white font-medium shadow-sm"
-                          onClick={(e) => { e.stopPropagation(); navigate("/master/alter/voucher-type"); }}
-                        >
-                          Alter
-                        </button>
                       </div>
                     </div>
-
-                    {isSelected && (
-                      <div className="px-6 py-3 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-2 gap-x-6 gap-y-1.5">
-
-                        <div>
-                          <span className="text-zinc-400">Numbering Method:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.numbering_method || "Automatic"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Active:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{!!node.is_active ? "Yes" : "No"}</span>
-                        </div>
-
-                        {/* Config fields */}
-                        {node.config && (
-                          <>
-                            <div className="col-span-2 border-t border-dashed border-zinc-200 my-1 pt-1 text-[10px] font-bold text-zinc-400 uppercase">
-                              Configuration
-                            </div>
-                            <div>
-                              <span className="text-zinc-400">Use Effective Dates:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{yn(node.config.use_effective_dates)}</span>
-                            </div>
-                            <div>
-                              <span className="text-zinc-400">Allow Zero Value:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{yn(node.config.allow_zero_value_transactions)}</span>
-                            </div>
-                            <div>
-                              <span className="text-zinc-400">Make Optional:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{yn(node.config.make_voucher_optional)}</span>
-                            </div>
-                            <div>
-                              <span className="text-zinc-400">Allow Narration:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{yn(node.config.allow_narration)}</span>
-                            </div>
-                            <div>
-                              <span className="text-zinc-400">Narration per Ledger:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{yn(node.config.allow_narration_per_ledger)}</span>
-                            </div>
-                            <div>
-                              <span className="text-zinc-400">Print after Save:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{yn(node.config.print_after_save)}</span>
-                            </div>
-                            <div>
-                              <span className="text-zinc-400">WhatsApp after Save:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{yn(node.config.whatsapp_after_save)}</span>
-                            </div>
-                            {node.config.numbering_behaviour && (
-                              <div className="col-span-2">
-                                <span className="text-zinc-400">Numbering Behaviour:</span>{" "}
-                                <span className="font-semibold text-zinc-800">{node.config.numbering_behaviour}</span>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    )}
                   </div>
                 );
               })

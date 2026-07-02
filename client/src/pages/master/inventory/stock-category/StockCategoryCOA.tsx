@@ -57,9 +57,8 @@ export default function StockCategoryCOA() {
   const [showChangeViewModal, setShowChangeViewModal] = useState(false);
   const [showExceptionModal, setShowExceptionModal] = useState(false);
 
-  // Expansion/Detail States
+  // Expansion States
   const [expandedCategories, setExpandedCategories] = useState<Record<number, boolean>>({});
-  const [activeDetailsId, setActiveDetailsId] = useState<{ type: string; id: number } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -116,7 +115,6 @@ export default function StockCategoryCOA() {
 
   const handleCollapseAll = () => {
     setExpandedCategories({});
-    setActiveDetailsId(null);
   };
 
   const categoryTree = useMemo(() => buildTree(stockCategories, "sc_id", "parent_category_id"), [stockCategories]);
@@ -153,18 +151,8 @@ export default function StockCategoryCOA() {
     return filterTree(categoryTree);
   }, [categoryTree, searchQuery, showUnusedOnly]);
 
-  const parentCategoryName = (id?: number) => stockCategories.find((c) => c.sc_id === id)?.name ?? "Primary";
-
   const toggleCategory = (id: number) => {
     setExpandedCategories((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const toggleDetails = (type: string, id: number) => {
-    if (activeDetailsId?.type === type && activeDetailsId?.id === id) {
-      setActiveDetailsId(null);
-    } else {
-      setActiveDetailsId({ type, id });
-    }
   };
 
   const renderCategoryTree = (nodes: TreeItem[], depth: number): React.ReactNode => {
@@ -173,26 +161,21 @@ export default function StockCategoryCOA() {
       const isExpanded = !!expandedCategories[cId];
       const hasChildren = node.children && node.children.length > 0;
       const raw = node.rawData as StockCategoryType;
-      const isDetailsOpen = activeDetailsId?.type === "category" && activeDetailsId.id === cId;
 
       return (
         <div key={cId} className="flex flex-col">
           <div
-            className={`flex items-center min-h-[30px] hover:bg-zinc-50 border-b border-zinc-100/50 cursor-pointer select-none group ${
-              isDetailsOpen ? "bg-zinc-50" : ""
-            }`}
+            className="flex items-center min-h-[30px] hover:bg-zinc-50 border-b border-zinc-100/50 cursor-pointer select-none group"
             style={{ paddingLeft: depth * 20 + 8 }}
-            onClick={() => toggleDetails("category", cId)}
+            onClick={() =>
+              hasChildren
+                ? toggleCategory(cId)
+                : navigate(`/master/alter/stock-category`, { state: { categoryId: cId } })
+            }
           >
-            <span
-              className="w-5 flex items-center justify-center text-zinc-400 shrink-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (hasChildren) toggleCategory(cId);
-              }}
-            >
+            <span className="w-5 flex items-center justify-center text-zinc-400 shrink-0">
               {hasChildren ? (
-                <span className="text-xs transition-transform duration-100 hover:text-black">
+                <span className="text-xs transition-transform duration-100">
                   {isExpanded ? "▼" : "▶"}
                 </span>
               ) : (
@@ -200,42 +183,14 @@ export default function StockCategoryCOA() {
               )}
             </span>
             <div className="flex-1 flex items-center justify-between pr-4">
-              <span className="font-semibold text-zinc-800 text-[13px]">{node.name}</span>
+              <span className="font-semibold text-zinc-800 text-[13px] group-hover:text-sky-800 transition-colors">{node.name}</span>
               <div className="flex items-center gap-3">
                 <span className="text-[10px] text-zinc-400">
                   {raw.is_active ? "Active" : "Inactive"}
                 </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/master/alter/stock-category`, { state: { categoryId: cId } });
-                  }}
-                  className="text-[10px] text-zinc-400 hover:text-sky-700 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white shadow-sm"
-                >
-                  Edit
-                </button>
               </div>
             </div>
           </div>
-
-          {/* Category Details Panel */}
-          {isDetailsOpen && (
-            <div
-              className="bg-zinc-50/70 border-b border-zinc-200 py-3 px-6 shadow-inner"
-              style={{ paddingLeft: (depth + 1) * 20 + 8 }}
-            >
-              <div className="max-w-xl grid grid-cols-2 gap-x-8 gap-y-2 text-xs text-zinc-600">
-                <div className="flex border-b border-zinc-100 pb-1">
-                  <span className="text-zinc-400 w-32 shrink-0 select-none">Under</span>
-                  <span className="text-zinc-800 font-medium">{parentCategoryName(raw.parent_category_id)}</span>
-                </div>
-                <div className="flex border-b border-zinc-100 pb-1">
-                  <span className="text-zinc-400 w-32 shrink-0 select-none">Active</span>
-                  <span className="text-zinc-800">{raw.is_active ? "Yes" : "No"}</span>
-                </div>
-              </div>
-            </div>
-          )}
 
           {isExpanded && hasChildren && (
             <div className="flex flex-col">

@@ -13,7 +13,6 @@ export default function GSTClassificationCOA() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showChangeView, setShowChangeView] = useState(false);
-  const [activeDetails, setActiveDetails] = useState<number | null>(null);
 
   useEffect(() => {
     if (!companyId) { setLoading(false); return; }
@@ -45,8 +44,6 @@ export default function GSTClassificationCOA() {
         (c.nature_of_transaction && c.nature_of_transaction.toLowerCase().includes(q))
     );
   }, [classes, searchQuery]);
-
-  const toggleDetails = (id: number) => setActiveDetails((prev) => (prev === id ? null : id));
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -124,18 +121,17 @@ export default function GSTClassificationCOA() {
             ) : (
               filteredClasses.map((node) => {
                 const nodeId = node.gc_id!;
-                const isSelected = activeDetails === nodeId;
 
                 return (
                   <div key={nodeId}>
                     <div
-                      className={`group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer ${isSelected ? "bg-zinc-50" : ""}`}
-                      onClick={() => toggleDetails(nodeId)}
+                      className="group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer"
+                      onClick={() => navigate("/master/alter/gst-classification")}
                     >
                       <span className="w-16 text-sm font-bold text-zinc-600">
                         {node.hsn_sac_code || "—"}
                       </span>
-                      <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide">
+                      <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide group-hover:text-sky-800 transition-colors">
                         {node.name}
                         {!!node.is_predefined && (
                           <span className="text-[9px] font-bold px-1.5 py-0.2 ml-2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200">
@@ -148,69 +144,8 @@ export default function GSTClassificationCOA() {
                         <span className="text-sm text-zinc-700 font-bold">
                           {node.igst_rate ?? node.gst_rate ?? 0}%
                         </span>
-                        <button
-                          className="text-[10px] text-zinc-500 hover:text-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white font-medium shadow-sm"
-                          onClick={(e) => { e.stopPropagation(); navigate("/master/alter/gst-classification"); }}
-                        >
-                          Alter
-                        </button>
                       </div>
                     </div>
-
-                    {isSelected && (
-                      <div className="px-6 py-3 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-2 gap-x-6 gap-y-1.5">
-
-                        <div>
-                          <span className="text-zinc-400">Nature of Transaction:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.nature_of_transaction || "Not Applicable"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Taxability:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.taxability || "Unknown"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">HSN/SAC Code:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.hsn_sac_code || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Is non-GST goods:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{!!node.is_non_gst_goods ? "Yes" : "No"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Reverse Charge:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{!!node.is_reverse_charge ? "Yes" : "No"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Ineligible for ITC:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{!!node.is_ineligible_for_itc ? "Yes" : "No"}</span>
-                        </div>
-                        {node.description && (
-                          <div className="col-span-2">
-                            <span className="text-zinc-400">Description:</span>{" "}
-                            <span className="font-semibold text-zinc-800">{node.description}</span>
-                          </div>
-                        )}
-
-                        <div className="col-span-2 border-t border-dashed border-zinc-200 my-1 pt-1 font-bold text-[10px] text-zinc-400 uppercase select-none">
-                          Tax Splits Breakdown
-                        </div>
-
-                        {(
-                          [
-                            { label: "Integrated Tax (IGST)", rateKey: "igst_rate", valKey: "igst_valuation_type" },
-                            { label: "Central Tax (CGST)",    rateKey: "cgst_rate", valKey: "cgst_valuation_type" },
-                            { label: "State/UT Tax (SGST)",   rateKey: "sgst_rate", valKey: "sgst_valuation_type" },
-                            { label: "Cess",                  rateKey: "cess_rate", valKey: "cess_valuation_type" },
-                          ] as const
-                        ).map(({ label, rateKey, valKey }) => (
-                          <div key={label}>
-                            <span className="text-zinc-400">{label}:</span>{" "}
-                            <span className="font-bold text-zinc-800">{(node as any)[rateKey] ?? 0}%</span>
-                            <span className="text-zinc-400 ml-1">({(node as any)[valKey] || "Based on Value"})</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 );
               })

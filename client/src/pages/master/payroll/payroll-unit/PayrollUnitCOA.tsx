@@ -11,7 +11,6 @@ export default function PayrollUnitCOA() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [openDrawers, setOpenDrawers] = useState<Record<number, boolean>>({});
   const [showChangeView, setShowChangeView] = useState(false);
   const [showUnusedOnly, setShowUnusedOnly] = useState(false);
 
@@ -38,8 +37,6 @@ export default function PayrollUnitCOA() {
     if (showUnusedOnly) result = result.filter(u => u.is_predefined ? false : true);
     return result.sort((a, b) => (a.symbol || "").localeCompare(b.symbol || ""));
   }, [units, searchQuery, showUnusedOnly]);
-
-  const toggleDrawer = (id: number) => setOpenDrawers(prev => ({ ...prev, [id]: !prev[id] }));
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -111,35 +108,15 @@ export default function PayrollUnitCOA() {
             ) : (
               filtered.map(u => {
                 const uId = u.payroll_unit_id!;
-                const isOpen = !!openDrawers[uId];
                 const isPredefined = !!u.is_predefined;
                 return (
                   <div key={uId}>
-                    <div className="group flex items-center px-4 py-1.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer" onClick={() => toggleDrawer(uId)}>
-                      <span className="text-zinc-400 text-xs mr-2">{isOpen ? "▼" : "▶"}</span>
-                      <span className="flex-1 text-sm font-medium text-zinc-700">
+                    <div className="group flex items-center px-4 py-1.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer" onClick={() => navigate("/master/alter/payroll-unit", { state: { unitId: uId } })}>
+                      <span className="flex-1 text-sm font-medium text-zinc-700 group-hover:text-sky-800 transition-colors">
                         {isPredefined ? "◆ " : "◇ "}{u.symbol || u.name}
                       </span>
                       <span className="text-xs text-zinc-400 mr-2">{u.unit_type}</span>
-                      <button
-                        className="text-[10px] text-zinc-400 hover:text-sky-700 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white"
-                        onClick={e => { e.stopPropagation(); navigate("/master/alter/payroll-unit", { state: { unitId: uId } }); }}
-                      >
-                        Edit
-                      </button>
                     </div>
-                    {isOpen && (
-                      <div className="px-6 py-2 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-2 gap-x-6 gap-y-1">
-                        <div><span className="text-zinc-400">Symbol:</span> <span className="font-medium">{u.symbol}</span></div>
-                        <div><span className="text-zinc-400">Formal Name:</span> <span className="font-medium">{u.formal_name || "-"}</span></div>
-                        <div><span className="text-zinc-400">Type:</span> <span className="font-medium">{u.unit_type}</span></div>
-                        <div><span className="text-zinc-400">Decimal Places:</span> <span className="font-medium">{u.decimal_places}</span></div>
-                        {u.first_unit && <div><span className="text-zinc-400">First Unit:</span> <span className="font-medium">{u.first_unit}</span></div>}
-                        {u.second_unit && <div><span className="text-zinc-400">Second Unit:</span> <span className="font-medium">{u.second_unit}</span></div>}
-                        {u.conversion != null && <div><span className="text-zinc-400">Conversion:</span> <span className="font-medium">{u.conversion}</span></div>}
-                        <div><span className="text-zinc-400">Predefined:</span> <span className="font-medium">{isPredefined ? "Yes" : "No"}</span></div>
-                      </div>
-                    )}
                   </div>
                 );
               })

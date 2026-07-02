@@ -11,7 +11,6 @@ export default function PayHeadCOA() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [openDrawers, setOpenDrawers] = useState<Record<number, boolean>>({});
   const [showChangeView, setShowChangeView] = useState(false);
   const [showUnusedOnly, setShowUnusedOnly] = useState(false);
 
@@ -38,8 +37,6 @@ export default function PayHeadCOA() {
     if (showUnusedOnly) result = result.filter(p => !p.is_predefined);
     return result.sort((a, b) => a.name.localeCompare(b.name));
   }, [payHeads, searchQuery, showUnusedOnly]);
-
-  const toggleDrawer = (id: number) => setOpenDrawers(prev => ({ ...prev, [id]: !prev[id] }));
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -100,33 +97,13 @@ export default function PayHeadCOA() {
             ) : (
               filtered.map(p => {
                 const pId = p.pay_head_id!;
-                const isOpen = !!openDrawers[pId];
                 const isPredefined = !!p.is_predefined;
                 return (
                   <div key={pId}>
-                    <div className="group flex items-center px-4 py-1.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer" onClick={() => toggleDrawer(pId)}>
-                      <span className="text-zinc-400 text-xs mr-2">{isOpen ? "▼" : "▶"}</span>
-                      <span className="flex-1 text-sm font-medium text-zinc-700">{isPredefined ? "◆ " : "◇ "}{p.name}</span>
+                    <div className="group flex items-center px-4 py-1.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer" onClick={() => navigate("/master/alter/pay-head", { state: { payHeadId: pId } })}>
+                      <span className="flex-1 text-sm font-medium text-zinc-700 group-hover:text-sky-800 transition-colors">{isPredefined ? "◆ " : "◇ "}{p.name}</span>
                       <span className="text-xs text-zinc-400 mr-2">{p.pay_head_type}</span>
-                      <button
-                        className="text-[10px] text-zinc-400 hover:text-sky-700 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white"
-                        onClick={e => { e.stopPropagation(); navigate("/master/alter/pay-head", { state: { payHeadId: pId } }); }}
-                      >Edit</button>
                     </div>
-                    {isOpen && (
-                      <div className="px-6 py-2 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-2 gap-x-6 gap-y-1">
-                        <div><span className="text-zinc-400">Name:</span> <span className="font-medium">{p.name}</span></div>
-                        <div><span className="text-zinc-400">Alias:</span> <span className="font-medium">{p.alias || "-"}</span></div>
-                        <div><span className="text-zinc-400">Pay Head Type:</span> <span className="font-medium">{p.pay_head_type}</span></div>
-                        <div><span className="text-zinc-400">Income Type:</span> <span className="font-medium">{p.income_type || "-"}</span></div>
-                        <div><span className="text-zinc-400">Under:</span> <span className="font-medium">{p.under_group || "-"}</span></div>
-                        <div><span className="text-zinc-400">Calculation:</span> <span className="font-medium">{p.calculation_type}</span></div>
-                        <div><span className="text-zinc-400">Affects Net Salary:</span> <span className="font-medium">{p.affects_net_salary ? "Yes" : "No"}</span></div>
-                        <div><span className="text-zinc-400">Rounding:</span> <span className="font-medium">{p.rounding_method}</span></div>
-                        <div><span className="text-zinc-400">Statutory:</span> <span className="font-medium">{p.statutory_component || "-"}</span></div>
-                        <div><span className="text-zinc-400">Predefined:</span> <span className="font-medium">{isPredefined ? "Yes" : "No"}</span></div>
-                      </div>
-                    )}
                   </div>
                 );
               })

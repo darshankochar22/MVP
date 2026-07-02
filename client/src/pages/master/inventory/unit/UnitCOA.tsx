@@ -20,9 +20,6 @@ export default function UnitCOA() {
   const [showChangeViewModal, setShowChangeViewModal] = useState(false);
   const [showExceptionModal, setShowExceptionModal] = useState(false);
 
-  // Expand Drawer Details States
-  const [openDrawers, setOpenDrawers] = useState<Record<number, boolean>>({});
-
   useEffect(() => {
     const fetchData = async () => {
       if (!companyId) return;
@@ -72,18 +69,6 @@ export default function UnitCOA() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [navigate]);
 
-  const handleExpandAll = () => {
-    const all: Record<number, boolean> = {};
-    units.forEach((u) => {
-      if (u.unit_id) all[u.unit_id] = true;
-    });
-    setOpenDrawers(all);
-  };
-
-  const handleCollapseAll = () => {
-    setOpenDrawers({});
-  };
-
   // Group Stock Items by unit_id
   const itemsByUnit = useMemo(() => {
     const map: Record<number, StockItemType[]> = {};
@@ -120,10 +105,6 @@ export default function UnitCOA() {
     return [...list].sort((a, b) => a.symbol.localeCompare(b.symbol));
   }, [units, itemsByUnit, searchQuery, showUnusedOnly]);
 
-  const toggleDrawer = (id: number) => {
-    setOpenDrawers((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-800">
       {/* Header */}
@@ -145,18 +126,6 @@ export default function UnitCOA() {
 
         {/* Global Toolbar Controls */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleExpandAll}
-            className="text-[11px] font-semibold text-zinc-600 hover:text-black px-2 py-1 border border-zinc-300 rounded bg-white shadow-sm"
-          >
-            Expand All
-          </button>
-          <button
-            onClick={handleCollapseAll}
-            className="text-[11px] font-semibold text-zinc-600 hover:text-black px-2 py-1 border border-zinc-300 rounded bg-white shadow-sm"
-          >
-            Collapse All
-          </button>
           <button
             onClick={() => navigate("/master/create/unit")}
             className="text-[11px] font-semibold text-white bg-black hover:bg-zinc-800 px-3 py-1 rounded shadow-sm font-medium"
@@ -205,81 +174,28 @@ export default function UnitCOA() {
                 ) : (
                   filteredUnits.map((u) => {
                     const uId = u.unit_id!;
-                    const isExpanded = !!openDrawers[uId];
 
                     return (
                       <div key={uId} className="flex flex-col">
-                        {/* Redesigned Premium Tree Row for Units */}
                         <div
-                          className={`flex items-center min-h-[30px] hover:bg-zinc-50 border-b border-zinc-100/50 cursor-pointer select-none group px-2 ${
-                            isExpanded ? "bg-zinc-50" : ""
-                          }`}
-                          onClick={() => toggleDrawer(uId)}
+                          className="flex items-center min-h-[30px] hover:bg-zinc-50 border-b border-zinc-100/50 cursor-pointer select-none group px-2"
+                          onClick={() => navigate(`/master/alter/unit`, { state: { unitId: uId } })}
                         >
                           <span className="w-5 flex items-center justify-center text-sky-600/70 shrink-0 font-bold select-none text-[11px]">
                             ▫
                           </span>
                           <div className="flex-1 flex items-center justify-between pr-2">
                             <div className="flex items-center gap-3">
-                              <span className="font-bold text-zinc-900 text-[13px]">{u.symbol}</span>
+                              <span className="font-bold text-zinc-900 text-[13px] group-hover:text-sky-800 transition-colors">{u.symbol}</span>
                               <span className="text-[10px] text-zinc-400 bg-zinc-100 px-1.5 py-0.5 rounded font-medium">
                                 {u.unit_type || "Simple"}
                               </span>
                             </div>
                             <div className="flex items-center gap-3">
                               <span className="text-xs text-zinc-500 italic max-w-[120px] truncate">{u.formal_name}</span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/master/alter/unit`, { state: { unitId: uId } });
-                                }}
-                                className="text-[10px] text-zinc-400 hover:text-sky-700 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white shadow-sm"
-                              >
-                                Edit
-                              </button>
                             </div>
                           </div>
                         </div>
-
-                        {/* Units Details Expand Panel */}
-                        {isExpanded && (
-                          <div className="bg-zinc-50/70 border-b border-zinc-200 py-3.5 px-6 shadow-inner pl-7">
-                            <div className="max-w-xl grid grid-cols-2 gap-x-8 gap-y-2 text-xs text-zinc-600">
-                              <div className="flex border-b border-zinc-100 pb-1">
-                                <span className="text-zinc-400 w-32 shrink-0 select-none">Formal Name</span>
-                                <span className="text-zinc-800 font-semibold">{u.formal_name || "—"}</span>
-                              </div>
-                              <div className="flex border-b border-zinc-100 pb-1">
-                                <span className="text-zinc-400 w-32 shrink-0 select-none">Decimal Places</span>
-                                <span className="text-zinc-800 font-medium">{u.decimal_places ?? 0}</span>
-                              </div>
-                              {u.unit_quantity_code && (
-                                <div className="flex border-b border-zinc-100 pb-1 col-span-2">
-                                  <span className="text-zinc-400 w-32 shrink-0 select-none">UQC</span>
-                                  <span className="text-zinc-800 font-medium">{u.unit_quantity_code}</span>
-                                </div>
-                              )}
-                              {u.unit_type === "Compound" && (
-                                <>
-                                  <div className="flex border-b border-zinc-100 pb-1">
-                                    <span className="text-zinc-400 w-32 shrink-0 select-none">First Unit</span>
-                                    <span className="text-zinc-800 font-medium">{u.first_unit_symbol || "—"}</span>
-                                  </div>
-                                  <div className="flex border-b border-zinc-100 pb-1">
-                                    <span className="text-zinc-400 w-32 shrink-0 select-none">Second Unit</span>
-                                    <span className="text-zinc-800 font-medium">{u.second_unit_symbol || "—"}</span>
-                                  </div>
-                                  <div className="flex border-b border-zinc-100 pb-1 col-span-2">
-                                    <span className="text-zinc-400 w-32 shrink-0 select-none">Conversion</span>
-                                    <span className="text-zinc-800 font-medium">
-                                      {u.conversion_factor ? `${u.first_unit_symbol} of ${u.conversion_factor} ${u.second_unit_symbol}` : "—"}
-                                    </span>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     );
                   })

@@ -48,7 +48,6 @@ export default function StockGroupCOA() {
   const [showChangeViewModal, setShowChangeViewModal] = useState(false);
   const [showExceptionModal, setShowExceptionModal]   = useState(false);
   const [expandedGroups, setExpandedGroups]           = useState<Record<number, boolean>>({});
-  const [activeDetailsId, setActiveDetailsId]         = useState<{ type: string; id: number } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -89,7 +88,7 @@ export default function StockGroupCOA() {
     stockGroups.forEach(g => { if (g.sg_id) all[g.sg_id] = true; });
     setExpandedGroups(all);
   };
-  const handleCollapseAll = () => { setExpandedGroups({}); setActiveDetailsId(null); };
+  const handleCollapseAll = () => { setExpandedGroups({}); };
 
   const itemsByGroup = useMemo(() => {
     const map: Record<number, StockItemType[]> = {};
@@ -144,23 +143,9 @@ export default function StockGroupCOA() {
     return filterTree(groupTree);
   }, [groupTree, itemsByGroup, searchQuery, showUnusedOnly]);
 
-  const parentGroupName = (id?: number) => stockGroups.find(g => g.sg_id === id)?.name ?? "Primary";
   const unitName        = (id?: number) => units.find(u => u.unit_id === id)?.symbol ?? "Not Applicable";
 
   const toggleGroup   = (id: number) => setExpandedGroups(prev => ({ ...prev, [id]: !prev[id] }));
-  const toggleDetails = (type: string, id: number) => {
-    setActiveDetailsId(prev => (prev?.type === type && prev.id === id) ? null : { type, id });
-  };
-
-  // ── Detail row helper ──────────────────────────────────────────────────────
-  function DetailRow({ label, value, span }: { label: string; value: React.ReactNode; span?: boolean }) {
-    return (
-      <div className={`flex border-b border-zinc-100 pb-1 ${span ? "col-span-2" : ""}`}>
-        <span className="text-zinc-400 w-48 shrink-0 select-none">{label}</span>
-        <span className="text-zinc-800 font-medium">{value}</span>
-      </div>
-    );
-  }
 
   const renderStockTree = (nodes: (TreeItem & { filteredItems: StockItemType[] })[], depth: number): React.ReactNode => {
     return nodes.map(node => {
@@ -169,88 +154,26 @@ export default function StockGroupCOA() {
       const items          = node.filteredItems ?? [];
       const subGroups      = (node.children ?? []) as (TreeItem & { filteredItems: StockItemType[] })[];
       const hasSubItems    = subGroups.length > 0 || items.length > 0;
-      const raw            = node.rawData as StockGroupType;
-      const isDetailsOpen  = activeDetailsId?.type === "group" && activeDetailsId.id === gId;
-
-      // Derived statutory display values
-      const hasHsn         = !!(raw.hsn_sac_code || raw.hsn_sac_description);
-      const hasGst         = !!(raw.gst_rate && Number(raw.gst_rate) > 0);
-      const taxability     = raw.taxability_type && raw.taxability_type !== "as_per_company"
-                               ? raw.taxability_type
-                               : "As per Company/Stock Group";
-
       return (
         <div key={gId} className="flex flex-col">
           {/* Group row */}
           <div
-            className={`flex items-center min-h-[30px] hover:bg-zinc-50 border-b border-zinc-100/50 cursor-pointer select-none group ${isDetailsOpen ? "bg-zinc-50" : ""}`}
+            className="flex items-center min-h-[30px] hover:bg-zinc-50 border-b border-zinc-100/50 cursor-pointer select-none group"
             style={{ paddingLeft: depth * 20 + 8 }}
-            onClick={() => toggleDetails("group", gId)}
+            onClick={() => { if (hasSubItems) toggleGroup(gId); }}
           >
-            <span
-              className="w-5 flex items-center justify-center text-zinc-400 shrink-0"
-              onClick={e => { e.stopPropagation(); if (hasSubItems) toggleGroup(gId); }}
-            >
+            <span className="w-5 flex items-center justify-center text-zinc-400 shrink-0">
               {hasSubItems
-                ? <span className="text-xs transition-transform duration-100 hover:text-black">{isExpanded ? "▼" : "▶"}</span>
+                ? <span className="text-xs transition-transform duration-100">{isExpanded ? "▼" : "▶"}</span>
                 : <span className="text-[10px] opacity-30">•</span>}
             </span>
             <div className="flex-1 flex items-center justify-between pr-4">
               <span className="font-semibold text-zinc-800 text-[13px]">{node.name}</span>
               <div className="flex items-center gap-3">
                 <span className="text-[9px] bg-zinc-100 text-zinc-500 font-medium px-1.5 py-0.5 rounded">Stock Group</span>
-                <button
-                  onClick={e => { e.stopPropagation(); navigate(`/master/alter/stock-group`, { state: { groupId: gId } }); }}
-                  className="text-[10px] text-zinc-400 hover:text-sky-700 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white shadow-sm"
-                >
-                  Edit
-                </button>
               </div>
             </div>
           </div>
-
-          {/* ── Group details panel ── */}
-          {isDetailsOpen && (
-            <div className="bg-zinc-50/70 border-b border-zinc-200 py-3.5 shadow-inner" style={{ paddingLeft: (depth + 1) * 20 + 8, paddingRight: 24 }}>
-              <div className="max-w-2xl grid grid-cols-2 gap-x-8 gap-y-2 text-xs text-zinc-600">
-
-                {/* General */}
-                <DetailRow label="Alias"  value={raw.alias || "—"} />
-                <DetailRow label="Under"  value={parentGroupName(raw.parent_group_id)} />
-                <DetailRow label="Should quantities of items be added" value={raw.should_quantities_be_added ? "Yes" : "No"} span />
-
-                {/* Statutory — HSN/SAC */}
-                <div className="col-span-2 mt-1 mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 select-none border-b border-zinc-200 pb-0.5">
-                  Statutory Details
-                </div>
-
-                <div className="col-span-2 text-[10px] italic text-zinc-400 select-none mb-0.5">HSN/SAC &amp; Related Details</div>
-
-                <DetailRow label="HSN/SAC Details"   value={hasHsn ? "Specified Here" : "As per Company/Stock Group"} />
-                <DetailRow label="Source of details" value={hasHsn ? "Specified Here" : "Not Available"} />
-                {hasHsn && (
-                  <>
-                    <DetailRow label="HSN/SAC"    value={raw.hsn_sac_code || "—"} />
-                    <DetailRow label="Description" value={raw.hsn_sac_description || "—"} />
-                  </>
-                )}
-
-                {/* GST */}
-                <div className="col-span-2 text-[10px] italic text-zinc-400 select-none mt-1 mb-0.5">GST Rate &amp; Related Details</div>
-
-                <DetailRow label="GST Rate Details"  value={hasGst ? "Specified Here" : "As per Company/Stock Group"} />
-                <DetailRow label="Source of details" value={hasGst ? "Specified Here" : "Not Available"} />
-                <DetailRow label="Taxability Type"   value={taxability} />
-                {hasGst && (
-                  <>
-                    <DetailRow label="GST Rate"  value={`${Number(raw.gst_rate).toFixed(2)} %`} />
-                    <DetailRow label="CGST Rate" value={`${Number(raw.cgst_rate ?? 0).toFixed(2)} %`} />
-                    <DetailRow label="SGST Rate" value={`${Number(raw.sgst_rate ?? 0).toFixed(2)} %`} />
-                  </>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Children */}
           {isExpanded && hasSubItems && (
@@ -259,72 +182,25 @@ export default function StockGroupCOA() {
 
               {items.map(item => {
                 const iId              = item.item_id!;
-                const isItemDetailsOpen = activeDetailsId?.type === "item" && activeDetailsId.id === iId;
 
                 return (
                   <div key={iId} className="flex flex-col">
                     <div
-                      className={`flex items-center min-h-[28px] hover:bg-zinc-100/70 border-b border-zinc-100/30 cursor-pointer select-none group ${isItemDetailsOpen ? "bg-zinc-50/50" : ""}`}
+                      className="flex items-center min-h-[28px] hover:bg-zinc-100/70 border-b border-zinc-100/30 cursor-pointer select-none group"
                       style={{ paddingLeft: (depth + 1) * 20 + 8 }}
-                      onClick={() => toggleDetails("item", iId)}
+                      onClick={() => navigate(`/master/alter/stock-item`, { state: { itemId: iId } })}
                     >
                       <span className="w-5 flex items-center justify-center text-sky-600/70 shrink-0 font-bold select-none text-[11px]">▫</span>
                       <div className="flex-1 flex items-center justify-between pr-4">
-                        <span className="text-zinc-700 font-medium text-[13px] hover:text-sky-800 transition-colors">{item.name}</span>
+                        <span className="text-zinc-700 font-medium text-[13px] group-hover:text-sky-800 transition-colors">{item.name}</span>
                         <div className="flex items-center gap-3">
                           <span className="text-[12px] tabular-nums text-zinc-500 mr-2">
                             {Number(item.opening_quantity) === 0 ? "—" : Number(item.opening_quantity).toFixed(2)}
                           </span>
                           <span className="text-[10px] text-zinc-400 w-16 truncate">{unitName(item.unit_id)}</span>
-                          <button
-                            onClick={e => { e.stopPropagation(); navigate(`/master/alter/stock-item`, { state: { itemId: iId } }); }}
-                            className="text-[10px] text-zinc-400 hover:text-sky-700 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white shadow-sm"
-                          >
-                            Edit
-                          </button>
                         </div>
                       </div>
                     </div>
-
-                    {isItemDetailsOpen && (
-                      <div className="bg-zinc-50/80 border-b border-zinc-200 py-3.5 shadow-inner" style={{ paddingLeft: (depth + 2) * 20 + 8, paddingRight: 24 }}>
-                        <div className="max-w-2xl grid grid-cols-2 gap-x-8 gap-y-2 text-xs text-zinc-600">
-                          {item.alias && <DetailRow label="Alias"       value={item.alias} />}
-                          <DetailRow label="Under Group" value={parentGroupName(item.group_id)} />
-                          <DetailRow label="Units"       value={unitName(item.unit_id)} />
-
-                          <div className="col-span-2 mt-1 mb-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-400 select-none border-b border-zinc-200 pb-0.5">
-                            Statutory Details
-                          </div>
-                          <DetailRow label="GST Applicable" value={item.gst_applicable || "Not Applicable"} />
-                          {item.gst_applicable === "Applicable" && (
-                            <>
-                              <DetailRow label="Source of HSN Details" value={item.source_of_details || "As per Company/Stock Group"} />
-                              {(item.hsn_sac || item.hsn_code) && (
-                                <DetailRow label="HSN/SAC Code" value={item.hsn_sac || item.hsn_code} />
-                              )}
-                              {item.hsn_sac_description && (
-                                <DetailRow label="HSN Description" value={item.hsn_sac_description} />
-                              )}
-                              <DetailRow label="Source of GST Rate" value={item.source_of_gst_rate || "As per Company/Stock Group"} />
-                              {item.taxability_type && (
-                                <DetailRow label="Taxability" value={item.taxability_type} />
-                              )}
-                              {item.gst_rate !== null && Number(item.gst_rate) > 0 && (
-                                <DetailRow label="GST Rate" value={`${Number(item.gst_rate).toFixed(2)} %`} />
-                              )}
-                              {item.cgst_rate !== null && Number(item.cgst_rate) > 0 && (
-                                <DetailRow label="CGST Rate" value={`${Number(item.cgst_rate).toFixed(2)} %`} />
-                              )}
-                              {item.sgst_rate !== null && Number(item.sgst_rate) > 0 && (
-                                <DetailRow label="SGST Rate" value={`${Number(item.sgst_rate).toFixed(2)} %`} />
-                              )}
-                              <DetailRow label="Type of Supply" value={item.type_of_supply || "Goods"} />
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })}

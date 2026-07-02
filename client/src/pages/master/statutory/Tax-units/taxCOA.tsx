@@ -13,7 +13,6 @@ export default function TaxCOA() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showChangeView, setShowChangeView] = useState(false);
-  const [activeDetails, setActiveDetails] = useState<number | null>(null);
 
   useEffect(() => {
     if (!companyId) {
@@ -54,9 +53,6 @@ export default function TaxCOA() {
         (t.registration_type && t.registration_type.toLowerCase().includes(q))
     );
   }, [taxUnitsList, searchQuery]);
-
-  const toggleDetails = (id: number) =>
-    setActiveDetails((prev) => (prev === id ? null : id));
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -145,18 +141,17 @@ export default function TaxCOA() {
             ) : (
               filteredList.map((node) => {
                 const nodeId = node.tax_unit_id!;
-                const isSelected = activeDetails === nodeId;
 
                 return (
                   <div key={nodeId}>
                     <div
-                      className={`group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer ${isSelected ? "bg-zinc-50" : ""}`}
-                      onClick={() => toggleDetails(nodeId)}
+                      className="group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer"
+                      onClick={() => navigate("/master/alter/tax-units")}
                     >
                       <span className="w-24 text-xs font-bold text-zinc-500 uppercase">
                         {node.registration_type || "Importer"}
                       </span>
-                      <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide">
+                      <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide group-hover:text-sky-800 transition-colors">
                         {node.name}
                         {node.alias && (
                           <span className="text-zinc-400 text-xs font-normal ml-2 font-mono">
@@ -168,68 +163,8 @@ export default function TaxCOA() {
                         <span className="text-sm font-semibold font-mono text-zinc-700">
                           {node.ecc_number || "No ECC"}
                         </span>
-                        <button
-                          className="text-[10px] text-zinc-500 hover:text-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white font-medium shadow-sm"
-                          onClick={(e) => { e.stopPropagation(); navigate("/master/alter/tax-units"); }}
-                        >
-                          Alter
-                        </button>
                       </div>
                     </div>
-
-                    {isSelected && (
-                      <div className="px-6 py-3 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-2 gap-x-6 gap-y-1.5 font-mono">
-                        {node.address_line1 && (
-                          <div className="col-span-2">
-                            <span className="text-zinc-400">Address:</span>{" "}
-                            <span className="font-semibold text-zinc-800">
-                              {[node.address_line1, node.address_line2, node.address_line3, node.address_line4]
-                                .filter(Boolean)
-                                .join(", ")}
-                            </span>
-                          </div>
-                        )}
-                        <div>
-                          <span className="text-zinc-400">State:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.state || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Pincode:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.pincode || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Telephone:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.telephone || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Registered For:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.registered_for || "—"}</span>
-                        </div>
-                        {!!node.set_alter_excise_details && (
-                          <>
-                            <div className="col-span-2 border-t border-zinc-100 my-1 pt-1 font-bold text-[10px] text-zinc-500 uppercase tracking-wide">
-                              Excise Details
-                            </div>
-                            <div>
-                              <span className="text-zinc-400">Reg Type:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{node.registration_type || "—"}</span>
-                            </div>
-                            <div>
-                              <span className="text-zinc-400">ECC Number:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{node.ecc_number || "—"}</span>
-                            </div>
-                            <div>
-                              <span className="text-zinc-400">Excise Tariff Setup:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{!!node.set_alter_excise_tariff ? "Yes" : "No"}</span>
-                            </div>
-                            <div>
-                              <span className="text-zinc-400">Rule 11 Setup:</span>{" "}
-                              <span className="font-semibold text-zinc-800">{!!node.set_alter_rule11_book ? "Yes" : "No"}</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    )}
                   </div>
                 );
               })

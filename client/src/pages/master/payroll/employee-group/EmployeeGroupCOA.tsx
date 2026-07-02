@@ -19,7 +19,6 @@ export default function EmployeeGroupCOA() {
   const [showChangeView, setShowChangeView] = useState(false);
   const [showUnusedOnly, setShowUnusedOnly] = useState(false);
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
-  const [activeDetails, setActiveDetails] = useState<{ type: "group"; id: number } | null>(null);
 
   useEffect(() => {
     if (!companyId) { setLoading(false); return; }
@@ -59,43 +58,29 @@ export default function EmployeeGroupCOA() {
   const tree = useMemo(() => buildTree(null), [groups, employees, searchQuery, showUnusedOnly]);
 
   const toggleNode = (id: string) => setExpandedNodes(p => ({ ...p, [id]: !p[id] }));
-  const toggleDetails = (id: number) => setActiveDetails(prev => prev?.type === "group" && prev.id === id ? null : { type: "group", id });
 
   const renderTree = (nodes: TreeNode[], depth: number = 0): React.ReactNode => {
     return nodes.map(node => {
       const nodeId = `g-${node.employee_group_id}`;
       const isExpanded = !!expandedNodes[nodeId];
       const hasChildren = node.children && node.children.length > 0;
-      const isSelected = activeDetails?.type === "group" && activeDetails.id === node.employee_group_id;
       const empCount = employees.filter(e => e.employee_group_id === node.employee_group_id).length;
 
       return (
         <div key={nodeId}>
           <div
-            className={`group flex items-center px-4 py-1.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer ${isSelected ? "bg-zinc-100" : ""}`}
+            className="group flex items-center px-4 py-1.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer"
             style={{ paddingLeft: `${8 + depth * 16}px` }}
+            onClick={() => navigate("/master/alter/employee-group", { state: { groupId: node.employee_group_id } })}
           >
             <span className="text-zinc-400 text-xs mr-1 w-4 text-center" onClick={e => { e.stopPropagation(); if (hasChildren) toggleNode(nodeId); }}>
               {hasChildren ? (isExpanded ? "▼" : "▶") : " "}
             </span>
-            <span className="flex-1 text-sm font-medium text-zinc-700" onClick={() => toggleDetails(node.employee_group_id!)}>
+            <span className="flex-1 text-sm font-medium text-zinc-700 group-hover:text-sky-800 transition-colors">
               {node.is_predefined ? "◆ " : "◇ "}{node.name}
             </span>
             <span className="text-xs text-zinc-400 mr-1">{empCount > 0 ? `${empCount} emp` : ""}</span>
-            <button
-              className="text-[10px] text-zinc-400 hover:text-sky-700 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white"
-              onClick={e => { e.stopPropagation(); navigate("/master/alter/employee-group", { state: { groupId: node.employee_group_id } }); }}
-            >Edit</button>
           </div>
-          {isSelected && (
-            <div className="px-6 py-2 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-2 gap-x-6 gap-y-1" style={{ paddingLeft: `${40 + depth * 16}px` }}>
-              <div><span className="text-zinc-400">Name:</span> <span className="font-medium">{node.name}</span></div>
-              <div><span className="text-zinc-400">Alias:</span> <span className="font-medium">{node.alias || "-"}</span></div>
-              <div><span className="text-zinc-400">Parent:</span> <span className="font-medium">{groups.find(g => g.employee_group_id === node.parent_group_id)?.name ?? "Primary"}</span></div>
-              <div><span className="text-zinc-400">Employees:</span> <span className="font-medium">{empCount}</span></div>
-              <div><span className="text-zinc-400">Predefined:</span> <span className="font-medium">{node.is_predefined ? "Yes" : "No"}</span></div>
-            </div>
-          )}
           {isExpanded && hasChildren && renderTree(node.children!, depth + 1)}
         </div>
       );

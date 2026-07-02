@@ -1,18 +1,16 @@
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
-import type { AttendanceTypeType, PayrollUnitType } from "@/types/entities/Payroll";
+import type { AttendanceTypeType } from "@/types/entities/Payroll";
 
 export default function AttendanceTypeCOA() {
   const { selectedCompany } = useCompany();
   const navigate = useNavigate();
   const companyId = selectedCompany?.company_id;
   const [types, setTypes] = useState<AttendanceTypeType[]>([]);
-  const [units, setUnits] = useState<PayrollUnitType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [openDrawers, setOpenDrawers] = useState<Record<number, boolean>>({});
   const [showChangeView, setShowChangeView] = useState(false);
   const [showUnusedOnly, setShowUnusedOnly] = useState(false);
 
@@ -22,21 +20,15 @@ export default function AttendanceTypeCOA() {
     (async () => {
       try {
         setLoading(true); setError(null);
-        const [attRes, unitRes] = await Promise.all([
-          window.api.attendanceType.getAll(companyId),
-          window.api.payrollUnit.getAll(companyId),
-        ]);
+        const attRes = await window.api.attendanceType.getAll(companyId);
         if (cancelled) return;
         if (attRes.success) setTypes(attRes.attendanceTypes ?? []);
         else setError(attRes.error || "Failed to load.");
-        if (unitRes.success) setUnits(unitRes.payrollUnits ?? []);
       } catch { if (!cancelled) setError("Failed to load."); }
       finally { if (!cancelled) setLoading(false); }
     })();
     return () => { cancelled = true; };
   }, [companyId]);
-
-  const unitName = (id?: number) => units.find(u => u.payroll_unit_id === id)?.name ?? "-";
 
   const filtered = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -45,8 +37,6 @@ export default function AttendanceTypeCOA() {
     if (showUnusedOnly) result = result.filter(t => !t.is_predefined);
     return result.sort((a, b) => a.name.localeCompare(b.name));
   }, [types, searchQuery, showUnusedOnly]);
-
-  const toggleDrawer = (id: number) => setOpenDrawers(prev => ({ ...prev, [id]: !prev[id] }));
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -107,31 +97,13 @@ export default function AttendanceTypeCOA() {
             ) : (
               filtered.map(t => {
                 const tId = t.attendance_type_id!;
-                const isOpen = !!openDrawers[tId];
                 const isPredefined = !!t.is_predefined;
                 return (
                   <div key={tId}>
-                    <div className="group flex items-center px-4 py-1.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer" onClick={() => toggleDrawer(tId)}>
-                      <span className="text-zinc-400 text-xs mr-2">{isOpen ? "▼" : "▶"}</span>
-                      <span className="flex-1 text-sm font-medium text-zinc-700">{isPredefined ? "◆ " : "◇ "}{t.name}</span>
+                    <div className="group flex items-center px-4 py-1.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer" onClick={() => navigate("/master/alter/attendance-type", { state: { typeId: tId } })}>
+                      <span className="flex-1 text-sm font-medium text-zinc-700 group-hover:text-sky-800 transition-colors">{isPredefined ? "◆ " : "◇ "}{t.name}</span>
                       <span className="text-xs text-zinc-400 mr-2">{t.type}</span>
-                      <button
-                        className="text-[10px] text-zinc-400 hover:text-sky-700 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white"
-                        onClick={e => { e.stopPropagation(); navigate("/master/alter/attendance-type", { state: { typeId: tId } }); }}
-                      >Edit</button>
                     </div>
-                    {isOpen && (
-                      <div className="px-6 py-2 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-2 gap-x-6 gap-y-1">
-                        <div><span className="text-zinc-400">Name:</span> <span className="font-medium">{t.name}</span></div>
-                        <div><span className="text-zinc-400">Alias:</span> <span className="font-medium">{t.alias || "-"}</span></div>
-                        <div><span className="text-zinc-400">Type:</span> <span className="font-medium">{t.type}</span></div>
-                        <div><span className="text-zinc-400">Period:</span> <span className="font-medium">{t.period || "-"}</span></div>
-                        <div><span className="text-zinc-400">Unit:</span> <span className="font-medium">{unitName(t.unit_id)}</span></div>
-                        <div><span className="text-zinc-400">Carry Forward:</span> <span className="font-medium">{t.carry_forward ? "Yes" : "No"}</span></div>
-                        <div><span className="text-zinc-400">Encashment:</span> <span className="font-medium">{t.encashment ? "Yes" : "No"}</span></div>
-                        <div><span className="text-zinc-400">Max Days:</span> <span className="font-medium">{t.max_days || "0"}</span></div>
-                      </div>
-                    )}
                   </div>
                 );
               })

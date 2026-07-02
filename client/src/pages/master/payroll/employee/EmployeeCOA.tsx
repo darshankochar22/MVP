@@ -15,7 +15,6 @@ export default function EmployeeCOA() {
   const [showChangeView, setShowChangeView] = useState(false);
   const [showUnusedOnly, setShowUnusedOnly] = useState(false);
   const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
-  const [activeDetails, setActiveDetails] = useState<{ type: "emp"; id: number } | null>(null);
   const [viewMode, setViewMode] = useState<"tree" | "flat">("tree");
 
   useEffect(() => {
@@ -65,7 +64,6 @@ export default function EmployeeCOA() {
   };
 
   const toggleNode = (id: string) => setExpandedNodes(p => ({ ...p, [id]: !p[id] }));
-  const toggleDetails = (id: number) => setActiveDetails(prev => prev?.type === "emp" && prev.id === id ? null : { type: "emp", id });
 
   const renderGroupTree = (nodes: EmployeeGroupType[], depth: number = 0): React.ReactNode => {
     return nodes.map(group => {
@@ -91,35 +89,17 @@ export default function EmployeeCOA() {
             <>
               {empList.map(emp => {
                 const eId = emp.employee_id!;
-                const isSelected = activeDetails?.type === "emp" && activeDetails.id === eId;
                 return (
                   <div key={`e-${eId}`}>
                     <div
-                      className={`group flex items-center px-4 py-1 border-b border-zinc-50/50 hover:bg-zinc-50/50 cursor-pointer ${isSelected ? "bg-zinc-100" : ""}`}
+                      className="group flex items-center px-4 py-1 border-b border-zinc-50/50 hover:bg-zinc-50/50 cursor-pointer"
                       style={{ paddingLeft: `${32 + depth * 16}px` }}
-                      onClick={() => toggleDetails(eId)}
+                      onClick={() => navigate("/master/alter/employee", { state: { employeeId: eId } })}
                     >
                       <span className="text-zinc-300 text-xs mr-2">▫</span>
-                      <span className="flex-1 text-sm text-zinc-700">{emp.name}</span>
+                      <span className="flex-1 text-sm text-zinc-700 group-hover:text-sky-800 transition-colors">{emp.name}</span>
                       <span className="text-xs text-zinc-400 mr-2">{emp.employee_code}</span>
-                      <button
-                        className="text-[10px] text-zinc-400 hover:text-sky-700 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white"
-                        onClick={e => { e.stopPropagation(); navigate("/master/alter/employee", { state: { employeeId: eId } }); }}
-                      >Edit</button>
                     </div>
-                    {isSelected && (
-                      <div className="px-6 py-2 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-3 gap-x-6 gap-y-1" style={{ paddingLeft: `${64 + depth * 16}px` }}>
-                        <div><span className="text-zinc-400">Name:</span> <span className="font-medium">{emp.name}</span></div>
-                        <div><span className="text-zinc-400">Code:</span> <span className="font-medium">{emp.employee_code || "-"}</span></div>
-                        <div><span className="text-zinc-400">Designation:</span> <span className="font-medium">{emp.designation || "-"}</span></div>
-                        <div><span className="text-zinc-400">Department:</span> <span className="font-medium">{emp.department || "-"}</span></div>
-                        <div><span className="text-zinc-400">DOJ:</span> <span className="font-medium">{emp.date_of_joining || "-"}</span></div>
-                        <div><span className="text-zinc-400">Mobile:</span> <span className="font-medium">{emp.mobile || "-"}</span></div>
-                        <div><span className="text-zinc-400">E-Mail:</span> <span className="font-medium">{emp.email || "-"}</span></div>
-                        <div><span className="text-zinc-400">PAN:</span> <span className="font-medium">{emp.pan || "-"}</span></div>
-                        <div><span className="text-zinc-400">Aadhaar:</span> <span className="font-medium">{emp.aadhaar || "-"}</span></div>
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -208,35 +188,15 @@ export default function EmployeeCOA() {
                 </div>
                 {flatList.map(emp => {
                   const eId = emp.employee_id!;
-                  const isSelected = activeDetails?.type === "emp" && activeDetails.id === eId;
                   return (
                     <div key={eId}>
-                      <div className={`group grid grid-cols-12 gap-1 px-4 py-1 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer text-xs ${isSelected ? "bg-zinc-100" : ""}`} onClick={() => toggleDetails(eId)}>
-                        <span className="col-span-3 font-medium text-zinc-700 truncate">{emp.name}</span>
+                      <div className="group grid grid-cols-12 gap-1 px-4 py-1 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer text-xs" onClick={() => navigate("/master/alter/employee", { state: { employeeId: eId } })}>
+                        <span className="col-span-3 font-medium text-zinc-700 truncate group-hover:text-sky-800 transition-colors">{emp.name}</span>
                         <span className="col-span-2 text-zinc-500">{emp.employee_code || "-"}</span>
                         <span className="col-span-3 text-zinc-500">{groupName(emp.employee_group_id)}</span>
                         <span className="col-span-2 text-zinc-500 truncate">{emp.designation || "-"}</span>
-                        <span className="col-span-1 text-zinc-500 truncate">{emp.mobile || "-"}</span>
-                        <span className="col-span-1 text-right">
-                          <button
-                            className="text-[10px] text-zinc-400 hover:text-sky-700 opacity-0 group-hover:opacity-100 transition-opacity px-1 py-0 border border-zinc-200 rounded bg-white"
-                            onClick={e => { e.stopPropagation(); navigate("/master/alter/employee", { state: { employeeId: eId } }); }}
-                          >Edit</button>
-                        </span>
+                        <span className="col-span-2 text-zinc-500 truncate">{emp.mobile || "-"}</span>
                       </div>
-                      {isSelected && (
-                        <div className="px-6 py-2 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-3 gap-x-6 gap-y-1">
-                          <div><span className="text-zinc-400">Name:</span> <span className="font-medium">{emp.name}</span></div>
-                          <div><span className="text-zinc-400">Code:</span> <span className="font-medium">{emp.employee_code || "-"}</span></div>
-                          <div><span className="text-zinc-400">Designation:</span> <span className="font-medium">{emp.designation || "-"}</span></div>
-                          <div><span className="text-zinc-400">Department:</span> <span className="font-medium">{emp.department || "-"}</span></div>
-                          <div><span className="text-zinc-400">DOJ:</span> <span className="font-medium">{emp.date_of_joining || "-"}</span></div>
-                          <div><span className="text-zinc-400">Mobile:</span> <span className="font-medium">{emp.mobile || "-"}</span></div>
-                          <div><span className="text-zinc-400">E-Mail:</span> <span className="font-medium">{emp.email || "-"}</span></div>
-                          <div><span className="text-zinc-400">PAN:</span> <span className="font-medium">{emp.pan || "-"}</span></div>
-                          <div><span className="text-zinc-400">Gender:</span> <span className="font-medium">{emp.gender || "-"}</span></div>
-                        </div>
-                      )}
                     </div>
                   );
                 })}

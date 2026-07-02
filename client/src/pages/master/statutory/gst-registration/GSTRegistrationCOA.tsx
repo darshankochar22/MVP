@@ -13,7 +13,6 @@ export default function GSTRegistrationCOA() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showChangeView, setShowChangeView] = useState(false);
-  const [activeDetails, setActiveDetails] = useState<number | null>(null);
 
   useEffect(() => {
     if (!companyId) {
@@ -54,10 +53,6 @@ export default function GSTRegistrationCOA() {
         (r.legal_name && r.legal_name.toLowerCase().includes(q))
     );
   }, [regs, searchQuery]);
-
-  const toggleDetails = (id: number) => {
-    setActiveDetails((prev) => (prev === id ? null : id));
-  };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -146,20 +141,17 @@ export default function GSTRegistrationCOA() {
             ) : (
               filteredRegs.map((node) => {
                 const nodeId = node.gst_id!;
-                const isSelected = activeDetails === nodeId;
 
                 return (
                   <div key={nodeId}>
                     <div
-                      className={`group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer ${
-                        isSelected ? "bg-zinc-50" : ""
-                      }`}
-                      onClick={() => toggleDetails(nodeId)}
+                      className="group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer"
+                      onClick={() => navigate("/master/alter/gst-registration")}
                     >
                       <span className="w-44 text-sm font-bold text-zinc-800 tracking-wider">
                         {node.gstin}
                       </span>
-                      <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide">
+                      <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide group-hover:text-sky-800 transition-colors">
                         {node.trade_name || node.legal_name || "—"}
                         <span className="text-[9px] font-bold px-1.5 py-0.2 ml-2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200">
                           {node.registration_type}
@@ -174,89 +166,8 @@ export default function GSTRegistrationCOA() {
                         <span className="text-xs text-zinc-400 font-bold uppercase">
                           {node.state_id}
                         </span>
-                        <button
-                          className="text-[10px] text-zinc-500 hover:text-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white font-medium shadow-sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate("/master/alter/gst-registration");
-                          }}
-                        >
-                          Alter
-                        </button>
                       </div>
                     </div>
-                    {isSelected && (
-                      <div className="px-6 py-3 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-2 gap-x-6 gap-y-1.5">
-                        <div>
-                          <span className="text-zinc-400">Legal Name:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.legal_name || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Trade Name:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.trade_name || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">GST Portal Username:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.gst_username || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">State:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.state_id}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Registration Status:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.registration_status}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Registration Type:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.registration_type}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Periodicity of GSTR-1:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.periodicity_of_gstr1}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Assessee of Other Territory:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{!!node.assessee_of_other_territory ? "Yes" : "No"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Registration Date:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.registration_date || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Effective Date:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.effective_from || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Filing Mode:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.mode_of_filing || "Online"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">E-Way Bill Applicable:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{!!node.e_way_bill_applicable ? "Yes" : "No"}</span>
-                        </div>
-                        {!!node.e_way_bill_applicable && (
-                          <div>
-                            <span className="text-zinc-400">E-Way Bill Applicable From:</span>{" "}
-                            <span className="font-semibold text-zinc-800">{node.e_way_bill_applicable_from || "—"}</span>
-                          </div>
-                        )}
-                        <div>
-                          <span className="text-zinc-400">E-Invoice Applicable:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{!!node.e_invoice_application ? "Yes" : "No"}</span>
-                        </div>
-                        {!!node.e_invoice_application && node.e_invoice_details && (
-                          <div className="col-span-2">
-                            <span className="text-zinc-400">E-Invoice Billing Details:</span>{" "}
-                            <span className="font-semibold text-zinc-800 block p-1.5 border border-zinc-100 bg-zinc-50/50 rounded mt-1 whitespace-pre-wrap">{node.e_invoice_details}</span>
-                          </div>
-                        )}
-                        <div>
-                          <span className="text-zinc-400">Applicable for Intrastat:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{!!node.applicable_for_intrastat ? "Yes" : "No"}</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })

@@ -23,9 +23,6 @@ export default function PriceLevelsCOA() {
   const [showChangeViewModal, setShowChangeViewModal] = useState(false);
   const [showExceptionModal, setShowExceptionModal] = useState(false);
 
-  // Detail State
-  const [activeDetailsIndex, setActiveDetailsIndex] = useState<number | null>(null);
-
   useEffect(() => {
     const fetchData = async () => {
       if (!companyId) return;
@@ -72,10 +69,6 @@ export default function PriceLevelsCOA() {
     // toggling showUnusedOnly shows nothing — reserved for future use.
     return matchesSearch;
   });
-
-  const toggleDetails = (index: number) => {
-    setActiveDetailsIndex((prev) => (prev === index ? null : index));
-  };
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white select-none text-zinc-800">
@@ -157,12 +150,11 @@ export default function PriceLevelsCOA() {
             ) : (
               <div className="py-2">
                 {filteredLevels.map((pl) => {
-                  const isOpen = activeDetailsIndex === pl.index;
                   return (
                     <div key={pl.index} className="flex flex-col">
                       <div
-                        className={`flex items-center min-h-[30px] hover:bg-zinc-50 border-b border-zinc-100/50 cursor-pointer select-none group px-2 ${isOpen ? "bg-zinc-50" : ""}`}
-                        onClick={() => toggleDetails(pl.index)}
+                        className="flex items-center min-h-[30px] hover:bg-zinc-50 border-b border-zinc-100/50 cursor-pointer select-none group px-2"
+                        onClick={() => navigate("/master/alter/price-levels")}
                       >
                         {/* Index badge */}
                         <span className="w-7 text-[11px] font-mono text-zinc-400 shrink-0 text-right mr-3 select-none">
@@ -170,37 +162,12 @@ export default function PriceLevelsCOA() {
                         </span>
 
                         <div className="flex-1 flex items-center justify-between pr-4">
-                          <span className="font-semibold text-zinc-800 text-[13px]">{pl.name}</span>
+                          <span className="font-semibold text-zinc-800 text-[13px] group-hover:text-sky-800 transition-colors">{pl.name}</span>
                           <div className="flex items-center gap-3">
                             <span className="text-[10px] text-zinc-400">Level {pl.index + 1}</span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate("/master/alter/price-levels");
-                              }}
-                              className="text-[10px] text-zinc-400 hover:text-sky-700 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white shadow-sm"
-                            >
-                              Edit
-                            </button>
                           </div>
                         </div>
                       </div>
-
-                      {/* Detail Panel */}
-                      {isOpen && (
-                        <div className="bg-zinc-50/70 border-b border-zinc-200 py-3 px-6 shadow-inner">
-                          <div className="max-w-xl grid grid-cols-2 gap-x-8 gap-y-2 text-xs text-zinc-600">
-                            <div className="flex border-b border-zinc-100 pb-1">
-                              <span className="text-zinc-400 w-32 shrink-0 select-none">Level No.</span>
-                              <span className="text-zinc-800 font-medium">{pl.index + 1}</span>
-                            </div>
-                            <div className="flex border-b border-zinc-100 pb-1">
-                              <span className="text-zinc-400 w-32 shrink-0 select-none">Name</span>
-                              <span className="text-zinc-800 font-medium">{pl.name}</span>
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   );
                 })}

@@ -13,7 +13,6 @@ export default function CurrencyCOA() {
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [showChangeView, setShowChangeView] = useState(false);
-  const [activeDetails, setActiveDetails] = useState<number | null>(null);
 
   useEffect(() => {
     if (!companyId) {
@@ -52,10 +51,6 @@ export default function CurrencyCOA() {
         (c.iso_code && c.iso_code.toLowerCase().includes(q))
     );
   }, [currencies, searchQuery]);
-
-  const toggleDetails = (id: number) => {
-    setActiveDetails((prev) => (prev === id ? null : id));
-  };
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -143,20 +138,17 @@ export default function CurrencyCOA() {
             ) : (
               filteredCurrencies.map((node) => {
                 const nodeId = node.currency_id!;
-                const isSelected = activeDetails === nodeId;
 
                 return (
                   <div key={nodeId}>
                     <div
-                      className={`group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer ${
-                        isSelected ? "bg-zinc-50" : ""
-                      }`}
-                      onClick={() => toggleDetails(nodeId)}
+                      className="group flex items-center px-4 py-2.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer"
+                      onClick={() => navigate("/master/alter/currency")}
                     >
                       <span className="w-16 text-sm font-bold text-zinc-600">
                         {node.symbol || "—"}
                       </span>
-                      <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide">
+                      <span className="flex-1 text-sm font-semibold text-zinc-800 uppercase tracking-wide group-hover:text-sky-800 transition-colors">
                         {node.name}
                         {!!node.is_predefined && (
                           <span className="text-[9px] font-bold px-1.5 py-0.2 ml-2 bg-zinc-100 text-zinc-500 rounded tracking-wider border border-zinc-200 font-sans">
@@ -173,45 +165,8 @@ export default function CurrencyCOA() {
                         <span className="text-xs text-zinc-400 font-bold uppercase">
                           {node.iso_code}
                         </span>
-                        <button
-                          className="text-[10px] text-zinc-500 hover:text-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white font-medium font-sans"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate("/master/alter/currency");
-                          }}
-                        >
-                          Alter
-                        </button>
                       </div>
                     </div>
-                    {isSelected && (
-                      <div className="px-6 py-3 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-2 gap-x-6 gap-y-1.5">
-                        <div>
-                          <span className="text-zinc-400">Formal Name:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.formal_name || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Decimal Symbol:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.decimal_symbol || "."}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Decimal Places:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.decimal_places}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Word After Decimal:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{node.decimal_places_in_words || "—"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Suffix to Amount:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{!!node.suffix_symbol_to_amount ? "Yes" : "No"}</span>
-                        </div>
-                        <div>
-                          <span className="text-zinc-400">Show in Millions:</span>{" "}
-                          <span className="font-semibold text-zinc-800">{!!node.show_amount_in_millions ? "Yes" : "No"}</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })

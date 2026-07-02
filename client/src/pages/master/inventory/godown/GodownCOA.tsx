@@ -57,9 +57,8 @@ export default function GodownCOA() {
   const [showChangeViewModal, setShowChangeViewModal] = useState(false);
   const [showExceptionModal, setShowExceptionModal] = useState(false);
 
-  // Expansion/Detail States
+  // Expansion States
   const [expandedGodowns, setExpandedGodowns] = useState<Record<number, boolean>>({});
-  const [activeDetailsId, setActiveDetailsId] = useState<{ type: string; id: number } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -116,7 +115,6 @@ export default function GodownCOA() {
 
   const handleCollapseAll = () => {
     setExpandedGodowns({});
-    setActiveDetailsId(null);
   };
 
   const godownTree = useMemo(() => buildTree(godowns, "godown_id", "parent_godown_id"), [godowns]);
@@ -153,18 +151,8 @@ export default function GodownCOA() {
     return filterTree(godownTree);
   }, [godownTree, searchQuery, showUnusedOnly]);
 
-  const parentGodownName = (id?: number) => godowns.find((g) => g.godown_id === id)?.name ?? "Primary";
-
   const toggleGodown = (id: number) => {
     setExpandedGodowns((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const toggleDetails = (type: string, id: number) => {
-    if (activeDetailsId?.type === type && activeDetailsId?.id === id) {
-      setActiveDetailsId(null);
-    } else {
-      setActiveDetailsId({ type, id });
-    }
   };
 
   const renderGodownTree = (nodes: TreeItem[], depth: number): React.ReactNode => {
@@ -173,26 +161,21 @@ export default function GodownCOA() {
       const isExpanded = !!expandedGodowns[gId];
       const hasChildren = node.children && node.children.length > 0;
       const raw = node.rawData as GodownType;
-      const isDetailsOpen = activeDetailsId?.type === "godown" && activeDetailsId.id === gId;
 
       return (
         <div key={gId} className="flex flex-col">
           <div
-            className={`flex items-center min-h-[30px] hover:bg-zinc-50 border-b border-zinc-100/50 cursor-pointer select-none group ${
-              isDetailsOpen ? "bg-zinc-50" : ""
-            }`}
+            className="flex items-center min-h-[30px] hover:bg-zinc-50 border-b border-zinc-100/50 cursor-pointer select-none group"
             style={{ paddingLeft: depth * 20 + 8 }}
-            onClick={() => toggleDetails("godown", gId)}
+            onClick={() =>
+              hasChildren
+                ? toggleGodown(gId)
+                : navigate(`/master/alter/godown`, { state: { godownId: gId } })
+            }
           >
-            <span
-              className="w-5 flex items-center justify-center text-zinc-400 shrink-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (hasChildren) toggleGodown(gId);
-              }}
-            >
+            <span className="w-5 flex items-center justify-center text-zinc-400 shrink-0">
               {hasChildren ? (
-                <span className="text-xs transition-transform duration-100 hover:text-black">
+                <span className="text-xs transition-transform duration-100">
                   {isExpanded ? "▼" : "▶"}
                 </span>
               ) : (
@@ -200,56 +183,14 @@ export default function GodownCOA() {
               )}
             </span>
             <div className="flex-1 flex items-center justify-between pr-4">
-              <span className="font-semibold text-zinc-800 text-[13px]">{node.name}</span>
+              <span className="font-semibold text-zinc-800 text-[13px] group-hover:text-sky-800 transition-colors">{node.name}</span>
               <div className="flex items-center gap-3">
                 <span className="text-[10px] text-zinc-400">
                   {raw.allow_storage_of_materials ? "Allows Storage" : "No Storage"}
                 </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigate(`/master/alter/godown`, { state: { godownId: gId } });
-                  }}
-                  className="text-[10px] text-zinc-400 hover:text-sky-700 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white shadow-sm"
-                >
-                  Edit
-                </button>
               </div>
             </div>
           </div>
-
-          {/* Godown Details Panel */}
-          {isDetailsOpen && (
-            <div
-              className="bg-zinc-50/70 border-b border-zinc-200 py-3.5 px-6 shadow-inner"
-              style={{ paddingLeft: (depth + 1) * 20 + 8 }}
-            >
-              <div className="max-w-xl grid grid-cols-2 gap-x-8 gap-y-2 text-xs text-zinc-600">
-                <div className="flex border-b border-zinc-100 pb-1">
-                  <span className="text-zinc-400 w-32 shrink-0 select-none">Alias</span>
-                  <span className="text-zinc-800">{raw.alias || "—"}</span>
-                </div>
-                <div className="flex border-b border-zinc-100 pb-1">
-                  <span className="text-zinc-400 w-32 shrink-0 select-none">Under</span>
-                  <span className="text-zinc-800 font-medium">{parentGodownName(raw.parent_godown_id)}</span>
-                </div>
-                <div className="flex border-b border-zinc-100 pb-1">
-                  <span className="text-zinc-400 w-32 shrink-0 select-none">Main Location</span>
-                  <span className="text-zinc-800">{raw.is_main_location ? "Yes" : "No"}</span>
-                </div>
-                <div className="flex border-b border-zinc-100 pb-1">
-                  <span className="text-zinc-400 w-32 shrink-0 select-none">Allows Storage</span>
-                  <span className="text-zinc-800">{raw.allow_storage_of_materials ? "Yes" : "No"}</span>
-                </div>
-                <div className="flex border-b border-zinc-100 pb-1 col-span-2">
-                  <span className="text-zinc-400 w-32 shrink-0 select-none">Address</span>
-                  <span className="text-zinc-800">
-                    {[raw.address, raw.city, raw.state, raw.pincode].filter(Boolean).join(", ") || "—"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
 
           {isExpanded && hasChildren && (
             <div className="flex flex-col">

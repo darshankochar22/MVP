@@ -14,7 +14,6 @@ export default function SalaryStructureCOA() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [openDrawers, setOpenDrawers] = useState<Record<number, boolean>>({});
   const [showChangeView, setShowChangeView] = useState(false);
 
   useEffect(() => {
@@ -53,8 +52,6 @@ export default function SalaryStructureCOA() {
       return (a.effective_from || "").localeCompare(b.effective_from || "");
     });
   }, [structures, searchQuery, employees, payHeads]);
-
-  const toggleDrawer = (id: number) => setOpenDrawers(prev => ({ ...prev, [id]: !prev[id] }));
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -112,28 +109,13 @@ export default function SalaryStructureCOA() {
             ) : (
               filtered.map(s => {
                 const sId = s.structure_id!;
-                const isOpen = !!openDrawers[sId];
                 return (
                   <div key={sId}>
-                    <div className="group flex items-center px-4 py-1.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer" onClick={() => toggleDrawer(sId)}>
-                      <span className="text-zinc-400 text-xs mr-2">{isOpen ? "▼" : "▶"}</span>
-                      <span className="flex-1 text-sm font-medium text-zinc-700">{empName(s.employee_id)}</span>
+                    <div className="group flex items-center px-4 py-1.5 border-b border-zinc-50 hover:bg-zinc-50/50 cursor-pointer" onClick={() => navigate("/master/alter/salary-structure", { state: { structureId: sId } })}>
+                      <span className="flex-1 text-sm font-medium text-zinc-700 group-hover:text-sky-800 transition-colors">{empName(s.employee_id)}</span>
                       <span className="text-xs text-zinc-400 mr-2">{payHeadName(s.pay_head_id)}</span>
                       <span className="text-xs text-zinc-400 mr-2">{s.effective_from}</span>
-                      <button
-                        className="text-[10px] text-zinc-400 hover:text-sky-700 opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 border border-zinc-200 rounded bg-white"
-                        onClick={e => { e.stopPropagation(); navigate("/master/alter/salary-structure", { state: { structureId: sId } }); }}
-                      >Edit</button>
                     </div>
-                    {isOpen && (
-                      <div className="px-6 py-2 bg-zinc-50/30 border-b border-zinc-100 text-xs grid grid-cols-2 gap-x-6 gap-y-1">
-                        <div><span className="text-zinc-400">Employee:</span> <span className="font-medium">{empName(s.employee_id)}</span></div>
-                        <div><span className="text-zinc-400">Pay Head:</span> <span className="font-medium">{payHeadName(s.pay_head_id)}</span></div>
-                        <div><span className="text-zinc-400">Amount:</span> <span className="font-medium">{s.amount}</span></div>
-                        <div><span className="text-zinc-400">Calculation Mode:</span> <span className="font-medium">{s.calculation_mode}</span></div>
-                        <div><span className="text-zinc-400">Effective From:</span> <span className="font-medium">{s.effective_from}</span></div>
-                      </div>
-                    )}
                   </div>
                 );
               })
