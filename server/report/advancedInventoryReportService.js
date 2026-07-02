@@ -145,7 +145,6 @@ module.exports = {
           v.date            AS date,
           v.voucher_number  AS order_no,
           v.party_name      AS party_name,
-          v.due_date        AS due_date,
           vse.item_name     AS item_name,
           vse.quantity      AS ordered_qty,
           vse.rate          AS rate,
@@ -179,7 +178,7 @@ module.exports = {
             date: r.date,
             order_no: r.order_no,
             party_name: r.party_name,
-            due_date: r.due_date,
+            due_date: null, // vouchers table has no due_date column; Tally order due-date not stored
             item_name: r.item_name,
             ordered_qty: ordered,
             balance_qty: balance,
@@ -220,12 +219,14 @@ module.exports = {
           (
             SELECT COALESCE(SUM(vb2.quantity), 0)
             FROM ${voucherBatches} vb2
-            INNER JOIN ${vouchers} v2 ON v2.voucher_id = vb2.voucher_id
+            INNER JOIN ${vouchers} v2              ON v2.voucher_id       = vb2.voucher_id
+            INNER JOIN ${voucherStockEntries} vse2 ON vse2.stock_entry_id = vb2.stock_entry_id
             WHERE v2.company_id  = ${company_id}
               AND v2.fy_id       = ${fy_id}
               AND v2.voucher_type = ${fulfilType}
               AND v2.is_cancelled = 0
               AND vb2.tracking_no = vb.tracking_no
+              AND vse2.stock_item_id = vse.stock_item_id
           ) AS fulfilled_qty
         FROM ${voucherBatches} vb
         INNER JOIN ${vouchers} v            ON v.voucher_id       = vb.voucher_id
